@@ -7,6 +7,8 @@ set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # Common warnings for all builds
 add_compile_options(-Wall -Werror -Wextra -Wshadow -Wpedantic -Wno-newline-eof)
 

@@ -17,6 +17,6 @@ u64 rl_memory_system_size();
 b8 rl_memory_system_start(void* memory);
 void rl_memory_system_shutdown();
 
-void* rl_alloc(u64 size, MEM_TYPE* type);
-void rl_free(void* block, MEM_TYPE* type);
+void* rl_alloc(u64 size, MEM_TYPE type);
+void rl_free(void* block, u64 size, MEM_TYPE type);
 void* rl_zero(void* block, u64 size);

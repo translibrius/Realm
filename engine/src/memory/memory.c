@@ -29,15 +29,21 @@ void rl_memory_system_shutdown() {
     state = 0;
 }
 
-void* rl_alloc(u64 size, MEM_TYPE* type) {
-    (void)type;
+void* rl_alloc(u64 size, MEM_TYPE type) {
     RL_ASSERT_MSG(state != 0, "Trying to call a function in an uninitialized subsystem");
+
+    state->total_allocated += size;
+    state->allocations[type] += size;
 
     return malloc(size);
 }
 
-void rl_free(void* block, MEM_TYPE* type) {
-    (void)type;
+void rl_free(void* block, u64 size, MEM_TYPE type) {
+    RL_ASSERT_MSG(state != 0, "Trying to call a function in an uninitialized subsystem");
+
+    state->total_allocated -= size;
+    state->allocations[type] -= size;
+
     free(block);
 }
 

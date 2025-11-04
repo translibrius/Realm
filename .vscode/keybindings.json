@@ -4,21 +4,6 @@
     "key": "ctrl+shift+b",
     "command": "cmake.build"
   },
-  // Select build preset (so you can switch Debug ↔ Release fast)
-  {
-    "key": "ctrl+shift+d",
-    "command": "cmake.selectConfigurePreset"
-  },
-  // Clean current build preset
-  {
-    "key": "ctrl+alt+c",
-    "command": "cmake.clean"
-  },
-  // Reconfigure CMake
-  {
-    "key": "ctrl+shift+f5",
-    "command": "cmake.configure"
-  },
   // Format code
   {
     "key": "ctrl+alt+f",
