@@ -5,6 +5,8 @@
 #include "platform/platform.h"
 #include <stdio.h>
 
+#include "util/assert.h"
+
 typedef struct application {
     const char* title;
 } application;
@@ -18,7 +20,6 @@ int main() {
         printf("Failed to create application");
         return -1;
     }
-
     platform_create_window(app.title);
 
     return 0;

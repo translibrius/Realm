@@ -1,0 +1,46 @@
+#include "memory.h"
+
+#include "util/assert.h"
+
+#include <stdio.h>
+#include <string.h>
+
+typedef struct memory_system_state {
+    u64 total_allocated;
+    u64 allocations[MEM_TYPES_MAX];
+} memory_system_state;
+
+static memory_system_state* state;
+
+u64 rl_memory_system_size() {
+    return sizeof(memory_system_state);
+}
+
+b8 rl_memory_system_start(void* memory) {
+    state = memory;
+
+    state->total_allocated = 0;
+    rl_zero(state->allocations, sizeof(state->allocations));
+
+    return true;
+}
+
+void rl_memory_system_shutdown() {
+    state = 0;
+}
+
+void* rl_alloc(u64 size, MEM_TYPE* type) {
+    (void)type;
+    RL_ASSERT_MSG(state != 0, "Trying to call a function in an uninitialized subsystem");
+
+    return malloc(size);
+}
+
+void rl_free(void* block, MEM_TYPE* type) {
+    (void)type;
+    free(block);
+}
+
+void* rl_zero(void* block, u64 size) {
+    return memset(block, 0, size);
+}
