@@ -1,0 +1,6 @@
+{
+    "cmake.useCMakePresets": "always",
+    "files.associations": {
+        "stdio.h": "c"
+    }
+}
