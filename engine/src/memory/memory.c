@@ -12,11 +12,11 @@ typedef struct memory_system_state {
 
 static memory_system_state* state;
 
-u64 rl_memory_system_size() {
+u64 memory_system_size() {
     return sizeof(memory_system_state);
 }
 
-b8 rl_memory_system_start(void* memory) {
+b8 memory_system_start(void* memory) {
     state = memory;
 
     state->total_allocated = 0;
@@ -25,15 +25,15 @@ b8 rl_memory_system_start(void* memory) {
     return true;
 }
 
-void rl_memory_system_shutdown() {
+void memory_system_shutdown() {
     state = 0;
 }
 
 void* rl_alloc(u64 size, MEM_TYPE type) {
-    RL_ASSERT_MSG(state != 0, "Trying to call a function in an uninitialized subsystem");
-
-    state->total_allocated += size;
-    state->allocations[type] += size;
+    if (state) {
+        state->total_allocated += size;
+        state->allocations[type] += size;
+    }
 
     return malloc(size);
 }

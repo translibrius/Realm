@@ -1,15 +1,11 @@
 #pragma once
 
 #include "defines.h"
-
-#include "platform/platform.h"
-#include <stdio.h>
-
+#include "engine.h"
+#include "core/logger.h"
 #include "util/assert.h"
 
-typedef struct application {
-    const char* title;
-} application;
+#include <stdio.h>
 
 // This should be defined by the application using engine.dll
 extern b8 create_application(application* application);
@@ -20,7 +16,17 @@ int main() {
         printf("Failed to create application");
         return -1;
     }
-    platform_create_window(app.title);
 
+    if (!create_engine(&app)) {
+        RL_ERROR("Engine failed to create");
+        return -1;
+    }
+
+    // Main loop
+    if (!engine_run()) {
+        RL_ERROR("Engine did not shut down gracefully");
+        return 2;
+    }
+    
     return 0;
 }

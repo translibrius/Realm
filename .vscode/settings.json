@@ -3,6 +3,10 @@
     "cmake.configureOnOpen": true,
     "files.associations": {
         "stdio.h": "c",
-        "defines.h": "c"
+        "defines.h": "c",
+        "windows.h": "c",
+        "logger.h": "c",
+        "assert.h": "c",
+        "memory.h": "c"
     }
 }

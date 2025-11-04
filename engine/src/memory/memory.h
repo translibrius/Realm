@@ -5,6 +5,8 @@
 typedef enum MEM_TYPE {
     MEM_UNKNOWN,
     MEM_DYNAMIC_ARRAY,
+    MEM_STRING,
+    MEM_SUBSYSTEM_MEMORY,
     MEM_SUBSYSTEM_LOGGER,
     MEM_SUBSYSTEM_RENDERER,
     MEM_SUBSYSTEM_PLATFORM,
@@ -13,9 +15,9 @@ typedef enum MEM_TYPE {
     MEM_TYPES_MAX,
 } MEM_TYPE;
 
-u64 rl_memory_system_size();
-b8 rl_memory_system_start(void* memory);
-void rl_memory_system_shutdown();
+u64 memory_system_size();
+b8 memory_system_start(void* memory);
+void memory_system_shutdown();
 
 void* rl_alloc(u64 size, MEM_TYPE type);
 void rl_free(void* block, u64 size, MEM_TYPE type);
