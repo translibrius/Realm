@@ -12,6 +12,8 @@ typedef enum LOG_LEVEL {
 } LOG_LEVEL;
 
 REALM_API void log_output(const char* message, LOG_LEVEL level, ...);
+b8 logger_system_start();
+void logger_system_shutdown();
 
 #ifdef _DEBUG
     #define RL_INFO(msg, ...) log_output(msg, LOG_INFO, __VA_ARGS__);

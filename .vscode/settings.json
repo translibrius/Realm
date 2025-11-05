@@ -7,6 +7,12 @@
         "windows.h": "c",
         "logger.h": "c",
         "assert.h": "c",
-        "memory.h": "c"
+        "memory.h": "c",
+        "arena.h": "c",
+        "xmemory": "c",
+        "iterator": "c",
+        "xutility": "c",
+        "string.h": "c",
+        "stdarg.h": "c"
     }
 }

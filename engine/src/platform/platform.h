@@ -3,8 +3,7 @@
 #include "defines.h"
 #include "core/logger.h"
 
-REALM_API u64 platform_system_size();
-REALM_API b8 platform_system_start(void* memory);
+REALM_API b8 platform_system_start();
 REALM_API void platform_system_shutdown();
 
 REALM_API b8 platform_create_window(const char* title);

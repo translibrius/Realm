@@ -13,7 +13,7 @@ extern b8 create_application(application* application);
 int main() {
     application app;
     if (!create_application(&app)) {
-        printf("Failed to create application");
+        RL_ERROR("Failed to create application");
         return -1;
     }
 

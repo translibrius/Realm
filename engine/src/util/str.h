@@ -1,13 +1,14 @@
 #pragma once
 
 #include "defines.h"
+#include "memory/arena.h"
 
 #include <stdarg.h> // For variadic functions
 
-u64 string_length(const char* str);
+typedef struct rl_string {
+    char* data;
+    u64 len;
+} rl_string;
 
-char* string_format(const char* format, ...);
-
-char* string_format_v(const char* format, va_list args);
-
-void string_free(const char* str);
+u64 cstr_len(const char* str);
+char* cstr_format(rl_arena* arena, const char* fmt, ...);
