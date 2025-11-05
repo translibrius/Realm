@@ -33,7 +33,7 @@ void log_output(const char* message, LOG_LEVEL level, ...) {
 
     va_list args;
     va_start(args, level);
-    char* formatted = cstr_format(&state.log_arena, message, args);
+    char* formatted = cstr_format_va(&state.log_arena, message, args);
     va_end(args);
 
     // Add level and newline

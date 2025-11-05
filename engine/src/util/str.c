@@ -11,27 +11,31 @@
 #include <stdio.h>
 #include <string.h>
 
+#define FORMAT_STRING_MAX 256
+
 u64 cstr_len(const char* str) {
     return strlen(str);
 }
 
-char* cstr_format(rl_arena* arena, const char* fmt, ...) {
-    const i32 MAX_TEMP = 256; // fixed-size formatting chunk
+char* cstr_format_va(rl_arena* arena, const char* fmt, va_list args) {
+    char* buffer = rl_arena_alloc(arena, FORMAT_STRING_MAX, 1);
 
-    char* buffer = rl_arena_alloc(arena, MAX_TEMP, 1);
-
-    va_list args;
-    va_start(args, fmt);
-    i32 len = vsnprintf(buffer, MAX_TEMP, fmt, args);
-    va_end(args);
-
-    if (len < 0) len = 0;
-    if (len >= MAX_TEMP) {
-        len = MAX_TEMP - 1;
-        RL_TRACE("cstr_format() formatted string exceeded LIMIT OF 256 chars");
+    i32 len = vsnprintf(buffer, FORMAT_STRING_MAX, fmt, args);
+    if (len < 0) {
+        len = 0;
+    }
+    if (len >= FORMAT_STRING_MAX) {
+        len = FORMAT_STRING_MAX - 1;
     }
 
     buffer[len] = '\0';
-
     return buffer;
+}
+
+char* cstr_format(rl_arena* arena, const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    char* result = cstr_format_va(arena, fmt, args);
+    va_end(args);
+    return result;
 }
