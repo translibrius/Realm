@@ -72,6 +72,12 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #ifndef _WIN64
 #error "64-bit is required on Windows!"
 #endif
+#elif defined(__linux__) || defined(__gnu_linux__)
+// Linux OS
+#define PLATFORM_LINUX 1
+#  if defined(__ANDROID__)
+#       define PLATFORM_ANDROID 1
+#  endif
 #else
 #error "Only windows is supported for now"
 #endif

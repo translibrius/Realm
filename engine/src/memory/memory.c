@@ -3,6 +3,7 @@
 #include "util/assert.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 typedef struct memory_system_state {

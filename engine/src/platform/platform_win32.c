@@ -2,9 +2,6 @@
 
 #ifdef PLATFORM_WINDOWS
 
-#include "util/assert.h"
-#include "memory/memory.h"
-
 #include <stdio.h>
 
 #define WIN32_LEAN_AND_MEAN
@@ -28,7 +25,7 @@ b8 get_windows_version(RTL_OSVERSIONINFOW* out_version);
 b8 platform_system_start() {
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &state.std_output_csbi);
     GetConsoleScreenBufferInfo(GetStdHandle(STD_ERROR_HANDLE), &state.err_output_csbi);
-
+    
     get_system_info();
 
     return true;
