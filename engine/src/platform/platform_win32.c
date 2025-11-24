@@ -23,6 +23,9 @@ void get_system_info();
 b8 get_windows_version(RTL_OSVERSIONINFOW* out_version);
 
 b8 platform_system_start() {
+    // Obtain handle to our own executable
+    state.handle = GetModuleHandleA(nullptr);
+
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &state.std_output_csbi);
     GetConsoleScreenBufferInfo(GetStdHandle(STD_ERROR_HANDLE), &state.err_output_csbi);
     
@@ -37,6 +40,17 @@ void platform_system_shutdown() {
 
 b8 platform_create_window(const char* title) {
     printf("Creating window for app [%s]", title);
+
+    static constexpr DWORD window_style_ex = (WS_EX_TRANSPARENT | WS_EX_APPWINDOW);
+    static constexpr DWORD window_style = (WS_POPUP | WS_EX_TOPMOST);
+
+    HWND window = CreateWindowExA(
+        window_style_ex,
+        nullptr,
+        title,
+        window_style
+    );
+
     return true;
 }
 
