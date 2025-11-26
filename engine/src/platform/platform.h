@@ -9,9 +9,12 @@
 #endif
 
 REALM_API b8 platform_system_start();
+
 REALM_API void platform_system_shutdown();
 
-REALM_API b8 platform_create_window(const char *title, i32 width, i32 height, HWND out_window);
+REALM_API b8 platform_pump_messages();
+
+REALM_API b8 platform_create_window(const char *title, i32 x, i32 y, i32 width, i32 height, HWND out_window);
 
 REALM_API void platform_console_write(const char *message, LOG_LEVEL level);
 

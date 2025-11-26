@@ -8,14 +8,15 @@
 
 typedef struct engine_state {
     rl_arena frame_arena; // Per frame
+    HWND main_window;
     b8 is_running;
     b8 is_suspended;
 } engine_state;
 
 static engine_state state;
 
-b8 create_engine(application *app) {
-    (void)app;
+b8 create_engine(const application *app) {
+    (void) app;
     state.is_running = true;
     state.is_suspended = false;
 
@@ -36,8 +37,7 @@ b8 create_engine(application *app) {
 
     rl_arena_create(MiB(64), &state.frame_arena);
 
-    HWND window = nullptr;
-    if (!platform_create_window("Realm", 600, 600, window)) {
+    if (!platform_create_window("Realm", 0, 0, 600, 600, state.main_window)) {
         RL_FATAL("Failed to create window, err: %d", GetLastError());
         return false;
     }
@@ -53,9 +53,15 @@ void destroy_engine() {
 }
 
 b8 engine_run() {
+    RL_INFO("Engine running...");
     while (state.is_running) {
+        if (!platform_pump_messages()) {
+            state.is_running = false;
+        }
+
         rl_arena_reset(&state.frame_arena);
     }
 
+    RL_INFO("Engine shutting down...");
     return true;
 }
