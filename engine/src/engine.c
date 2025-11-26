@@ -2,9 +2,9 @@
 
 #include "core/logger.h"
 
-#include "platform/platform.h"
-#include "memory/memory.h"
 #include "memory/arena.h"
+#include "memory/memory.h"
+#include "platform/platform.h"
 
 typedef struct engine_state {
     rl_arena frame_arena; // Per frame
@@ -14,14 +14,14 @@ typedef struct engine_state {
 
 static engine_state state;
 
-b8 create_engine(application* app) {
+b8 create_engine(application *app) {
     (void)app;
     state.is_running = true;
     state.is_suspended = false;
 
     // Memory subsystem
-    void* memory_system = rl_alloc(memory_system_size(), MEM_SUBSYSTEM_MEMORY);
-    if(!memory_system_start(memory_system)) {
+    void *memory_system = rl_alloc(memory_system_size(), MEM_SUBSYSTEM_MEMORY);
+    if (!memory_system_start(memory_system)) {
         RL_FATAL("Failed to initialize memory sub-system");
         return false;
     }
@@ -36,6 +36,12 @@ b8 create_engine(application* app) {
 
     rl_arena_create(MiB(64), &state.frame_arena);
 
+    HWND window = nullptr;
+    if (!platform_create_window("Realm", 600, 600, window)) {
+        RL_FATAL("Failed to create window, err: %d", GetLastError());
+        return false;
+    }
+
     return true;
 }
 
@@ -47,7 +53,7 @@ void destroy_engine() {
 }
 
 b8 engine_run() {
-    while(state.is_running) {
+    while (state.is_running) {
         rl_arena_reset(&state.frame_arena);
     }
 
