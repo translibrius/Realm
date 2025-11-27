@@ -43,8 +43,6 @@ b8 get_windows_version(RTL_OSVERSIONINFOW *out_version);
 
 LRESULT CALLBACK win32_process_msg(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param);
 
-b8 create_opengl_context(win32_window *window);
-
 b8 platform_system_start() {
     // Obtain handle to our own executable
     state.handle = GetModuleHandleA(nullptr);
@@ -89,7 +87,7 @@ b8 platform_pump_messages() {
     return true;
 }
 
-b8 platform_create_window(const platform_window_settings settings) {
+b8 platform_create_window(platform_window *handle) {
     if (!state.window_class_registered) {
         RL_FATAL("window class not registered!");
         return false;
@@ -109,7 +107,7 @@ b8 platform_create_window(const platform_window_settings settings) {
         return false;
     }
 
-    RL_INFO("Creating window '%s' %dx%d", settings.title, settings.width, settings.height);
+    RL_INFO("Creating window '%s' %dx%d", handle->settings.title, handle->settings.width, handle->settings.height);
 
     constexpr DWORD window_style_ex = WS_EX_APPWINDOW;
     constexpr DWORD window_style = WS_POPUPWINDOW | WS_CAPTION | WS_SYSMENU | WS_EX_TOPMOST | WS_MINIMIZEBOX |
@@ -121,9 +119,9 @@ b8 platform_create_window(const platform_window_settings settings) {
     HWND hwnd = CreateWindowExA(
         window_style_ex,
         state.window_class_name,
-        settings.title,
+        handle->settings.title,
         window_style,
-        settings.x, settings.y, settings.width, settings.height,
+        handle->settings.x, handle->settings.y, handle->settings.width, handle->settings.height,
         nullptr, // Parent window
         nullptr, // hMenu
         state.handle,
@@ -137,13 +135,11 @@ b8 platform_create_window(const platform_window_settings settings) {
 
     w->hwnd = hwnd;
     w->alive = true;
-    w->stop_on_close = settings.stop_on_close;
+    w->stop_on_close = handle->settings.stop_on_close;
 
-    settings.out_handle->id = id;
+    handle->id = id;
 
     ShowWindow(hwnd, SW_SHOW);
-
-    create_opengl_context(w);
 
     return true;
 }
@@ -275,7 +271,14 @@ const char *get_arch_name(const WORD arch) {
     }
 }
 
-b8 create_opengl_context(win32_window *window) {
+b8 platform_create_opengl_context(platform_window *handle) {
+    if (handle == nullptr || handle->id >= MAX_WINDOWS || !state.windows[handle->id].alive) {
+        RL_ERROR("Failed to create opengl context, invalid window handle");
+        return false;
+    }
+
+    win32_window *window = &state.windows[handle->id];
+
     // 1) Dummy window to load WGL extensions
     WNDCLASSA dummy_class = {0};
     dummy_class.style = CS_OWNDC;
@@ -306,7 +309,7 @@ b8 create_opengl_context(win32_window *window) {
     pfd.cStencilBits = 8;
     pfd.iLayerType = PFD_MAIN_PLANE;
 
-    int legacy_format = ChoosePixelFormat(dummy_hdc, &pfd);
+    const int legacy_format = ChoosePixelFormat(dummy_hdc, &pfd);
     if (legacy_format == 0 || SetPixelFormat(dummy_hdc, legacy_format, &pfd) == FALSE) {
         RL_ERROR("platform_create_opengl_context(): failed to set pixel format (dummy)");
         ReleaseDC(dummy_hwnd, dummy_hdc);
@@ -355,7 +358,7 @@ b8 create_opengl_context(win32_window *window) {
     }
 
     // Try modern pixel format via ARB
-    int pixel_format_attribs_msaa[] = {
+    const int pixel_format_attribs_msaa[] = {
         WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
         WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
         WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
@@ -369,7 +372,7 @@ b8 create_opengl_context(win32_window *window) {
         0
     };
 
-    int pixel_format_attribs_no_msaa[] = {
+    const int pixel_format_attribs_no_msaa[] = {
         WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
         WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
         WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
@@ -424,9 +427,9 @@ b8 create_opengl_context(win32_window *window) {
             WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
             0
         };
-        HGLRC modern_ctx = wglCreateContextAttribsARB(hdc, 0, attribs);
+        HGLRC modern_ctx = wglCreateContextAttribsARB(hdc, nullptr, attribs);
         if (modern_ctx) {
-            wglMakeCurrent(hdc, NULL);
+            wglMakeCurrent(hdc, nullptr);
             wglDeleteContext(temp_rc);
             wglMakeCurrent(hdc, modern_ctx);
             render_ctx = modern_ctx;
@@ -440,7 +443,7 @@ b8 create_opengl_context(win32_window *window) {
 
     if (gladLoadGL() == 0) {
         RL_ERROR("Failed to initialize OpenGL via GLAD.");
-        wglMakeCurrent(hdc, NULL);
+        wglMakeCurrent(hdc, nullptr);
         wglDeleteContext(render_ctx);
         ReleaseDC(window->hwnd, hdc);
         return false;
@@ -459,8 +462,8 @@ b8 create_opengl_context(win32_window *window) {
 LRESULT CALLBACK win32_process_msg(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param) {
     switch (msg) {
         case WM_NCCREATE:
-            CREATESTRUCTA *cs = (CREATESTRUCTA *) l_param;
-            win32_window *win = (win32_window *) cs->lpCreateParams;
+            const CREATESTRUCTA *cs = (CREATESTRUCTA *) l_param;
+            const auto win = (win32_window *) cs->lpCreateParams;
             SetWindowLongPtrA(hwnd, GWLP_USERDATA, (LONG_PTR) win);
             break;
         case WM_ERASEBKGND:
@@ -471,9 +474,9 @@ LRESULT CALLBACK win32_process_msg(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_
             return 0;
 
         case WM_DESTROY: {
-            win32_window *w = (win32_window *) GetWindowLongPtrA(hwnd, GWLP_USERDATA);
+            const auto w = (win32_window *) GetWindowLongPtrA(hwnd, GWLP_USERDATA);
             if (w && w->alive) {
-                const platform_window handle = {(u16) (w - state.windows)};
+                const platform_window handle = {(u16) (w - state.windows), {}};
                 platform_destroy_window(&handle);
             }
 

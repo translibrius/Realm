@@ -5,6 +5,7 @@
 #include "memory/arena.h"
 #include "memory/memory.h"
 #include "platform/platform.h"
+#include "renderer/renderer_frontend.h"
 
 typedef struct engine_state {
     rl_arena frame_arena; // Per frame
@@ -22,7 +23,7 @@ b8 create_engine(const application *app) {
     // Memory subsystem
     void *memory_system = rl_alloc(memory_system_size(), MEM_SUBSYSTEM_MEMORY);
     if (!memory_system_start(memory_system)) {
-        RL_FATAL("Failed to initialize memory sub-system");
+        RL_FATAL("Failed to initialize memory sub-system, exiting...");
         return false;
     }
 
@@ -30,24 +31,27 @@ b8 create_engine(const application *app) {
 
     // Platform
     if (!platform_system_start()) {
-        RL_FATAL("Failed to initialize platform sub-system");
+        RL_FATAL("Failed to initialize platform sub-system, exiting...");
         return false;
     }
 
     rl_arena_create(MiB(64), &state.frame_arena);
 
     // Create splash window
-    platform_window platform_window;
-    platform_window_settings settings = {};
-    settings.title = "Splash";
-    settings.width = 600;
-    settings.height = 600;
-    settings.x = 0;
-    settings.y = 0;
-    settings.stop_on_close = true;
-    settings.out_handle = &platform_window;
-    if (!platform_create_window(settings)) {
-        RL_FATAL("Failed to create window");
+    platform_window platform_window = {};
+    platform_window.settings.title = "Splash";
+    platform_window.settings.width = 600;
+    platform_window.settings.height = 600;
+    platform_window.settings.x = 0;
+    platform_window.settings.y = 0;
+    platform_window.settings.stop_on_close = true;
+    if (!platform_create_window(&platform_window)) {
+        RL_FATAL("Failed to create splash window, exiting...");
+        return false;
+    }
+
+    if (!renderer_init(BACKEND_OPENGL, &platform_window)) {
+        RL_FATAL("Failed to initialize renderer, exiting...");
         return false;
     }
 
@@ -55,10 +59,12 @@ b8 create_engine(const application *app) {
 }
 
 void destroy_engine() {
+    RL_DEBUG("Engine shutting down, cleaning up...");
     platform_system_shutdown();
     logger_system_shutdown();
     memory_system_shutdown();
     rl_arena_destroy(&state.frame_arena);
+    RL_DEBUG("-- Goodbye...");
 }
 
 b8 engine_run() {
@@ -71,6 +77,6 @@ b8 engine_run() {
         rl_arena_reset(&state.frame_arena);
     }
 
-    RL_INFO("Engine shutting down...");
+    destroy_engine();
     return true;
 }
