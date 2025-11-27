@@ -8,7 +8,6 @@
 
 typedef struct engine_state {
     rl_arena frame_arena; // Per frame
-    HWND main_window;
     b8 is_running;
     b8 is_suspended;
 } engine_state;
@@ -37,8 +36,18 @@ b8 create_engine(const application *app) {
 
     rl_arena_create(MiB(64), &state.frame_arena);
 
-    if (!platform_create_window("Realm", 0, 0, 600, 600, state.main_window)) {
-        RL_FATAL("Failed to create window, err: %d", GetLastError());
+    // Create splash window
+    platform_window platform_window;
+    platform_window_settings settings = {};
+    settings.title = "Splash";
+    settings.width = 600;
+    settings.height = 600;
+    settings.x = 0;
+    settings.y = 0;
+    settings.stop_on_close = true;
+    settings.out_handle = &platform_window;
+    if (!platform_create_window(settings)) {
+        RL_FATAL("Failed to create window");
         return false;
     }
 

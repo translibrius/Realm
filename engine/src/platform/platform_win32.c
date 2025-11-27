@@ -1,15 +1,35 @@
 #include "platform.h"
-#include <winuser.h>
 
 #ifdef PLATFORM_WINDOWS
 
+#define WIN32_LEAN_AND_MEAN
+#include <stdlib.h>
+#include <windows.h>
+#include <vendor/glad/glad_wgl.h>
+#include <winuser.h>
 #include <winternl.h>
+
+#include "memory/memory.h"
+
+#include "renderer/renderer_types.h"
+
+typedef struct win32_window {
+    HWND hwnd;
+    HDC hdc;
+    HGLRC gl;
+    b8 alive;
+    b8 stop_on_close;
+} win32_window;
 
 typedef struct platform_state {
     HINSTANCE handle;
     CONSOLE_SCREEN_BUFFER_INFO std_output_csbi;
     CONSOLE_SCREEN_BUFFER_INFO err_output_csbi;
     DWORD logical_cores;
+
+    b8 window_class_registered;
+    const char *window_class_name;
+    win32_window windows[MAX_WINDOWS];
 } platform_state;
 
 static platform_state state;
@@ -23,15 +43,34 @@ b8 get_windows_version(RTL_OSVERSIONINFOW *out_version);
 
 LRESULT CALLBACK win32_process_msg(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param);
 
+b8 create_opengl_context(win32_window *window);
+
 b8 platform_system_start() {
     // Obtain handle to our own executable
     state.handle = GetModuleHandleA(nullptr);
+    state.window_class_name = "RealmEngineClass";
 
-    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE),
-                               &state.std_output_csbi);
-    GetConsoleScreenBufferInfo(GetStdHandle(STD_ERROR_HANDLE),
-                               &state.err_output_csbi);
+    RL_DEBUG("Registering window class: '%s'", state.window_class_name);
 
+    WNDCLASSEXA wc = {0};
+    wc.cbSize = sizeof(wc);
+    wc.lpfnWndProc = win32_process_msg;
+    wc.hInstance = state.handle;
+    wc.lpszClassName = state.window_class_name;
+    wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+
+    if (!RegisterClassExA(&wc)) {
+        const DWORD err = GetLastError();
+        if (err != ERROR_CLASS_ALREADY_EXISTS) {
+            RL_FATAL("Window class registration failed, err=%lu", err);
+            return false;
+        }
+    }
+
+    state.window_class_registered = true;
+
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &state.std_output_csbi);
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_ERROR_HANDLE), &state.err_output_csbi);
     get_system_info();
 
     return true;
@@ -50,42 +89,89 @@ b8 platform_pump_messages() {
     return true;
 }
 
-b8 platform_create_window(const char *title, const i32 x, const i32 y, const i32 width, const i32 height,
-                          HWND out_window) {
-    RL_INFO("Creating window '%s' %dx%d", title, width, height);
-
-    WNDCLASSEXA wc = {0};
-    wc.cbSize = sizeof(wc);
-    wc.lpfnWndProc = win32_process_msg;
-    wc.hInstance = state.handle;
-    wc.lpszClassName = "RealmWindowClass";
-    wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-
-    if (!RegisterClassExA(&wc)) {
-        MessageBoxA(nullptr, "Window registration failed", "Error", MB_ICONEXCLAMATION | MB_OK);
+b8 platform_create_window(const platform_window_settings settings) {
+    if (!state.window_class_registered) {
+        RL_FATAL("window class not registered!");
         return false;
     }
 
-    constexpr DWORD window_style_ex = WS_EX_TRANSPARENT | WS_EX_APPWINDOW;
-    constexpr DWORD window_style = WS_POPUP | WS_EX_TOPMOST;
+    // Find a free spot if exists in out window list
+    i32 id = -1;
+    for (u16 i = 0; i < MAX_WINDOWS; i++) {
+        if (!state.windows[i].alive) {
+            id = i;
+            break;
+        }
+    }
+    if (id == -1) {
+        RL_ERROR("Exceeded maximum allowed windows: %d", MAX_WINDOWS);
+        MessageBoxA(nullptr, "Window creation failed. Too many windows!", "Error", MB_ICONEXCLAMATION | MB_OK);
+        return false;
+    }
 
-    out_window = CreateWindowExA(
+    RL_INFO("Creating window '%s' %dx%d", settings.title, settings.width, settings.height);
+
+    constexpr DWORD window_style_ex = WS_EX_APPWINDOW;
+    constexpr DWORD window_style = WS_POPUPWINDOW | WS_CAPTION | WS_SYSMENU | WS_EX_TOPMOST | WS_MINIMIZEBOX |
+                                   WS_MAXIMIZEBOX;
+
+    win32_window *w = &state.windows[id];
+    rl_zero(w, sizeof(*w));
+
+    HWND hwnd = CreateWindowExA(
         window_style_ex,
-        wc.lpszClassName,
-        title,
+        state.window_class_name,
+        settings.title,
         window_style,
-        x, y, width, height,
+        settings.x, settings.y, settings.width, settings.height,
         nullptr, // Parent window
         nullptr, // hMenu
         state.handle,
-        nullptr // lpParam
+        w // lpParam
     );
 
-    if (out_window == NULL) {
+    if (hwnd == NULL) {
+        RL_ERROR("Failed to create window. Error code: %d", GetLastError());
         return false;
     }
 
-    ShowWindow(out_window, SW_SHOW);
+    w->hwnd = hwnd;
+    w->alive = true;
+    w->stop_on_close = settings.stop_on_close;
+
+    settings.out_handle->id = id;
+
+    ShowWindow(hwnd, SW_SHOW);
+
+    create_opengl_context(w);
+
+    return true;
+}
+
+b8 platform_destroy_window(const platform_window *handle) {
+    if (!handle || handle->id >= MAX_WINDOWS) return false;
+
+    win32_window *w = &state.windows[handle->id];
+    if (!w->alive) return true; // Already cleaned
+
+    RL_DEBUG("Destroying window. Id=%d...", handle->id);
+
+    w->alive = false;
+
+    if (w->gl) {
+        wglMakeCurrent(w->hdc, nullptr);
+        wglDeleteContext(w->gl);
+    }
+
+    if (w->hdc)
+        ReleaseDC(w->hwnd, w->hdc);
+
+    if (w->hwnd)
+        DestroyWindow(w->hwnd);
+
+    w->gl = nullptr;
+    w->hdc = nullptr;
+    w->hwnd = nullptr;
 
     return true;
 }
@@ -114,7 +200,7 @@ void platform_console_write(const char *message, const LOG_LEVEL level) {
     const u64 length = strlen(message);
     LPDWORD number_written = nullptr;
 
-    WriteConsoleA(console_handle, message, (DWORD) length, number_written, 0);
+    WriteConsoleA(console_handle, message, (DWORD) length, number_written, nullptr);
 
     // Reset text color so that we don't pollute console color in case of
     // crash/stop
@@ -189,17 +275,216 @@ const char *get_arch_name(const WORD arch) {
     }
 }
 
+b8 create_opengl_context(win32_window *window) {
+    // 1) Dummy window to load WGL extensions
+    WNDCLASSA dummy_class = {0};
+    dummy_class.style = CS_OWNDC;
+    dummy_class.lpfnWndProc = DefWindowProcA;
+    dummy_class.hInstance = state.handle;
+    dummy_class.lpszClassName = "dummy_window_class";
+    RegisterClassA(&dummy_class);
+
+    HWND dummy_hwnd = CreateWindowA(
+        "dummy_window_class", "dummy",
+        0, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+        nullptr, nullptr, state.handle, NULL
+    );
+
+    HDC dummy_hdc = GetDC(dummy_hwnd);
+    if (!dummy_hdc) {
+        RL_ERROR("platform_create_opengl_context(): failed to get dummy device context, e: %d", GetLastError());
+        return false;
+    }
+
+    PIXELFORMATDESCRIPTOR pfd = {0};
+    pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
+    pfd.nVersion = 1;
+    pfd.dwFlags = PFD_DOUBLEBUFFER | PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW;
+    pfd.iPixelType = PFD_TYPE_RGBA;
+    pfd.cColorBits = 32;
+    pfd.cDepthBits = 24; // typical for dummy
+    pfd.cStencilBits = 8;
+    pfd.iLayerType = PFD_MAIN_PLANE;
+
+    int legacy_format = ChoosePixelFormat(dummy_hdc, &pfd);
+    if (legacy_format == 0 || SetPixelFormat(dummy_hdc, legacy_format, &pfd) == FALSE) {
+        RL_ERROR("platform_create_opengl_context(): failed to set pixel format (dummy)");
+        ReleaseDC(dummy_hwnd, dummy_hdc);
+        DestroyWindow(dummy_hwnd);
+        UnregisterClassA("dummy_window_class", state.handle);
+        return false;
+    }
+
+    HGLRC dummy_rc = wglCreateContext(dummy_hdc);
+    if (dummy_rc == NULL) {
+        RL_ERROR("platform_create_opengl_context(): failed to create dummy GL context, e: %d", GetLastError());
+        ReleaseDC(dummy_hwnd, dummy_hdc);
+        DestroyWindow(dummy_hwnd);
+        UnregisterClassA("dummy_window_class", state.handle);
+        return false;
+    }
+    wglMakeCurrent(dummy_hdc, dummy_rc);
+
+    if (!gladLoadWGL(dummy_hdc)) {
+        RL_ERROR("Failed to load WGL extensions.");
+        wglMakeCurrent(dummy_hdc, nullptr);
+        wglDeleteContext(dummy_rc);
+        ReleaseDC(dummy_hwnd, dummy_hdc);
+        DestroyWindow(dummy_hwnd);
+        UnregisterClassA("dummy_window_class", state.handle);
+        return false;
+    }
+
+    // Clean up dummy
+    wglMakeCurrent(dummy_hdc, nullptr);
+    wglDeleteContext(dummy_rc);
+    ReleaseDC(dummy_hwnd, dummy_hdc);
+    DestroyWindow(dummy_hwnd);
+    UnregisterClassA("dummy_window_class", state.handle);
+
+    if (window == nullptr || window->hwnd == nullptr) {
+        RL_ERROR("Failed to create opengl context, invalid window handle");
+        return false;
+    }
+
+    // 2) Real window setup
+    HDC hdc = GetDC(window->hwnd);
+    if (!hdc) {
+        RL_ERROR("platform_create_opengl_context(): failed to get device context, e: %d", GetLastError());
+        return false;
+    }
+
+    // Try modern pixel format via ARB
+    int pixel_format_attribs_msaa[] = {
+        WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
+        WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
+        WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
+        WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
+        WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
+        WGL_COLOR_BITS_ARB, 32,
+        WGL_DEPTH_BITS_ARB, 24,
+        WGL_STENCIL_BITS_ARB, 8,
+        WGL_SAMPLE_BUFFERS_ARB, 1,
+        WGL_SAMPLES_ARB, 4, // 4x MSAA
+        0
+    };
+
+    int pixel_format_attribs_no_msaa[] = {
+        WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
+        WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
+        WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
+        WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
+        WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
+        WGL_COLOR_BITS_ARB, 32,
+        WGL_DEPTH_BITS_ARB, 24,
+        WGL_STENCIL_BITS_ARB, 8,
+        0
+    };
+
+    int chosen_format = 0;
+    UINT num_formats = 0;
+    if (!wglChoosePixelFormatARB ||
+        !wglChoosePixelFormatARB(hdc, pixel_format_attribs_msaa, nullptr, 1, &chosen_format, &num_formats) ||
+        num_formats == 0) {
+        // retry without MSAA
+        if (!wglChoosePixelFormatARB ||
+            !wglChoosePixelFormatARB(hdc, pixel_format_attribs_no_msaa, nullptr, 1, &chosen_format, &num_formats) ||
+            num_formats == 0) {
+            RL_ERROR("wglChoosePixelFormatARB failed.");
+            ReleaseDC(window->hwnd, hdc);
+            return false;
+        }
+    }
+
+    PIXELFORMATDESCRIPTOR real_pfd = {0};
+    DescribePixelFormat(hdc, chosen_format, sizeof(real_pfd), &real_pfd);
+    if (!SetPixelFormat(hdc, chosen_format, &real_pfd)) {
+        RL_ERROR("SetPixelFormat failed for real context.");
+        ReleaseDC(window->hwnd, hdc);
+        return false;
+    }
+
+    // Create temporary legacy context on real DC so we can create modern one
+    HGLRC temp_rc = wglCreateContext(hdc);
+    if (!temp_rc) {
+        RL_ERROR("Failed to create temporary legacy context.");
+        ReleaseDC(window->hwnd, hdc);
+        return false;
+    }
+    wglMakeCurrent(hdc, temp_rc);
+    gladLoadWGL(hdc); // ensure ARB functions are loaded on this DC
+
+    HGLRC render_ctx = temp_rc;
+
+    if (wglCreateContextAttribsARB) {
+        const int attribs[] = {
+            WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+            WGL_CONTEXT_MINOR_VERSION_ARB, 3,
+            WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB,
+            WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+            0
+        };
+        HGLRC modern_ctx = wglCreateContextAttribsARB(hdc, 0, attribs);
+        if (modern_ctx) {
+            wglMakeCurrent(hdc, NULL);
+            wglDeleteContext(temp_rc);
+            wglMakeCurrent(hdc, modern_ctx);
+            render_ctx = modern_ctx;
+            RL_INFO("Created OpenGL 3.3 core profile context");
+        } else {
+            RL_WARN("OpenGL falling back to legacy context");
+        }
+    } else {
+        RL_WARN("OpenGL falling back to legacy context (no wglCreateContextAttribsARB)");
+    }
+
+    if (gladLoadGL() == 0) {
+        RL_ERROR("Failed to initialize OpenGL via GLAD.");
+        wglMakeCurrent(hdc, NULL);
+        wglDeleteContext(render_ctx);
+        ReleaseDC(window->hwnd, hdc);
+        return false;
+    }
+
+    RL_INFO("GL_VENDOR:   %s", glGetString(GL_VENDOR));
+    RL_INFO("GL_RENDERER: %s", glGetString(GL_RENDERER));
+    RL_INFO("GL_VERSION:  %s", glGetString(GL_VERSION));
+    RL_INFO("GLSL:        %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
+
+    window->hdc = hdc;
+    window->gl = render_ctx;
+    return true;
+}
+
 LRESULT CALLBACK win32_process_msg(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param) {
     switch (msg) {
+        case WM_NCCREATE:
+            CREATESTRUCTA *cs = (CREATESTRUCTA *) l_param;
+            win32_window *win = (win32_window *) cs->lpCreateParams;
+            SetWindowLongPtrA(hwnd, GWLP_USERDATA, (LONG_PTR) win);
+            break;
         case WM_ERASEBKGND:
             // Notify the OS that erasing the screen will be handled by the application to prevent flicker.
             return 1;
         case WM_CLOSE:
             DestroyWindow(hwnd);
             return 0;
-        case WM_DESTROY:
+
+        case WM_DESTROY: {
+            win32_window *w = (win32_window *) GetWindowLongPtrA(hwnd, GWLP_USERDATA);
+            if (w && w->alive) {
+                const platform_window handle = {(u16) (w - state.windows)};
+                platform_destroy_window(&handle);
+            }
+
             PostQuitMessage(0);
+
+            if (w->stop_on_close) {
+                // TODO: Terminate app with event, not crash it here
+                exit(0);
+            }
             return 0;
+        }
         case WM_SIZE: {
             // Get the updated size.
             /*

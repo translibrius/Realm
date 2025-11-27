@@ -1,16 +1,21 @@
 # Engine library
 # Collect all .c and .h files automatically
 file(GLOB_RECURSE ENGINE_SOURCES
-    CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"
+        CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"
 )
 
 add_library(Engine SHARED ${ENGINE_SOURCES})
 
 target_include_directories(Engine
-    PUBLIC
+        PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_link_libraries(Engine
+        PRIVATE
+        opengl32
 )
 
 # Define macro for export/import declspec
