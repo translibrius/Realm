@@ -203,6 +203,52 @@ void platform_console_write(const char *message, const LOG_LEVEL level) {
     SetConsoleTextAttribute(console_handle, level_colors[6]);
 }
 
+b8 platform_context_make_current(platform_window *handle) {
+    if (!handle || handle->id >= MAX_WINDOWS) {
+        RL_ERROR("platform_context_make_current() failed: invalid window handle");
+        return false;
+    }
+
+    win32_window *w = &state.windows[handle->id];
+
+    if (!w->alive) {
+        RL_ERROR("platform_context_make_current() failed: window not alive");
+        return false;
+    }
+
+    if (!w->hdc || !w->gl) {
+        RL_ERROR("platform_context_make_current() failed: missing HDC or GL context");
+        return false;
+    }
+
+    if (!wglMakeCurrent(w->hdc, w->gl)) {
+        RL_ERROR("wglMakeCurrent() failed. Error code: %lu", GetLastError());
+        return false;
+    }
+
+    return true;
+}
+
+b8 platform_swap_buffers(platform_window *handle) {
+    if (!handle || handle->id >= MAX_WINDOWS) {
+        RL_ERROR("Platform failed to swap buffers, invalid window handle");
+        return false;
+    }
+
+    const win32_window *w = &state.windows[handle->id];
+
+    if (w->hdc == nullptr) {
+        RL_ERROR("Platform failed to swap buffers, invalid device context (HDC)");
+        return false;
+    }
+
+    if (!SwapBuffers(w->hdc)) {
+        RL_ERROR("Platform failed to swap buffers. Error code: %d", GetLastError());
+        return false;
+    }
+    return true;
+}
+
 // Private ---------------------------------------------------------------
 
 // NOTE: for calling RtlGetVersion. This seems to be the most stable way to get

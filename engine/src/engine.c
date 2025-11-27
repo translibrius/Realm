@@ -11,6 +11,8 @@ typedef struct engine_state {
     rl_arena frame_arena; // Per frame
     b8 is_running;
     b8 is_suspended;
+    platform_window window_splash;
+    platform_window window_main;
 } engine_state;
 
 static engine_state state;
@@ -38,19 +40,20 @@ b8 create_engine(const application *app) {
     rl_arena_create(MiB(64), &state.frame_arena);
 
     // Create splash window
-    platform_window platform_window = {};
-    platform_window.settings.title = "Splash";
-    platform_window.settings.width = 600;
-    platform_window.settings.height = 600;
-    platform_window.settings.x = 0;
-    platform_window.settings.y = 0;
-    platform_window.settings.stop_on_close = true;
-    if (!platform_create_window(&platform_window)) {
+    platform_window* splash_window = &state.window_splash;
+    splash_window->settings.title = "Splash";
+    splash_window->settings.width = 600;
+    splash_window->settings.height = 600;
+    splash_window->settings.x = 0;
+    splash_window->settings.y = 0;
+    splash_window->settings.stop_on_close = true;
+
+    if (!platform_create_window(splash_window)) {
         RL_FATAL("Failed to create splash window, exiting...");
         return false;
     }
 
-    if (!renderer_init(BACKEND_OPENGL, &platform_window)) {
+    if (!renderer_init(BACKEND_OPENGL, splash_window)) {
         RL_FATAL("Failed to initialize renderer, exiting...");
         return false;
     }
@@ -74,7 +77,11 @@ b8 engine_run() {
             state.is_running = false;
         }
 
+        renderer_begin_frame();
+        renderer_end_frame();
+
         rl_arena_reset(&state.frame_arena);
+        renderer_swap_buffers();
     }
 
     destroy_engine();
