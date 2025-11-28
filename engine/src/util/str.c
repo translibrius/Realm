@@ -48,11 +48,27 @@ rl_string rl_string_replace_all(rl_arena *arena, rl_string src, rl_string search
         }
     }
 
-    (void)arena;
-    (void)replace;
+    // Alloc new string
+    u32 out_len = src.len + count * (replace.len - search.len);
+    char *out = rl_arena_alloc(arena, out_len + 1, alignof(char));
+    u32 out_index = 0;
 
-    RL_DEBUG("Count: %d", count);
-    return (rl_string){rl_arena_alloc(arena, 2, 1), 2};
+    for (u32 i = 0; i < src.len;) {
+        if (memcmp(src.cstr + i, search.cstr, search.len) == 0) {
+            // Found search str
+            memcpy(out + out_index, replace.cstr, replace.len);
+            i += search.len;
+            out_index += replace.len;
+        } else {
+            // Copy src char
+            out[out_index] = src.cstr[i];
+            i++;
+            out_index++;
+        }
+    }
+    out[out_index] = '\0';
+
+    return (rl_string){out, out_len};
 }
 
 
