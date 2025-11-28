@@ -5,7 +5,7 @@
 
 #include "defines.h"
 
-inline i64 rand_int_range(i64 from, i64 to) {
+i64 rand_int_range(i64 from, i64 to) {
     static bool seeded = false;
     if (!seeded) {
         srand(platform_get_absolute_time());
@@ -15,6 +15,6 @@ inline i64 rand_int_range(i64 from, i64 to) {
     return rand() % (to - from + 1) + from;
 }
 
-inline float rand_float01() {
+f64 rand_float01() {
     return rand() / (float)RAND_MAX;
 }

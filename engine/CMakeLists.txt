@@ -13,10 +13,12 @@ target_include_directories(Engine
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-target_link_libraries(Engine
-        PRIVATE
-        opengl32
-)
+if (WIN32)
+    target_link_libraries(Engine PRIVATE opengl32)
+elseif (UNIX)
+    find_package(OpenGL REQUIRED)
+    target_link_libraries(Engine PRIVATE OpenGL::GL)
+endif()
 
 # Define macro for export/import declspec
 target_compile_definitions(Engine PRIVATE ENGINE_BUILD)

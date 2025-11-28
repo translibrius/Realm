@@ -47,7 +47,7 @@ b8 create_engine(const application *app) {
     }
 
     // Create an app window
-    platform_window *main_window = &state.window_splash;
+    platform_window *main_window = &state.window_main;
     main_window->settings.title = "Realm";
     main_window->settings.width = 500;
     main_window->settings.height = 500;

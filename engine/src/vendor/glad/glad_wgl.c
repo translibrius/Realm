@@ -80,6 +80,8 @@
 #include <string.h>
 #include "glad_wgl.h"
 
+#ifdef PLATFORM_WINDOWS
+
 static void* get_proc(const char *namez);
 
 #if defined(_WIN32) || defined(__CYGWIN__)
@@ -754,3 +756,4 @@ int gladLoadWGLLoader(GLADloadproc load, HDC hdc) {
 	return 1;
 }
 
+#endif
