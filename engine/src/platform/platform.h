@@ -25,7 +25,7 @@ REALM_API b8 platform_pump_messages();
 REALM_API b8 platform_create_window(platform_window *handle);
 REALM_API b8 platform_destroy_window(const platform_window *handle);
 REALM_API void platform_console_write(const char *message, LOG_LEVEL level);
-REALM_API f64 platform_get_absolute_time();
+REALM_API i64 platform_get_absolute_time();
 REALM_API b8 platform_create_opengl_context(platform_window *handle);
 b8 platform_context_make_current(platform_window *handle);
 b8 platform_swap_buffers(platform_window *handle);

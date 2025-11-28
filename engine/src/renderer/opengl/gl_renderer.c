@@ -3,6 +3,7 @@
 #include "core/logger.h"
 #include "platform/platform.h"
 #include "vendor/glad/glad.h"
+#include "util/rand.h"
 
 static opengl_context context;
 
@@ -17,7 +18,12 @@ b8 opengl_initialize(platform_window *platform_window) {
 
     platform_context_make_current(context.window);
 
-    glViewport(0, 0, 600, 600);
+    glViewport(
+        context.window->settings.x,
+        context.window->settings.y,
+        context.window->settings.width,
+        context.window->settings.height);
+
     return true;
 }
 
@@ -25,7 +31,11 @@ void opengl_destroy() {
 }
 
 void opengl_begin_frame() {
-    glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+    float r = rand_float01();
+    float g = rand_float01();
+    float b = rand_float01();
+
+    glClearColor(r, g, b, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 }
 

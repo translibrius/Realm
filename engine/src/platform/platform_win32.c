@@ -12,6 +12,7 @@
 #include "memory/memory.h"
 
 #include "renderer/renderer_types.h"
+#include "util/assert.h"
 
 typedef struct win32_window {
     HWND hwnd;
@@ -77,6 +78,12 @@ b8 platform_system_start() {
 void platform_system_shutdown() {
 }
 
+REALM_API i64 platform_get_absolute_time() {
+    LARGE_INTEGER ticks;
+    RL_ASSERT(QueryPerformanceCounter(&ticks));
+    return ticks.QuadPart;
+}
+
 // Get events from window
 b8 platform_pump_messages() {
     MSG message;
@@ -109,9 +116,9 @@ b8 platform_create_window(platform_window *handle) {
 
     RL_INFO("Creating window '%s' %dx%d", handle->settings.title, handle->settings.width, handle->settings.height);
 
-    constexpr DWORD window_style_ex = WS_EX_APPWINDOW;
-    constexpr DWORD window_style = WS_POPUPWINDOW | WS_CAPTION | WS_SYSMENU | WS_EX_TOPMOST | WS_MINIMIZEBOX |
-                                   WS_MAXIMIZEBOX;
+    constexpr DWORD window_style_ex = WS_EX_TRANSPARENT | WS_EX_APPWINDOW | WS_EX_TOPMOST;
+    constexpr DWORD window_style = WS_POPUPWINDOW | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX |
+                                   WS_MAXIMIZEBOX | WS_THICKFRAME;
 
     win32_window *w = &state.windows[id];
     rl_zero(w, sizeof(*w));
@@ -126,7 +133,7 @@ b8 platform_create_window(platform_window *handle) {
         nullptr, // hMenu
         state.handle,
         w // lpParam
-    );
+        );
 
     if (hwnd == NULL) {
         RL_ERROR("Failed to create window. Error code: %d", GetLastError());
@@ -145,10 +152,12 @@ b8 platform_create_window(platform_window *handle) {
 }
 
 b8 platform_destroy_window(const platform_window *handle) {
-    if (!handle || handle->id >= MAX_WINDOWS) return false;
+    if (!handle || handle->id >= MAX_WINDOWS)
+        return false;
 
     win32_window *w = &state.windows[handle->id];
-    if (!w->alive) return true; // Already cleaned
+    if (!w->alive)
+        return true; // Already cleaned
 
     RL_DEBUG("Destroying window. Id=%d...", handle->id);
 
@@ -182,12 +191,12 @@ void platform_console_write(const char *message, const LOG_LEVEL level) {
 
     static WORD level_colors[] = {
         /* INFO  */ FOREGROUND_GREEN | FOREGROUND_INTENSITY,
-        /* DEBUG */ FOREGROUND_BLUE | FOREGROUND_INTENSITY,
-        /* TRACE */ FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_INTENSITY,
-        /* WARN  */ FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY, // Yellow
-        /* ERROR */ FOREGROUND_RED | FOREGROUND_INTENSITY,
-        /* FATAL */ (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY) | BACKGROUND_RED,
-        /* RESET */ FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN
+                    /* DEBUG */ FOREGROUND_BLUE | FOREGROUND_INTENSITY,
+                    /* TRACE */ FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_INTENSITY,
+                    /* WARN  */ FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY, // Yellow
+                    /* ERROR */ FOREGROUND_RED | FOREGROUND_INTENSITY,
+                    /* FATAL */ (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY) | BACKGROUND_RED,
+                    /* RESET */ FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN
     };
 
     SetConsoleTextAttribute(console_handle, level_colors[level]);
@@ -196,7 +205,7 @@ void platform_console_write(const char *message, const LOG_LEVEL level) {
     const u64 length = strlen(message);
     LPDWORD number_written = nullptr;
 
-    WriteConsoleA(console_handle, message, (DWORD) length, number_written, nullptr);
+    WriteConsoleA(console_handle, message, (DWORD)length, number_written, nullptr);
 
     // Reset text color so that we don't pollute console color in case of
     // crash/stop
@@ -263,7 +272,7 @@ b8 get_windows_version(RTL_OSVERSIONINFOW *out_version) {
         return false;
 
     RtlGetVersionPtr rtlGetVersion =
-            (RtlGetVersionPtr) GetProcAddress(ntdll, "RtlGetVersion");
+        (RtlGetVersionPtr)GetProcAddress(ntdll, "RtlGetVersion");
 
     if (!rtlGetVersion)
         return false;
@@ -301,19 +310,19 @@ void get_system_info() {
 // CPU Architecture
 const char *get_arch_name(const WORD arch) {
     switch (arch) {
-        case 9:
-            return "x64";
-        case 5:
-            return "ARM";
-        case 12:
-            return "ARM64";
-        case 6:
-            return "Intel Itanium-based";
-        case 0:
-            return "x86";
-        case 0xff:
-        default:
-            return "Unknown";
+    case 9:
+        return "x64";
+    case 5:
+        return "ARM";
+    case 12:
+        return "ARM64";
+    case 6:
+        return "Intel Itanium-based";
+    case 0:
+        return "x86";
+    case 0xff:
+    default:
+        return "Unknown";
     }
 }
 
@@ -337,7 +346,7 @@ b8 platform_create_opengl_context(platform_window *handle) {
         "dummy_window_class", "dummy",
         0, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
         nullptr, nullptr, state.handle, NULL
-    );
+        );
 
     HDC dummy_hdc = GetDC(dummy_hwnd);
     if (!dummy_hdc) {
@@ -507,105 +516,105 @@ b8 platform_create_opengl_context(platform_window *handle) {
 
 LRESULT CALLBACK win32_process_msg(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param) {
     switch (msg) {
-        case WM_NCCREATE:
-            const CREATESTRUCTA *cs = (CREATESTRUCTA *) l_param;
-            const auto win = (win32_window *) cs->lpCreateParams;
-            SetWindowLongPtrA(hwnd, GWLP_USERDATA, (LONG_PTR) win);
-            break;
-        case WM_ERASEBKGND:
-            // Notify the OS that erasing the screen will be handled by the application to prevent flicker.
-            return 1;
-        case WM_CLOSE:
-            DestroyWindow(hwnd);
-            return 0;
-
-        case WM_DESTROY: {
-            const auto w = (win32_window *) GetWindowLongPtrA(hwnd, GWLP_USERDATA);
-            if (w && w->alive) {
-                const platform_window handle = {(u16) (w - state.windows), {}};
-                platform_destroy_window(&handle);
-            }
-
-            PostQuitMessage(0);
-
-            if (w->stop_on_close) {
-                // TODO: Terminate app with event, not crash it here
-                exit(0);
-            }
-            return 0;
-        }
-        case WM_SIZE: {
-            // Get the updated size.
-            /*
-            RECT r;
-            GetClientRect(hwnd, &r);
-            u32 width = r.right - r.left;
-            u32 height = r.bottom - r.top;
-
-            // Fire the event. The application layer should pick this up, but not handle it
-            // as it shouldn be visible to other parts of the application.
-            event_context context;
-            context.data.u16[0] = (u16)width;
-            context.data.u16[1] = (u16)height;
-            event_fire(EVENT_CODE_RESIZED, 0, context);
-            */
-        }
+    case WM_NCCREATE:
+        const CREATESTRUCTA *cs = (CREATESTRUCTA *)l_param;
+        const auto win = (win32_window *)cs->lpCreateParams;
+        SetWindowLongPtrA(hwnd, GWLP_USERDATA, (LONG_PTR)win);
         break;
-        case WM_KEYDOWN:
-        case WM_SYSKEYDOWN:
-        case WM_KEYUP:
-        case WM_SYSKEYUP: {
-            // Key pressed/released            // Return 0 to prevent default window behaviour for some keypresses, such as alt.
-            return 0;
-        }
-        case WM_MOUSEMOVE: {
-            // Mouse move
-            // i32 x_position = GET_X_LPARAM(l_param);
-            // i32 y_position = GET_Y_LPARAM(l_param);
+    case WM_ERASEBKGND:
+        // Notify the OS that erasing the screen will be handled by the application to prevent flicker.
+        return 1;
+    case WM_CLOSE:
+        DestroyWindow(hwnd);
+        return 0;
 
-            // Pass over to the input subsystem.
-            // input_process_mouse_move(x_position, y_position);
+    case WM_DESTROY: {
+        const auto w = (win32_window *)GetWindowLongPtrA(hwnd, GWLP_USERDATA);
+        if (w && w->alive) {
+            const platform_window handle = {(u16)(w - state.windows), {}};
+            platform_destroy_window(&handle);
         }
-        break;
-        case WM_MOUSEWHEEL: {
-            // i32 z_delta = GET_WHEEL_DELTA_WPARAM(w_param);
-            // if (z_delta != 0) {
-            //  Flatten the input to an OS-independent (-1, 1)
-            // z_delta = (z_delta < 0) ? -1 : 1;
-            // input_process_mouse_wheel(z_delta);
-            //}
+
+        PostQuitMessage(0);
+
+        if (w->stop_on_close) {
+            // TODO: Terminate app with event, not crash it here
+            exit(0);
         }
-        break;
+        return 0;
+    }
+    case WM_SIZE: {
+        // Get the updated size.
+        /*
+        RECT r;
+        GetClientRect(hwnd, &r);
+        u32 width = r.right - r.left;
+        u32 height = r.bottom - r.top;
+
+        // Fire the event. The application layer should pick this up, but not handle it
+        // as it shouldn be visible to other parts of the application.
+        event_context context;
+        context.data.u16[0] = (u16)width;
+        context.data.u16[1] = (u16)height;
+        event_fire(EVENT_CODE_RESIZED, 0, context);
+        */
+    }
+    break;
+    case WM_KEYDOWN:
+    case WM_SYSKEYDOWN:
+    case WM_KEYUP:
+    case WM_SYSKEYUP: {
+        // Key pressed/released            // Return 0 to prevent default window behaviour for some keypresses, such as alt.
+        return 0;
+    }
+    case WM_MOUSEMOVE: {
+        // Mouse move
+        // i32 x_position = GET_X_LPARAM(l_param);
+        // i32 y_position = GET_Y_LPARAM(l_param);
+
+        // Pass over to the input subsystem.
+        // input_process_mouse_move(x_position, y_position);
+    }
+    break;
+    case WM_MOUSEWHEEL: {
+        // i32 z_delta = GET_WHEEL_DELTA_WPARAM(w_param);
+        // if (z_delta != 0) {
+        //  Flatten the input to an OS-independent (-1, 1)
+        // z_delta = (z_delta < 0) ? -1 : 1;
+        // input_process_mouse_wheel(z_delta);
+        //}
+    }
+    break;
+    case WM_LBUTTONDOWN:
+    case WM_MBUTTONDOWN:
+    case WM_RBUTTONDOWN:
+    case WM_LBUTTONUP:
+    case WM_MBUTTONUP:
+    case WM_RBUTTONUP: {
+        /*b8 pressed = msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN || msg == WM_MBUTTONDOWN;
+        buttons mouse_button = BUTTON_MAX_BUTTONS;
+        switch (msg) {
         case WM_LBUTTONDOWN:
-        case WM_MBUTTONDOWN:
-        case WM_RBUTTONDOWN:
         case WM_LBUTTONUP:
+            mouse_button = BUTTON_LEFT;
+            break;
+        case WM_MBUTTONDOWN:
         case WM_MBUTTONUP:
-        case WM_RBUTTONUP: {
-            /*b8 pressed = msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN || msg == WM_MBUTTONDOWN;
-            buttons mouse_button = BUTTON_MAX_BUTTONS;
-            switch (msg) {
-            case WM_LBUTTONDOWN:
-            case WM_LBUTTONUP:
-                mouse_button = BUTTON_LEFT;
-                break;
-            case WM_MBUTTONDOWN:
-            case WM_MBUTTONUP:
-                mouse_button = BUTTON_MIDDLE;
-                break;
-            case WM_RBUTTONDOWN:
-            case WM_RBUTTONUP:
-                mouse_button = BUTTON_RIGHT;
-                break;
-            }
-
-            // Pass over to the input subsystem.
-            if (mouse_button != BUTTON_MAX_BUTTONS) {
-                input_process_button(mouse_button, pressed);
-            }*/
+            mouse_button = BUTTON_MIDDLE;
+            break;
+        case WM_RBUTTONDOWN:
+        case WM_RBUTTONUP:
+            mouse_button = BUTTON_RIGHT;
+            break;
         }
-        break;
-        default: ;
+
+        // Pass over to the input subsystem.
+        if (mouse_button != BUTTON_MAX_BUTTONS) {
+            input_process_button(mouse_button, pressed);
+        }*/
+    }
+    break;
+    default: ;
     }
 
     return DefWindowProcA(hwnd, msg, w_param, l_param);

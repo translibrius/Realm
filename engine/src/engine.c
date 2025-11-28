@@ -5,6 +5,7 @@
 #include "memory/arena.h"
 #include "memory/memory.h"
 #include "platform/platform.h"
+#include "platform/splash/splash.h"
 #include "renderer/renderer_frontend.h"
 
 typedef struct engine_state {
@@ -18,7 +19,7 @@ typedef struct engine_state {
 static engine_state state;
 
 b8 create_engine(const application *app) {
-    (void) app;
+    (void)app;
     state.is_running = true;
     state.is_suspended = false;
 
@@ -39,21 +40,27 @@ b8 create_engine(const application *app) {
 
     rl_arena_create(MiB(64), &state.frame_arena);
 
-    // Create splash window
-    platform_window* splash_window = &state.window_splash;
-    splash_window->settings.title = "Splash";
-    splash_window->settings.width = 600;
-    splash_window->settings.height = 600;
-    splash_window->settings.x = 0;
-    splash_window->settings.y = 0;
-    splash_window->settings.stop_on_close = true;
+    // Create a splash window
+    if (!splash_show(&state.frame_arena)) {
+        RL_FATAL("Failed to display splash screen");
+        return false;
+    }
 
-    if (!platform_create_window(splash_window)) {
+    // Create an app window
+    platform_window *main_window = &state.window_splash;
+    main_window->settings.title = "Realm";
+    main_window->settings.width = 500;
+    main_window->settings.height = 500;
+    main_window->settings.x = 0;
+    main_window->settings.y = 0;
+    main_window->settings.stop_on_close = true;
+
+    if (!platform_create_window(main_window)) {
         RL_FATAL("Failed to create splash window, exiting...");
         return false;
     }
 
-    if (!renderer_init(BACKEND_OPENGL, splash_window)) {
+    if (!renderer_init(BACKEND_OPENGL, main_window)) {
         RL_FATAL("Failed to initialize renderer, exiting...");
         return false;
     }
@@ -77,6 +84,7 @@ b8 engine_run() {
             state.is_running = false;
         }
 
+        splash_update();
         renderer_begin_frame();
         renderer_end_frame();
 
@@ -84,6 +92,7 @@ b8 engine_run() {
         renderer_swap_buffers();
     }
 
+    splash_hide();
     destroy_engine();
     return true;
 }
