@@ -42,9 +42,9 @@ STATIC_ASSERT(sizeof(f32) == 4, "Expected f32 to be 4 bytes.");
 STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 
 #if defined(_DEBUG)
-#define RL_DEBUG 1
+#define RL_BUILD_DEBUG 1
 #else
-#define RL_DEBUG 0
+#define RL_BUILD_DEBUG 0
 #endif
 
 #ifdef ENGINE_BUILD
@@ -73,7 +73,7 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #endif
 
 // Platform detection
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) 
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
 #define PLATFORM_WINDOWS 1
 #ifndef _WIN64
 #error "64-bit is required on Windows!"
