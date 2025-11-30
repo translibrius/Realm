@@ -1,29 +1,27 @@
-### OpenGL Map Renderer
+### Map Renderer (OpenGL)
 
-OpenGL Module to render vector maps
-Currently only supports following platforms:
+GPU-accelerated vector map renderer built on OpenGL.  
+Currently supports:
 
 - Windows
 - Linux
 
-The purpose of this project is to create a capable in-house OpenGL GPU Accelerated renderer which will be useful for
-projects: Spider, Tetris, ScanMaster, Cell_Map
-Essentially we will be able to create our own vector tile renderer and will no longer depend on external tile and avoid
-all the headache of internet access, API costs. ect!
+The goal is to develop an in-house renderer for projects like **Spider**, **Tetris**, **ScanMaster**, and **Cell_Map**.
+By producing vector tiles ourselves, we avoid external map providers, internet dependencies, and recurring API costs.
 
-# Third party dependencies
+## Third-party dependencies
 
-- OpenGL 3.3 (GPU Accelerated graphics)
-- GLAD (Runtime OpenGL function loading)
-- stb_truetype.h (Single-header library for rasterization of font glyphs)
+- **OpenGL 3.3** – hardware-accelerated rendering
+- **GLAD** – runtime OpenGL loader
+- **stb_truetype.h** – font rasterization
 
 ## Prerequisites
 
-- CMake
+- **CMake**
 
 ## Build
 
 ```bash
 cmake --preset debug
 cmake --build --preset debug
-```
+````

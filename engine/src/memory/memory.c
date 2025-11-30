@@ -11,13 +11,13 @@ typedef struct memory_system_state {
     u64 allocations[MEM_TYPES_MAX];
 } memory_system_state;
 
-static memory_system_state* state;
+static memory_system_state *state;
 
 u64 memory_system_size() {
     return sizeof(memory_system_state);
 }
 
-b8 memory_system_start(void* memory) {
+b8 memory_system_start(void *memory) {
     state = memory;
 
     state->total_allocated = 0;
@@ -27,10 +27,10 @@ b8 memory_system_start(void* memory) {
 }
 
 void memory_system_shutdown() {
-    state = 0;
+    state = nullptr;
 }
 
-void* rl_alloc(u64 size, MEM_TYPE type) {
+void *rl_alloc(u64 size, MEM_TYPE type) {
     if (state) {
         state->total_allocated += size;
         state->allocations[type] += size;
@@ -39,7 +39,7 @@ void* rl_alloc(u64 size, MEM_TYPE type) {
     return malloc(size);
 }
 
-void rl_free(void* block, u64 size, MEM_TYPE type) {
+void rl_free(void *block, u64 size, MEM_TYPE type) {
     RL_ASSERT_MSG(state != 0, "Trying to call a function in an uninitialized subsystem");
 
     state->total_allocated -= size;
@@ -48,6 +48,10 @@ void rl_free(void* block, u64 size, MEM_TYPE type) {
     free(block);
 }
 
-void* rl_zero(void* block, u64 size) {
+void *rl_copy(void *origin, void *destination, u64 size) {
+    return memcpy(destination, origin, size);
+}
+
+void *rl_zero(void *block, u64 size) {
     return memset(block, 0, size);
 }

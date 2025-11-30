@@ -25,5 +25,7 @@ b8 memory_system_start(void *memory);
 void memory_system_shutdown();
 
 void *rl_alloc(u64 size, MEM_TYPE type);
+void *rl_copy(void *origin, void *destination, u64 size);
+
 void rl_free(void *block, u64 size, MEM_TYPE type);
 void *rl_zero(void *block, u64 size);
