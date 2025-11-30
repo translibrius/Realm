@@ -3,12 +3,9 @@
 #include "defines.h"
 #include "engine.h"
 #include "core/logger.h"
-#include "util/assert.h"
-
-#include <stdio.h>
 
 // This should be defined by the application using engine.dll
-extern b8 create_application(application* application);
+extern b8 create_application(application *application);
 
 int main() {
     application app;
@@ -27,6 +24,6 @@ int main() {
         RL_ERROR("Engine did not shut down gracefully");
         return 2;
     }
-    
+
     return 0;
 }

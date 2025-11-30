@@ -14,6 +14,7 @@ typedef struct engine_state {
     b8 is_suspended;
     platform_window window_splash;
     platform_window window_main;
+    platform_window window_second;
 } engine_state;
 
 static engine_state state;
@@ -49,14 +50,14 @@ b8 create_engine(const application *app) {
     // Create an app window
     platform_window *main_window = &state.window_main;
     main_window->settings.title = "Realm";
-    main_window->settings.width = 500;
-    main_window->settings.height = 500;
+    main_window->settings.width = 20;
+    main_window->settings.height = 20;
     main_window->settings.x = 0;
     main_window->settings.y = 0;
     main_window->settings.stop_on_close = true;
 
     if (!platform_create_window(main_window)) {
-        RL_FATAL("Failed to create splash window, exiting...");
+        RL_FATAL("Failed to create main window, exiting...");
         return false;
     }
 
@@ -81,7 +82,8 @@ b8 engine_run() {
     RL_INFO("Engine running...");
     while (state.is_running) {
         if (!platform_pump_messages()) {
-            state.is_running = false;
+            RL_DEBUG("Platform stopped event pump, breaking main loop...");
+            break;
         }
 
         splash_update();

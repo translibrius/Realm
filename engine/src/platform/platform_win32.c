@@ -1,5 +1,12 @@
 #include "platform.h"
 
+/*
+    The service thread owns the real Win32 UI thread affinity.
+    Window creation, destruction, and resizing are routed through it.
+    This avoids blocking the main thread and keeps Win32 happy about
+    which thread “owns” a window.
+*/
+
 #ifdef PLATFORM_WINDOWS
 
 #define WIN32_LEAN_AND_MEAN
@@ -10,9 +17,25 @@
 #include <winternl.h>
 
 #include "memory/memory.h"
-
-#include "renderer/renderer_types.h"
 #include "util/assert.h"
+
+#define CREATE_DANGEROUS_WINDOW (WM_USER + 0x1337)
+#define DESTROY_DANGEROUS_WINDOW (WM_USER + 0x1338)
+
+typedef struct win32_create_info {
+    DWORD dwExStyle;
+    LPCSTR lpClassName;
+    LPCSTR lpWindowName;
+    DWORD dwStyle;
+    int X;
+    int Y;
+    int nWidth;
+    int nHeight;
+    HWND hWndParent;
+    HMENU hMenu;
+    HINSTANCE hInstance;
+    LPVOID lpParam;
+} win32_create_info;
 
 typedef struct win32_window {
     HWND hwnd;
@@ -28,6 +51,11 @@ typedef struct platform_state {
     CONSOLE_SCREEN_BUFFER_INFO err_output_csbi;
     DWORD logical_cores;
 
+    DWORD main_thread_id;
+    DWORD message_thread_id;
+    HANDLE message_thread;
+    HWND service_window;
+
     b8 window_class_registered;
     const char *window_class_name;
     win32_window windows[MAX_WINDOWS];
@@ -37,23 +65,72 @@ static platform_state state;
 
 // Private fn declarations
 const char *get_arch_name(WORD arch);
-
 void get_system_info();
-
 b8 get_windows_version(RTL_OSVERSIONINFOW *out_version);
 
-LRESULT CALLBACK win32_process_msg(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param);
+static LRESULT CALLBACK ServiceWndProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam);
+static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam);
+
+HWND create_service_window() {
+    WNDCLASSEXA WindowClass = {};
+    WindowClass.cbSize = sizeof(WindowClass);
+    WindowClass.lpfnWndProc = &ServiceWndProc;
+    WindowClass.hInstance = GetModuleHandleW(nullptr);
+    WindowClass.hIcon = LoadIconA(nullptr, IDI_APPLICATION);
+    WindowClass.hCursor = LoadCursorA(nullptr, IDC_ARROW);
+    WindowClass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
+    WindowClass.lpszClassName = "RealmService";
+    RegisterClassExA(&WindowClass);
+
+    return CreateWindowExA(0, WindowClass.lpszClassName, "RealmService", 0,
+                           CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+                           nullptr, nullptr, WindowClass.hInstance, nullptr);
+}
+
+// Own service window; route dangerous calls; pump its messages.
+static DWORD WINAPI MessageThreadProc(LPVOID param) {
+    (void)param;
+
+    // This thread owns the service window
+    state.message_thread_id = GetCurrentThreadId();
+
+    state.service_window = create_service_window();
+    if (!state.service_window) {
+        return 1;
+    }
+
+    MSG msg;
+    while (GetMessageA(&msg, nullptr, 0, 0) > 0) {
+        TranslateMessage(&msg);
+        DispatchMessageA(&msg);
+    }
+
+    return 0;
+}
 
 b8 platform_system_start() {
     // Obtain handle to our own executable
     state.handle = GetModuleHandleA(nullptr);
-    state.window_class_name = "RealmEngineClass";
+    state.main_thread_id = platform_get_current_thread_id();
 
+    RL_DEBUG("Platform main thread id: %d", state.main_thread_id);
+    HANDLE message_thread = CreateThread(nullptr, 0, MessageThreadProc, nullptr, 0, &state.message_thread_id);
+
+    if (!message_thread) {
+        RL_FATAL("Failed to create win32 message thread, err=%lu", GetLastError());
+        return false;
+    }
+
+    state.message_thread = message_thread;
+    RL_DEBUG("Platform message thread id: %d", state.message_thread_id);
+
+    state.window_class_name = "RealmEngineClass";
     RL_DEBUG("Registering window class: '%s'", state.window_class_name);
 
     WNDCLASSEXA wc = {0};
     wc.cbSize = sizeof(wc);
-    wc.lpfnWndProc = win32_process_msg;
+    wc.style = CS_OWNDC;
+    wc.lpfnWndProc = DisplayWndProc;
     wc.hInstance = state.handle;
     wc.lpszClassName = state.window_class_name;
     wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
@@ -76,6 +153,20 @@ b8 platform_system_start() {
 }
 
 void platform_system_shutdown() {
+    RL_DEBUG("Shutting down platform win32:");
+    if (state.service_window) {
+        PostMessageA(state.service_window, WM_CLOSE, 0, 0);
+        state.service_window = nullptr;
+        RL_DEBUG("  - Cleaned service window!");
+    }
+
+    if (state.message_thread) {
+        PostThreadMessageA(state.message_thread_id, WM_QUIT, 0, 0);
+        WaitForSingleObject(state.message_thread, 2000);
+        CloseHandle(state.message_thread);
+        state.message_thread = nullptr;
+        RL_DEBUG("  - Cleaned message thread!");
+    }
 }
 
 i64 platform_get_absolute_time() {
@@ -86,12 +177,49 @@ i64 platform_get_absolute_time() {
 
 // Get events from window
 b8 platform_pump_messages() {
-    MSG message;
-    while (PeekMessageA(&message, nullptr, 0, 0, PM_REMOVE)) {
-        TranslateMessage(&message);
-        DispatchMessageA(&message);
+    MSG msg;
+    while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
+        switch (msg.message) {
+        case WM_CLOSE:
+            HWND closed = (HWND)msg.wParam;
+            for (u16 i = 0; i < MAX_WINDOWS; i++) {
+                win32_window *w = &state.windows[i];
+                if (w->alive && w->hwnd == closed) {
+                    u16 window_id = i;
+                    if (!platform_destroy_window(window_id)) {
+                        RL_FATAL("Failed to destroy window, err=%lu", GetLastError());
+                    }
+
+                    // Initiate engine shutdown if user specified so for this window close
+                    if (w->stop_on_close) {
+                        RL_DEBUG("Main window closed, stopping event pump");
+                        return false;
+                    }
+
+                    // Check if any windows left alive
+                    b8 any_alive = false;
+                    for (u16 y = 0; y < MAX_WINDOWS; y++) {
+                        if (state.windows[y].alive) {
+                            any_alive = true;
+                            break;
+                        }
+                    }
+                    if (!any_alive) {
+                        RL_DEBUG("No more alive windows remaining, stopping event pump");
+                        return false;
+                    }
+                }
+            }
+            break;
+        default:
+            break;
+        }
     }
     return true;
+}
+
+u64 platform_get_current_thread_id() {
+    return GetCurrentThreadId();
 }
 
 b8 platform_create_window(platform_window *handle) {
@@ -123,17 +251,40 @@ b8 platform_create_window(platform_window *handle) {
     win32_window *w = &state.windows[id];
     rl_zero(w, sizeof(*w));
 
-    HWND hwnd = CreateWindowExA(
-        window_style_ex,
-        state.window_class_name,
-        handle->settings.title,
+    // To find actual client size without the borders and titlebar
+    RECT rect = {0};
+    rect.left = 0;
+    rect.top = 0;
+    rect.right = handle->settings.width;
+    rect.bottom = handle->settings.height;
+
+    // Convert client size → window outer size
+    AdjustWindowRectEx(
+        &rect,
         window_style,
-        handle->settings.x, handle->settings.y, handle->settings.width, handle->settings.height,
-        nullptr, // Parent window
-        nullptr, // hMenu
-        state.handle,
-        w // lpParam
+        FALSE, // no menu
+        window_style_ex
         );
+
+    win32_create_info window_info = {0};
+    window_info.dwExStyle = window_style_ex;
+    window_info.dwStyle = window_style;
+    window_info.lpClassName = state.window_class_name;
+    window_info.lpWindowName = handle->settings.title;
+    window_info.X = handle->settings.x;
+    window_info.Y = handle->settings.y;
+    window_info.nWidth = rect.right - rect.left;
+    window_info.nHeight = rect.bottom - rect.top;
+    window_info.hWndParent = nullptr;
+    window_info.hMenu = nullptr;
+    window_info.hInstance = state.handle;
+
+    // Ask service thread to create a window for us and give the handle.
+    // This is so it doesn't block main thread when resizing window ect. :)
+    // I found this approach by reading Casey's example:
+    // Dangerous Threads Crew: https://github.com/cmuratori/dtc/tree/main
+
+    HWND hwnd = (HWND)SendMessageA(state.service_window, CREATE_DANGEROUS_WINDOW, (WPARAM)&window_info, 0);
 
     if (hwnd == NULL) {
         RL_ERROR("Failed to create window. Error code: %d", GetLastError());
@@ -151,15 +302,15 @@ b8 platform_create_window(platform_window *handle) {
     return true;
 }
 
-b8 platform_destroy_window(const platform_window *handle) {
-    if (!handle || handle->id >= MAX_WINDOWS)
+b8 platform_destroy_window(u16 id) {
+    RL_DEBUG("Destroying window. Id=%d...", id);
+
+    if (id >= MAX_WINDOWS)
         return false;
 
-    win32_window *w = &state.windows[handle->id];
+    win32_window *w = &state.windows[id];
     if (!w->alive)
         return true; // Already cleaned
-
-    RL_DEBUG("Destroying window. Id=%d...", handle->id);
 
     w->alive = false;
 
@@ -172,7 +323,7 @@ b8 platform_destroy_window(const platform_window *handle) {
         ReleaseDC(w->hwnd, w->hdc);
 
     if (w->hwnd)
-        DestroyWindow(w->hwnd);
+        SendMessageA(state.service_window, DESTROY_DANGEROUS_WINDOW, (WPARAM)w->hwnd, 0);
 
     w->gl = nullptr;
     w->hdc = nullptr;
@@ -514,110 +665,83 @@ b8 platform_create_opengl_context(platform_window *handle) {
     return true;
 }
 
-LRESULT CALLBACK win32_process_msg(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param) {
-    switch (msg) {
-    case WM_NCCREATE:
-        const CREATESTRUCTA *cs = (CREATESTRUCTA *)l_param;
-        const auto win = (win32_window *)cs->lpCreateParams;
-        SetWindowLongPtrA(hwnd, GWLP_USERDATA, (LONG_PTR)win);
-        break;
-    case WM_ERASEBKGND:
-        // Notify the OS that erasing the screen will be handled by the application to prevent flicker.
-        return 1;
-    case WM_CLOSE:
-        DestroyWindow(hwnd);
-        return 0;
+static LRESULT CALLBACK ServiceWndProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam) {
+    /* This is not really a window handler per se, it's actually just
+       a remote thread call handler. Windows only really has blocking remote thread
+       calls if you register a WndProc for them, so that's what we do.
 
-    case WM_DESTROY: {
-        const auto w = (win32_window *)GetWindowLongPtrA(hwnd, GWLP_USERDATA);
-        if (w && w->alive) {
-            const platform_window handle = {(u16)(w - state.windows), {}};
-            platform_destroy_window(&handle);
-        }
+       This handles CREATE_DANGEROUS_WINDOW and DESTROY_DANGEROUS_WINDOW, which are
+       just calls that do CreateWindow and DestroyWindow here on this thread when
+       some other thread wants that to happen.
+    */
 
-        PostQuitMessage(0);
+    LRESULT Result = 0;
 
-        if (w->stop_on_close) {
-            // TODO: Terminate app with event, not crash it here
-            exit(0);
-        }
-        return 0;
-    }
-    case WM_SIZE: {
-        // Get the updated size.
-        /*
-        RECT r;
-        GetClientRect(hwnd, &r);
-        u32 width = r.right - r.left;
-        u32 height = r.bottom - r.top;
-
-        // Fire the event. The application layer should pick this up, but not handle it
-        // as it shouldn be visible to other parts of the application.
-        event_context context;
-        context.data.u16[0] = (u16)width;
-        context.data.u16[1] = (u16)height;
-        event_fire(EVENT_CODE_RESIZED, 0, context);
-        */
+    switch (Message) {
+    case CREATE_DANGEROUS_WINDOW: {
+        win32_create_info *win_info = (win32_create_info *)WParam;
+        Result = (LRESULT)CreateWindowExA(win_info->dwExStyle,
+                                          win_info->lpClassName,
+                                          win_info->lpWindowName,
+                                          win_info->dwStyle,
+                                          win_info->X,
+                                          win_info->Y,
+                                          win_info->nWidth,
+                                          win_info->nHeight,
+                                          win_info->hWndParent,
+                                          win_info->hMenu,
+                                          win_info->hInstance,
+                                          win_info->lpParam);
     }
     break;
-    case WM_KEYDOWN:
-    case WM_SYSKEYDOWN:
-    case WM_KEYUP:
-    case WM_SYSKEYUP: {
-        // Key pressed/released            // Return 0 to prevent default window behaviour for some keypresses, such as alt.
-        return 0;
-    }
-    case WM_MOUSEMOVE: {
-        // Mouse move
-        // i32 x_position = GET_X_LPARAM(l_param);
-        // i32 y_position = GET_Y_LPARAM(l_param);
 
-        // Pass over to the input subsystem.
-        // input_process_mouse_move(x_position, y_position);
+    case DESTROY_DANGEROUS_WINDOW: {
+        DestroyWindow((HWND)WParam);
     }
     break;
-    case WM_MOUSEWHEEL: {
-        // i32 z_delta = GET_WHEEL_DELTA_WPARAM(w_param);
-        // if (z_delta != 0) {
-        //  Flatten the input to an OS-independent (-1, 1)
-        // z_delta = (z_delta < 0) ? -1 : 1;
-        // input_process_mouse_wheel(z_delta);
-        //}
+
+    default: {
+        Result = DefWindowProcA(Window, Message, WParam, LParam);
     }
     break;
+    }
+
+    return Result;
+}
+
+/* Forward messages to the main thread */
+static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam) {
+    LRESULT Result = 0;
+
+    switch (Message) {
+    /*
+        Mildly annoying, if you want to specify a window, you have
+        to snuggle the params yourself, because Windows doesn't let you forward
+        a god-damn window message even though the program IS CALLED WINDOWS. It's
+        in the name! Let me pass it!
+    */
+    case WM_CLOSE: {
+        PostThreadMessageA(state.main_thread_id, Message, (WPARAM)Window, LParam);
+    }
+    break;
+
+    // Pass any relevant messages that main thread might want to handle!
+    case WM_MOUSEMOVE:
     case WM_LBUTTONDOWN:
-    case WM_MBUTTONDOWN:
-    case WM_RBUTTONDOWN:
     case WM_LBUTTONUP:
-    case WM_MBUTTONUP:
-    case WM_RBUTTONUP: {
-        /*b8 pressed = msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN || msg == WM_MBUTTONDOWN;
-        buttons mouse_button = BUTTON_MAX_BUTTONS;
-        switch (msg) {
-        case WM_LBUTTONDOWN:
-        case WM_LBUTTONUP:
-            mouse_button = BUTTON_LEFT;
-            break;
-        case WM_MBUTTONDOWN:
-        case WM_MBUTTONUP:
-            mouse_button = BUTTON_MIDDLE;
-            break;
-        case WM_RBUTTONDOWN:
-        case WM_RBUTTONUP:
-            mouse_button = BUTTON_RIGHT;
-            break;
-        }
-
-        // Pass over to the input subsystem.
-        if (mouse_button != BUTTON_MAX_BUTTONS) {
-            input_process_button(mouse_button, pressed);
-        }*/
+    case WM_DESTROY:
+    case WM_CHAR: {
+        PostThreadMessageA(state.main_thread_id, Message, WParam, LParam);
     }
     break;
-    default: ;
+
+    default: {
+        Result = DefWindowProcA(Window, Message, WParam, LParam);
+    }
+    break;
     }
 
-    return DefWindowProcA(hwnd, msg, w_param, l_param);
+    return Result;
 }
 
 #endif // PLATFORM_WINDOWS
