@@ -88,4 +88,5 @@ void splash_update() {
 
 void splash_hide() {
     rl_free(state.pixels, state.pixels_size, MEM_SUBSYSTEM_SPLASH);
+    platform_splash_destroy();
 }

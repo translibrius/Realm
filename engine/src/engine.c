@@ -50,8 +50,8 @@ b8 create_engine(const application *app) {
     // Create an app window
     platform_window *main_window = &state.window_main;
     main_window->settings.title = "Realm";
-    main_window->settings.width = 20;
-    main_window->settings.height = 20;
+    main_window->settings.width = 500;
+    main_window->settings.height = 500;
     main_window->settings.x = 0;
     main_window->settings.y = 0;
     main_window->settings.stop_on_close = true;
@@ -71,10 +71,10 @@ b8 create_engine(const application *app) {
 
 void destroy_engine() {
     RL_DEBUG("Engine shutting down, cleaning up...");
+    splash_hide();
     platform_system_shutdown();
     logger_system_shutdown();
     memory_system_shutdown();
-    rl_arena_destroy(&state.frame_arena);
     RL_DEBUG("-- Goodbye...");
 }
 
@@ -94,7 +94,6 @@ b8 engine_run() {
         renderer_swap_buffers();
     }
 
-    splash_hide();
     destroy_engine();
     return true;
 }
