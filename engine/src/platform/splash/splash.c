@@ -83,9 +83,6 @@ void splash_update() {
     //const u16 logo_width = SPLASH_WIDTH - padding * 2;
     //const u16 logo_height = SPLASH_HEIGHT - padding * 2 - progress_bar_height;
 
-    rl_string replaced = rl_string_replace_all(state.frame_arena, RL_STRING(state.frame_arena, "192.168.1.100"), RL_STRING(state.frame_arena, "."), RL_STRING(state.frame_arena, ";"));
-    RL_DEBUG("Replaced: %s", replaced.cstr);
-
     platform_splash_update(state.pixels);
 }
 

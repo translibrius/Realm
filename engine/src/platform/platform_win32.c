@@ -78,7 +78,7 @@ b8 platform_system_start() {
 void platform_system_shutdown() {
 }
 
-REALM_API i64 platform_get_absolute_time() {
+i64 platform_get_absolute_time() {
     LARGE_INTEGER ticks;
     RL_ASSERT(QueryPerformanceCounter(&ticks));
     return ticks.QuadPart;
