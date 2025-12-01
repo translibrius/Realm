@@ -21,8 +21,8 @@ typedef struct engine_state {
 static engine_state state;
 
 b8 resize_callback(void *data) {
-    (void)data;
-    RL_DEBUG("RESIZE EVENT");
+    e_resize_payload *resize_payload = data;
+    RL_DEBUG("Window resized | POS: %d;%d | Size: %dx%d", resize_payload->x, resize_payload->y, resize_payload->width, resize_payload->height);
     return false;
 }
 

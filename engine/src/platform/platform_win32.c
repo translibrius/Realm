@@ -23,6 +23,18 @@
 #define CREATE_DANGEROUS_WINDOW (WM_USER + 0x1337)
 #define DESTROY_DANGEROUS_WINDOW (WM_USER + 0x1338)
 
+// Window messages
+#define MSG_RESIZE (WM_USER + 0x1339)
+
+/* ---- Custom window message structs */
+
+typedef struct resize_msg {
+    HWND hwnd;
+    u32 x, y, w, h;
+} resize_msg;
+
+/* ---- END --------------------------- */
+
 typedef struct win32_create_info {
     DWORD dwExStyle;
     LPCSTR lpClassName;
@@ -214,16 +226,21 @@ b8 platform_pump_messages() {
                 }
             }
             break;
-        case WM_WINDOWPOSCHANGED:
-            WINDOWPOS *position = (WINDOWPOS *)msg.lParam;
-            RL_DEBUG("Window x:%d y:%d, w:%d, h:%d", position->x, position->y, position->cx, position->cy);
-            break;
-        case WM_SIZE:
-            UINT width = LOWORD(msg.lParam);
-            UINT height = HIWORD(msg.lParam);
-            RL_DEBUG("w: %d, h: %d", width, height);
+        case MSG_RESIZE:
+            resize_msg *p = (resize_msg *)msg.wParam;
+            RECT client_rect;
+            GetClientRect(p->hwnd, &client_rect);
 
-            //event_fire(EVENT_WINDOW_RESIZE, );
+            // Fire engine event
+            e_resize_payload e;
+            e.x = p->x;
+            e.y = p->y;
+            e.width = client_rect.right - client_rect.left;
+            e.height = client_rect.bottom - client_rect.top;
+
+            event_fire(EVENT_WINDOW_RESIZE, &e);
+
+            rl_free(p, sizeof(resize_msg), MEM_SUBSYSTEM_PLATFORM);
             break;
         default:
             break;
@@ -739,22 +756,36 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
     }
     break;
 
+    case WM_WINDOWPOSCHANGED: {
+        WINDOWPOS *wp = (WINDOWPOS *)LParam;
+
+        resize_msg *msg = rl_alloc(sizeof(resize_msg), MEM_SUBSYSTEM_PLATFORM);
+        msg->hwnd = Window;
+        msg->x = wp->x;
+        msg->y = wp->y;
+        msg->w = wp->cx;
+        msg->h = wp->cy;
+
+        PostThreadMessageA(state.main_thread_id, MSG_RESIZE, (WPARAM)msg, LParam);
+
+        break;
+    }
+
     // Pass any relevant messages that main thread might want to handle!
     case WM_MOUSEMOVE:
     case WM_LBUTTONDOWN:
     case WM_LBUTTONUP:
     case WM_DESTROY:
     case WM_SIZE:
-    //case WM_WINDOWPOSCHANGED:
     case WM_CHAR: {
         PostThreadMessageA(state.main_thread_id, Message, WParam, LParam);
+        break;
     }
-    break;
 
     default: {
         Result = DefWindowProcA(Window, Message, WParam, LParam);
+        break;
     }
-    break;
     }
 
     return Result;
