@@ -8,6 +8,7 @@
 extern b8 create_application(application *application);
 
 int main() {
+    RL_INFO("--------------ENGINE_START--------------");
     application app;
     if (!create_application(&app)) {
         RL_ERROR("Failed to create application");

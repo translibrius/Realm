@@ -75,7 +75,7 @@ void destroy_engine() {
     platform_system_shutdown();
     logger_system_shutdown();
     memory_system_shutdown();
-    RL_DEBUG("-- Goodbye...");
+    RL_INFO("--------------ENGINE_STOP--------------");
 }
 
 b8 engine_run() {
