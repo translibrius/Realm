@@ -1,19 +1,26 @@
 #pragma once
 
 #include "defines.h"
+#include "util/math_types.h"
+
+typedef struct e_resize_payload {
+    vec2 position;
+    vec2 size;
+} e_resize_payload;
 
 typedef enum EVENT_TYPE {
-    WINDOW_RESIZE,
+    EVENT_WINDOW_RESIZE,
 } EVENT_TYPE;
 
 typedef struct rl_event {
-    u32 id;
     EVENT_TYPE type;
-    b8 (*event_callback)();
+    b8 (*event_callback)(void *data);
 } rl_event;
 
-typedef struct event_system_state {
-    rl_event *events;
-} event_system_state;
+u64 event_system_size();
+b8 event_system_start(void *memory);
 
-static event_system_state state;
+void event_fire(EVENT_TYPE type, void *data);
+void event_register(EVENT_TYPE type, b8 (*callback)(void *data));
+
+void event_system_shutdown();

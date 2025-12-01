@@ -1,5 +1,6 @@
 #include "engine.h"
 
+#include "core/event.h"
 #include "core/logger.h"
 
 #include "memory/arena.h"
@@ -19,6 +20,12 @@ typedef struct engine_state {
 
 static engine_state state;
 
+b8 resize_callback(void *data) {
+    (void)data;
+    RL_DEBUG("RESIZE EVENT");
+    return false;
+}
+
 b8 create_engine(const application *app) {
     (void)app;
     state.is_running = true;
@@ -31,7 +38,15 @@ b8 create_engine(const application *app) {
         return false;
     }
 
+    void *event_system = rl_alloc(event_system_size(), MEM_SUBSYSTEM_MEMORY);
+    if (!event_system_start(event_system)) {
+        RL_FATAL("Failed to initialize event sub-system, exiting...");
+        return false;
+    }
+
     logger_system_start();
+
+    event_register(EVENT_WINDOW_RESIZE, resize_callback);
 
     // Platform
     if (!platform_system_start()) {
@@ -74,6 +89,7 @@ void destroy_engine() {
     splash_hide();
     platform_system_shutdown();
     logger_system_shutdown();
+    event_system_shutdown();
     memory_system_shutdown();
     RL_INFO("--------------ENGINE_STOP--------------");
 }

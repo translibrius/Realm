@@ -1,5 +1,6 @@
 #include "memory.h"
 
+#include "core/logger.h"
 #include "util/assert.h"
 
 #include <stdio.h>
@@ -23,11 +24,13 @@ b8 memory_system_start(void *memory) {
     state->total_allocated = 0;
     rl_zero(state->allocations, sizeof(state->allocations));
 
+    RL_INFO("Memory system started!");
     return true;
 }
 
 void memory_system_shutdown() {
     state = nullptr;
+    RL_INFO("Memory system shutdown...");
 }
 
 void *rl_alloc(u64 size, MEM_TYPE type) {
@@ -39,8 +42,18 @@ void *rl_alloc(u64 size, MEM_TYPE type) {
     return malloc(size);
 }
 
+void *rl_realloc(void *old_ptr, u64 old_size, u64 new_size, MEM_TYPE type) {
+    // Update stats
+    if (state) {
+        state->total_allocated += (new_size - old_size);
+        state->allocations[type] += (new_size - old_size);
+    }
+
+    return realloc(old_ptr, new_size);
+}
+
 void rl_free(void *block, u64 size, MEM_TYPE type) {
-    RL_ASSERT_MSG(state != 0, "Trying to call a function in an uninitialized subsystem");
+    RL_ASSERT_MSG(state != nullptr, "Trying to call a function in an uninitialized subsystem");
 
     state->total_allocated -= size;
     state->allocations[type] -= size;

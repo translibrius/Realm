@@ -18,6 +18,7 @@
 
 #include "memory/memory.h"
 #include "util/assert.h"
+#include "core/event.h"
 
 #define CREATE_DANGEROUS_WINDOW (WM_USER + 0x1337)
 #define DESTROY_DANGEROUS_WINDOW (WM_USER + 0x1338)
@@ -149,6 +150,7 @@ b8 platform_system_start() {
     GetConsoleScreenBufferInfo(GetStdHandle(STD_ERROR_HANDLE), &state.err_output_csbi);
     get_system_info();
 
+    RL_INFO("Platform system started!");
     return true;
 }
 
@@ -167,6 +169,7 @@ void platform_system_shutdown() {
         state.message_thread = nullptr;
         RL_DEBUG("  - Cleaned message thread!");
     }
+    RL_INFO("Platform system shutdown...");
 }
 
 i64 platform_get_absolute_time() {
@@ -210,6 +213,17 @@ b8 platform_pump_messages() {
                     }
                 }
             }
+            break;
+        case WM_WINDOWPOSCHANGED:
+            WINDOWPOS *position = (WINDOWPOS *)msg.lParam;
+            RL_DEBUG("Window x:%d y:%d, w:%d, h:%d", position->x, position->y, position->cx, position->cy);
+            break;
+        case WM_SIZE:
+            UINT width = LOWORD(msg.lParam);
+            UINT height = HIWORD(msg.lParam);
+            RL_DEBUG("w: %d, h: %d", width, height);
+
+            //event_fire(EVENT_WINDOW_RESIZE, );
             break;
         default:
             break;
@@ -730,6 +744,8 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
     case WM_LBUTTONDOWN:
     case WM_LBUTTONUP:
     case WM_DESTROY:
+    case WM_SIZE:
+    //case WM_WINDOWPOSCHANGED:
     case WM_CHAR: {
         PostThreadMessageA(state.main_thread_id, Message, WParam, LParam);
     }

@@ -12,25 +12,46 @@
     } name
 
 #define RESIZE_FACTOR 2
+#define DEFAULT_CAPACITY 12
 
-DA_DEFINE(U16, u16);
+#define da_init(xp) do { (xp)->capacity = 0; (xp)->count = 0; (xp)->items = nullptr; } while (0)
 
-#define DA_APPEND(xp, x)                                                          \
-    do {                                                                          \
-        if ((xp)->count >= (xp)->capacity) {                                      \
-            u64 old_cap = (xp)->capacity;                                         \
-            if (old_cap == 0) old_cap = 10;                                       \
-            u64 new_cap = old_cap * RESIZE_FACTOR;                                \
-                                                                                  \
-            void *new_arr = rl_alloc(new_cap * sizeof(*(xp)->items),              \
-                                     MEM_DYNAMIC_ARRAY);                          \
-                                                                                  \
-            rl_copy((xp)->items, new_arr, old_cap * sizeof(*(xp)->items));        \
-            rl_free((xp)->items, old_cap * sizeof(*(xp)->items),                  \
-                     MEM_DYNAMIC_ARRAY);                                          \
-                                                                                  \
-            (xp)->items = new_arr;                                                \
-            (xp)->capacity = new_cap;                                             \
-        }                                                                         \
-        (xp)->items[(xp)->count++] = (x);                                         \
+// Next capacity: 1.5× for small sizes, 2× after 1024
+#define next_capacity(curr) \
+((curr) ? (((curr) < 1024) ? ((curr) * 3) / 2 : ((curr) << 1)) : DEFAULT_CAPACITY)
+
+
+#define da_append(xp, x)                                                        \
+    do {                                                                        \
+        if ((xp)->count >= (xp)->capacity) {                                    \
+            u64 old_cap = (xp)->capacity;                                       \
+            u64 new_cap = next_capacity(old_cap);                               \
+                                                                                \
+            void *ptr = rl_realloc(                                             \
+                (xp)->items,                                                    \
+                old_cap * sizeof(*(xp)->items),                                 \
+                new_cap * sizeof(*(xp)->items),                                 \
+                MEM_DYNAMIC_ARRAY                                               \
+            );                                                                  \
+                                                                                \
+            if (!ptr) {                                                         \
+                fprintf(stderr, "Memory allocation failed!\n");                 \
+                exit(EXIT_FAILURE);                                             \
+            }                                                                   \
+                                                                                \
+            (xp)->items = ptr;                                                  \
+            (xp)->capacity = new_cap;                                           \
+        }                                                                       \
+                                                                                \
+        (xp)->items[(xp)->count++] = (x);                                       \
+    } while (0)
+
+#define da_free(xp)                                                             \
+    do {                                                                        \
+        rl_free((xp)->items,                                                    \
+                sizeof(*(xp)->items) * (xp)->capacity,                          \
+                MEM_DYNAMIC_ARRAY);                                             \
+        (xp)->capacity = 0;                                                     \
+        (xp)->count = 0;                                                        \
+        (xp)->items = nullptr;                                                  \
     } while (0)
