@@ -20,12 +20,6 @@ typedef struct engine_state {
 
 static engine_state state;
 
-b8 resize_callback(void *data) {
-    e_resize_payload *resize_payload = data;
-    RL_DEBUG("Window resized | POS: %d;%d | Size: %dx%d", resize_payload->x, resize_payload->y, resize_payload->width, resize_payload->height);
-    return false;
-}
-
 b8 create_engine(const application *app) {
     (void)app;
     state.is_running = true;
@@ -45,8 +39,6 @@ b8 create_engine(const application *app) {
     }
 
     logger_system_start();
-
-    event_register(EVENT_WINDOW_RESIZE, resize_callback);
 
     // Platform
     if (!platform_system_start()) {

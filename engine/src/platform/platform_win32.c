@@ -231,8 +231,24 @@ b8 platform_pump_messages() {
             RECT client_rect;
             GetClientRect(p->hwnd, &client_rect);
 
+            // Find platform window
+            u16 found_id = 65535;
+            for (u16 i = 0; i < MAX_WINDOWS; i++) {
+                win32_window window = state.windows[i];
+                if (window.hwnd == p->hwnd) {
+                    found_id = i;
+                    break;
+                }
+            }
+
+            if (found_id == 65535) {
+                RL_WARN("Got resize event for non-existant window");
+                return true;
+            }
+
             // Fire engine event
             e_resize_payload e;
+            e.window_id = found_id;
             e.x = p->x;
             e.y = p->y;
             e.width = client_rect.right - client_rect.left;

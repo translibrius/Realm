@@ -4,10 +4,11 @@
 #include "util/math_types.h"
 
 typedef struct e_resize_payload {
-    u32 x;
-    u32 y;
-    u32 width;
-    u32 height;
+    u16 window_id;
+    i32 x;
+    i32 y;
+    i32 width;
+    i32 height;
 } e_resize_payload;
 
 typedef enum EVENT_TYPE {
