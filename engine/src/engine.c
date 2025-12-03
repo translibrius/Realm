@@ -92,7 +92,10 @@ void destroy_engine() {
 
 b8 engine_run() {
     RL_INFO("Engine running...");
+
+    u32 frame_count = 0;
     while (state.is_running) {
+        i64 time_start = platform_get_absolute_time();
         if (!platform_pump_messages()) {
             RL_DEBUG("Platform stopped event pump, breaking main loop...");
             break;
@@ -104,6 +107,10 @@ b8 engine_run() {
 
         rl_arena_reset(&state.frame_arena);
         renderer_swap_buffers();
+
+        frame_count++;
+        i64 frame_time = platform_get_absolute_time() - time_start;
+        RL_DEBUG("F: %d | T: %d", frame_count, frame_time);
     }
 
     destroy_engine();
