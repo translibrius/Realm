@@ -1,11 +1,11 @@
 #pragma once
 
 #include "defines.h"
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "vendor/stb/stb_truetype.h"
+#include "util/str.h"
 
-typedef struct rl_font {
-    u32 atlas_width;
-    u32 atlas_height;
-    u8 *pixels;
-} rl_font;
+typedef struct rl_asset_font {
+    const char *name;
+    rl_string path;
+} rl_asset_font;
+
+b8 rl_font_init(const char *font_name, rl_asset_font *out_asset);

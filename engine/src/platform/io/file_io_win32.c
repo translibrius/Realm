@@ -1,3 +1,4 @@
+#include "core/logger.h"
 #include "platform/io/file_io.h"
 #include "util/str.h"
 #include "vendor/glad/glad_wgl.h"
@@ -8,21 +9,120 @@ typedef struct file_system_state {
     rl_arena file_arena;
 } file_system_state;
 
-b8 file_dir_exists(const char *path) {
-    rl_arena scratch;
-    b8 found = false;
+// Forward decl
+DWORD access_perms(const FILE_PERM *perms);
 
-    rl_arena_create(MiB(1), &scratch);
-    rl_string_create(&scratch, path);
+b8 platform_file_exists(const char *path) {
+    DWORD attrs = GetFileAttributesA(path);
+    return (attrs != INVALID_FILE_ATTRIBUTES) && !(attrs & FILE_ATTRIBUTE_DIRECTORY);
+}
 
-    WIN32_FIND_DATA found_data;
-    HANDLE h = FindFirstFileA(path, &found_data);
+b8 platform_dir_exists(const char *path) {
+    DWORD attrs = GetFileAttributesA(path);
+    return (attrs != INVALID_FILE_ATTRIBUTES) && (attrs & FILE_ATTRIBUTE_DIRECTORY);
+}
 
-    if (h != INVALID_HANDLE_VALUE)
-        found = true;
+b8 platform_file_open(const char *path, FILE_PERM perms, rl_file *out_file) {
+    RL_ASSERT_MSG(!out_file->handle, "Trying to open a non-closed file");
 
-    rl_arena_destroy(&scratch);
-    return found;
+    out_file->buf_len = 0;
+
+    ARENA_SCRATCH_CREATE(scratch, MiB(5));
+    rl_arena_create(KiB(10), &out_file->file_arena);
+
+    HANDLE h = CreateFileA(
+        path,
+        access_perms(&perms),
+        FILE_SHARE_READ, // Only allow other processes to read while we have it open
+        nullptr,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        nullptr);
+
+    if (h == INVALID_HANDLE_VALUE) {
+        DWORD err = GetLastError();
+        if (err == 2) {
+            RL_ERROR("Failed to open file='%s'. Error: File not found", path);
+        } else {
+            RL_ERROR("Failed to open file='%s'. Error: %d", path, err);
+        }
+        return false;
+    }
+    SetFilePointer(h, 0, nullptr, FILE_BEGIN);
+
+    rl_string path_str = rl_path_sanitize(&out_file->file_arena, path);
+
+    Strings split;
+    da_init(&split);
+    rl_string_split(&out_file->file_arena, &path_str, "/", &split);
+    RL_ASSERT(split.count > 0);
+
+    out_file->path = path;
+    out_file->name = split.items[split.count - 1].cstr;
+    out_file->handle = h;
+
+    LARGE_INTEGER l_int_size;
+    GetFileSizeEx(h, &l_int_size);
+    out_file->size = l_int_size.QuadPart;
+
+    RL_DEBUG("Successfully opened file. Name='%s' Size=%llu", out_file->name, out_file->size);
+
+    da_free(&split);
+    ARENA_SCRATCH_DESTROY(&scratch);
+    return true;
+}
+
+void platform_file_close(rl_file *file) {
+    if (!CloseHandle(file->handle)) {
+        RL_ERROR("Failed to close file='%s'", file->name);
+    }
+
+    file->handle = nullptr;
+    if (file->buf) {
+        if (file->buf_len > 0) {
+            rl_free(file->buf, file->buf_len, MEM_FILE_BUFFERS);
+        }
+        file->buf = nullptr;
+    }
+
+    rl_arena_destroy(&file->file_arena);
+}
+
+b8 platform_file_read_all(rl_file *file) {
+    DWORD bytes_read = 0;
+
+    file->buf = rl_alloc(file->size, MEM_FILE_BUFFERS);
+
+    BOOL success = ReadFile(file->handle, file->buf, file->size, &bytes_read, nullptr);
+    if (!success) {
+        RL_ERROR("Failed to read file='%s'. Error: %d", file->name, GetLastError());
+        return false;
+    }
+
+    if (bytes_read != file->size) {
+        RL_ERROR("Failed to read file='%s'. Expected %llu bytes, got %llu", file->name, file->size, bytes_read);
+        return false;
+    }
+
+    file->buf_len = bytes_read;
+    return true;
+}
+
+// Private
+DWORD access_perms(const FILE_PERM *perms) {
+    switch (*perms) {
+    case P_FILE_READ:
+        return GENERIC_READ;
+    case P_FILE_WRITE:
+        return GENERIC_WRITE;
+    case P_FILE_EXECUTE:
+        return GENERIC_EXECUTE;
+    case P_FILE_ALL:
+        return GENERIC_ALL;
+    }
+
+    // Fallback
+    return GENERIC_READ;
 }
 
 #endif

@@ -1,7 +1,6 @@
 #pragma once
 
-#include "defines.h"
-#include "memory/memory.h"
+#include "util/assert.h"
 
 // Define the structure
 #define DA_DEFINE(name, type)                   \
@@ -34,10 +33,7 @@
                 MEM_DYNAMIC_ARRAY                                               \
             );                                                                  \
                                                                                 \
-            if (!ptr) {                                                         \
-                fprintf(stderr, "Memory allocation failed!\n");                 \
-                exit(EXIT_FAILURE);                                             \
-            }                                                                   \
+            RL_ASSERT(ptr);                                                     \
                                                                                 \
             (xp)->items = ptr;                                                  \
             (xp)->capacity = new_cap;                                           \

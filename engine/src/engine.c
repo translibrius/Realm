@@ -1,6 +1,7 @@
 #include "engine.h"
 
 #include "core/event.h"
+#include "core/font.h"
 #include "core/logger.h"
 
 #include "memory/arena.h"
@@ -72,6 +73,9 @@ b8 create_engine(const application *app) {
         RL_FATAL("Failed to initialize renderer, exiting...");
         return false;
     }
+
+    rl_asset_font main_font;
+    rl_font_init("evil_empire.otf", &main_font);
 
     return true;
 }

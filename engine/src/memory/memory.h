@@ -5,6 +5,8 @@
 typedef enum MEM_TYPE {
     MEM_UNKNOWN,
 
+    MEM_FILE_BUFFERS,
+
     MEM_DYNAMIC_ARRAY,
     MEM_STRING,
     MEM_ARENA,

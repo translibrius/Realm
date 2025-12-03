@@ -4,6 +4,7 @@
 #include <stdio.h>  // vsnprintf, sscanf, sprintf
 
 #include "memory/arena.h"
+#include "memory/containers/dynamic_array.h"
 #include "core/logger.h"
 #include <string.h>
 
@@ -11,12 +12,41 @@
 
 rl_string rl_string_create(rl_arena *arena, const char *cstr) {
     u32 len = strlen(cstr);
-
     void *data = rl_arena_alloc(arena, len + 1, alignof(char));
-
     memcpy(data, cstr, len + 1);
 
     return (rl_string){data, len};
+}
+
+void rl_string_split(rl_arena *arena, rl_string *source, const char *separator, Strings *out_strings) {
+    u32 last_split_index = 0;
+    u32 separator_len = cstr_len(separator);
+    for (u32 i = 0; i + separator_len <= source->len;) {
+        if (memcmp(source->cstr + i, separator, separator_len) == 0) {
+            rl_string split_slice = rl_string_slice(arena, source, last_split_index, i - last_split_index);
+            da_append(out_strings, split_slice);
+
+            RL_DEBUG("Split index=%d, content=%s, size=%d", out_strings->count-1, split_slice.cstr, split_slice.len);
+            i += separator_len;
+            last_split_index = i;
+        } else {
+            i++;
+        }
+    }
+
+    // tail
+    if (last_split_index <= source->len) {
+        rl_string tail = rl_string_slice(arena, source, last_split_index, source->len - last_split_index);
+        da_append(out_strings, tail);
+    }
+}
+
+rl_string rl_string_slice(rl_arena *arena, rl_string *source, u32 start, u32 length) {
+    char *slice = rl_arena_alloc(arena, length + 1, 1);
+    rl_copy(source->cstr + start, slice, length);
+    slice[length] = '\0';
+
+    return (rl_string){slice, length};
 }
 
 rl_string rl_string_format(rl_arena *arena, const char *fmt, ...) {
@@ -34,6 +64,22 @@ rl_string rl_string_format(rl_arena *arena, const char *fmt, ...) {
     tmp[len] = '\0';
 
     return rl_string_create(arena, tmp);
+}
+
+rl_string rl_path_sanitize(rl_arena *arena, const char *raw) {
+    // Step 1: copy string into arena
+    rl_string out = rl_string_create(arena, raw);
+
+    // Step 2: replace all '\' → '/'
+    rl_string slash = rl_string_create(arena, "\\");
+    rl_string fslash = rl_string_create(arena, "/");
+    out = rl_string_replace_all(arena, out, slash, fslash);
+
+    // Step 3: collapse double slashes
+    rl_string dbl = rl_string_create(arena, "//");
+    out = rl_string_replace_all(arena, out, dbl, fslash);
+
+    return out;
 }
 
 rl_string rl_string_replace_all(rl_arena *arena, rl_string src, rl_string search, rl_string replace) {
