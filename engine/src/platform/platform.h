@@ -25,7 +25,10 @@ b8 platform_pump_messages();
 b8 platform_create_window(platform_window *handle);
 b8 platform_destroy_window(u16 id);
 void platform_console_write(const char *message, LOG_LEVEL level);
-i64 platform_get_absolute_time();
+
+i64 platform_get_clock_counter();
+i64 platform_get_clock_frequency();
+
 b8 platform_create_opengl_context(platform_window *handle);
 b8 platform_context_make_current(platform_window *handle);
 b8 platform_swap_buffers(platform_window *handle);

@@ -9,6 +9,7 @@
 #include "platform/platform.h"
 #include "platform/splash/splash.h"
 #include "renderer/renderer_frontend.h"
+#include "util/clock.h"
 
 typedef struct engine_state {
     rl_arena frame_arena; // Per frame
@@ -47,10 +48,10 @@ b8 create_engine(const application *app) {
         return false;
     }
 
-    rl_arena_create(MiB(64), &state.frame_arena);
+    rl_arena_create(MiB(1), &state.frame_arena);
 
     // Create a splash window
-    if (!splash_show(&state.frame_arena)) {
+    if (!splash_show()) {
         RL_FATAL("Failed to display splash screen");
         return false;
     }
@@ -94,8 +95,9 @@ b8 engine_run() {
     RL_INFO("Engine running...");
 
     u32 frame_count = 0;
+    rl_clock clock;
+    clock_reset(&clock);
     while (state.is_running) {
-        i64 time_start = platform_get_absolute_time();
         if (!platform_pump_messages()) {
             RL_DEBUG("Platform stopped event pump, breaking main loop...");
             break;
@@ -109,8 +111,13 @@ b8 engine_run() {
         renderer_swap_buffers();
 
         frame_count++;
-        i64 frame_time = platform_get_absolute_time() - time_start;
-        RL_DEBUG("F: %d | T: %d", frame_count, frame_time);
+        clock_update(&clock);
+
+        if (clock_elapsed_s(&clock) >= 1) {
+            RL_DEBUG("FPS: %d", frame_count);
+            clock_reset(&clock);
+            frame_count = 0;
+        }
     }
 
     destroy_engine();

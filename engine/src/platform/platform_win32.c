@@ -184,10 +184,16 @@ void platform_system_shutdown() {
     RL_INFO("Platform system shutdown...");
 }
 
-i64 platform_get_absolute_time() {
+i64 platform_get_clock_counter() {
     LARGE_INTEGER ticks;
     RL_ASSERT(QueryPerformanceCounter(&ticks));
     return ticks.QuadPart;
+}
+
+i64 platform_get_clock_frequency() {
+    LARGE_INTEGER freq;
+    RL_ASSERT(QueryPerformanceFrequency(&freq));
+    return freq.QuadPart;
 }
 
 // Get events from window
@@ -530,6 +536,8 @@ b8 platform_create_opengl_context(platform_window *handle) {
         return false;
     }
 
+    const b8 vsync = false;
+
     win32_window *window = &state.windows[handle->id];
 
     // 1) Dummy window to load WGL extensions
@@ -685,6 +693,7 @@ b8 platform_create_opengl_context(platform_window *handle) {
             wglMakeCurrent(hdc, nullptr);
             wglDeleteContext(temp_rc);
             wglMakeCurrent(hdc, modern_ctx);
+            wglSwapIntervalEXT(vsync ? 1 : 0);
             render_ctx = modern_ctx;
             RL_INFO("Created OpenGL 3.3 core profile context");
         } else {

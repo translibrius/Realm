@@ -11,7 +11,7 @@ static opengl_context context;
 b8 resize_callback(void *data) {
     e_resize_payload *resize_payload = data;
     if (resize_payload->window_id == context.window->id) {
-        RL_DEBUG("Window #%d resized | POS: %d;%d | Size: %dx%d", resize_payload->window_id, resize_payload->x, resize_payload->y, resize_payload->width, resize_payload->height);
+        //RL_DEBUG("Window #%d resized | POS: %d;%d | Size: %dx%d", resize_payload->window_id, resize_payload->x, resize_payload->y, resize_payload->width, resize_payload->height);
         glViewport(
             resize_payload->x,
             resize_payload->y,

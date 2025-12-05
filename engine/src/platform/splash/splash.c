@@ -7,7 +7,6 @@
 typedef struct splash_screen {
     u32 pixels_size;
     u8 *pixels;
-    rl_arena *frame_arena;
 } splash_screen;
 
 typedef struct rgba {
@@ -46,10 +45,9 @@ static void splash_fill_rect(u32 x, u32 y, u32 w, u32 h, rgba color) {
 // Splash lifecycle
 // -------------------------------
 
-b8 splash_show(rl_arena *frame_arena) {
+b8 splash_show() {
     state.pixels_size = SPLASH_WIDTH * SPLASH_HEIGHT * 4;
     state.pixels = rl_alloc(state.pixels_size, MEM_SUBSYSTEM_SPLASH);
-    state.frame_arena = frame_arena;
 
     rl_zero(state.pixels, state.pixels_size);
     return platform_splash_create();

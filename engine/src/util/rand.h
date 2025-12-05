@@ -8,7 +8,7 @@
 i64 rand_int_range(i64 from, i64 to) {
     static bool seeded = false;
     if (!seeded) {
-        srand(platform_get_absolute_time());
+        srand(platform_get_clock_counter());
         seeded = true;
     }
 
