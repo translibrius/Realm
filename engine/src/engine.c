@@ -16,16 +16,14 @@ typedef struct engine_state {
     rl_arena frame_arena; // Per frame
     b8 is_running;
     b8 is_suspended;
-    platform_window window_splash;
     platform_window window_main;
-    platform_window window_second;
 } engine_state;
 
 static engine_state state;
 
-void print() {
-    RL_DEBUG("From spawned thread: %d", platform_get_current_thread_id());
-}
+// Fwd decl
+void create_main_window(void);
+void create_splash_window(void);
 
 b8 create_engine(const application *app) {
     (void)app;
@@ -55,36 +53,16 @@ b8 create_engine(const application *app) {
 
     rl_arena_create(MiB(1), &state.frame_arena);
 
-    // Create a splash window
-    if (!splash_show()) {
-        RL_FATAL("Failed to display splash screen");
-        return false;
-    }
+    create_splash_window();
+    create_main_window();
 
-    // Create an app window
-    platform_window *main_window = &state.window_main;
-    main_window->settings.title = "Realm";
-    main_window->settings.width = 500;
-    main_window->settings.height = 500;
-    main_window->settings.x = 0;
-    main_window->settings.y = 0;
-    main_window->settings.stop_on_close = true;
-
-    if (!platform_create_window(main_window)) {
-        RL_FATAL("Failed to create main window, exiting...");
-        return false;
-    }
-
-    if (!renderer_init(BACKEND_OPENGL, main_window)) {
+    if (!renderer_init(BACKEND_OPENGL, &state.window_main)) {
         RL_FATAL("Failed to initialize renderer, exiting...");
         return false;
     }
 
     rl_asset_font main_font;
     rl_font_init("evil_empire.otf", &main_font);
-
-    rl_thread thread;
-    platform_thread_create(print, &thread);
 
     return true;
 }
@@ -111,7 +89,7 @@ b8 engine_run() {
             break;
         }
 
-        splash_update();
+        event_fire(EVENT_LOADING_PROGRESS_INCREMENT, nullptr);
         renderer_begin_frame();
         renderer_end_frame();
 
@@ -130,4 +108,26 @@ b8 engine_run() {
 
     destroy_engine();
     return true;
+}
+
+// --
+
+void create_splash_window() {
+    rl_thread thread_splash;
+    platform_thread_create(splash_run, nullptr, &thread_splash);
+}
+
+void create_main_window() {
+    // Create an app window
+    platform_window *main_window = &state.window_main;
+    main_window->settings.title = "Realm";
+    main_window->settings.width = 500;
+    main_window->settings.height = 500;
+    main_window->settings.x = 0;
+    main_window->settings.y = 0;
+    main_window->settings.stop_on_close = true;
+
+    if (!platform_create_window(main_window)) {
+        RL_FATAL("Failed to create main window, exiting...");
+    }
 }

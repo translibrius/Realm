@@ -10,6 +10,8 @@
 #ifdef PLATFORM_WINDOWS
 
 #define WIN32_LEAN_AND_MEAN
+#include "thread.h"
+
 #include <stdlib.h>
 #include <windows.h>
 #include <vendor/glad/glad_wgl.h>
@@ -68,6 +70,7 @@ typedef struct platform_state {
     DWORD message_thread_id;
     HANDLE message_thread;
     HWND service_window;
+    rl_thread_sync service_sync; // For awaiting service window creation before continueing on main thread.
 
     b8 window_class_registered;
     const char *window_class_name;
@@ -101,24 +104,26 @@ HWND create_service_window() {
 }
 
 // Own service window; route dangerous calls; pump its messages.
-static DWORD WINAPI MessageThreadProc(LPVOID param) {
-    (void)param;
+void MessageThreadProc(void *data) {
+    (void)data;
 
     // This thread owns the service window
     state.message_thread_id = GetCurrentThreadId();
 
     state.service_window = create_service_window();
-    if (!state.service_window) {
-        return 1;
+    if (state.service_window == NULL) {
+        RL_FATAL("Failed to create service window: %d", GetLastError());
+        return;
     }
+
+    // Signal that service thread created the service window, app can proceed and safely create/destroy win32 windows
+    platform_thread_sync_signal(&state.service_sync);
 
     MSG msg;
     while (GetMessageA(&msg, nullptr, 0, 0) > 0) {
         TranslateMessage(&msg);
         DispatchMessageA(&msg);
     }
-
-    return 0;
 }
 
 b8 platform_system_start() {
@@ -127,14 +132,16 @@ b8 platform_system_start() {
     state.main_thread_id = platform_get_current_thread_id();
 
     RL_DEBUG("Platform main thread id: %d", state.main_thread_id);
-    HANDLE message_thread = CreateThread(nullptr, 0, MessageThreadProc, nullptr, 0, &state.message_thread_id);
 
-    if (!message_thread) {
+    rl_thread msg_thread;
+    platform_thread_sync_create(&state.service_sync);
+    if (!platform_thread_create(MessageThreadProc, NULL, &msg_thread)) {
         RL_FATAL("Failed to create win32 message thread, err=%lu", GetLastError());
         return false;
     }
+    platform_sync_wait(&state.service_sync);
 
-    state.message_thread = message_thread;
+    state.message_thread = msg_thread.handle;
     RL_DEBUG("Platform message thread id: %d", state.message_thread_id);
 
     state.window_class_name = "RealmEngineClass";

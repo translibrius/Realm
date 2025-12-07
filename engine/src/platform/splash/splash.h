@@ -13,3 +13,5 @@ void splash_hide();
 b8 platform_splash_create();
 b8 platform_splash_update(u8 *pixels);
 void platform_splash_destroy();
+
+void splash_run(void *data);

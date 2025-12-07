@@ -1,15 +1,15 @@
 #include "platform/splash/splash.h"
 
+#include "core/event.h"
 #include "core/logger.h"
 #include "memory/memory.h"
 #include "util/clock.h"
 #include "util/str.h"
+#include "vendor/glad/glad_wgl.h"
 
 typedef struct splash_screen {
     u32 pixels_size;
     u8 *pixels;
-
-    rl_clock progress_clock;
     u32 progress_step;
 } splash_screen;
 
@@ -19,7 +19,15 @@ typedef struct rgba {
 
 static splash_screen state;
 
-#define PROGRESS_MAX_STEPS 250
+// TODO: actual progress tracking, with mutex instead of regular events
+#define PROGRESS_MAX_STEPS 5000
+
+b8 on_progress_increment(void *data) {
+    (void)data;
+    state.progress_step++;
+    return true;
+}
+
 
 // -------------------------------
 // Basic pixel + rect drawing
@@ -52,7 +60,6 @@ static void splash_fill_rect(u32 x, u32 y, u32 w, u32 h, rgba color) {
 // -------------------------------
 
 b8 splash_show() {
-    clock_reset(&state.progress_clock);
     state.progress_step = 0;
     state.pixels_size = SPLASH_WIDTH * SPLASH_HEIGHT * 4;
     state.pixels = rl_alloc(state.pixels_size, MEM_SUBSYSTEM_SPLASH);
@@ -62,17 +69,6 @@ b8 splash_show() {
 }
 
 void splash_update() {
-    clock_update(&state.progress_clock);
-
-    // Advance progress every 0.2 sec
-    if (clock_elapsed_s(&state.progress_clock) > 0.004166) {
-        state.progress_step++;
-        if (state.progress_step > PROGRESS_MAX_STEPS) {
-            state.progress_step = 0;
-        }
-        clock_reset(&state.progress_clock);
-    }
-
     // Colors
     const rgba bg_color = {30, 30, 46, 255};
     const rgba border_color = {49, 50, 68, 255};
@@ -114,8 +110,24 @@ void splash_update() {
     platform_splash_update(state.pixels);
 }
 
-
 void splash_hide() {
     rl_free(state.pixels, state.pixels_size, MEM_SUBSYSTEM_SPLASH);
     platform_splash_destroy();
+}
+
+void splash_run(void *data) {
+    (void)data;
+    RL_DEBUG("Splash window spawned on thread: %d", platform_get_current_thread_id());
+
+    event_register(EVENT_LOADING_PROGRESS_INCREMENT, on_progress_increment);
+    if (!splash_show()) {
+        RL_DEBUG("Failed to show splash window");
+        return;
+    }
+
+    while (state.progress_step < PROGRESS_MAX_STEPS) {
+        splash_update();
+    }
+
+    splash_hide();
 }
