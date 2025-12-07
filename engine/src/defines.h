@@ -65,11 +65,11 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 
 // Inlining
 #ifdef _MSC_VER
-#define REALM_INLINE __forceinline
-#define REALM_NOINLINE __declspec(noinline)
+#define RL_INLINE __forceinline
+#define RL_NOINLINE __declspec(noinline)
 #else
-#define REALM_INLINE static inline
-#define REALM_NOINLINE
+#define RL_INLINE static inline
+#define RL_NOINLINE
 #endif
 
 // Platform detection

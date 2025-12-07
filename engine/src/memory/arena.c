@@ -7,7 +7,7 @@
 
 #define ALIGN_UP(x, align) (((x) + ((align) - 1)) & ~((align) - 1))
 
-REALM_INLINE b8 is_power_of_two(u64 x) {
+RL_INLINE b8 is_power_of_two(u64 x) {
     return (x & (x - 1)) == 0;
 }
 

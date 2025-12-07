@@ -39,6 +39,7 @@ void platform_console_write(const char *message, LOG_LEVEL level);
 
 i64 platform_get_clock_counter();
 i64 platform_get_clock_frequency();
+void platform_sleep(u32 milliseconds);
 
 b8 platform_create_opengl_context(platform_window *window);
 b8 platform_context_make_current(platform_window *window);

@@ -27,6 +27,7 @@ static engine_state state;
 void create_main_window();
 void load_cache();
 b8 on_key_press(void *data);
+b8 on_resize(void *data);
 
 // Bootstrap all subsystems
 b8 create_engine(const application *app) {
@@ -57,6 +58,7 @@ b8 create_engine(const application *app) {
     }
 
     event_register(EVENT_KEY_PRESS, on_key_press);
+    event_register(EVENT_WINDOW_RESIZE, on_resize);
 
     void *asset_system = rl_alloc(asset_system_size(), MEM_SUBSYSTEM_ASSET);
     if (!asset_system_start(asset_system) || !asset_system_load_all()) {
@@ -87,6 +89,11 @@ b8 engine_run() {
             RL_DEBUG("Platform stopped event pump, breaking main loop...");
             break;
         }
+        if (state.is_suspended) {
+            platform_sleep(100);
+        }
+
+        input_update(); // Process user input
 
         renderer_begin_frame();
         renderer_end_frame();
@@ -100,8 +107,6 @@ b8 engine_run() {
             clock_reset(&clock);
             frame_count = 0;
         }
-
-        input_update();
     }
 
     destroy_engine();
@@ -125,6 +130,30 @@ b8 on_key_press(void *data) {
     }
 
     // Let other systems see this event
+    return false;
+}
+
+b8 on_resize(void *data) {
+    platform_window *window = data;
+    if (window->id == state.window_main.id) {
+        /*
+        RL_DEBUG("Window #%d resized | POS: %d;%d | Size: %dx%d",
+                 window->id,
+                 window->settings.x, window->settings.y,
+                 window->settings.width, window->settings.height);
+        */
+
+        // Minimized, suspend render
+        if (window->settings.width <= 0 && window->settings.height <= 0) {
+            RL_DEBUG("Main window minimized...");
+            state.is_suspended = true;
+        } else {
+            if (state.is_suspended) {
+                RL_DEBUG("Main window restored!");
+            }
+            state.is_suspended = false;
+        }
+    }
     return false;
 }
 

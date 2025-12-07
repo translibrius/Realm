@@ -256,8 +256,8 @@ b8 platform_pump_messages() {
                     found_window = window.window;
                     found_window->settings.x = p->x;
                     found_window->settings.y = p->y;
-                    found_window->settings.width = p->w;
-                    found_window->settings.height = p->h;
+                    found_window->settings.width = client_rect.right - client_rect.left;
+                    found_window->settings.height = client_rect.bottom - client_rect.top;
                     break;
                 }
             }
@@ -492,6 +492,10 @@ b8 platform_swap_buffers(platform_window *window) {
         return false;
     }
     return true;
+}
+
+void platform_sleep(u32 milliseconds) {
+    Sleep(milliseconds);
 }
 
 // Private ---------------------------------------------------------------

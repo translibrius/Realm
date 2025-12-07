@@ -5,6 +5,7 @@
 #include "vendor/glad/glad.h"
 #include "util/rand.h"
 #include "core/event.h"
+#include "util/rl_math.h"
 
 static opengl_context context;
 
@@ -54,6 +55,13 @@ void opengl_destroy() {
 void opengl_begin_frame() {
     glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+
+    vec3 vertices[] = {
+        vec3_create(-0.5f, -0.5f, 0.0f),
+        vec3_create(0.5f, -0.5f, 0.0f),
+        vec3_create(0.5f, 0.5f, 0.0f),
+    };
+    (void)vertices;
 }
 
 void opengl_end_frame() {
