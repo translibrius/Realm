@@ -13,7 +13,10 @@ typedef struct e_resize_payload {
 
 typedef enum EVENT_TYPE {
     EVENT_WINDOW_RESIZE,
-     EVENT_LOADING_PROGRESS_INCREMENT,
+
+    // Splash
+    EVENT_SPLASH_INCREMENT,
+    EVENT_SPLASH_FINISHED,
 } EVENT_TYPE;
 
 typedef struct rl_event {

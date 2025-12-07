@@ -16,6 +16,7 @@ typedef enum MEM_TYPE {
     MEM_SUBSYSTEM_LOGGER,
     MEM_SUBSYSTEM_RENDERER,
     MEM_SUBSYSTEM_PLATFORM,
+    MEM_SUBSYSTEM_ASSET,
     MEM_SUBSYSTEM_SPLASH,
 
     // Used to track how many total types exist

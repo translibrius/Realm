@@ -1,7 +1,8 @@
 #include "engine.h"
 
+#include "asset/asset.h"
 #include "core/event.h"
-#include "core/font.h"
+#include "asset/font.h"
 #include "core/logger.h"
 
 #include "memory/arena.h"
@@ -11,9 +12,9 @@
 #include "platform/splash/splash.h"
 #include "renderer/renderer_frontend.h"
 #include "util/clock.h"
+#include "vendor/glad/glad_wgl.h"
 
 typedef struct engine_state {
-    rl_arena frame_arena; // Per frame
     b8 is_running;
     b8 is_suspended;
     platform_window window_main;
@@ -22,15 +23,14 @@ typedef struct engine_state {
 static engine_state state;
 
 // Fwd decl
-void create_main_window(void);
-void create_splash_window(void);
+void create_main_window();
+void load_cache();
 
+// Bootstrap all subsystems
 b8 create_engine(const application *app) {
     (void)app;
     state.is_running = true;
     state.is_suspended = false;
-
-    // Memory subsystem
     void *memory_system = rl_alloc(memory_system_size(), MEM_SUBSYSTEM_MEMORY);
     if (!memory_system_start(memory_system)) {
         RL_FATAL("Failed to initialize memory sub-system, exiting...");
@@ -43,33 +43,27 @@ b8 create_engine(const application *app) {
         return false;
     }
 
-    logger_system_start();
+    void *logger_system = rl_alloc(logger_system_size(), MEM_SUBSYSTEM_LOGGER);
+    if (!logger_system_start(logger_system)) {
+        RL_FATAL("Failed to initialize logger sub-system, exiting...");
+        return false;
+    }
 
-    // Platform
     if (!platform_system_start()) {
         RL_FATAL("Failed to initialize platform sub-system, exiting...");
         return false;
     }
 
-    rl_arena_create(MiB(1), &state.frame_arena);
-
-    create_splash_window();
-    create_main_window();
-
-    if (!renderer_init(BACKEND_OPENGL, &state.window_main)) {
-        RL_FATAL("Failed to initialize renderer, exiting...");
-        return false;
+    void *asset_system = rl_alloc(asset_system_size(), MEM_SUBSYSTEM_ASSET);
+    if (!asset_system_start(asset_system) || !asset_system_load_all()) {
+        RL_FATAL("Failed to initialize asset sub-system, exiting...");
     }
-
-    rl_asset_font main_font;
-    rl_font_init("evil_empire.otf", &main_font);
 
     return true;
 }
 
 void destroy_engine() {
     RL_DEBUG("Engine shutting down, cleaning up...");
-    splash_hide();
     platform_system_shutdown();
     logger_system_shutdown();
     event_system_shutdown();
@@ -79,6 +73,7 @@ void destroy_engine() {
 
 b8 engine_run() {
     RL_INFO("Engine running...");
+    create_main_window();
 
     u32 frame_count = 0;
     rl_clock clock;
@@ -89,11 +84,8 @@ b8 engine_run() {
             break;
         }
 
-        event_fire(EVENT_LOADING_PROGRESS_INCREMENT, nullptr);
         renderer_begin_frame();
         renderer_end_frame();
-
-        rl_arena_reset(&state.frame_arena);
         renderer_swap_buffers();
 
         frame_count++;
@@ -112,11 +104,6 @@ b8 engine_run() {
 
 // --
 
-void create_splash_window() {
-    rl_thread thread_splash;
-    platform_thread_create(splash_run, nullptr, &thread_splash);
-}
-
 void create_main_window() {
     // Create an app window
     platform_window *main_window = &state.window_main;
@@ -126,8 +113,13 @@ void create_main_window() {
     main_window->settings.x = 0;
     main_window->settings.y = 0;
     main_window->settings.stop_on_close = true;
+    main_window->settings.window_flags = WINDOW_FLAG_DEFAULT;
 
     if (!platform_create_window(main_window)) {
         RL_FATAL("Failed to create main window, exiting...");
+    }
+
+    if (!renderer_init(BACKEND_OPENGL, &state.window_main)) {
+        RL_FATAL("Failed to initialize renderer, exiting...");
     }
 }

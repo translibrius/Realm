@@ -1,6 +1,6 @@
-#include "core/font.h"
+#include "font.h"
 
-#include "logger.h"
+#include "../core/logger.h"
 #include "platform/io/file_io.h"
 #include "asset/asset.h"
 

@@ -139,7 +139,7 @@ b8 platform_system_start() {
         RL_FATAL("Failed to create win32 message thread, err=%lu", GetLastError());
         return false;
     }
-    platform_sync_wait(&state.service_sync);
+    platform_thread_sync_wait(&state.service_sync);
 
     state.message_thread = msg_thread.handle;
     RL_DEBUG("Platform message thread id: %d", state.message_thread_id);
@@ -282,7 +282,7 @@ u64 platform_get_current_thread_id() {
     return GetCurrentThreadId();
 }
 
-b8 platform_create_window(platform_window *handle) {
+b8 platform_create_window(platform_window *window) {
     if (!state.window_class_registered) {
         RL_FATAL("window class not registered!");
         return false;
@@ -302,10 +302,24 @@ b8 platform_create_window(platform_window *handle) {
         return false;
     }
 
-    RL_INFO("Creating window '%s' %dx%d", handle->settings.title, handle->settings.width, handle->settings.height);
+    RL_INFO("Creating window '%s' %dx%d", window->settings.title, window->settings.width, window->settings.height);
 
-    constexpr DWORD window_style_ex = WS_EX_TRANSPARENT | WS_EX_APPWINDOW /*| WS_EX_TOPMOST*/;
-    constexpr DWORD window_style = WS_POPUPWINDOW; //| WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME;
+    DWORD window_style_ex = WS_EX_APPWINDOW;
+    DWORD window_style = WS_OVERLAPPEDWINDOW;
+
+    if (window->settings.window_flags & WINDOW_FLAG_TRANSPARENT) {
+        window_style_ex |= WS_EX_LAYERED;
+    }
+
+    if (window->settings.window_flags & WINDOW_FLAG_ON_TOP) {
+        window_style_ex |= WS_EX_TOPMOST;
+    }
+
+    if (window->settings.window_flags & WINDOW_FLAG_NO_INPUT) {
+        window_style_ex |= WS_EX_TRANSPARENT | WS_EX_LAYERED;
+        // WS_EX_TRANSPARENT lets events pass through
+        // WS_EX_LAYERED normally pairs well with transparency for visual stuff
+    }
 
     win32_window *w = &state.windows[id];
     rl_zero(w, sizeof(*w));
@@ -314,8 +328,8 @@ b8 platform_create_window(platform_window *handle) {
     RECT rect = {0};
     rect.left = 0;
     rect.top = 0;
-    rect.right = handle->settings.width;
-    rect.bottom = handle->settings.height;
+    rect.right = window->settings.width;
+    rect.bottom = window->settings.height;
 
     // Convert client size → window outer size
     AdjustWindowRectEx(
@@ -329,9 +343,9 @@ b8 platform_create_window(platform_window *handle) {
     window_info.dwExStyle = window_style_ex;
     window_info.dwStyle = window_style;
     window_info.lpClassName = state.window_class_name;
-    window_info.lpWindowName = handle->settings.title;
-    window_info.X = handle->settings.x;
-    window_info.Y = handle->settings.y;
+    window_info.lpWindowName = window->settings.title;
+    window_info.X = window->settings.x;
+    window_info.Y = window->settings.y;
     window_info.nWidth = rect.right - rect.left;
     window_info.nHeight = rect.bottom - rect.top;
     window_info.hWndParent = nullptr;
@@ -352,9 +366,10 @@ b8 platform_create_window(platform_window *handle) {
 
     w->hwnd = hwnd;
     w->alive = true;
-    w->stop_on_close = handle->settings.stop_on_close;
+    w->stop_on_close = window->settings.stop_on_close;
 
-    handle->id = id;
+    window->id = id;
+    window->handle = hwnd;
 
     ShowWindow(hwnd, SW_SHOW);
 
@@ -422,13 +437,13 @@ void platform_console_write(const char *message, const LOG_LEVEL level) {
     SetConsoleTextAttribute(console_handle, level_colors[6]);
 }
 
-b8 platform_context_make_current(platform_window *handle) {
-    if (!handle || handle->id >= MAX_WINDOWS) {
+b8 platform_context_make_current(platform_window *window) {
+    if (!window || window->id >= MAX_WINDOWS) {
         RL_ERROR("platform_context_make_current() failed: invalid window handle");
         return false;
     }
 
-    win32_window *w = &state.windows[handle->id];
+    win32_window *w = &state.windows[window->id];
 
     if (!w->alive) {
         RL_ERROR("platform_context_make_current() failed: window not alive");
@@ -448,13 +463,13 @@ b8 platform_context_make_current(platform_window *handle) {
     return true;
 }
 
-b8 platform_swap_buffers(platform_window *handle) {
-    if (!handle || handle->id >= MAX_WINDOWS) {
+b8 platform_swap_buffers(platform_window *window) {
+    if (!window || window->id >= MAX_WINDOWS) {
         RL_ERROR("Platform failed to swap buffers, invalid window handle");
         return false;
     }
 
-    const win32_window *w = &state.windows[handle->id];
+    const win32_window *w = &state.windows[window->id];
 
     if (w->hdc == nullptr) {
         RL_ERROR("Platform failed to swap buffers, invalid device context (HDC)");
@@ -536,15 +551,15 @@ const char *get_arch_name(const WORD arch) {
     }
 }
 
-b8 platform_create_opengl_context(platform_window *handle) {
-    if (handle == nullptr || handle->id >= MAX_WINDOWS || !state.windows[handle->id].alive) {
+b8 platform_create_opengl_context(platform_window *window) {
+    if (window == nullptr || window->id >= MAX_WINDOWS || !state.windows[window->id].alive) {
         RL_ERROR("Failed to create opengl context, invalid window handle");
         return false;
     }
 
     const b8 vsync = false;
 
-    win32_window *window = &state.windows[handle->id];
+    win32_window *native_window = &state.windows[window->id];
 
     // 1) Dummy window to load WGL extensions
     WNDCLASSA dummy_class = {0};
@@ -612,13 +627,13 @@ b8 platform_create_opengl_context(platform_window *handle) {
     DestroyWindow(dummy_hwnd);
     UnregisterClassA("dummy_window_class", state.handle);
 
-    if (window == nullptr || window->hwnd == nullptr) {
+    if (native_window == nullptr || native_window->hwnd == nullptr) {
         RL_ERROR("Failed to create opengl context, invalid window handle");
         return false;
     }
 
     // 2) Real window setup
-    HDC hdc = GetDC(window->hwnd);
+    HDC hdc = GetDC(native_window->hwnd);
     if (!hdc) {
         RL_ERROR("platform_create_opengl_context(): failed to get device context, e: %d", GetLastError());
         return false;
@@ -661,7 +676,7 @@ b8 platform_create_opengl_context(platform_window *handle) {
             !wglChoosePixelFormatARB(hdc, pixel_format_attribs_no_msaa, nullptr, 1, &chosen_format, &num_formats) ||
             num_formats == 0) {
             RL_ERROR("wglChoosePixelFormatARB failed.");
-            ReleaseDC(window->hwnd, hdc);
+            ReleaseDC(native_window->hwnd, hdc);
             return false;
         }
     }
@@ -670,7 +685,7 @@ b8 platform_create_opengl_context(platform_window *handle) {
     DescribePixelFormat(hdc, chosen_format, sizeof(real_pfd), &real_pfd);
     if (!SetPixelFormat(hdc, chosen_format, &real_pfd)) {
         RL_ERROR("SetPixelFormat failed for real context.");
-        ReleaseDC(window->hwnd, hdc);
+        ReleaseDC(native_window->hwnd, hdc);
         return false;
     }
 
@@ -678,7 +693,7 @@ b8 platform_create_opengl_context(platform_window *handle) {
     HGLRC temp_rc = wglCreateContext(hdc);
     if (!temp_rc) {
         RL_ERROR("Failed to create temporary legacy context.");
-        ReleaseDC(window->hwnd, hdc);
+        ReleaseDC(native_window->hwnd, hdc);
         return false;
     }
     wglMakeCurrent(hdc, temp_rc);
@@ -713,7 +728,7 @@ b8 platform_create_opengl_context(platform_window *handle) {
         RL_ERROR("Failed to initialize OpenGL via GLAD.");
         wglMakeCurrent(hdc, nullptr);
         wglDeleteContext(render_ctx);
-        ReleaseDC(window->hwnd, hdc);
+        ReleaseDC(native_window->hwnd, hdc);
         return false;
     }
 
@@ -722,8 +737,8 @@ b8 platform_create_opengl_context(platform_window *handle) {
     RL_INFO("GL_VERSION:  %s", glGetString(GL_VERSION));
     RL_INFO("GLSL:        %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
 
-    window->hdc = hdc;
-    window->gl = render_ctx;
+    native_window->hdc = hdc;
+    native_window->gl = render_ctx;
     return true;
 }
 

@@ -3,61 +3,46 @@
 #ifdef PLATFORM_WINDOWS
 
 #include "core/logger.h"
+#include "platform/platform.h"
 #include "vendor/glad/glad_wgl.h"
 
 typedef struct win32_splash_state {
     HINSTANCE hinstance;
-    HWND hwnd;
-    u32 window_pos_x;
-    u32 window_pos_y;
+    platform_window window;
 } win32_splash_state;
 
 static win32_splash_state state;
 
 b8 platform_splash_create() {
-    state.hinstance = GetModuleHandleA(NULL);
-
-    WNDCLASSEXA wc = {0};
-    wc.cbSize = sizeof(wc);
-    wc.lpfnWndProc = DefWindowProcA;
-    wc.hInstance = state.hinstance;
-    wc.lpszClassName = "RealmSplash";
-
-    if (!RegisterClassExA(&wc)) {
-        RL_FATAL("platform_splash_create(): Failed to register window class. Code: %d", GetLastError());
-        return false;
-    }
-
     // Get primary monitor resolution
-    const u32 screen_w = GetSystemMetrics(SM_CXSCREEN);
-    const u32 screen_h = GetSystemMetrics(SM_CYSCREEN);
+    const i32 screen_w = GetSystemMetrics(SM_CXSCREEN);
+    const i32 screen_h = GetSystemMetrics(SM_CYSCREEN);
 
     // Center coordinates
-    state.window_pos_x = (screen_w - (u32)SPLASH_WIDTH) / 2;
-    state.window_pos_y = (screen_h - (u32)SPLASH_HEIGHT) / 2;
+    state.window.settings.x = (screen_w - SPLASH_WIDTH) / 2;
+    state.window.settings.y = (screen_h - SPLASH_HEIGHT) / 2;
 
-    state.hwnd = CreateWindowExA(
-        WS_EX_LAYERED | WS_EX_TOPMOST,
-        wc.lpszClassName,
-        "",
-        WS_POPUP,
-        state.window_pos_x, state.window_pos_y,
-        SPLASH_WIDTH, SPLASH_HEIGHT,
-        NULL, NULL, state.hinstance, NULL
-        );
+    state.window.settings.title = ""; // splash visible, but no title text
+    state.window.settings.width = SPLASH_WIDTH;
+    state.window.settings.height = SPLASH_HEIGHT;
+    state.window.settings.stop_on_close = false;
 
-    if (!state.hwnd) {
-        RL_FATAL("platform_splash_create(): Failed to create window");
+    // splash intent — semantic, platform neutral:
+    state.window.settings.window_flags =
+        WINDOW_FLAG_NO_DECORATION |
+        WINDOW_FLAG_ON_TOP |
+        WINDOW_FLAG_NO_INPUT; // splash usually shouldn’t eat mouse
+
+    if (!platform_create_window(&state.window)) {
+        RL_FATAL("Failed to create splash window, exiting...");
         return false;
     }
 
-    ShowWindow(state.hwnd, SW_SHOW);
-    UpdateWindow(state.hwnd);
     return true;
 }
 
 b8 platform_splash_update(u8 *pixels) {
-    if (!state.hwnd || !pixels) {
+    if (!state.window.handle || !pixels) {
         return false;
     }
 
@@ -82,7 +67,7 @@ b8 platform_splash_update(u8 *pixels) {
 
     POINT src_pos = {0, 0};
     SIZE wnd_size = {SPLASH_WIDTH, SPLASH_HEIGHT};
-    POINT wnd_pos = {state.window_pos_x, state.window_pos_y};
+    POINT wnd_pos = {state.window.settings.x, state.window.settings.y};
 
     BLENDFUNCTION blend = {0};
     blend.BlendOp = AC_SRC_OVER;
@@ -90,7 +75,7 @@ b8 platform_splash_update(u8 *pixels) {
     blend.AlphaFormat = AC_SRC_ALPHA; // Enable per-pixel alpha
 
     BOOL result = UpdateLayeredWindow(
-        state.hwnd,
+        state.window.handle,
         screen_dc,
         &wnd_pos,
         &wnd_size,
@@ -109,15 +94,7 @@ b8 platform_splash_update(u8 *pixels) {
 }
 
 void platform_splash_destroy() {
-    if (state.hwnd) {
-        DestroyWindow(state.hwnd);
-        state.hwnd = NULL;
-    }
-
-    if (state.hinstance) {
-        UnregisterClassA("RealmSplash", state.hinstance);
-        state.hinstance = NULL;
-    }
+    platform_destroy_window(state.window.id);
 }
 
 #endif

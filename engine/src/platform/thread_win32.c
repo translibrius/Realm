@@ -3,6 +3,8 @@
 #ifdef PLATFORM_WINDOWS
 
 #define WIN32_LEAN_AND_MEAN
+#include "platform.h"
+
 #include <windows.h>
 #include <process.h>
 
@@ -10,32 +12,38 @@
 #include "memory/memory.h"
 #include "util/assert.h"
 
-DWORD WINAPI ThreadProcWrapper(LPVOID lpParam) {
+unsigned __stdcall ThreadProcWrapper(void *lpParam) {
+    RL_TRACE("Thread %d created.", platform_get_current_thread_id());
     rl_thread_ctx *ctx = lpParam;
     ctx->entry(ctx->data);
 
     rl_free(ctx, sizeof(rl_thread_ctx), MEM_SUBSYSTEM_PLATFORM);
+
+    RL_TRACE("Thread %d finished work.", platform_get_current_thread_id());
     return 0;
 }
 
 b8 platform_thread_create(rl_thread_entry entry, void *data, rl_thread *out_thread) {
-    out_thread->entry = entry;
-    out_thread->data = data;
-
     rl_thread_ctx *ctx = rl_alloc(sizeof(rl_thread_ctx), MEM_SUBSYSTEM_PLATFORM);
     ctx->entry = entry;
     ctx->data = data;
 
-    HANDLE h = CreateThread(nullptr, 0, ThreadProcWrapper, ctx, 0, (LPDWORD)&out_thread->id);
+    u64 h = _beginthreadex(nullptr, 0, ThreadProcWrapper, ctx, 0, (unsigned *)&out_thread->id);
 
-    if (h == NULL) {
+    if (h == 0) {
         RL_ERROR("platform_thread_create() failed: Invalid thread handle");
         return false;
     }
 
-    out_thread->handle = h;
+    out_thread->handle = (HANDLE)h;
+    out_thread->entry = entry;
+    out_thread->data = data;
 
     return true;
+}
+
+void platform_thread_join(rl_thread *thread) {
+    WaitForSingleObject(thread->handle, INFINITE);
 }
 
 void platform_thread_sync_create(rl_thread_sync *out_sync) {
@@ -43,7 +51,7 @@ void platform_thread_sync_create(rl_thread_sync *out_sync) {
     out_sync->handle = e_handle;
 }
 
-void platform_sync_wait(rl_thread_sync *sync) {
+void platform_thread_sync_wait(rl_thread_sync *sync) {
     DWORD wait_result = WaitForSingleObject(sync->handle, INFINITE);
 
     switch (wait_result) {
@@ -63,6 +71,18 @@ void platform_sync_wait(rl_thread_sync *sync) {
 void platform_thread_sync_signal(rl_thread_sync *sync) {
     RL_ASSERT_MSG(sync->handle, "Trying to signal a null sync object");
     SetEvent(sync->handle);
+}
+
+void platform_mutex_create(rl_mutex *out_mutex) {
+    InitializeSRWLock(out_mutex->handle);
+}
+
+void platform_mutex_lock(rl_mutex *mutex) {
+    AcquireSRWLockExclusive(mutex->handle);
+}
+
+void platform_mutex_unlock(rl_mutex *mutex) {
+    ReleaseSRWLockExclusive(mutex->handle);
 }
 
 #endif

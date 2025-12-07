@@ -1,10 +1,10 @@
 #include "platform/splash/splash.h"
 
+#include "asset/asset_table.h"
 #include "core/event.h"
 #include "core/logger.h"
 #include "memory/memory.h"
 #include "util/clock.h"
-#include "util/str.h"
 #include "vendor/glad/glad_wgl.h"
 
 typedef struct splash_screen {
@@ -18,9 +18,6 @@ typedef struct rgba {
 } rgba;
 
 static splash_screen state;
-
-// TODO: actual progress tracking, with mutex instead of regular events
-#define PROGRESS_MAX_STEPS 5000
 
 b8 on_progress_increment(void *data) {
     (void)data;
@@ -102,7 +99,7 @@ void splash_update() {
     u32 inner_w = border_w - bar_inner_padding * 2;
 
     // Compute progress width safely
-    u32 progress_w = (inner_w * state.progress_step) / PROGRESS_MAX_STEPS;
+    u32 progress_w = (inner_w * state.progress_step) / ASSET_TABLE_TOTAL;
 
     // Fill progress
     splash_fill_rect(inner_x, inner_y, progress_w, bar_h, bar_fill_color);
@@ -119,15 +116,16 @@ void splash_run(void *data) {
     (void)data;
     RL_DEBUG("Splash window spawned on thread: %d", platform_get_current_thread_id());
 
-    event_register(EVENT_LOADING_PROGRESS_INCREMENT, on_progress_increment);
+    event_register(EVENT_SPLASH_INCREMENT, on_progress_increment);
     if (!splash_show()) {
         RL_DEBUG("Failed to show splash window");
         return;
     }
 
-    while (state.progress_step < PROGRESS_MAX_STEPS) {
+    while (state.progress_step < ASSET_TABLE_TOTAL) {
         splash_update();
     }
 
     splash_hide();
+    event_fire(EVENT_SPLASH_FINISHED, nullptr);
 }
