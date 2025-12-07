@@ -14,6 +14,12 @@ typedef struct e_resize_payload {
 typedef enum EVENT_TYPE {
     EVENT_WINDOW_RESIZE,
 
+    // Input
+    EVENT_MOUSE_MOVE,
+    EVENT_MOUSE_CLICK,
+    EVENT_MOUSE_SCROLL,
+    EVENT_KEY_PRESS,
+
     // Splash
     EVENT_SPLASH_INCREMENT,
     EVENT_SPLASH_FINISHED,

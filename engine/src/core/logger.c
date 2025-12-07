@@ -26,6 +26,7 @@ b8 logger_system_start(void *memory) {
 
 void logger_system_shutdown() {
     rl_arena_destroy(&state->log_arena);
+    state = nullptr;
     RL_INFO("Logger system has been shutdown...");
 }
 

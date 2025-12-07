@@ -17,10 +17,12 @@
 #include <vendor/glad/glad_wgl.h>
 #include <winuser.h>
 #include <winternl.h>
+#include <windowsx.h>
 
 #include "memory/memory.h"
 #include "util/assert.h"
 #include "core/event.h"
+#include "platform/input.h"
 
 #define CREATE_DANGEROUS_WINDOW (WM_USER + 0x1337)
 #define DESTROY_DANGEROUS_WINDOW (WM_USER + 0x1338)
@@ -84,6 +86,7 @@ static platform_state state;
 const char *get_arch_name(WORD arch);
 void get_system_info();
 b8 get_windows_version(RTL_OSVERSIONINFOW *out_version);
+KEYBOARD_KEY map_keycode_to_key(u16 keycode);
 
 static LRESULT CALLBACK ServiceWndProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam);
 static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam);
@@ -810,6 +813,10 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
     }
     break;
 
+    case WM_ERASEBKGND:
+        // Notify the OS that erasing the screen will be handled by the application to prevent flicker.
+        return 1;
+
     case WM_WINDOWPOSCHANGED: {
         WINDOWPOS *wp = (WINDOWPOS *)LParam;
 
@@ -826,15 +833,75 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
     }
 
     // Pass any relevant messages that main thread might want to handle!
-    case WM_MOUSEMOVE:
-    case WM_LBUTTONDOWN:
-    case WM_LBUTTONUP:
     case WM_DESTROY:
     case WM_SIZE:
     case WM_CHAR: {
         PostThreadMessageA(state.main_thread_id, Message, WParam, LParam);
         break;
     }
+
+    // Input
+    case WM_KEYDOWN:
+    case WM_SYSKEYDOWN:
+    case WM_KEYUP:
+    case WM_SYSKEYUP: {
+        b8 pressed = (Message == WM_KEYDOWN || Message == WM_SYSKEYDOWN);
+        u16 keycode = (u16)WParam;
+
+        KEYBOARD_KEY key = map_keycode_to_key(keycode);
+        input_process_key(key, pressed);
+        // Return 0 to prevent default window behaviour for some keypresses, such as alt.
+        return 0;
+    }
+    case WM_MOUSEMOVE: {
+        // Mouse move
+        i32 x_position = GET_X_LPARAM(LParam);
+        i32 y_position = GET_Y_LPARAM(LParam);
+
+        // Pass over to the input subsystem.
+        input_process_mouse_move(x_position, y_position);
+    }
+    break;
+    case WM_MOUSEWHEEL: {
+        i32 z_delta = GET_WHEEL_DELTA_WPARAM(WParam);
+        if (z_delta != 0) {
+            // Flatten the input to an OS-independent (-1, 1)
+            z_delta = (z_delta < 0) ? -1 : 1;
+            input_process_mouse_scroll(z_delta);
+        }
+    }
+    break;
+    case WM_LBUTTONDOWN:
+    case WM_MBUTTONDOWN:
+    case WM_RBUTTONDOWN:
+    case WM_LBUTTONUP:
+    case WM_MBUTTONUP:
+    case WM_RBUTTONUP: {
+        b8 pressed = Message == WM_LBUTTONDOWN || Message == WM_RBUTTONDOWN || Message == WM_MBUTTONDOWN;
+        MOUSE_BUTTON mouse_button = MOUSE_MAX_BUTTONS;
+        switch (Message) {
+        case WM_LBUTTONDOWN:
+        case WM_LBUTTONUP:
+            mouse_button = MOUSE_LEFT;
+            break;
+        case WM_MBUTTONDOWN:
+        case WM_MBUTTONUP:
+            mouse_button = MOUSE_MIDDLE;
+            break;
+        case WM_RBUTTONDOWN:
+        case WM_RBUTTONUP:
+            mouse_button = MOUSE_RIGHT;
+            break;
+        default:
+            break;
+        }
+
+        // Pass over to the input subsystem.
+        if (mouse_button != MOUSE_MAX_BUTTONS) {
+            input_process_mouse_button(mouse_button, pressed);
+        }
+    }
+    break;
 
     default: {
         Result = DefWindowProcA(Window, Message, WParam, LParam);
@@ -843,6 +910,209 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
     }
 
     return Result;
+}
+
+KEYBOARD_KEY map_keycode_to_key(u16 keycode) {
+    switch (keycode) {
+    case VK_BACK:
+        return KEY_BACKSPACE;
+    case VK_RETURN:
+        return KEY_ENTER;
+    case VK_TAB:
+        return KEY_TAB;
+
+    case VK_LSHIFT:
+        return KEY_L_SHIFT;
+    case VK_RSHIFT:
+        return KEY_R_SHIFT;
+    case VK_LCONTROL:
+        return KEY_L_CTRL;
+    case VK_RCONTROL:
+        return KEY_R_CTRL;
+    case VK_LMENU:
+        return KEY_L_ALT;
+    case VK_RMENU:
+        return KEY_R_ALT;
+    case VK_LWIN:
+        return KEY_L_SUPER;
+    case VK_RWIN:
+        return KEY_R_SUPER;
+
+    case VK_ESCAPE:
+        return KEY_ESCAPE;
+    case VK_SPACE:
+        return KEY_SPACE;
+    case VK_UP:
+        return KEY_UP;
+    case VK_DOWN:
+        return KEY_DOWN;
+    case VK_LEFT:
+        return KEY_LEFT;
+    case VK_RIGHT:
+        return KEY_RIGHT;
+
+    // alphabet
+    case 'A':
+        return KEY_A;
+    case 'B':
+        return KEY_B;
+    case 'C':
+        return KEY_C;
+    case 'D':
+        return KEY_D;
+    case 'E':
+        return KEY_E;
+    case 'F':
+        return KEY_F;
+    case 'G':
+        return KEY_G;
+    case 'H':
+        return KEY_H;
+    case 'I':
+        return KEY_I;
+    case 'J':
+        return KEY_J;
+    case 'K':
+        return KEY_K;
+    case 'L':
+        return KEY_L;
+    case 'M':
+        return KEY_M;
+    case 'N':
+        return KEY_N;
+    case 'O':
+        return KEY_O;
+    case 'P':
+        return KEY_P;
+    case 'Q':
+        return KEY_Q;
+    case 'R':
+        return KEY_R;
+    case 'S':
+        return KEY_S;
+    case 'T':
+        return KEY_T;
+    case 'U':
+        return KEY_U;
+    case 'V':
+        return KEY_V;
+    case 'W':
+        return KEY_W;
+    case 'X':
+        return KEY_X;
+    case 'Y':
+        return KEY_Y;
+    case 'Z':
+        return KEY_Z;
+
+    // numpad
+    case VK_NUMPAD0:
+        return KEY_NUMPAD0;
+    case VK_NUMPAD1:
+        return KEY_NUMPAD1;
+    case VK_NUMPAD2:
+        return KEY_NUMPAD2;
+    case VK_NUMPAD3:
+        return KEY_NUMPAD3;
+    case VK_NUMPAD4:
+        return KEY_NUMPAD4;
+    case VK_NUMPAD5:
+        return KEY_NUMPAD5;
+    case VK_NUMPAD6:
+        return KEY_NUMPAD6;
+    case VK_NUMPAD7:
+        return KEY_NUMPAD7;
+    case VK_NUMPAD8:
+        return KEY_NUMPAD8;
+    case VK_NUMPAD9:
+        return KEY_NUMPAD9;
+
+    case VK_MULTIPLY:
+        return KEY_MULTIPLY;
+    case VK_ADD:
+        return KEY_ADD;
+    case VK_SEPARATOR:
+        return KEY_SEPARATOR;
+    case VK_SUBTRACT:
+        return KEY_SUBTRACT;
+    case VK_DECIMAL:
+        return KEY_DECIMAL;
+    case VK_DIVIDE:
+        return KEY_DIVIDE;
+
+    // function keys
+    case VK_F1:
+        return KEY_F1;
+    case VK_F2:
+        return KEY_F2;
+    case VK_F3:
+        return KEY_F3;
+    case VK_F4:
+        return KEY_F4;
+    case VK_F5:
+        return KEY_F5;
+    case VK_F6:
+        return KEY_F6;
+    case VK_F7:
+        return KEY_F7;
+    case VK_F8:
+        return KEY_F8;
+    case VK_F9:
+        return KEY_F9;
+    case VK_F10:
+        return KEY_F10;
+    case VK_F11:
+        return KEY_F11;
+    case VK_F12:
+        return KEY_F12;
+    case VK_F13:
+        return KEY_F13;
+    case VK_F14:
+        return KEY_F14;
+    case VK_F15:
+        return KEY_F15;
+    case VK_F16:
+        return KEY_F16;
+    case VK_F17:
+        return KEY_F17;
+    case VK_F18:
+        return KEY_F18;
+    case VK_F19:
+        return KEY_F19;
+    case VK_F20:
+        return KEY_F20;
+    case VK_F21:
+        return KEY_F21;
+    case VK_F22:
+        return KEY_F22;
+    case VK_F23:
+        return KEY_F23;
+    case VK_F24:
+        return KEY_F24;
+
+    case VK_NUMLOCK:
+        return KEY_NUMLOCK;
+    case VK_SCROLL:
+        return KEY_SCROLL;
+    // Windows has VK_OEM specific keys for punctuation:
+    case VK_OEM_1:
+        return KEY_SEMICOLON; // ;:
+    case VK_OEM_PLUS:
+        return KEY_PLUS;
+    case VK_OEM_COMMA:
+        return KEY_COMMA;
+    case VK_OEM_MINUS:
+        return KEY_MINUS;
+    case VK_OEM_PERIOD:
+        return KEY_PERIOD;
+    case VK_OEM_2:
+        return KEY_SLASH; // /?
+    case VK_OEM_3:
+        return KEY_GRAVE; // `~
+
+    default:
+        return KEY_MAX_KEYS;
+    }
 }
 
 #endif // PLATFORM_WINDOWS

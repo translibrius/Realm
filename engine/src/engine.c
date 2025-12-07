@@ -7,6 +7,7 @@
 
 #include "memory/arena.h"
 #include "memory/memory.h"
+#include "platform/input.h"
 #include "platform/platform.h"
 #include "platform/thread.h"
 #include "platform/splash/splash.h"
@@ -25,6 +26,7 @@ static engine_state state;
 // Fwd decl
 void create_main_window();
 void load_cache();
+b8 on_key_press(void *data);
 
 // Bootstrap all subsystems
 b8 create_engine(const application *app) {
@@ -53,6 +55,8 @@ b8 create_engine(const application *app) {
         RL_FATAL("Failed to initialize platform sub-system, exiting...");
         return false;
     }
+
+    event_register(EVENT_KEY_PRESS, on_key_press);
 
     void *asset_system = rl_alloc(asset_system_size(), MEM_SUBSYSTEM_ASSET);
     if (!asset_system_start(asset_system) || !asset_system_load_all()) {
@@ -96,6 +100,8 @@ b8 engine_run() {
             clock_reset(&clock);
             frame_count = 0;
         }
+
+        input_update();
     }
 
     destroy_engine();
@@ -103,6 +109,24 @@ b8 engine_run() {
 }
 
 // --
+
+b8 on_key_press(void *data) {
+    input_key *key = data;
+
+    if (key->pressed) {
+        RL_DEBUG("Key press: %d", key->key);
+    } else {
+        RL_DEBUG("Key released: %d", key->key);
+    }
+
+    // Stop engine on ESC
+    if (key->key == KEY_ESCAPE && key->pressed) {
+        state.is_running = false;
+    }
+
+    // Let other systems see this event
+    return false;
+}
 
 void create_main_window() {
     // Create an app window
