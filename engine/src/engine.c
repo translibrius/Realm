@@ -112,6 +112,7 @@ void create_main_window() {
     main_window->settings.height = 500;
     main_window->settings.x = 0;
     main_window->settings.y = 0;
+    main_window->settings.start_center = true;
     main_window->settings.stop_on_close = true;
     main_window->settings.window_flags = WINDOW_FLAG_DEFAULT;
 

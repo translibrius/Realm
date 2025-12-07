@@ -14,18 +14,11 @@ typedef struct win32_splash_state {
 static win32_splash_state state;
 
 b8 platform_splash_create() {
-    // Get primary monitor resolution
-    const i32 screen_w = GetSystemMetrics(SM_CXSCREEN);
-    const i32 screen_h = GetSystemMetrics(SM_CYSCREEN);
-
-    // Center coordinates
-    state.window.settings.x = (screen_w - SPLASH_WIDTH) / 2;
-    state.window.settings.y = (screen_h - SPLASH_HEIGHT) / 2;
-
     state.window.settings.title = ""; // splash visible, but no title text
     state.window.settings.width = SPLASH_WIDTH;
     state.window.settings.height = SPLASH_HEIGHT;
     state.window.settings.stop_on_close = false;
+    state.window.settings.start_center = true;
 
     // splash intent — semantic, platform neutral:
     state.window.settings.window_flags =

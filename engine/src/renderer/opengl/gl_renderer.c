@@ -8,15 +8,24 @@
 
 static opengl_context context;
 
+void update_viewport() {
+    glViewport(
+        context.window->settings.x,
+        context.window->settings.y,
+        context.window->settings.width,
+        context.window->settings.height);
+}
+
 b8 resize_callback(void *data) {
-    e_resize_payload *resize_payload = data;
-    if (resize_payload->window_id == context.window->id) {
-        //RL_DEBUG("Window #%d resized | POS: %d;%d | Size: %dx%d", resize_payload->window_id, resize_payload->x, resize_payload->y, resize_payload->width, resize_payload->height);
-        glViewport(
-            resize_payload->x,
-            resize_payload->y,
-            resize_payload->width,
-            resize_payload->height);
+    platform_window *window = data;
+    if (window->id == context.window->id) {
+        /*
+        RL_DEBUG("Window #%d resized | POS: %d;%d | Size: %dx%d",
+                 window->id,
+                 window->settings.x, window->settings.y,
+                 window->settings.width, window->settings.height);
+        */
+        update_viewport();
     }
     return false;
 }
@@ -31,12 +40,7 @@ b8 opengl_initialize(platform_window *platform_window) {
     }
 
     platform_context_make_current(context.window);
-
-    glViewport(
-        context.window->settings.x,
-        context.window->settings.y,
-        context.window->settings.width,
-        context.window->settings.height);
+    update_viewport();
 
     // Listen to window size
     event_register(EVENT_WINDOW_RESIZE, resize_callback);

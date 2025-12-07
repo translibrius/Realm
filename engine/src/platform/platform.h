@@ -19,14 +19,15 @@ typedef struct platform_window_settings {
     i32 y;
     i32 width;
     i32 height;
+    b8 start_center;
     b8 stop_on_close;
     u32 window_flags;
 } platform_window_settings;
 
 typedef struct platform_window {
     u16 id;
-    void *handle;
     platform_window_settings settings;
+    void *handle;
 } platform_window;
 
 b8 platform_system_start();

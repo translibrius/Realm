@@ -58,6 +58,7 @@ typedef struct win32_window {
     HGLRC gl;
     b8 alive;
     b8 stop_on_close;
+    platform_window *window;
 } win32_window;
 
 typedef struct platform_state {
@@ -244,30 +245,26 @@ b8 platform_pump_messages() {
             RECT client_rect;
             GetClientRect(p->hwnd, &client_rect);
 
-            // Find platform window
-            u16 found_id = 65535;
+            // Find window
+            platform_window *found_window = nullptr;
             for (u16 i = 0; i < MAX_WINDOWS; i++) {
                 win32_window window = state.windows[i];
                 if (window.hwnd == p->hwnd) {
-                    found_id = i;
+                    found_window = window.window;
+                    found_window->settings.x = p->x;
+                    found_window->settings.y = p->y;
+                    found_window->settings.width = p->w;
+                    found_window->settings.height = p->h;
                     break;
                 }
             }
 
-            if (found_id == 65535) {
-                RL_WARN("Got resize event for non-existant window");
+            if (found_window == nullptr) {
+                RL_WARN("Got resize event for non-existent window");
                 return true;
             }
 
-            // Fire engine event
-            e_resize_payload e;
-            e.window_id = found_id;
-            e.x = p->x;
-            e.y = p->y;
-            e.width = client_rect.right - client_rect.left;
-            e.height = client_rect.bottom - client_rect.top;
-
-            event_fire(EVENT_WINDOW_RESIZE, &e);
+            event_fire(EVENT_WINDOW_RESIZE, found_window);
 
             rl_free(p, sizeof(resize_msg), MEM_SUBSYSTEM_PLATFORM);
             break;
@@ -339,6 +336,16 @@ b8 platform_create_window(platform_window *window) {
         window_style_ex
         );
 
+    if (window->settings.start_center) {
+        // Get primary monitor resolution
+        const i32 screen_w = GetSystemMetrics(SM_CXSCREEN);
+        const i32 screen_h = GetSystemMetrics(SM_CYSCREEN);
+
+        // Center coordinates
+        window->settings.x = (screen_w - window->settings.width) / 2;
+        window->settings.y = (screen_h - window->settings.height) / 2;
+    }
+
     win32_create_info window_info = {0};
     window_info.dwExStyle = window_style_ex;
     window_info.dwStyle = window_style;
@@ -367,6 +374,7 @@ b8 platform_create_window(platform_window *window) {
     w->hwnd = hwnd;
     w->alive = true;
     w->stop_on_close = window->settings.stop_on_close;
+    w->window = window;
 
     window->id = id;
     window->handle = hwnd;
