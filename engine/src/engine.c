@@ -7,6 +7,7 @@
 #include "memory/arena.h"
 #include "memory/memory.h"
 #include "platform/platform.h"
+#include "platform/thread.h"
 #include "platform/splash/splash.h"
 #include "renderer/renderer_frontend.h"
 #include "util/clock.h"
@@ -21,6 +22,10 @@ typedef struct engine_state {
 } engine_state;
 
 static engine_state state;
+
+void print() {
+    RL_DEBUG("From spawned thread: %d", platform_get_current_thread_id());
+}
 
 b8 create_engine(const application *app) {
     (void)app;
@@ -77,6 +82,9 @@ b8 create_engine(const application *app) {
 
     rl_asset_font main_font;
     rl_font_init("evil_empire.otf", &main_font);
+
+    rl_thread thread;
+    platform_thread_create(print, &thread);
 
     return true;
 }

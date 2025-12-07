@@ -298,8 +298,7 @@ b8 platform_create_window(platform_window *handle) {
     RL_INFO("Creating window '%s' %dx%d", handle->settings.title, handle->settings.width, handle->settings.height);
 
     constexpr DWORD window_style_ex = WS_EX_TRANSPARENT | WS_EX_APPWINDOW /*| WS_EX_TOPMOST*/;
-    constexpr DWORD window_style = WS_POPUPWINDOW | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX |
-                                   WS_MAXIMIZEBOX | WS_THICKFRAME;
+    constexpr DWORD window_style = WS_POPUPWINDOW; //| WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME;
 
     win32_window *w = &state.windows[id];
     rl_zero(w, sizeof(*w));

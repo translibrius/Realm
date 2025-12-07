@@ -2,7 +2,7 @@
 
 #include "logger.h"
 #include "platform/io/file_io.h"
-#include "core/asset.h"
+#include "asset/asset.h"
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "util/str.h"
@@ -37,8 +37,6 @@ b8 rl_font_init(const char *font_name, rl_asset_font *out_asset) {
         RL_ERROR("rl_font_init() failed, stb_truetype failed to initialize");
         return false;
     }
-
-
 
     platform_file_close(&file);
     rl_arena_destroy(&scratch);

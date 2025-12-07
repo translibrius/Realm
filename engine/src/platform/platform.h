@@ -33,4 +33,3 @@ b8 platform_create_opengl_context(platform_window *handle);
 b8 platform_context_make_current(platform_window *handle);
 b8 platform_swap_buffers(platform_window *handle);
 u64 platform_get_current_thread_id();
-
