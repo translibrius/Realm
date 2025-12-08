@@ -543,6 +543,7 @@ void get_system_info() {
     RL_DEBUG("Page size: %d", system_info.dwPageSize);
     RL_DEBUG("Logical processors: %d", system_info.dwNumberOfProcessors);
     RL_DEBUG("Allocation granularity: %d", system_info.dwAllocationGranularity);
+    RL_DEBUG("Clock frequency: %d", platform_get_clock_frequency());
 
     state.logical_cores = system_info.dwNumberOfProcessors;
 }

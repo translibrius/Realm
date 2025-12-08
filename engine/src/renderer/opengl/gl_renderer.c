@@ -5,9 +5,10 @@
 #include "core/logger.h"
 #include "platform/platform.h"
 #include "vendor/glad/glad.h"
-#include "util/rand.h"
 #include "core/event.h"
 #include "util/rl_math.h"
+
+#include <math.h>
 
 typedef struct opengl_context {
     platform_window *window;
@@ -77,11 +78,26 @@ b8 opengl_initialize(platform_window *platform_window) {
     }
 
     vec3 vertices[] = {
-        vec3_create(-0.5f, -0.5f, 0.0f),
-        vec3_create(0.5f, -0.5f, 0.0f),
+        // V1
         vec3_create(0.5f, 0.5f, 0.0f),
+        vec3_create(1.0f, 0.0f, 0.0f),
+
+        // V2
+        vec3_create(0.5f, -0.5f, 0.0f),
+        vec3_create(0.0f, 1.0f, 0.0f),
+
+        // V3
+        vec3_create(-0.5f, -0.5f, 0.0f),
+        vec3_create(0.0f, 0.0f, 1.0f),
+
+        // V4
+        vec3_create(-0.5f, 0.5f, 0.0f),
+        vec3_create(1.0f, 0.0f, 0.0f),
     };
-    (void)vertices;
+    u32 indices[] = {
+        0, 1, 3, // First triangle
+        1, 2, 3, // Second triangle
+    };
 
     // Create vao & bind
     glGenVertexArrays(1, &context.default_vao);
@@ -93,12 +109,19 @@ b8 opengl_initialize(platform_window *platform_window) {
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    // Attribute config while vbo is bound
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), (void *)0);
-    glEnableVertexAttribArray(0);
+    // EBO (indices)
+    u32 ebo;
+    glGenBuffers(1, &ebo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-    // Unbind
-    glBindVertexArray(0);
+    // Attributes
+    // position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(f32), (void *)0);
+    glEnableVertexAttribArray(0);
+    // color attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(f32), (void *)(3 * sizeof(f32)));
+    glEnableVertexAttribArray(1);
 
     return true;
 }
@@ -109,10 +132,12 @@ void opengl_destroy() {
 void opengl_begin_frame() {
     glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     glUseProgram(context.default_shader_program);
     glBindVertexArray(context.default_vao);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glDrawElements(GL_TRIANGLES, 9, GL_UNSIGNED_INT, nullptr);
+    glBindVertexArray(0);
 }
 
 void opengl_end_frame() {
