@@ -26,7 +26,7 @@ void rl_string_split(rl_arena *arena, rl_string *source, const char *separator, 
             rl_string split_slice = rl_string_slice(arena, source, last_split_index, i - last_split_index);
             da_append(out_strings, split_slice);
 
-            RL_DEBUG("Split index=%d, content=%s, size=%d", out_strings->count-1, split_slice.cstr, split_slice.len);
+            //RL_DEBUG("Split index=%d, content=%s, size=%d", out_strings->count-1, split_slice.cstr, split_slice.len);
             i += separator_len;
             last_split_index = i;
         } else {

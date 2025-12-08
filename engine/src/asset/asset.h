@@ -5,6 +5,7 @@
 
 typedef enum ASSET_TYPE {
     ASSET_FONT,
+    ASSET_SHADER,
 } ASSET_TYPE;
 
 typedef struct rl_asset {
@@ -21,3 +22,4 @@ b8 asset_system_load_all();
 b8 asset_system_load(rl_asset *asset);
 
 const char *get_assets_dir(ASSET_TYPE asset_type);
+rl_asset *get_asset(const char *filename);

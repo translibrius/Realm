@@ -65,7 +65,7 @@ b8 platform_file_open(const char *path, FILE_PERM perms, rl_file *out_file) {
     GetFileSizeEx(h, &l_int_size);
     out_file->size = l_int_size.QuadPart;
 
-    RL_DEBUG("Successfully opened file. Name='%s' Size=%llu", out_file->name, out_file->size);
+    //RL_DEBUG("Successfully opened file. Name='%s' Size=%llu", out_file->name, out_file->size);
 
     da_free(&split);
     ARENA_SCRATCH_DESTROY(&scratch);

@@ -5,8 +5,9 @@
 #include "core/event.h"
 #include "core/logger.h"
 #include "platform/thread.h"
+#include "platform/io/file_io.h"
 #include "platform/splash/splash.h"
-#include "vendor/glad/glad_wgl.h"
+#include "asset/shader.h"
 
 DA_DEFINE(Assets, rl_asset);
 
@@ -51,23 +52,40 @@ b8 asset_system_load_all() {
 }
 
 b8 asset_system_load(rl_asset *asset) {
+    b8 success = false;
     switch (asset->type) {
     case ASSET_FONT:
         rl_asset_font main_font;
-        rl_font_init(asset->filename, &main_font);
+        success = rl_font_init(asset->filename, &main_font);
         asset->handle = &main_font;
+        break;
+    case ASSET_SHADER:
+        success = load_shader(&state->asset_arena, asset);
         break;
     }
 
+    RL_TRACE("  '%s' = %s", asset->filename, success ? "OK!" : "Failed");
     da_append(&state->assets, *asset);
     event_fire(EVENT_SPLASH_INCREMENT, nullptr);
-    return true;
+    return success;
+}
+
+rl_asset *get_asset(const char *filename) {
+    for (u32 i = 0; i < state->assets.count; i++) {
+        if (state->assets.items[i].filename == filename) {
+            return &state->assets.items[i];
+        }
+    }
+
+    return nullptr;
 }
 
 const char *get_assets_dir(ASSET_TYPE asset_type) {
     switch (asset_type) {
     case ASSET_FONT:
         return "../../../assets/fonts/";
+    case ASSET_SHADER:
+        return "../../../assets/shaders/";
     }
 
     return "../../../assets/";
