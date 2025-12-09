@@ -127,5 +127,4 @@ void splash_run(void *data) {
     }
 
     splash_hide();
-    event_fire(EVENT_SPLASH_FINISHED, nullptr);
 }

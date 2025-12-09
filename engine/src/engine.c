@@ -2,18 +2,12 @@
 
 #include "asset/asset.h"
 #include "core/event.h"
-#include "asset/font.h"
 #include "core/logger.h"
-
-#include "memory/arena.h"
 #include "memory/memory.h"
 #include "platform/input.h"
 #include "platform/platform.h"
-#include "platform/thread.h"
-#include "platform/splash/splash.h"
 #include "renderer/renderer_frontend.h"
 #include "util/clock.h"
-#include "vendor/glad/glad_wgl.h"
 
 typedef struct engine_state {
     b8 is_running;

@@ -22,7 +22,6 @@ typedef enum EVENT_TYPE {
 
     // Splash
     EVENT_SPLASH_INCREMENT,
-    EVENT_SPLASH_FINISHED,
 } EVENT_TYPE;
 
 typedef struct rl_event {
