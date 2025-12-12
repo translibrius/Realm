@@ -33,6 +33,22 @@ b8 opengl_shader_setup(const char *vertex, const char *frag, GL_Shader *out_shad
     return true;
 }
 
+void opengl_shader_use(GL_Shader *shader) {
+    glUseProgram(shader->program_id);
+}
+
+void opengl_shader_set_bool(GL_Shader *shader, const char *name, b8 value) {
+    glUniform1i(glGetUniformLocation(shader->program_id, name), value);
+}
+
+void opengl_shader_set_i32(GL_Shader *shader, const char *name, i32 value) {
+    glUniform1i(glGetUniformLocation(shader->program_id, name), value);
+}
+
+void opengl_shader_set_f32(GL_Shader *shader, const char *name, f32 value) {
+    glUniform1f(glGetUniformLocation(shader->program_id, name), value);
+}
+
 b8 opengl_create_shader_program(i32 vertex_id, i32 fragment_id, i32 *out_prog_id) {
     // Create shader program
     i32 program_id = glCreateProgram();

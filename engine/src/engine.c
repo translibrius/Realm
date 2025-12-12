@@ -76,9 +76,16 @@ b8 engine_run() {
     create_main_window();
 
     u32 frame_count = 0;
+    f64 delta_time = 0;
+    i64 last_frame_time = platform_get_clock_counter();
     rl_clock clock;
     clock_reset(&clock);
     while (state.is_running) {
+        clock_update(&clock);
+        i64 now = clock.last;
+        delta_time = (f64)(now - last_frame_time) / (f64)clock.frequency;
+        last_frame_time = now;
+
         if (!platform_pump_messages()) {
             RL_DEBUG("Platform stopped event pump, breaking main loop...");
             break;
@@ -89,15 +96,15 @@ b8 engine_run() {
 
         input_update(); // Process user input
 
-        renderer_begin_frame();
+        renderer_begin_frame(delta_time);
         renderer_end_frame();
         renderer_swap_buffers();
 
         frame_count++;
-        clock_update(&clock);
 
         if (clock_elapsed_s(&clock) >= 1) {
             RL_DEBUG("FPS: %d", frame_count);
+            RL_DEBUG("DT: %f", delta_time);
             clock_reset(&clock);
             frame_count = 0;
         }

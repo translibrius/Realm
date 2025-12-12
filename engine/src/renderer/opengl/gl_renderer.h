@@ -6,6 +6,6 @@
 
 b8 opengl_initialize(platform_window *platform_window);
 void opengl_destroy();
-void opengl_begin_frame();
+void opengl_begin_frame(f64 delta_time);
 void opengl_end_frame();
 void opengl_swap_buffers();

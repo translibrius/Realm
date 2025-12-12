@@ -12,6 +12,7 @@ typedef struct opengl_context {
     platform_window *window;
     GL_Shader default_shader;
     u32 default_vao;
+    f64 offset;
 } opengl_context;
 
 static opengl_context context;
@@ -107,12 +108,20 @@ b8 opengl_initialize(platform_window *platform_window) {
 void opengl_destroy() {
 }
 
-void opengl_begin_frame() {
+void opengl_begin_frame(f64 delta_time) {
     glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-    glUseProgram(context.default_shader.program_id);
+    f64 distance = 0.5 * delta_time;
+    if (context.offset + distance >= 1) {
+        context.offset -= distance;
+    } else {
+        context.offset += distance;
+    }
+
+    opengl_shader_use(&context.default_shader);
+    opengl_shader_set_f32(&context.default_shader, "offset", context.offset);
     glBindVertexArray(context.default_vao);
     glDrawElements(GL_TRIANGLES, 9, GL_UNSIGNED_INT, nullptr);
     glBindVertexArray(0);

@@ -31,10 +31,10 @@ void renderer_destroy() {
     interface.shutdown();
 }
 
-void renderer_begin_frame() {
+void renderer_begin_frame(f64 delta_time) {
     if (!state.initialized)
         return;
-    interface.begin_frame();
+    interface.begin_frame(delta_time);
 }
 void renderer_end_frame() {
     if (!state.initialized)

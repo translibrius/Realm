@@ -9,3 +9,8 @@ typedef struct GL_Shader {
 } GL_Shader;
 
 b8 opengl_shader_setup(const char *vertex, const char *frag, GL_Shader *out_shader);
+void opengl_shader_use(GL_Shader *shader);
+
+void opengl_shader_set_bool(GL_Shader *shader, const char *name, b8 value);
+void opengl_shader_set_i32(GL_Shader *shader, const char *name, i32 value);
+void opengl_shader_set_f32(GL_Shader *shader, const char *name, f32 value);
