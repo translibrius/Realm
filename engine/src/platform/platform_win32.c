@@ -382,7 +382,16 @@ b8 platform_create_window(platform_window *window) {
     window->id = id;
     window->handle = hwnd;
 
-    ShowWindow(hwnd, SW_SHOW);
+    // Show and activate the window to ensure it starts focused on Windows.
+    ShowWindow(hwnd, SW_SHOWNORMAL);
+    UpdateWindow(hwnd);
+    // Bring to foreground and set focus. These calls are best-effort and may be ignored by the OS
+    // in some edge cases (e.g., if another process currently owns the foreground), but generally
+    // ensure the window is focused on launch.
+    SetForegroundWindow(hwnd);
+    SetActiveWindow(hwnd);
+    SetFocus(hwnd);
+    BringWindowToTop(hwnd);
 
     return true;
 }
