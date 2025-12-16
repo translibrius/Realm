@@ -1,5 +1,6 @@
 #include "renderer/opengl/gl_renderer.h"
 
+#include "gl_texture.h"
 #include "asset/asset.h"
 #include "core/logger.h"
 #include "platform/platform.h"
@@ -11,6 +12,7 @@
 typedef struct opengl_context {
     platform_window *window;
     GL_Shader default_shader;
+    GL_Texture wood_texture;
     u32 default_vao;
     f64 offset;
 } opengl_context;
@@ -54,25 +56,24 @@ b8 opengl_initialize(platform_window *platform_window) {
     event_register(EVENT_WINDOW_RESIZE, resize_callback);
 
     // Shader init
-    opengl_shader_setup("default.vert", "default.frag", &context.default_shader);
+    if (!opengl_shader_setup("default.vert", "default.frag", &context.default_shader)) {
+        RL_ERROR("opengl_shader_setup() failed");
+        return false;
+    }
 
-    vec3 vertices[] = {
-        // V1
-        vec3_create(0.5f, 0.5f, 0.0f),
-        vec3_create(1.0f, 0.0f, 0.0f),
+    if (!opengl_texture_generate("wood_container.jpg", &context.wood_texture)) {
+        RL_ERROR("opengl_texture_generate() failed");
+        return false;
+    }
 
-        // V2
-        vec3_create(0.5f, -0.5f, 0.0f),
-        vec3_create(0.0f, 1.0f, 0.0f),
-
-        // V3
-        vec3_create(-0.5f, -0.5f, 0.0f),
-        vec3_create(0.0f, 0.0f, 1.0f),
-
-        // V4
-        vec3_create(-0.5f, 0.5f, 0.0f),
-        vec3_create(1.0f, 0.0f, 0.0f),
+    f32 vertices[] = {
+        // positions          // colors           // texture coords
+        0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, // top right
+        0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, // bottom right
+        -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, // bottom left
+        -0.5f, 0.5f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f // top left
     };
+
     u32 indices[] = {
         0, 1, 3, // First triangle
         1, 2, 3, // Second triangle
@@ -96,11 +97,14 @@ b8 opengl_initialize(platform_window *platform_window) {
 
     // Attributes
     // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(f32), (void *)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
     glEnableVertexAttribArray(0);
     // color attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(f32), (void *)(3 * sizeof(f32)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
+    // texture coord attribute
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
 
     return true;
 }
@@ -114,7 +118,7 @@ void opengl_begin_frame(f64 delta_time) {
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     f64 distance = 0.5 * delta_time;
-    if (context.offset + distance >= 1) {
+    if (context.offset + distance >= 1 - 0.5) {
         context.offset -= distance;
     } else {
         context.offset += distance;
@@ -122,6 +126,8 @@ void opengl_begin_frame(f64 delta_time) {
 
     opengl_shader_use(&context.default_shader);
     opengl_shader_set_f32(&context.default_shader, "offset", context.offset);
+    glBindTexture(GL_TEXTURE_2D, context.wood_texture.id);
+
     glBindVertexArray(context.default_vao);
     glDrawElements(GL_TRIANGLES, 9, GL_UNSIGNED_INT, nullptr);
     glBindVertexArray(0);

@@ -1,4 +1,5 @@
 #include "asset/asset.h"
+
 #include "asset/asset_table.h"
 
 #include "asset/font.h"
@@ -8,6 +9,7 @@
 #include "platform/io/file_io.h"
 #include "platform/splash/splash.h"
 #include "asset/shader.h"
+#include "asset/texture.h"
 
 DA_DEFINE(Assets, rl_asset);
 
@@ -62,6 +64,8 @@ b8 asset_system_load(rl_asset *asset) {
     case ASSET_SHADER:
         success = load_shader(&state->asset_arena, asset);
         break;
+    case ASSET_TEXTURE:
+        success = load_texture(&state->asset_arena, asset);
     }
 
     RL_TRACE("  '%s' = %s", asset->filename, success ? "OK!" : "Failed");
@@ -86,6 +90,10 @@ const char *get_assets_dir(ASSET_TYPE asset_type) {
         return "../../../assets/fonts/";
     case ASSET_SHADER:
         return "../../../assets/shaders/";
+    case ASSET_TEXTURE:
+        return "../../../assets/textures/";
+    default:
+        break;
     }
 
     return "../../../assets/";

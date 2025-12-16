@@ -6,6 +6,7 @@
 typedef enum ASSET_TYPE {
     ASSET_FONT,
     ASSET_SHADER,
+    ASSET_TEXTURE,
 } ASSET_TYPE;
 
 typedef struct rl_asset {

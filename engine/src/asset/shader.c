@@ -12,7 +12,6 @@ b8 load_shader(rl_arena *arena, rl_asset *asset) {
 
     rl_file shader_file = {};
     platform_file_open(path.cstr, P_FILE_READ, &shader_file);
-
     platform_file_read_all(&shader_file);
 
     rl_asset_shader *shader = rl_arena_alloc(arena, sizeof(rl_asset_shader), alignof(rl_asset_shader));
