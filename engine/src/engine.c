@@ -12,6 +12,7 @@
 typedef struct engine_state {
     b8 is_running;
     b8 is_suspended;
+    rl_arena frame_arena;
     platform_window window_main;
 } engine_state;
 
@@ -28,6 +29,7 @@ b8 create_engine(const application *app) {
     (void)app;
     state.is_running = true;
     state.is_suspended = false;
+
     void *memory_system = rl_alloc(memory_system_size(), MEM_SUBSYSTEM_MEMORY);
     if (!memory_system_start(memory_system)) {
         RL_FATAL("Failed to initialize memory sub-system, exiting...");
@@ -75,13 +77,18 @@ b8 engine_run() {
     RL_INFO("Engine running...");
     create_main_window();
 
+    rl_arena_create(KiB(1000), &state.frame_arena, MEM_STRING);
+
+    rl_font *font = get_asset("evil_empire.otf")->handle;
     u32 frame_count = 0;
+    u32 fps_display = 0;
     f64 delta_time = 0;
     i64 last_frame_time = platform_get_clock_counter();
     rl_clock clock;
     clock_reset(&clock);
     while (state.is_running) {
         clock_update(&clock);
+        frame_count++;
         i64 now = clock.last;
         delta_time = (f64)(now - last_frame_time) / (f64)clock.frequency;
         last_frame_time = now;
@@ -97,17 +104,19 @@ b8 engine_run() {
         input_update(); // Process user input
 
         renderer_begin_frame(delta_time);
+
+        rl_string fps_str = rl_string_format(&state.frame_arena, "%u", fps_display);
+        renderer_draw_text(font, fps_str.cstr, (vec2){0, 50}, (vec4){0.5f, 1.0f, 1.0f, 1.0f});
         renderer_end_frame();
         renderer_swap_buffers();
 
-        frame_count++;
-
-        if (clock_elapsed_s(&clock) >= 1) {
-            RL_DEBUG("FPS: %d", frame_count);
-            RL_DEBUG("DT: %f", delta_time);
-            clock_reset(&clock);
+        if (clock_elapsed_s(&clock) >= 0.2) {
+            fps_display = (u32)((f32)frame_count * 5);
             frame_count = 0;
+            clock_reset(&clock);
         }
+
+        rl_arena_reset(&state.frame_arena);
     }
 
     destroy_engine();

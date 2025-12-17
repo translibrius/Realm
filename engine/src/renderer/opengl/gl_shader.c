@@ -49,6 +49,22 @@ void opengl_shader_set_f32(GL_Shader *shader, const char *name, f32 value) {
     glUniform1f(glGetUniformLocation(shader->program_id, name), value);
 }
 
+void opengl_shader_set_vec2(GL_Shader *shader, const char *name, vec2 value) {
+    i32 loc = glGetUniformLocation(shader->program_id, name);
+    glUniform2f(loc, value.x, value.y);
+}
+
+void opengl_shader_set_vec3(GL_Shader *shader, const char *name, vec3 value) {
+    i32 loc = glGetUniformLocation(shader->program_id, name);
+    glUniform3f(loc, value.x, value.y, value.z);
+}
+
+void opengl_shader_set_vec4(GL_Shader *shader, const char *name, vec4 value) {
+    i32 loc = glGetUniformLocation(shader->program_id, name);
+    glUniform4f(loc, value.x, value.y, value.z, value.w);
+}
+
+
 b8 opengl_create_shader_program(i32 vertex_id, i32 fragment_id, i32 *out_prog_id) {
     // Create shader program
     i32 program_id = glCreateProgram();

@@ -11,6 +11,8 @@
 #include "asset/shader.h"
 #include "asset/texture.h"
 
+#include <string.h>
+
 DA_DEFINE(Assets, rl_asset);
 
 typedef struct asset_system {
@@ -57,9 +59,7 @@ b8 asset_system_load(rl_asset *asset) {
     b8 success = false;
     switch (asset->type) {
     case ASSET_FONT:
-        rl_asset_font main_font;
-        success = rl_font_init(asset->filename, &main_font);
-        asset->handle = &main_font;
+        success = rl_font_init(&state->asset_arena, asset);
         break;
     case ASSET_SHADER:
         success = load_shader(&state->asset_arena, asset);
@@ -76,7 +76,7 @@ b8 asset_system_load(rl_asset *asset) {
 
 rl_asset *get_asset(const char *filename) {
     for (u32 i = 0; i < state->assets.count; i++) {
-        if (state->assets.items[i].filename == filename) {
+        if (strcmp(state->assets.items[i].filename, filename) == 0) {
             return &state->assets.items[i];
         }
     }

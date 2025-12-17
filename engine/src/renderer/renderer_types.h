@@ -2,6 +2,9 @@
 #include "defines.h"
 
 #include "platform/platform.h"
+#include "util/math_types.h"
+
+#define MAX_TEXT_GLYPHS 256
 
 typedef enum RENDERER_BACKEND {
     BACKEND_OPENGL,
@@ -13,4 +16,5 @@ typedef struct renderer_interface {
     void (*begin_frame)(f64 delta_time);
     void (*end_frame)();
     void (*swap_buffers)();
+    void (*draw_text)(rl_font *font, const char *text, vec2 pos, vec4 color);
 } renderer_interface;
