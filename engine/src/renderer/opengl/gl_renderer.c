@@ -138,13 +138,13 @@ void opengl_swap_buffers() {
     platform_swap_buffers(context.window);
 }
 
-// Specifics
-
 void opengl_draw_text(rl_font *font, const char *text, vec2 pos, vec4 color) {
     GL_Font *gl_font = font->handle;
 
     // Bind shader
     opengl_shader_use(&context.text_pipeline.shader);
+
+    opengl_shader_set_f32(&context.text_pipeline.shader, "u_scale", 0.8f);
 
     // Set uniforms
     opengl_shader_set_vec2(
@@ -226,4 +226,3 @@ void opengl_draw_text(rl_font *font, const char *text, vec2 pos, vec4 color) {
     glBindVertexArray(0);
     glDisable(GL_BLEND);
 }
-
