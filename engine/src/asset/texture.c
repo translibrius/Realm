@@ -9,7 +9,7 @@
 
 
 b8 load_texture(rl_arena *asset_arena, rl_asset *asset) {
-    ARENA_SCRATCH_CREATE(scratch, MiB(5));
+    ARENA_SCRATCH_CREATE(scratch, MiB(5), MEM_SUBSYSTEM_ASSET);
 
     const char *dir = get_assets_dir(asset->type);
     const char *filename = asset->filename;

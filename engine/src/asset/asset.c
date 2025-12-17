@@ -26,7 +26,7 @@ u64 asset_system_size() {
 
 b8 asset_system_start(void *system) {
     state = system;
-    rl_arena_create(MiB(128), &state->asset_arena);
+    rl_arena_create(MiB(25), &state->asset_arena, MEM_SUBSYSTEM_ASSET);
     da_init(&state->assets);
     return true;
 }

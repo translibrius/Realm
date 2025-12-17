@@ -10,7 +10,6 @@ typedef enum MEM_TYPE {
     MEM_DYNAMIC_ARRAY,
     MEM_STRING,
     MEM_ARENA,
-    MEM_TEMP_ARENA,
 
     MEM_SUBSYSTEM_MEMORY,
     MEM_SUBSYSTEM_LOGGER,
@@ -18,6 +17,7 @@ typedef enum MEM_TYPE {
     MEM_SUBSYSTEM_PLATFORM,
     MEM_SUBSYSTEM_ASSET,
     MEM_SUBSYSTEM_SPLASH,
+    MEM_SUBSYSTEM_EVENT,
 
     // Used to track how many total types exist
     MEM_TYPES_MAX,
@@ -33,3 +33,5 @@ void *rl_copy(void *origin, void *destination, u64 size);
 
 void rl_free(void *block, u64 size, MEM_TYPE type);
 void *rl_zero(void *block, u64 size);
+
+void print_memory_usage();

@@ -18,7 +18,7 @@ u64 logger_system_size() {
 b8 logger_system_start(void *memory) {
     RL_ASSERT_MSG(!state, "Logger system already started!");
     state = memory;
-    rl_arena_create(MiB(2), &state->log_arena);
+    rl_arena_create(MiB(2), &state->log_arena, MEM_SUBSYSTEM_LOGGER);
     RL_INFO("Logger system started!");
 
     return true;

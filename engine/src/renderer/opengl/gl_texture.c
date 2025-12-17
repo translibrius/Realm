@@ -10,6 +10,7 @@ b8 opengl_texture_generate(const char *filename, GL_Texture *out_texture) {
 
     u32 texture_id;
     glGenTextures(1, &texture_id);
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture_id);
 
     // Set the texture wrapping/filtering options (on currently bound texture obj)
@@ -25,6 +26,7 @@ b8 opengl_texture_generate(const char *filename, GL_Texture *out_texture) {
 
     // NOTE: Potentially free the asset, since its already generated a gl texture
     // But we might want to keep the texture asset loaded in case we want to generate the texture again ?
+    // However, currently asset system uses arena allocator, so i can't free specific assets :/
 
     return true;
 }

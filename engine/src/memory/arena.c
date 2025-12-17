@@ -11,10 +11,11 @@ RL_INLINE b8 is_power_of_two(u64 x) {
     return (x & (x - 1)) == 0;
 }
 
-void rl_arena_create(u64 size, rl_arena *out_arena) {
-    out_arena->start = rl_alloc(size, MEM_ARENA);
+void rl_arena_create(u64 size, rl_arena *out_arena, MEM_TYPE mem_type) {
+    out_arena->start = rl_alloc(size, mem_type);
     out_arena->capacity = size;
     out_arena->offset = out_arena->start;
+    out_arena->mem_type = mem_type;
 }
 
 void rl_arena_reset(rl_arena *arena) {
@@ -27,7 +28,7 @@ void rl_arena_reset(rl_arena *arena) {
 }
 
 void rl_arena_destroy(rl_arena *arena) {
-    rl_free(arena->start, arena->capacity, MEM_ARENA);
+    rl_free(arena->start, arena->capacity, arena->mem_type);
     arena = nullptr;
 }
 

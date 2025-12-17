@@ -4,7 +4,7 @@
 #include "util/str.h"
 
 b8 load_shader(rl_arena *arena, rl_asset *asset) {
-    ARENA_SCRATCH_CREATE(scratch, MiB(5));
+    ARENA_SCRATCH_CREATE(scratch, MiB(5), MEM_ARENA);
 
     const char *dir = get_assets_dir(asset->type);
     const char *filename = asset->filename;

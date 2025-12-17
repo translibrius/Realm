@@ -27,8 +27,8 @@ b8 platform_file_open(const char *path, FILE_PERM perms, rl_file *out_file) {
 
     out_file->buf_len = 0;
 
-    ARENA_SCRATCH_CREATE(scratch, MiB(5));
-    rl_arena_create(KiB(10), &out_file->file_arena);
+    ARENA_SCRATCH_CREATE(scratch, MiB(5), MEM_ARENA);
+    rl_arena_create(KiB(10), &out_file->file_arena, MEM_SUBSYSTEM_PLATFORM);
 
     HANDLE h = CreateFileA(
         path,

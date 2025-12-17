@@ -130,6 +130,11 @@ b8 on_key_press(void *data) {
         state.is_running = false;
     }
 
+    // Print mem debug on 'm'
+    if (key->key == KEY_M && key->pressed) {
+        print_memory_usage();
+    }
+
     // Let other systems see this event
     return false;
 }

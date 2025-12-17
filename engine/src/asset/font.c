@@ -9,7 +9,7 @@
 #include "vendor/stb/stb_truetype.h"
 
 b8 rl_font_init(const char *font_name, rl_asset_font *out_asset) {
-    ARENA_SCRATCH_CREATE(scratch, MiB(10));
+    ARENA_SCRATCH_CREATE(scratch, MiB(10), MEM_SUBSYSTEM_ASSET);
 
     RL_DEBUG("Initializing font: %s", font_name);
 

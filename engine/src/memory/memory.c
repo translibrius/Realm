@@ -1,5 +1,6 @@
 #include "memory.h"
 
+#include "core/event.h"
 #include "core/logger.h"
 #include "util/assert.h"
 
@@ -7,12 +8,31 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct mem_fmt {
+    f64 value;
+    const char *unit;
+} mem_fmt;
+
+static mem_fmt format_bytes(u64 bytes) {
+    if (bytes >= 1024ULL * 1024ULL * 1024ULL) {
+        return (mem_fmt){(f64)bytes / (1024.0 * 1024.0 * 1024.0), "GiB"};
+    } else if (bytes >= 1024ULL * 1024ULL) {
+        return (mem_fmt){(f64)bytes / (1024.0 * 1024.0), "MiB"};
+    } else if (bytes >= 1024ULL) {
+        return (mem_fmt){(f64)bytes / 1024.0, "KiB"};
+    } else {
+        return (mem_fmt){(f64)bytes, "Bytes"};
+    }
+}
+
 typedef struct memory_system_state {
     u64 total_allocated;
     u64 allocations[MEM_TYPES_MAX];
 } memory_system_state;
 
 static memory_system_state *state;
+
+const char *mem_type_to_str(MEM_TYPE type);
 
 u64 memory_system_size() {
     return sizeof(memory_system_state);
@@ -67,4 +87,63 @@ void *rl_copy(void *origin, void *destination, u64 size) {
 
 void *rl_zero(void *block, u64 size) {
     return memset(block, 0, size);
+}
+
+void print_memory_usage() {
+    RL_DEBUG("-------------- Memory Usage --------------");
+
+    mem_fmt total = format_bytes(state->total_allocated);
+    RL_DEBUG("Total: %6.1f %s", total.value, total.unit);
+    RL_DEBUG("------------------------------------------");
+
+    for (u32 i = 0; i < MEM_TYPES_MAX; i++) {
+        u64 bytes = state->allocations[i];
+        if (bytes == 0)
+            continue;
+
+        mem_fmt f = format_bytes(bytes);
+        RL_DEBUG("  %-24s %6.1f %s",
+                 mem_type_to_str((MEM_TYPE)i),
+                 f.value,
+                 f.unit);
+    }
+
+    RL_DEBUG("------------------------------------------");
+}
+
+// Private
+
+const char *mem_type_to_str(MEM_TYPE type) {
+    switch (type) {
+    case MEM_UNKNOWN:
+        return "Unknown";
+    case MEM_FILE_BUFFERS:
+        return "File buffers";
+    case MEM_DYNAMIC_ARRAY:
+        return "Dynamic arrays";
+    case MEM_STRING:
+        return "Strings";
+    case MEM_ARENA:
+        return "Arenas";
+    case MEM_SUBSYSTEM_MEMORY:
+        return "(Sys) - Memory";
+    case MEM_SUBSYSTEM_LOGGER:
+        return "(Sys) - Logger";
+    case MEM_SUBSYSTEM_RENDERER:
+        return "(Sys) - Renderer";
+    case MEM_SUBSYSTEM_PLATFORM:
+        return "(Sys) - Platform";
+    case MEM_SUBSYSTEM_ASSET:
+        return "(Sys) - Asset";
+    case MEM_SUBSYSTEM_SPLASH:
+        return "(Sys) - Splash";
+    case MEM_SUBSYSTEM_EVENT:
+        return "(Sys) - Events";
+    case MEM_TYPES_MAX:
+        return "Invalid";
+    default:
+        break;
+    }
+
+    return "Unknown";
 }

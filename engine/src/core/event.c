@@ -22,7 +22,7 @@ u64 event_system_size() {
 b8 event_system_start(void *memory) {
     RL_ASSERT_MSG(!state, "Event system already started!");
     state = memory;
-    rl_arena_create(MiB(5), &state->events_arena);
+    rl_arena_create(MiB(5), &state->events_arena, MEM_SUBSYSTEM_EVENT);
     state->initialized = true;
     state->registered_count = 0;
 
