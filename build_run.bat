@@ -1,28 +1,14 @@
 @echo off
-set CTRL_C_EXIT=1
-setlocal
 
-echo === Configuring with CMake ===
-cmake --preset debug
-if %ERRORLEVEL% neq 0 goto fail
-
-echo.
-echo === Building project ===
 cmake --build --preset debug
-if %ERRORLEVEL% neq 0 goto fail
+if errorlevel 1 goto build_failed
 
-echo.
-echo === Running executable ===
-.\build\debug\bin\realm.exe && exit 0 || exit 1
-if %ERRORLEVEL% neq 0 goto fail
-
-echo.
-echo === Finished successfully ===
+cd build\debug\bin || goto build_failed
+Realm.exe
 pause
-exit /b 0
+exit /b
 
-:fail
-echo.
-echo *** ERROR: A step failed. ***
+:build_failed
+echo Build failed. Not running executable.
 pause
 exit /b 1

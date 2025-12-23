@@ -17,14 +17,13 @@ void logger_system_shutdown();
 
 REALM_API void log_output(const char *message, LOG_LEVEL level, ...);
 
-#ifdef _DEBUG
 #define RL_INFO(msg, ...) log_output(msg, LOG_INFO, ##__VA_ARGS__);
+#ifdef _DEBUG
 #define RL_DEBUG(msg, ...) log_output(msg, LOG_DEBUG, ##__VA_ARGS__);
 #define RL_TRACE(msg, ...) log_output(msg, LOG_TRACE, ##__VA_ARGS__);
 #define RL_WARN(msg, ...) log_output(msg, LOG_WARN, ##__VA_ARGS__);
 #else
 // These expand to nothing but still swallow parameters correctly.
-#define RL_INFO(msg, ...)  ((void)0)
 #define RL_DEBUG(msg, ...) ((void)0)
 #define RL_TRACE(msg, ...) ((void)0)
 #define RL_WARN(msg, ...)  ((void)0)
