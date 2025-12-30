@@ -47,12 +47,6 @@ void renderer_swap_buffers() {
     interface.swap_buffers();
 }
 
-void renderer_draw_text(rl_font *font, const char *text, vec2 pos, vec4 color) {
-    if (!state.initialized)
-        return;
-    interface.draw_text(font, text, pos, color);
-}
-
 void prepare_interface(RENDERER_BACKEND backend) {
     switch (backend) {
     case BACKEND_OPENGL:
@@ -61,7 +55,6 @@ void prepare_interface(RENDERER_BACKEND backend) {
         interface.begin_frame = &opengl_begin_frame;
         interface.end_frame = &opengl_end_frame;
         interface.swap_buffers = &opengl_swap_buffers;
-        interface.draw_text = &opengl_draw_text;
         break;
     }
 }

@@ -82,6 +82,10 @@ b8 engine_run() {
     rl_font *font = get_asset("evil_empire.otf")->handle;
     u32 frame_count = 0;
     u32 fps_display = 0;
+
+    (void)font;
+    (void)fps_display;
+
     f64 delta_time = 0;
     i64 last_frame_time = platform_get_clock_counter();
     rl_clock clock;
@@ -105,8 +109,6 @@ b8 engine_run() {
 
         renderer_begin_frame(delta_time);
 
-        rl_string fps_str = rl_string_format(&state.frame_arena, "%u", fps_display);
-        renderer_draw_text(font, fps_str.cstr, (vec2){0, 50}, (vec4){0.5f, 1.0f, 1.0f, 1.0f});
         renderer_end_frame();
         renderer_swap_buffers();
 

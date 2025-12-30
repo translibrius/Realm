@@ -3,21 +3,28 @@
 #include "asset/asset.h"
 #include "defines.h"
 #include "util/str.h"
-#include "vendor/stb/stb_truetype.h"
+#include "asset/texture.h"
+
+typedef struct rl_glyph {
+    u32 codepoint;
+    f32 advance;
+
+    f32 plane_min_x, plane_min_y;
+    f32 plane_max_x, plane_max_y;
+
+    f32 uv_min_x, uv_min_y;
+    f32 uv_max_x, uv_max_y;
+} rl_glyph;
 
 typedef struct rl_font {
-    void *handle; // To opengl, vulkan ect. specific font structs like GL_Font
-    const char *name;
-    rl_string path;
-    u8 *data;
-    u64 data_size;
-    u8 *atlas;
-    i32 atlas_w;
-    i32 atlas_h;
-    stbtt_bakedchar *chars;
-    i32 first_char;
-    i32 char_count;
-    f32 baked_px;
+    rl_glyph *glyphs;
+    u32 glyph_count;
+
+    f32 ascender;
+    f32 descender;
+    f64 line_height;
+
+    rl_texture atlas;
 } rl_font;
 
-b8 rl_font_init(rl_arena *asset_arena, rl_asset *asset);
+b8 rl_font_load(rl_arena *asset_arena, rl_asset *asset);

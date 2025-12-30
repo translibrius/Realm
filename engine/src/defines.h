@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Unsigned int types.
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -16,9 +20,18 @@ typedef signed long long i64;
 typedef float f32;
 typedef double f64;
 
-// Boolean types
-typedef int b32;
+// Boolean type
+#ifdef __cplusplus
+typedef bool b8;
+#else
 typedef _Bool b8;
+#endif
+
+typedef int b32;
+
+#ifdef __cplusplus
+}
+#endif
 
 // Properly define static assertions.
 #if defined(__clang__) || defined(__gcc__)
@@ -47,21 +60,23 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #define RL_BUILD_DEBUG 0
 #endif
 
-#ifdef ENGINE_BUILD
-// Exports
-#ifdef _MSC_VER
+#if defined(_WIN32)
+
+#if defined(ENGINE_SHARED)
+#if defined(ENGINE_BUILD)
 #define REALM_API __declspec(dllexport)
 #else
-#define REALM_API __attribute__((visibility("default")))
+#define REALM_API __declspec(dllimport)
 #endif
 #else
-// Imports
-#ifdef _MSC_VER
-#define REALM_API __declspec(dllimport)
+// Static build
+#define REALM_API
+#endif
+
 #else
 #define REALM_API
 #endif
-#endif
+
 
 // Inlining
 #ifdef _MSC_VER

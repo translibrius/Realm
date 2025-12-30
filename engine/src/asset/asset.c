@@ -59,7 +59,7 @@ b8 asset_system_load(rl_asset *asset) {
     b8 success = false;
     switch (asset->type) {
     case ASSET_FONT:
-        success = rl_font_init(&state->asset_arena, asset);
+        success = rl_font_load(&state->asset_arena, asset);
         break;
     case ASSET_SHADER:
         success = load_shader(&state->asset_arena, asset);

@@ -11,5 +11,3 @@ void opengl_destroy();
 void opengl_begin_frame(f64 delta_time);
 void opengl_end_frame();
 void opengl_swap_buffers();
-
-void opengl_draw_text(rl_font *font, const char *text, vec2 pos, vec4 color);

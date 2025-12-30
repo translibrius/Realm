@@ -2,6 +2,12 @@
 
 #include "defines.h"
 
+#ifdef __cplusplus
+extern "C" {
+
+
+#endif
+
 typedef enum MEM_TYPE {
     MEM_UNKNOWN,
 
@@ -35,3 +41,7 @@ void rl_free(void *block, u64 size, MEM_TYPE type);
 void *rl_zero(void *block, u64 size);
 
 void print_memory_usage();
+
+#ifdef __cplusplus
+}
+#endif

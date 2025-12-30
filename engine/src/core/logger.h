@@ -2,6 +2,10 @@
 
 #include "defines.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum LOG_LEVEL {
     LOG_INFO,
     LOG_DEBUG,
@@ -30,3 +34,7 @@ REALM_API void log_output(const char *message, LOG_LEVEL level, ...);
 #endif
 #define RL_ERROR(msg, ...) log_output(msg, LOG_ERROR, ##__VA_ARGS__);
 #define RL_FATAL(msg, ...) log_output(msg, LOG_FATAL, ##__VA_ARGS__);
+
+#ifdef __cplusplus
+}
+#endif

@@ -11,5 +11,3 @@ void renderer_destroy();
 void renderer_begin_frame(f64 delta_time);
 void renderer_end_frame();
 void renderer_swap_buffers();
-
-void renderer_draw_text(rl_font *font, const char *text, vec2 pos, vec4 color);

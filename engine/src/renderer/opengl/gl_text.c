@@ -37,23 +37,13 @@ b8 opengl_font_init(const char *filename, GL_Fonts *fonts) {
         return false;
     }
 
+    if (asset->handle == nullptr) {
+        RL_ERROR("opengl_font_init(): Failed to initialize font: invalid handle");
+        return false;
+    }
+
     rl_font *font = asset->handle;
-    GL_Font gl_font = {};
-
-    // Bind texture
-    glGenTextures(1, &gl_font.texture_id);
-    glBindTexture(GL_TEXTURE_2D, gl_font.texture_id);
-
-    // Texture params
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, font->atlas_w, font->atlas_h, 0, GL_RED, GL_UNSIGNED_BYTE, font->atlas);
-
-    da_append(fonts, gl_font);
-    font->handle = &fonts->items[fonts->count - 1];
+    (void)fonts;
+    (void)font;
     return true;
 }

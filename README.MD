@@ -13,13 +13,32 @@ By producing vector tiles ourselves, we avoid external map providers, internet d
 
 - **OpenGL 3.3** – hardware-accelerated rendering
 - **GLAD** – runtime OpenGL loader
-- **stb_truetype.h** – font rasterization
+- **FreeType** – font parsing
+- **msdf-atlas-gen** - font msdf atlas
 
 ## Prerequisites
 
 - **CMake**
 
-## Build
+## Building
+
+### 1. Install vcpkg
+
+```bash
+git clone https://github.com/microsoft/vcpkg
+cd vcpkg
+.\bootstrap-vcpkg.bat
+$env:VCPKG_ROOT = "C:\path\to\vcpkg"
+$env:PATH = "$env:VCPKG_ROOT;$env:PATH"
+```
+
+### 2. Install FreeType
+
+```bash
+vcpkg install freetype
+```
+
+### 3. Run build
 
 ```bash
 cmake --preset debug
