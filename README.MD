@@ -22,6 +22,12 @@ By producing vector tiles ourselves, we avoid external map providers, internet d
 
 ## Building
 
+### 0. Submodules
+
+```bash
+git submodule update --init --recursive
+```
+
 ### 1. Install vcpkg
 
 ```bash
