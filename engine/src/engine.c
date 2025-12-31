@@ -79,17 +79,19 @@ b8 engine_run() {
 
     rl_arena_create(KiB(1000), &state.frame_arena, MEM_STRING);
 
-    rl_font *font = get_asset("evil_empire.otf")->handle;
     u32 frame_count = 0;
     u32 fps_display = 0;
 
-    (void)font;
-    (void)fps_display;
+    rl_font *fps_font = (rl_font *)get_asset("assets/fonts/JetBrainsMono-Regular.ttf")->handle;
+    if (fps_font == nullptr) {
+        RL_FATAL("Failed to load font, exiting...");
+    }
 
     f64 delta_time = 0;
     i64 last_frame_time = platform_get_clock_counter();
     rl_clock clock;
     clock_reset(&clock);
+
     while (state.is_running) {
         clock_update(&clock);
         frame_count++;
@@ -108,6 +110,11 @@ b8 engine_run() {
         input_update(); // Process user input
 
         renderer_begin_frame(delta_time);
+
+        renderer_render_text("I LOVE BLACKS <3", 70, 0, 0, (vec4){1.0f, 1.0f, 1.0f, 1.0f});
+
+        rl_string fps_str = rl_string_format(&state.frame_arena, "%u", fps_display);
+        renderer_render_text(fps_str.cstr, 24, 0, 500 - 24, (vec4){1.0f, 1.0f, 1.0f, 1.0f});
 
         renderer_end_frame();
         renderer_swap_buffers();

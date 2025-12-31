@@ -6,9 +6,12 @@
 #include "memory/arena.h"
 #include "memory/containers/dynamic_array.h"
 #include "platform/platform.h"
+#include "renderer/renderer_types.h"
+#include "asset/font.h"
 
 typedef struct {
     u32 texture_id;
+    rl_font *font;
 } GL_Font;
 
 DA_DEFINE(GL_Fonts, GL_Font);
@@ -24,16 +27,17 @@ typedef struct GL_TextVertex {
     vec2 uv;
 } GL_TextVertex;
 
-typedef struct opengl_context {
+typedef struct GL_Context {
     platform_window *window;
     rl_arena arena;
 
     // Text
     GL_TextPipeline text_pipeline;
     GL_Fonts fonts;
+    rl_font *active_font;
 
     // Defaults
     GL_Shader default_shader;
     u32 default_vao;
     GL_Texture wood_texture;
-} opengl_context;
+} GL_Context;

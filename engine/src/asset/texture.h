@@ -3,6 +3,8 @@
 #include "defines.h"
 #include "asset/asset.h"
 
+#include "memory/arena.h"
+
 typedef struct rl_texture {
     i32 width, height, channels;
     u64 size;

@@ -1,6 +1,7 @@
 
 #include "renderer/renderer_frontend.h"
 #include "core/logger.h"
+#include "opengl/gl_text.h"
 #include "renderer/renderer_types.h"
 #include "renderer/opengl/gl_renderer.h"
 
@@ -47,6 +48,18 @@ void renderer_swap_buffers() {
     interface.swap_buffers();
 }
 
+void renderer_render_text(const char *text, f32 size_px, f32 x, f32 y, vec4 color) {
+    if (!state.initialized)
+        return;
+    interface.render_text(text, size_px, x, y, color);
+}
+
+void renderer_set_active_font(rl_font *font) {
+    if (!state.initialized)
+        return;
+    interface.set_active_font(font);
+}
+
 void prepare_interface(RENDERER_BACKEND backend) {
     switch (backend) {
     case BACKEND_OPENGL:
@@ -55,6 +68,8 @@ void prepare_interface(RENDERER_BACKEND backend) {
         interface.begin_frame = &opengl_begin_frame;
         interface.end_frame = &opengl_end_frame;
         interface.swap_buffers = &opengl_swap_buffers;
+        interface.render_text = &opengl_render_text;
+        interface.set_active_font = &opengl_set_active_font;
         break;
     }
 }

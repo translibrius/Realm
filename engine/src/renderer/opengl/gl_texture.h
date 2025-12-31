@@ -1,7 +1,6 @@
 #pragma once
 
 #include "defines.h"
-#include "renderer/opengl/gl_renderer.h"
 
 typedef struct GL_Texture {
     u32 id;

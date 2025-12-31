@@ -17,12 +17,17 @@ typedef struct rl_glyph {
 } rl_glyph;
 
 typedef struct rl_font {
+    const char *name;
+    const char *path;
+
     rl_glyph *glyphs;
     u32 glyph_count;
 
     f32 ascender;
     f32 descender;
     f64 line_height;
+    f32 scale;
+    f32 pixel_range;
 
     rl_texture atlas;
 } rl_font;

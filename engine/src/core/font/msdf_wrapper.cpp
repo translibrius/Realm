@@ -6,6 +6,9 @@
 
 using namespace msdf_atlas;
 
+#define PIXEL_RANGE 4.0f
+#define FONT_SCALE 48.0f
+
 b32 msdf_load_font_ascii(const char *path, rl_font *out_font) {
     msdfgen::FreetypeHandle *ft_handle = msdfgen::initializeFreetype();
 
@@ -36,9 +39,9 @@ b32 msdf_load_font_ascii(const char *path, rl_font *out_font) {
     // setDimensions or setDimensionsConstraint to find the best value
     packer.setDimensionsConstraint(DimensionsConstraint::SQUARE);
     // setScale for a fixed size or setMinimumScale to use the largest that fits
-    packer.setMinimumScale(48.0);
+    packer.setMinimumScale(FONT_SCALE);
     // setPixelRange or setUnitRange
-    packer.setPixelRange(4.0);
+    packer.setPixelRange(PIXEL_RANGE);
     packer.setMiterLimit(1.0);
     // Compute atlas layout - pack glyphs
     packer.pack(glyphs.data(), glyphs.size());
@@ -48,9 +51,9 @@ b32 msdf_load_font_ascii(const char *path, rl_font *out_font) {
     // The ImmediateAtlasGenerator class facilitates the generation of the atlas bitmap.
     ImmediateAtlasGenerator<
         float, // pixel type of buffer for individual glyphs depends on generator function
-        3, // number of atlas color channels
-        msdfGenerator, // function to generate bitmaps for individual glyphs
-        BitmapAtlasStorage<byte, 3> // class that stores the atlas bitmap
+        4, // number of atlas color channels
+        mtsdfGenerator, // function to generate bitmaps for individual glyphs
+        BitmapAtlasStorage<byte, 4> // class that stores the atlas bitmap
         // For example, a custom atlas storage class that stores it in VRAM can be used.
     > generator(width, height);
     // GeneratorAttributes can be modified to change the generator's default settings.
@@ -71,6 +74,8 @@ b32 msdf_load_font_ascii(const char *path, rl_font *out_font) {
     out_font->ascender = static_cast<float>(fontGeometry.getMetrics().ascenderY);
     out_font->descender = static_cast<float>(fontGeometry.getMetrics().descenderY);
     out_font->line_height = fontGeometry.getMetrics().lineHeight;
+    out_font->pixel_range = PIXEL_RANGE;
+    out_font->scale = FONT_SCALE;
 
     for (u32 i = 0; i < out_font->glyph_count; i++) {
         const GlyphGeometry &g = glyphs[i];
@@ -98,14 +103,14 @@ b32 msdf_load_font_ascii(const char *path, rl_font *out_font) {
 
     out_font->atlas.width = width;
     out_font->atlas.height = height;
-    out_font->atlas.channels = 3;
+    out_font->atlas.channels = 4;
 
-    u64 size = static_cast<u64>(width) * height * 3;
+    u64 size = static_cast<u64>(width) * height * 4;
     out_font->atlas.size = size;
     out_font->atlas.data = static_cast<u8 *>(rl_alloc(size, MEM_SUBSYSTEM_ASSET));
 
     // Create a *view* over our buffer
-    msdfgen::BitmapRef<byte, 3> bitmap(
+    msdfgen::BitmapRef<byte, 4> bitmap(
         out_font->atlas.data,
         width,
         height
@@ -113,9 +118,6 @@ b32 msdf_load_font_ascii(const char *path, rl_font *out_font) {
 
     // Copy atlas into our buffer
     storage.get(0, 0, bitmap);
-
-    msdfgen::BitmapConstSection<byte, 3> section(bitmap);
-    msdf_atlas::saveImage(section, msdf_atlas::ImageFormat::PNG, "test.png");
 
     msdfgen::destroyFont(font);
     msdfgen::deinitializeFreetype(ft_handle);

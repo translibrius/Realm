@@ -2,10 +2,11 @@
 
 #include "asset/asset.h"
 
-#define ASSET_TABLE_TOTAL 6
+#define ASSET_TABLE_TOTAL 7
 
 static rl_asset asset_table[ASSET_TABLE_TOTAL] = {
     (rl_asset){ASSET_FONT, "evil_empire.otf", nullptr},
+    (rl_asset){ASSET_FONT, "JetBrainsMono-Regular.ttf", nullptr},
     (rl_asset){ASSET_SHADER, "default.vert", nullptr},
     (rl_asset){ASSET_SHADER, "text.vert", nullptr},
     (rl_asset){ASSET_SHADER, "default.frag", nullptr},

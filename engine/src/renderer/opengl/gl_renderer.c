@@ -10,7 +10,11 @@
 #include "renderer/opengl/gl_shader.h"
 #include "renderer/opengl/gl_types.h"
 
-static opengl_context context;
+static GL_Context context;
+
+GL_Context *opengl_get_context(void) {
+    return &context;
+}
 
 void update_viewport() {
     glViewport(
@@ -63,10 +67,7 @@ b8 opengl_initialize(platform_window *platform_window) {
     }
 
     // Text pipeline
-    opengl_text_pipeline_init(&context.text_pipeline);
-    if (!opengl_font_init("evil_empire.otf", &context.fonts)) {
-        RL_WARN("opengl_font_init() failed");
-    }
+    opengl_text_pipeline_init(&context);
 
     f32 vertices[] = {
         // positions          // colors           // texture coords

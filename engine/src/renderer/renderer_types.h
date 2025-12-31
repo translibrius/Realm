@@ -3,6 +3,7 @@
 
 #include "platform/platform.h"
 #include "util/math_types.h"
+#include "asset/font.h"
 
 #define MAX_TEXT_GLYPHS 256
 
@@ -16,4 +17,6 @@ typedef struct renderer_interface {
     void (*begin_frame)(f64 delta_time);
     void (*end_frame)();
     void (*swap_buffers)();
+    void (*render_text)(const char *text, f32 size_px, f32 x, f32 y, vec4 color);
+    void (*set_active_font)(rl_font *font);
 } renderer_interface;

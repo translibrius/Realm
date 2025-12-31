@@ -7,7 +7,6 @@
 #include "util/str.h"
 #include "vendor/stb/stb_image.h"
 
-
 b8 load_texture(rl_arena *asset_arena, rl_asset *asset) {
     ARENA_SCRATCH_CREATE(scratch, MiB(5), MEM_SUBSYSTEM_ASSET);
 

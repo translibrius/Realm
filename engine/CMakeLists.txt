@@ -50,7 +50,6 @@ endif ()
 # --- C++ sources ---
 add_library(EngineCPP STATIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/core/font/msdf_wrapper.cpp
-        src/core/font/msdf_wrapper.cpp
 )
 
 # Give the wrapper access to C engine headers

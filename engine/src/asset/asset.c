@@ -13,14 +13,20 @@
 
 #include <string.h>
 
-DA_DEFINE(Assets, rl_asset);
-
 typedef struct asset_system {
     rl_arena asset_arena;
     Assets assets;
 } asset_system;
 
 static asset_system *state;
+
+u32 get_asset_count() {
+    return state->assets.count;
+}
+
+Assets *get_assets() {
+    return &state->assets;
+}
 
 u64 asset_system_size() {
     return sizeof(asset_system);
@@ -75,6 +81,8 @@ b8 asset_system_load(rl_asset *asset) {
 }
 
 rl_asset *get_asset(const char *filename) {
+    RL_DEBUG("ASSETS: %d", state->assets.count);
+
     for (u32 i = 0; i < state->assets.count; i++) {
         if (strcmp(state->assets.items[i].filename, filename) == 0) {
             return &state->assets.items[i];

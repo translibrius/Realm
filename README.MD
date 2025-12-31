@@ -50,3 +50,7 @@ vcpkg install freetype
 cmake --preset debug
 cmake --build --preset debug
 ````
+
+## TODO
+
+- [ ] Hot-Reloaded assets
