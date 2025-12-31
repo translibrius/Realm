@@ -81,8 +81,6 @@ b8 asset_system_load(rl_asset *asset) {
 }
 
 rl_asset *get_asset(const char *filename) {
-    RL_DEBUG("ASSETS: %d", state->assets.count);
-
     for (u32 i = 0; i < state->assets.count; i++) {
         if (strcmp(state->assets.items[i].filename, filename) == 0) {
             return &state->assets.items[i];

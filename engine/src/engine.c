@@ -82,10 +82,12 @@ b8 engine_run() {
     u32 frame_count = 0;
     u32 fps_display = 0;
 
-    rl_font *fps_font = (rl_font *)get_asset("assets/fonts/JetBrainsMono-Regular.ttf")->handle;
+    rl_font *fps_font = (rl_font *)get_asset("JetBrainsMono-Regular.ttf")->handle;
     if (fps_font == nullptr) {
         RL_FATAL("Failed to load font, exiting...");
     }
+
+    renderer_set_active_font(fps_font);
 
     f64 delta_time = 0;
     i64 last_frame_time = platform_get_clock_counter();
@@ -111,10 +113,8 @@ b8 engine_run() {
 
         renderer_begin_frame(delta_time);
 
-        renderer_render_text("I LOVE BLACKS <3", 70, 0, 0, (vec4){1.0f, 1.0f, 1.0f, 1.0f});
-
         rl_string fps_str = rl_string_format(&state.frame_arena, "%u", fps_display);
-        renderer_render_text(fps_str.cstr, 24, 0, 500 - 24, (vec4){1.0f, 1.0f, 1.0f, 1.0f});
+        renderer_render_text(fps_str.cstr, 12, 0, 500 - 24, (vec4){1.0f, 1.0f, 1.0f, 1.0f});
 
         renderer_end_frame();
         renderer_swap_buffers();
