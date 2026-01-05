@@ -188,6 +188,20 @@ b8 on_key_press(void *data) {
         print_memory_usage();
     }
 
+    if (key->key == KEY_SEMICOLON && key->pressed) {
+        platform_set_raw_input(&state.window_main, !platform_get_raw_input());
+    }
+
+    if (key->key == KEY_F11 && key->pressed) {
+        if (state.window_main.settings.window_mode == WINDOW_MODE_WINDOWED) {
+            platform_set_window_mode(&state.window_main, WINDOW_MODE_BORDERLESS);
+            platform_set_raw_input(&state.window_main, true);
+        } else {
+            platform_set_window_mode(&state.window_main, WINDOW_MODE_WINDOWED);
+            platform_set_raw_input(&state.window_main, false);
+        }
+    }
+
     // Let other systems see this event
     return false;
 }

@@ -125,6 +125,7 @@ void input_system_init();
 void input_process_key(KEYBOARD_KEY key, b8 is_pressed);
 
 void input_process_mouse_button(MOUSE_BUTTON button, b8 is_pressed);
+void input_process_mouse_raw(i32 dx, i32 dy);
 void input_process_mouse_move(i32 position_x, i32 position_y);
 void input_process_mouse_scroll(i32 delta); // Flatten the input to an OS-independent (-1, 1)
 

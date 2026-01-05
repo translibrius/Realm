@@ -12,7 +12,7 @@ set(MSDF_ATLAS_DYNAMIC_RUNTIME ON CACHE BOOL "" FORCE)
 set(VCPKG_TARGET_TRIPLET "x64-windows" CACHE STRING "" FORCE)
 add_subdirectory(vendor/msdf-atlas-gen)
 
-# --- C sources ---
+# --- C sources ---as
 file(GLOB_RECURSE ENGINE_C_SOURCES
         CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"

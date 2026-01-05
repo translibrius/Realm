@@ -61,6 +61,12 @@ typedef struct win32_window {
     b8 alive;
     b8 stop_on_close;
     platform_window *window;
+
+    // Fullscreen bookkeeping
+    DWORD saved_style;
+    DWORD saved_ex_style;
+    RECT saved_rect;
+    b8 is_borderless;
 } win32_window;
 
 typedef struct platform_state {
@@ -78,6 +84,9 @@ typedef struct platform_state {
     b8 window_class_registered;
     const char *window_class_name;
     win32_window windows[MAX_WINDOWS];
+
+    platform_cursor_mode cursor_mode;
+    b8 raw_mouse_enabled;
 } platform_state;
 
 static platform_state state;
@@ -134,6 +143,8 @@ b8 platform_system_start() {
     // Obtain handle to our own executable
     state.handle = GetModuleHandleA(nullptr);
     state.main_thread_id = platform_get_current_thread_id();
+    state.cursor_mode = CURSOR_MODE_NORMAL;
+    state.raw_mouse_enabled = false;
 
     RL_DEBUG("Platform main thread id: %d", state.main_thread_id);
 
@@ -508,7 +519,7 @@ void platform_sleep(u32 milliseconds) {
 }
 
 void platform_set_cursor_mode(platform_window *window, platform_cursor_mode mode) {
-    if (mode == current_cursor_mode) {
+    if (mode == state.cursor_mode) {
         return;
     }
 
@@ -562,7 +573,7 @@ void platform_set_cursor_mode(platform_window *window, platform_cursor_mode mode
     break;
     }
 
-    current_cursor_mode = mode;
+    state.cursor_mode = mode;
 }
 
 b8 platform_set_cursor_position(platform_window *window, vec2 position) {
@@ -590,6 +601,107 @@ b8 platform_center_cursor(platform_window *window) {
 
     ClientToScreen(window->handle, &center);
     return platform_set_cursor_position(window, (vec2){center.x, center.y});
+}
+
+b8 platform_set_raw_input(platform_window *window, bool enable) {
+    RAWINPUTDEVICE rid = {
+        .usUsagePage = 0x01, // Generic Desktop Controls
+        .usUsage = 0x02, // Mouse
+        .dwFlags = enable ? 0 : RIDEV_REMOVE,
+        .hwndTarget = enable ? window->handle : nullptr
+    };
+
+    if (!RegisterRawInputDevices(&rid, 1, sizeof(rid))) {
+        RL_ERROR("platform_set_raw_input(): RegisterRawInputDevices failed: %lu", GetLastError());
+        return false;
+    }
+
+    state.raw_mouse_enabled = enable;
+    if (enable) {
+        platform_set_cursor_mode(window, CURSOR_MODE_LOCKED);
+    } else {
+        platform_set_cursor_mode(window, CURSOR_MODE_NORMAL);
+    }
+    return true;
+}
+
+b8 platform_get_raw_input() {
+    return state.raw_mouse_enabled;
+}
+
+b8 platform_set_window_mode(platform_window *window, PLATFORM_WINDOW_MODE mode) {
+    if (!window || window->id >= MAX_WINDOWS)
+        return false;
+
+    win32_window *w = &state.windows[window->id];
+    HWND hwnd = window->handle;
+
+    if (!w->alive)
+        return false;
+
+    switch (mode) {
+
+    case WINDOW_MODE_BORDERLESS: {
+        if (w->is_borderless)
+            return true;
+
+        // Save windowed state
+        w->saved_style = GetWindowLongPtrA(hwnd, GWL_STYLE);
+        w->saved_ex_style = GetWindowLongPtrA(hwnd, GWL_EXSTYLE);
+        GetWindowRect(hwnd, &w->saved_rect);
+
+        // Get monitor bounds
+        HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        MONITORINFO mi = {0};
+        mi.cbSize = sizeof(mi);
+        GetMonitorInfoA(monitor, &mi);
+
+        SetWindowLongPtrA(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+        SetWindowLongPtrA(hwnd, GWL_EXSTYLE, w->saved_ex_style);
+
+        SetWindowPos(
+            hwnd,
+            HWND_TOP,
+            mi.rcMonitor.left,
+            mi.rcMonitor.top,
+            mi.rcMonitor.right - mi.rcMonitor.left,
+            mi.rcMonitor.bottom - mi.rcMonitor.top,
+            SWP_FRAMECHANGED | SWP_NOOWNERZORDER
+            );
+
+        w->is_borderless = true;
+        window->settings.window_mode = WINDOW_MODE_BORDERLESS;
+    }
+    break;
+
+    case WINDOW_MODE_WINDOWED: {
+        if (!w->is_borderless)
+            return true;
+
+        SetWindowLongPtrA(hwnd, GWL_STYLE, w->saved_style);
+        SetWindowLongPtrA(hwnd, GWL_EXSTYLE, w->saved_ex_style);
+
+        SetWindowPos(
+            hwnd,
+            NULL,
+            window->settings.x,
+            window->settings.y,
+            window->settings.width,
+            window->settings.height,
+            SWP_FRAMECHANGED | SWP_NOZORDER
+            );
+
+        w->is_borderless = false;
+        window->settings.window_mode = WINDOW_MODE_WINDOWED;
+    }
+    break;
+
+    default:
+        RL_WARN("platform_set_window_mode(): unknown/unimplemented mode");
+        return false;
+    }
+
+    return true;
 }
 
 // Private ---------------------------------------------------------------
@@ -984,6 +1096,9 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
         return 0;
     }
     case WM_MOUSEMOVE: {
+        if (state.raw_mouse_enabled)
+            break;
+
         // Mouse move
         i32 x_position = GET_X_LPARAM(LParam);
         i32 y_position = GET_Y_LPARAM(LParam);
@@ -1032,6 +1147,37 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
         }
     }
     break;
+
+    // Raw mouse input
+    case WM_INPUT: {
+        BYTE stack_buffer[sizeof(RAWINPUT) + 64];
+        RAWINPUT *raw = (RAWINPUT *)stack_buffer;
+
+        UINT size = sizeof(stack_buffer);
+        if (GetRawInputData(
+                (HRAWINPUT)LParam,
+                RID_INPUT,
+                raw,
+                &size,
+                sizeof(RAWINPUTHEADER)) == (UINT)-1) {
+            break;
+        }
+
+        if (raw->header.dwType == RIM_TYPEMOUSE) {
+            RAWMOUSE *m = &raw->data.mouse;
+
+            if (!(m->usFlags & MOUSE_MOVE_ABSOLUTE)) {
+                i32 dx = m->lLastX;
+                i32 dy = m->lLastY;
+
+                if (dx || dy) {
+                    input_process_mouse_raw(dx, dy);
+                }
+            }
+        }
+
+        return 0;
+    }
 
     default: {
         Result = DefWindowProcA(Window, Message, WParam, LParam);
