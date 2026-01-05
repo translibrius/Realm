@@ -1,3 +1,9 @@
 [submodule "engine/src/vendor/msdf-atlas-gen"]
 	path = engine/src/vendor/msdf-atlas-gen
 	url = https://github.com/Chlumsky/msdf-atlas-gen
+[submodule "engine/src/vendor/cglm"]
+	path = engine/src/vendor/cglm
+	url = https://github.com/recp/cglm
+[submodule "engine/vendor/msdf-atlas-gen"]
+	path = engine/vendor/msdf-atlas-gen
+	url = https://github.com/Chlumsky/msdf-atlas-gen

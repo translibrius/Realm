@@ -2,8 +2,9 @@
 #include "defines.h"
 
 #include "platform/platform.h"
-#include "util/math_types.h"
 #include "asset/font.h"
+
+#include "../vendor/cglm/cglm.h"
 
 #define MAX_TEXT_GLYPHS 256
 

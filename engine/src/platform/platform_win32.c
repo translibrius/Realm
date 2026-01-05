@@ -14,7 +14,7 @@
 
 #include <stdlib.h>
 #include <windows.h>
-#include <vendor/glad/glad_wgl.h>
+#include <../vendor/glad/glad_wgl.h>
 #include <winuser.h>
 #include <winternl.h>
 #include <windowsx.h>

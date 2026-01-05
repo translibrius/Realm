@@ -10,13 +10,13 @@ set(MSDFGEN_DYNAMIC_RUNTIME ON CACHE BOOL "" FORCE)
 set(MSDF_ATLAS_DYNAMIC_RUNTIME ON CACHE BOOL "" FORCE)
 # Make sure vcpkg uses dynamic CRT too
 set(VCPKG_TARGET_TRIPLET "x64-windows" CACHE STRING "" FORCE)
-add_subdirectory(src/vendor/msdf-atlas-gen)
+add_subdirectory(vendor/msdf-atlas-gen)
 
 # --- C sources ---
 file(GLOB_RECURSE ENGINE_C_SOURCES
         CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/vendor/glad/*.c"
 )
 
 # Build C part as a static lib (no C++ here)
@@ -25,11 +25,16 @@ add_library(EngineC STATIC ${ENGINE_C_SOURCES})
 target_include_directories(EngineC
         PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+
+        # Vendor
+        ${CMAKE_CURRENT_SOURCE_DIR}/cglm
+        ${CMAKE_CURRENT_SOURCE_DIR}/stb
+        ${CMAKE_CURRENT_SOURCE_DIR}/yyjson
 )
 
 # Warnings only for my own code (no vendor)
 target_compile_options(EngineC PRIVATE
-        -Wall -Wextra -Wshadow -Wpedantic -Werror
+        -Wall -Wextra -Wshadow
         -Wno-newline-eof
         -Wno-missing-braces
         -Wno-gnu-zero-variadic-macro-arguments
@@ -51,7 +56,7 @@ add_library(EngineCPP STATIC
 target_include_directories(EngineCPP
         PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/vendor/msdf-atlas-gen
+        vendor/msdf-atlas-gen
 )
 
 # IMPORTANT: do NOT use strict warnings here (vendor headers will trigger them)

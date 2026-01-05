@@ -2,7 +2,7 @@
 
 #include "gl_renderer.h"
 #include "asset/shader.h"
-#include "vendor/glad/glad.h"
+#include "../vendor/glad/glad.h"
 
 // Forward decl.
 b8 opengl_compile_vertex_shader(const char *source, i32 *out_id);
@@ -51,17 +51,17 @@ void opengl_shader_set_f32(GL_Shader *shader, const char *name, f32 value) {
 
 void opengl_shader_set_vec2(GL_Shader *shader, const char *name, vec2 value) {
     i32 loc = glGetUniformLocation(shader->program_id, name);
-    glUniform2f(loc, value.x, value.y);
+    glUniform2f(loc, value[0], value[1]);
 }
 
-void opengl_shader_set_vec3(GL_Shader *shader, const char *name, vec3 value) {
+void opengl_shader_set_vec3(GL_Shader *shader, const char *name, vec2 value) {
     i32 loc = glGetUniformLocation(shader->program_id, name);
-    glUniform3f(loc, value.x, value.y, value.z);
+    glUniform3f(loc, value[0], value[1], value[2]);
 }
 
 void opengl_shader_set_vec4(GL_Shader *shader, const char *name, vec4 value) {
     i32 loc = glGetUniformLocation(shader->program_id, name);
-    glUniform4f(loc, value.x, value.y, value.z, value.w);
+    glUniform4f(loc, value[0], value[1], value[2], value[3]);
 }
 
 

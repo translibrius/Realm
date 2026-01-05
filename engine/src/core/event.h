@@ -1,7 +1,6 @@
 #pragma once
 
 #include "defines.h"
-#include "util/math_types.h"
 
 typedef struct e_resize_payload {
     u16 window_id;

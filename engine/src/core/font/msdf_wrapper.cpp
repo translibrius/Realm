@@ -2,7 +2,7 @@
 
 #include "core/logger.h"
 #include "memory/memory.h"
-#include "vendor/msdf-atlas-gen/msdf-atlas-gen/msdf-atlas-gen.h"
+#include "../vendor/msdf-atlas-gen/msdf-atlas-gen/msdf-atlas-gen.h"
 
 using namespace msdf_atlas;
 

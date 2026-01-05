@@ -5,7 +5,7 @@
 #include "core/logger.h"
 #include "memory/memory.h"
 #include "util/clock.h"
-#include "vendor/glad/glad_wgl.h"
+#include "../vendor/glad/glad_wgl.h"
 
 typedef struct splash_screen {
     u32 pixels_size;

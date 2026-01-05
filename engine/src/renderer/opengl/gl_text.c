@@ -4,7 +4,7 @@
 #include "asset/font.h"
 #include "core/logger.h"
 #include "renderer/renderer_types.h"
-#include "vendor/glad/glad.h"
+#include "../vendor/glad/glad.h"
 
 #include <string.h>
 
@@ -194,7 +194,12 @@ void opengl_render_text(const char *text, f32 size_px, f32 x, f32 y, vec4 color)
     opengl_shader_set_i32(&p->shader, "u_font_atlas", 0);
     opengl_shader_set_vec4(&p->shader, "u_color", color);
     opengl_shader_set_vec2(&p->shader, "u_screen_size",
-                           (vec2){(f32)ctx->window->settings.width, (f32)ctx->window->settings.height});
+                           (vec2)
+    {
+        (f32)ctx->window->settings.width, (f32)ctx->window->settings.height
+    }
+    )
+    ;
 
     glDrawArrays(GL_TRIANGLES, 0, (GLsizei)vert_count);
 
