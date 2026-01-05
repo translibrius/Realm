@@ -95,6 +95,8 @@ b8 engine_run() {
         RL_FATAL("Failed to load font, exiting...");
     }
 
+    renderer_set_active_font(fps_font);
+
     f64 delta_time = 0;
     i64 last_frame_time = platform_get_clock_counter();
     rl_clock clock;
@@ -181,7 +183,11 @@ b8 on_key_press(void *data) {
 
     // Stop engine on ESC
     if (key->key == KEY_ESCAPE && key->pressed) {
-        state.is_running = false;
+        if (platform_get_raw_input()) {
+            platform_set_raw_input(&state.window_main, false);
+        } else {
+            state.is_running = false;
+        }
     }
 
     // Print mem debug on 'm'
@@ -190,8 +196,9 @@ b8 on_key_press(void *data) {
     }
 
     if (key->key == KEY_SEMICOLON && key->pressed) {
-        //platform_set_raw_input(&state.window_main, !platform_get_raw_input());
-        platform_set_cursor_mode(&state.window_main, CURSOR_MODE_LOCKED);
+        if (!platform_get_raw_input()) {
+            platform_set_raw_input(&state.window_main, true);
+        }
     }
 
     if (key->key == KEY_F11 && key->pressed) {
@@ -227,7 +234,7 @@ b8 on_resize(void *data) {
             if (state.is_suspended) {
                 RL_DEBUG("Main window restored!");
 
-                // 🔑 Window just became valid again — lock cursor now
+                // Window just became valid again — lock cursor
                 if (platform_get_raw_input()) {
                     platform_set_cursor_mode(window, CURSOR_MODE_LOCKED);
                 }
