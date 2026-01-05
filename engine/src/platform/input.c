@@ -15,6 +15,7 @@ typedef struct keyboard_state {
 } keyboard_state;
 
 typedef struct input_state {
+    INPUT_MODE input_mode;
     mouse_state mouse_now;
     mouse_state mouse_prev;
     keyboard_state keyboard_now;
@@ -23,6 +24,10 @@ typedef struct input_state {
 
 static input_state state;
 
+void input_system_init() {
+    state.input_mode = INPUT_MODE_UI;
+}
+
 void input_update() {
     rl_copy(&state.keyboard_now, &state.keyboard_prev, sizeof(keyboard_state));
     rl_copy(&state.mouse_now, &state.mouse_prev, sizeof(mouse_state));
@@ -30,7 +35,6 @@ void input_update() {
     state.mouse_now.dx = 0;
     state.mouse_now.dy = 0;
 }
-
 
 void input_process_key(KEYBOARD_KEY key, b8 is_pressed) {
     if (state.keyboard_now.pressed[key] != is_pressed) {
@@ -101,4 +105,23 @@ void input_get_previous_mouse_position(vec2 pos) {
 void input_get_mouse_delta(vec2 delta_pos) {
     delta_pos[0] = (f32)state.mouse_prev.dx;
     delta_pos[1] = (f32)state.mouse_prev.dy;
+}
+
+void input_set_mode(platform_window *window, INPUT_MODE mode) {
+    if (state.input_mode == mode)
+        return;
+
+    state.input_mode = mode;
+
+    state.mouse_now.dx = 0;
+    state.mouse_now.dy = 0;
+
+    switch (mode) {
+    case INPUT_MODE_UI:
+        platform_set_cursor_mode(window, CURSOR_MODE_NORMAL);
+        break;
+    case INPUT_MODE_GAME:
+        platform_set_cursor_mode(window, CURSOR_MODE_LOCKED);
+        break;
+    }
 }

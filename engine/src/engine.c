@@ -57,6 +57,8 @@ b8 create_engine(const application *app) {
         return false;
     }
 
+    input_system_init();
+
     event_register(EVENT_KEY_PRESS, on_key_press);
     event_register(EVENT_WINDOW_RESIZE, on_resize);
     event_register(EVENT_WINDOW_FOCUS_GAINED, on_focus_gained);

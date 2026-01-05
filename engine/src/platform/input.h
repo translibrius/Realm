@@ -4,6 +4,11 @@
 
 #include "../vendor/cglm/cglm.h"
 
+typedef enum INPUT_MODE {
+    INPUT_MODE_UI, // Uses OS cursor
+    INPUT_MODE_GAME, // Hides OS cursor, uses raw input
+} INPUT_MODE;
+
 typedef enum MOUSE_BUTTON {
     MOUSE_LEFT,
     MOUSE_RIGHT,
@@ -113,6 +118,8 @@ typedef struct input_mouse_move {
 typedef struct input_mouse_scroll {
     i16 z_delta;
 } input_mouse_scroll;
+
+void input_system_init();
 
 // Perform mapping from keycode to button per platform
 void input_process_key(KEYBOARD_KEY key, b8 is_pressed);
