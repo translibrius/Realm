@@ -40,4 +40,8 @@ typedef struct GL_Context {
     GL_Shader default_shader;
     u32 default_vao;
     GL_Texture wood_texture;
+
+    // Mat
+    mat4 view;
+    mat4 projection;
 } GL_Context;

@@ -86,7 +86,7 @@ static platform_state state;
 const char *get_arch_name(WORD arch);
 void get_system_info();
 b8 get_windows_version(RTL_OSVERSIONINFOW *out_version);
-KEYBOARD_KEY map_keycode_to_key(u16 keycode);
+KEYBOARD_KEY map_keycode_to_key(u16 keycode, u32 lparam);
 
 static LRESULT CALLBACK ServiceWndProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam);
 static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam);
@@ -507,6 +507,91 @@ void platform_sleep(u32 milliseconds) {
     Sleep(milliseconds);
 }
 
+void platform_set_cursor_mode(platform_window *window, platform_cursor_mode mode) {
+    if (mode == current_cursor_mode) {
+        return;
+    }
+
+    HWND hwnd = window->handle;
+    RECT rect;
+
+    switch (mode) {
+    case CURSOR_MODE_NORMAL: {
+        // Show cursor
+        while (ShowCursor(TRUE) < 0) {
+        }
+
+        // Release confinement
+        ClipCursor(NULL);
+    }
+    break;
+
+    case CURSOR_MODE_HIDDEN: {
+        // Hide cursor
+        while (ShowCursor(FALSE) >= 0) {
+        }
+
+        // Still free
+        ClipCursor(NULL);
+    }
+    break;
+
+    case CURSOR_MODE_LOCKED: {
+        // Hide cursor
+        while (ShowCursor(FALSE) >= 0) {
+        }
+
+        // Confine cursor to client area
+        GetClientRect(hwnd, &rect);
+
+        POINT ul = {rect.left, rect.top};
+        POINT lr = {rect.right, rect.bottom};
+
+        ClientToScreen(hwnd, &ul);
+        ClientToScreen(hwnd, &lr);
+
+        RECT clip = {
+            ul.x, ul.y,
+            lr.x, lr.y
+        };
+
+        ClipCursor(&clip);
+
+        platform_center_cursor(window);
+    }
+    break;
+    }
+
+    current_cursor_mode = mode;
+}
+
+b8 platform_set_cursor_position(platform_window *window, vec2 position) {
+    // Only allow this if window is focused
+    if (GetForegroundWindow() != window->handle) {
+        RL_WARN("Tried to set cursor position while window is inactive");
+        return false;
+    }
+
+    if (!SetCursorPos((i32)position[0], (i32)position[1])) {
+        return false;
+    }
+
+    return true;
+}
+
+b8 platform_center_cursor(platform_window *window) {
+    RECT rect;
+    GetClientRect(window->handle, &rect);
+
+    POINT center = {
+        (rect.right - rect.left) / 2,
+        (rect.bottom - rect.top) / 2
+    };
+
+    ClientToScreen(window->handle, &center);
+    return platform_set_cursor_position(window, (vec2){center.x, center.y});
+}
+
 // Private ---------------------------------------------------------------
 
 // NOTE: for calling RtlGetVersion. This seems to be the most stable way to get
@@ -854,17 +939,48 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
         break;
     }
 
+    // Focus
+    case WM_SETFOCUS: {
+        platform_window *pw = nullptr;
+        for (u16 i = 0; i < MAX_WINDOWS; i++) {
+            if (state.windows[i].alive && state.windows[i].hwnd == Window) {
+                pw = state.windows[i].window;
+                break;
+            }
+        }
+
+        if (pw) {
+            event_fire(EVENT_WINDOW_FOCUS_GAINED, pw);
+        }
+    }
+    break;
+
+    case WM_KILLFOCUS: {
+        platform_window *pw = nullptr;
+        for (u16 i = 0; i < MAX_WINDOWS; i++) {
+            if (state.windows[i].alive && state.windows[i].hwnd == Window) {
+                pw = state.windows[i].window;
+                break;
+            }
+        }
+
+        if (pw) {
+            event_fire(EVENT_WINDOW_FOCUS_LOST, pw);
+        }
+    }
+    break;
+
     // Input
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN:
     case WM_KEYUP:
     case WM_SYSKEYUP: {
         b8 pressed = (Message == WM_KEYDOWN || Message == WM_SYSKEYDOWN);
-        u16 keycode = (u16)WParam;
+        u16 vk = (u16)WParam;
+        u32 lparam = (u32)LParam;
 
-        KEYBOARD_KEY key = map_keycode_to_key(keycode);
+        KEYBOARD_KEY key = map_keycode_to_key(vk, lparam);
         input_process_key(key, pressed);
-        // Return 0 to prevent default window behaviour for some keypresses, such as alt.
         return 0;
     }
     case WM_MOUSEMOVE: {
@@ -926,7 +1042,7 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
     return Result;
 }
 
-KEYBOARD_KEY map_keycode_to_key(u16 keycode) {
+KEYBOARD_KEY map_keycode_to_key(u16 keycode, u32 lparam) {
     switch (keycode) {
     case VK_BACK:
         return KEY_BACKSPACE;
@@ -935,14 +1051,19 @@ KEYBOARD_KEY map_keycode_to_key(u16 keycode) {
     case VK_TAB:
         return KEY_TAB;
 
-    case VK_LSHIFT:
-        return KEY_L_SHIFT;
-    case VK_RSHIFT:
-        return KEY_R_SHIFT;
-    case VK_LCONTROL:
-        return KEY_L_CTRL;
-    case VK_RCONTROL:
-        return KEY_R_CTRL;
+    case VK_SHIFT: {
+        u32 sc = (lparam >> 16) & 0xFF;
+        return (sc == 0x36) ? KEY_R_SHIFT : KEY_L_SHIFT;
+    }
+    case VK_CONTROL: {
+        b8 extended = (lparam & (1 << 24)) != 0;
+        return extended ? KEY_R_CTRL : KEY_L_CTRL;
+    }
+    case VK_MENU: {
+        // Alt
+        b8 extended = (lparam & (1 << 24)) != 0;
+        return extended ? KEY_R_ALT : KEY_L_ALT;
+    }
     case VK_LMENU:
         return KEY_L_ALT;
     case VK_RMENU:

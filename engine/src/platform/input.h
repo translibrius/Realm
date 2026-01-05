@@ -1,5 +1,8 @@
 #pragma once
 #include "defines.h"
+#include "platform.h"
+
+#include "../vendor/cglm/cglm.h"
 
 typedef enum MOUSE_BUTTON {
     MOUSE_LEFT,
@@ -117,5 +120,17 @@ void input_process_key(KEYBOARD_KEY key, b8 is_pressed);
 void input_process_mouse_button(MOUSE_BUTTON button, b8 is_pressed);
 void input_process_mouse_move(i32 position_x, i32 position_y);
 void input_process_mouse_scroll(i32 delta); // Flatten the input to an OS-independent (-1, 1)
+
+REALM_API b8 input_is_key_down(KEYBOARD_KEY key); // now
+REALM_API b8 input_key_pressed(KEYBOARD_KEY key); // up -> down
+REALM_API b8 input_key_released(KEYBOARD_KEY key); // down -> up
+
+REALM_API b8 input_is_mouse_down(MOUSE_BUTTON button);
+REALM_API b8 input_mouse_pressed(MOUSE_BUTTON button);
+REALM_API b8 input_mouse_released(MOUSE_BUTTON button);
+
+REALM_API void input_get_mouse_position(vec2 pos);
+REALM_API void input_get_previous_mouse_position(vec2 pos);
+REALM_API void input_get_mouse_delta(vec2 delta_pos);
 
 void input_update();

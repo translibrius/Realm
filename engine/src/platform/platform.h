@@ -3,6 +3,8 @@
 #include "core/logger.h"
 #include "defines.h"
 
+#include "../vendor/cglm/cglm.h"
+
 #define MAX_WINDOWS 10
 
 enum platform_window_flag {
@@ -30,6 +32,14 @@ typedef struct platform_window {
     void *handle;
 } platform_window;
 
+typedef enum platform_cursor_mode {
+    CURSOR_MODE_NORMAL,
+    CURSOR_MODE_HIDDEN,
+    CURSOR_MODE_LOCKED
+} platform_cursor_mode;
+
+static platform_cursor_mode current_cursor_mode = CURSOR_MODE_NORMAL;
+
 b8 platform_system_start();
 void platform_system_shutdown();
 b8 platform_pump_messages();
@@ -45,3 +55,7 @@ b8 platform_create_opengl_context(platform_window *window);
 b8 platform_context_make_current(platform_window *window);
 b8 platform_swap_buffers(platform_window *window);
 u64 platform_get_current_thread_id();
+
+void platform_set_cursor_mode(platform_window *window, platform_cursor_mode mode);
+b8 platform_set_cursor_position(platform_window *window, vec2 position);
+b8 platform_center_cursor(platform_window *window);

@@ -12,6 +12,8 @@ typedef struct e_resize_payload {
 
 typedef enum EVENT_TYPE {
     EVENT_WINDOW_RESIZE,
+    EVENT_WINDOW_FOCUS_GAINED,
+    EVENT_WINDOW_FOCUS_LOST,
 
     // Input
     EVENT_MOUSE_MOVE,

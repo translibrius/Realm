@@ -20,4 +20,5 @@ typedef struct renderer_interface {
     void (*swap_buffers)();
     void (*render_text)(const char *text, f32 size_px, f32 x, f32 y, vec4 color);
     void (*set_active_font)(rl_font *font);
+    void (*set_view_projection)(mat4 view, mat4 projection);
 } renderer_interface;

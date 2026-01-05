@@ -18,3 +18,4 @@ void opengl_shader_set_f32(GL_Shader *shader, const char *name, f32 value);
 void opengl_shader_set_vec2(GL_Shader *shader, const char *name, vec2 value);
 void opengl_shader_set_vec3(GL_Shader *shader, const char *name, vec3 value);
 void opengl_shader_set_vec4(GL_Shader *shader, const char *name, vec4 value);
+void opengl_shader_set_mat4(GL_Shader *shader, const char *name, mat4 value);

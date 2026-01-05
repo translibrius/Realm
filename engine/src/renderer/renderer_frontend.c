@@ -60,6 +60,12 @@ void renderer_set_active_font(rl_font *font) {
     interface.set_active_font(font);
 }
 
+void renderer_set_view_projection(mat4 view, mat4 projection) {
+    if (!state.initialized)
+        return;
+    interface.set_view_projection(view, projection);
+}
+
 void prepare_interface(RENDERER_BACKEND backend) {
     switch (backend) {
     case BACKEND_OPENGL:
@@ -70,6 +76,7 @@ void prepare_interface(RENDERER_BACKEND backend) {
         interface.swap_buffers = &opengl_swap_buffers;
         interface.render_text = &opengl_render_text;
         interface.set_active_font = &opengl_set_active_font;
+        interface.set_view_projection = &opengl_set_view_projection;
         break;
     }
 }

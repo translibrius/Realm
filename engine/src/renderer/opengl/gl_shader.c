@@ -64,6 +64,10 @@ void opengl_shader_set_vec4(GL_Shader *shader, const char *name, vec4 value) {
     glUniform4f(loc, value[0], value[1], value[2], value[3]);
 }
 
+void opengl_shader_set_mat4(GL_Shader *shader, const char *name, mat4 value) {
+    i32 loc = glGetUniformLocation(shader->program_id, name);
+    glUniformMatrix4fv(loc, 1, GL_FALSE, value);
+}
 
 b8 opengl_create_shader_program(i32 vertex_id, i32 fragment_id, i32 *out_prog_id) {
     // Create shader program

@@ -12,6 +12,8 @@
 
 static GL_Context context;
 
+static f32 angle;
+
 GL_Context *opengl_get_context(void) {
     return &context;
 }
@@ -26,15 +28,20 @@ void update_viewport() {
 b8 resize_callback(void *data) {
     platform_window *window = data;
     if (window->id == context.window->id) {
-        /*
+
         RL_DEBUG("Window #%d resized | POS: %d;%d | Size: %dx%d",
                  window->id,
                  window->settings.x, window->settings.y,
                  window->settings.width, window->settings.height);
-        */
+
         update_viewport();
     }
     return false;
+}
+
+void opengl_set_view_projection(mat4 view, mat4 projection) {
+    glm_mat4_copy(view, context.view);
+    glm_mat4_copy(projection, context.projection);
 }
 
 b8 opengl_initialize(platform_window *platform_window) {
@@ -69,45 +76,70 @@ b8 opengl_initialize(platform_window *platform_window) {
     // Text pipeline
     opengl_text_pipeline_init(&context);
 
-    f32 vertices[] = {
-        // positions          // colors           // texture coords
-        0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, // top right
-        0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, // bottom right
-        -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, // bottom left
-        -0.5f, 0.5f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f // top left
-    };
+    glEnable(GL_DEPTH_TEST);
 
-    u32 indices[] = {
-        0, 1, 3, // First triangle
-        1, 2, 3, // Second triangle
+    f32 vertices[] = {
+        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
+        0.5f, -0.5f, -0.5f, 1.0f, 0.0f,
+        0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+        0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
+
+        -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+        0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
+        0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
+        -0.5f, 0.5f, 0.5f, 0.0f, 1.0f,
+        -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+
+        -0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+        -0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+        -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+        -0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+
+        0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+        0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+        0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+        0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+        0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+
+        -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+        0.5f, -0.5f, -0.5f, 1.0f, 1.0f,
+        0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+        0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+        -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+
+        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
+        0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+        0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+        -0.5f, 0.5f, 0.5f, 0.0f, 0.0f,
+        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f
     };
+    u32 vbo;
 
     // Create vao & bind
     glGenVertexArrays(1, &context.default_vao);
+    glGenBuffers(1, &vbo);
     glBindVertexArray(context.default_vao);
 
     // Create vbo & bind
-    u32 vbo;
-    glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    // EBO (indices)
-    u32 ebo;
-    glGenBuffers(1, &ebo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
     // Attributes
-    // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
+    // position
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
     glEnableVertexAttribArray(0);
-    // color attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(3 * sizeof(float)));
+
+    // texcoord
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
-    // texture coord attribute
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(6 * sizeof(float)));
-    glEnableVertexAttribArray(2);
 
     return true;
 }
@@ -119,16 +151,34 @@ void opengl_destroy() {
 void opengl_begin_frame(f64 delta_time) {
     (void)delta_time;
 
+    if (angle > 360)
+        angle = 0.0f;
+    angle += 100.0f * delta_time;
+
+    f32 aspect_ratio = (f32)context.window->settings.width / (f32)context.window->settings.height;
+    const f32 fov_x = glm_rad(90.0f);
+    const f32 fov_y = 2.0f * atanf(tanf(fov_x * 0.5f) / aspect_ratio);
+    constexpr f32 near_z = 0.1f;
+    constexpr f32 far_z = 100.0f;
+
     glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-    opengl_shader_use(&context.default_shader);
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, context.wood_texture.id);
+    opengl_shader_use(&context.default_shader);
+
+    mat4 model = {};
+    glm_mat4_identity(model);
+    glm_rotate(model, glm_rad(angle), (vec3){0.5f, 1.0f, 0.0f});
+
+    opengl_shader_set_mat4(&context.default_shader, "model", model);
+    opengl_shader_set_mat4(&context.default_shader, "view", context.view);
+    opengl_shader_set_mat4(&context.default_shader, "projection", context.projection);
 
     glBindVertexArray(context.default_vao);
-    glDrawElements(GL_TRIANGLES, 9, GL_UNSIGNED_INT, nullptr);
-    glBindVertexArray(0);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
 }
 
 void opengl_end_frame() {

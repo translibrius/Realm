@@ -1,6 +1,7 @@
 #include "engine.h"
 
 #include "asset/asset.h"
+#include "core/camera.h"
 #include "core/event.h"
 #include "core/logger.h"
 #include "memory/memory.h"
@@ -14,6 +15,7 @@ typedef struct engine_state {
     b8 is_suspended;
     rl_arena frame_arena;
     platform_window window_main;
+    rl_camera camera;
 } engine_state;
 
 static engine_state state;
@@ -23,6 +25,8 @@ void create_main_window();
 void load_cache();
 b8 on_key_press(void *data);
 b8 on_resize(void *data);
+b8 on_focus_gained(void *data);
+b8 on_focus_lost(void *data);
 
 // Bootstrap all subsystems
 b8 create_engine(const application *app) {
@@ -55,6 +59,8 @@ b8 create_engine(const application *app) {
 
     event_register(EVENT_KEY_PRESS, on_key_press);
     event_register(EVENT_WINDOW_RESIZE, on_resize);
+    event_register(EVENT_WINDOW_FOCUS_GAINED, on_focus_gained);
+    event_register(EVENT_WINDOW_FOCUS_LOST, on_focus_lost);
 
     void *asset_system = rl_alloc(asset_system_size(), MEM_SUBSYSTEM_ASSET);
     if (!asset_system_start(asset_system) || !asset_system_load_all()) {
@@ -94,6 +100,8 @@ b8 engine_run() {
     rl_clock clock;
     clock_reset(&clock);
 
+    camera_init(&state.camera);
+
     while (state.is_running) {
         clock_update(&clock);
         frame_count++;
@@ -101,6 +109,7 @@ b8 engine_run() {
         delta_time = (f64)(now - last_frame_time) / (f64)clock.frequency;
         last_frame_time = now;
 
+        input_update(); // Process user input
         if (!platform_pump_messages()) {
             RL_DEBUG("Platform stopped event pump, breaking main loop...");
             break;
@@ -109,12 +118,20 @@ b8 engine_run() {
             platform_sleep(100);
         }
 
-        input_update(); // Process user input
+        camera_update(&state.camera, delta_time);
 
         renderer_begin_frame(delta_time);
 
-        rl_string fps_str = rl_string_format(&state.frame_arena, "%u", fps_display);
-        renderer_render_text(fps_str.cstr, 12, 0, 500 - 24, (vec4){1.0f, 1.0f, 1.0f, 1.0f});
+        mat4 view = {};
+        mat4 proj = {};
+
+        f32 aspect = (f32)state.window_main.settings.width / (f32)state.window_main.settings.height;
+        camera_get_view(&state.camera, view);
+        camera_get_projection(&state.camera, aspect, proj);
+        renderer_set_view_projection(view, proj);
+
+        rl_string fps_str = rl_string_format(&state.frame_arena, "FPS: %u", fps_display);
+        renderer_render_text(fps_str.cstr, 40, (f32)state.window_main.settings.width / 2 - 100, (f32)state.window_main.settings.height - 40, (vec4){1.0f, 1.0f, 1.0f, 1.0f});
 
         renderer_end_frame();
         renderer_swap_buffers();
@@ -132,7 +149,23 @@ b8 engine_run() {
     return true;
 }
 
-// --
+// -- Private
+
+b8 on_focus_gained(void *data) {
+    platform_window *window = data;
+    RL_DEBUG("Window id=%d gained focus", window->id);
+    return false;
+}
+
+b8 on_focus_lost(void *data) {
+    platform_window *window = data;
+    RL_DEBUG("Window id=%d lost focus", window->id);
+
+    // Make cursor visible and unlocked again
+    platform_set_cursor_mode(window, CURSOR_MODE_NORMAL);
+
+    return false;
+}
 
 b8 on_key_press(void *data) {
     input_key *key = data;
@@ -160,6 +193,7 @@ b8 on_key_press(void *data) {
 b8 on_resize(void *data) {
     platform_window *window = data;
     if (window->id == state.window_main.id) {
+        state.window_main = *window;
         /*
         RL_DEBUG("Window #%d resized | POS: %d;%d | Size: %dx%d",
                  window->id,

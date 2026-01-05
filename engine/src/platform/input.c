@@ -1,10 +1,12 @@
 #include "input.h"
 
 #include "core/event.h"
+#include "core/logger.h"
 #include "memory/memory.h"
 
 typedef struct mouse_state {
     i16 x, y;
+    i16 dx, dy;
     b8 pressed[MOUSE_MAX_BUTTONS];
 } mouse_state;
 
@@ -24,7 +26,11 @@ static input_state state;
 void input_update() {
     rl_copy(&state.keyboard_now, &state.keyboard_prev, sizeof(keyboard_state));
     rl_copy(&state.mouse_now, &state.mouse_prev, sizeof(mouse_state));
+
+    state.mouse_now.dx = 0;
+    state.mouse_now.dy = 0;
 }
+
 
 void input_process_key(KEYBOARD_KEY key, b8 is_pressed) {
     if (state.keyboard_now.pressed[key] != is_pressed) {
@@ -44,6 +50,9 @@ void input_process_mouse_button(MOUSE_BUTTON button, b8 is_pressed) {
 
 void input_process_mouse_move(i32 position_x, i32 position_y) {
     if (state.mouse_now.x != position_x || state.mouse_now.y != position_y) {
+        state.mouse_now.dx += position_x - state.mouse_now.x;
+        state.mouse_now.dy += position_y - state.mouse_now.y;
+
         state.mouse_now.x = position_x;
         state.mouse_now.y = position_y;
 
@@ -53,4 +62,43 @@ void input_process_mouse_move(i32 position_x, i32 position_y) {
 
 void input_process_mouse_scroll(i32 delta) {
     event_fire(EVENT_MOUSE_SCROLL, &(input_mouse_scroll){delta});
+}
+
+b8 input_is_key_down(KEYBOARD_KEY key) {
+    return state.keyboard_now.pressed[key];
+}
+
+b8 input_key_pressed(KEYBOARD_KEY key) {
+    return !state.keyboard_prev.pressed[key] && state.keyboard_now.pressed[key];
+}
+
+b8 input_key_released(KEYBOARD_KEY key) {
+    return state.keyboard_prev.pressed[key] && !state.keyboard_now.pressed[key];
+}
+
+b8 input_is_mouse_down(MOUSE_BUTTON button) {
+    return state.mouse_now.pressed[button];
+}
+
+b8 input_mouse_pressed(MOUSE_BUTTON button) {
+    return !state.mouse_prev.pressed[button] && state.mouse_now.pressed[button];
+}
+
+b8 input_mouse_released(MOUSE_BUTTON button) {
+    return state.mouse_prev.pressed[button] && !state.mouse_now.pressed[button];
+}
+
+void input_get_mouse_position(vec2 pos) {
+    pos[0] = (f32)state.mouse_now.x;
+    pos[1] = (f32)state.mouse_now.y;
+}
+
+void input_get_previous_mouse_position(vec2 pos) {
+    pos[0] = (f32)state.mouse_prev.x;
+    pos[1] = (f32)state.mouse_prev.y;
+}
+
+void input_get_mouse_delta(vec2 delta_pos) {
+    delta_pos[0] = (f32)state.mouse_prev.dx;
+    delta_pos[1] = (f32)state.mouse_prev.dy;
 }
