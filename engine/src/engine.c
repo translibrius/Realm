@@ -95,8 +95,6 @@ b8 engine_run() {
         RL_FATAL("Failed to load font, exiting...");
     }
 
-    renderer_set_active_font(fps_font);
-
     f64 delta_time = 0;
     i64 last_frame_time = platform_get_clock_counter();
     rl_clock clock;
@@ -156,6 +154,9 @@ b8 engine_run() {
 b8 on_focus_gained(void *data) {
     platform_window *window = data;
     RL_DEBUG("Window id=%d gained focus", window->id);
+    if (platform_get_raw_input()) {
+        platform_set_cursor_mode(window, CURSOR_MODE_LOCKED);
+    }
     return false;
 }
 
@@ -189,7 +190,8 @@ b8 on_key_press(void *data) {
     }
 
     if (key->key == KEY_SEMICOLON && key->pressed) {
-        platform_set_raw_input(&state.window_main, !platform_get_raw_input());
+        //platform_set_raw_input(&state.window_main, !platform_get_raw_input());
+        platform_set_cursor_mode(&state.window_main, CURSOR_MODE_LOCKED);
     }
 
     if (key->key == KEY_F11 && key->pressed) {
@@ -224,6 +226,11 @@ b8 on_resize(void *data) {
         } else {
             if (state.is_suspended) {
                 RL_DEBUG("Main window restored!");
+
+                // 🔑 Window just became valid again — lock cursor now
+                if (platform_get_raw_input()) {
+                    platform_set_cursor_mode(window, CURSOR_MODE_LOCKED);
+                }
             }
             state.is_suspended = false;
         }
@@ -250,4 +257,7 @@ void create_main_window() {
     if (!renderer_init(BACKEND_OPENGL, &state.window_main)) {
         RL_FATAL("Failed to initialize renderer, exiting...");
     }
+
+    platform_set_raw_input(&state.window_main, true);
+    platform_set_cursor_mode(&state.window_main, CURSOR_MODE_LOCKED);
 }

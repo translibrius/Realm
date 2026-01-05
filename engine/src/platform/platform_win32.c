@@ -26,6 +26,9 @@
 
 #define CREATE_DANGEROUS_WINDOW (WM_USER + 0x1337)
 #define DESTROY_DANGEROUS_WINDOW (WM_USER + 0x1338)
+#define SHOW_DANGEROUS_WINDOW (WM_USER + 0x1400)
+#define SET_CURSOR_MODE (WM_USER + 0x2001)
+#define SET_RAW_INPUT   (WM_USER + 0x2002)
 
 // Window messages
 #define MSG_RESIZE (WM_USER + 0x1339)
@@ -36,6 +39,16 @@ typedef struct resize_msg {
     HWND hwnd;
     u32 x, y, w, h;
 } resize_msg;
+
+typedef struct cursor_mode_msg {
+    HWND hwnd;
+    platform_cursor_mode mode;
+} cursor_mode_msg;
+
+typedef struct raw_input_msg {
+    HWND hwnd;
+    b8 enable;
+} raw_input_msg;
 
 /* ---- END --------------------------- */
 
@@ -385,6 +398,8 @@ b8 platform_create_window(platform_window *window) {
         return false;
     }
 
+    SendMessageA(state.service_window, SHOW_DANGEROUS_WINDOW, (WPARAM)hwnd, 0);
+
     w->hwnd = hwnd;
     w->alive = true;
     w->stop_on_close = window->settings.stop_on_close;
@@ -392,17 +407,6 @@ b8 platform_create_window(platform_window *window) {
 
     window->id = id;
     window->handle = hwnd;
-
-    // Show and activate the window to ensure it starts focused on Windows.
-    ShowWindow(hwnd, SW_SHOWNORMAL);
-    UpdateWindow(hwnd);
-    // Bring to foreground and set focus. These calls are best-effort and may be ignored by the OS
-    // in some edge cases (e.g., if another process currently owns the foreground), but generally
-    // ensure the window is focused on launch.
-    SetForegroundWindow(hwnd);
-    SetActiveWindow(hwnd);
-    SetFocus(hwnd);
-    BringWindowToTop(hwnd);
 
     return true;
 }
@@ -518,64 +522,6 @@ void platform_sleep(u32 milliseconds) {
     Sleep(milliseconds);
 }
 
-void platform_set_cursor_mode(platform_window *window, platform_cursor_mode mode) {
-    if (mode == state.cursor_mode) {
-        return;
-    }
-
-    HWND hwnd = window->handle;
-    RECT rect;
-
-    switch (mode) {
-    case CURSOR_MODE_NORMAL: {
-        // Show cursor
-        while (ShowCursor(TRUE) < 0) {
-        }
-
-        // Release confinement
-        ClipCursor(NULL);
-    }
-    break;
-
-    case CURSOR_MODE_HIDDEN: {
-        // Hide cursor
-        while (ShowCursor(FALSE) >= 0) {
-        }
-
-        // Still free
-        ClipCursor(NULL);
-    }
-    break;
-
-    case CURSOR_MODE_LOCKED: {
-        // Hide cursor
-        while (ShowCursor(FALSE) >= 0) {
-        }
-
-        // Confine cursor to client area
-        GetClientRect(hwnd, &rect);
-
-        POINT ul = {rect.left, rect.top};
-        POINT lr = {rect.right, rect.bottom};
-
-        ClientToScreen(hwnd, &ul);
-        ClientToScreen(hwnd, &lr);
-
-        RECT clip = {
-            ul.x, ul.y,
-            lr.x, lr.y
-        };
-
-        ClipCursor(&clip);
-
-        platform_center_cursor(window);
-    }
-    break;
-    }
-
-    state.cursor_mode = mode;
-}
-
 b8 platform_set_cursor_position(platform_window *window, vec2 position) {
     // Only allow this if window is focused
     if (GetForegroundWindow() != window->handle) {
@@ -601,28 +547,6 @@ b8 platform_center_cursor(platform_window *window) {
 
     ClientToScreen(window->handle, &center);
     return platform_set_cursor_position(window, (vec2){center.x, center.y});
-}
-
-b8 platform_set_raw_input(platform_window *window, bool enable) {
-    RAWINPUTDEVICE rid = {
-        .usUsagePage = 0x01, // Generic Desktop Controls
-        .usUsage = 0x02, // Mouse
-        .dwFlags = enable ? 0 : RIDEV_REMOVE,
-        .hwndTarget = enable ? window->handle : nullptr
-    };
-
-    if (!RegisterRawInputDevices(&rid, 1, sizeof(rid))) {
-        RL_ERROR("platform_set_raw_input(): RegisterRawInputDevices failed: %lu", GetLastError());
-        return false;
-    }
-
-    state.raw_mouse_enabled = enable;
-    if (enable) {
-        platform_set_cursor_mode(window, CURSOR_MODE_LOCKED);
-    } else {
-        platform_set_cursor_mode(window, CURSOR_MODE_NORMAL);
-    }
-    return true;
 }
 
 b8 platform_get_raw_input() {
@@ -964,6 +888,91 @@ b8 platform_create_opengl_context(platform_window *window) {
     return true;
 }
 
+static void platform_center_cursor_hwnd(HWND hwnd) {
+    RECT rect;
+    GetClientRect(hwnd, &rect);
+
+    POINT center = {
+        (rect.right - rect.left) / 2,
+        (rect.bottom - rect.top) / 2
+    };
+
+    ClientToScreen(hwnd, &center);
+    SetCursorPos(center.x, center.y);
+}
+
+static void platform_set_cursor_mode_hwnd(HWND hwnd, platform_cursor_mode mode) {
+    if (mode == state.cursor_mode)
+        return;
+
+    switch (mode) {
+    case CURSOR_MODE_NORMAL: {
+        ClipCursor(NULL);
+        ReleaseCapture();
+
+        // Ensure cursor is visible
+        for (int i = 0; i < 8 && ShowCursor(TRUE) < 0; i++) {
+        }
+    }
+    break;
+
+    case CURSOR_MODE_HIDDEN: {
+        ClipCursor(NULL);
+        ReleaseCapture();
+
+        // Hide cursor
+        for (int i = 0; i < 8 && ShowCursor(FALSE) >= 0; i++) {
+        }
+    }
+    break;
+
+    case CURSOR_MODE_LOCKED: {
+        RECT rect;
+        GetClientRect(hwnd, &rect);
+
+        POINT ul = {rect.left, rect.top};
+        POINT lr = {rect.right, rect.bottom};
+
+        ClientToScreen(hwnd, &ul);
+        ClientToScreen(hwnd, &lr);
+
+        RECT clip = {
+            ul.x, ul.y,
+            lr.x, lr.y
+        };
+
+        SetCapture(hwnd);
+        ClipCursor(&clip);
+
+        // Hide cursor
+        for (int i = 0; i < 8 && ShowCursor(FALSE) >= 0; i++) {
+        }
+
+        platform_center_cursor_hwnd(hwnd);
+    }
+    break;
+    }
+
+    state.cursor_mode = mode;
+}
+
+
+void platform_set_cursor_mode(platform_window *w, platform_cursor_mode mode) {
+    cursor_mode_msg *m = rl_alloc(sizeof(*m), MEM_SUBSYSTEM_PLATFORM);
+    m->hwnd = w->handle;
+    m->mode = mode;
+    PostMessageA(state.service_window, SET_CURSOR_MODE, (WPARAM)m, 0);
+}
+
+b8 platform_set_raw_input(platform_window *w, b8 enable) {
+    raw_input_msg *m = rl_alloc(sizeof(*m), MEM_SUBSYSTEM_PLATFORM);
+    m->hwnd = w->handle;
+    m->enable = enable;
+    PostMessageA(state.service_window, SET_RAW_INPUT, (WPARAM)m, 0);
+    return true;
+}
+
+
 static LRESULT CALLBACK ServiceWndProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam) {
     /* This is not really a window handler per se, it's actually just
        a remote thread call handler. Windows only really has blocking remote thread
@@ -996,6 +1005,60 @@ static LRESULT CALLBACK ServiceWndProc(HWND Window, UINT Message, WPARAM WParam,
 
     case DESTROY_DANGEROUS_WINDOW: {
         DestroyWindow((HWND)WParam);
+    }
+    break;
+
+    case SHOW_DANGEROUS_WINDOW: {
+        HWND hwnd = (HWND)WParam;
+
+        ShowWindow(hwnd, SW_SHOWNORMAL);
+        UpdateWindow(hwnd);
+
+        // Best-effort activation — now on the owning thread
+        SetForegroundWindow(hwnd);
+        SetActiveWindow(hwnd);
+        SetFocus(hwnd);
+        BringWindowToTop(hwnd);
+
+        Result = 1;
+    }
+    break;
+
+    case SET_CURSOR_MODE: {
+        cursor_mode_msg *m = (cursor_mode_msg *)WParam;
+
+        if (m && IsWindow(m->hwnd)) {
+            platform_set_cursor_mode_hwnd(m->hwnd, m->mode);
+        }
+
+        rl_free(m, sizeof(*m), MEM_SUBSYSTEM_PLATFORM);
+        Result = 1;
+    }
+    break;
+
+    case SET_RAW_INPUT: {
+        raw_input_msg *m = (raw_input_msg *)WParam;
+
+        if (m && IsWindow(m->hwnd)) {
+            RAWINPUTDEVICE rid = {
+                .usUsagePage = 0x01, // Generic Desktop Controls
+                .usUsage = 0x02, // Mouse
+                .dwFlags = m->enable ? 0 : RIDEV_REMOVE,
+                .hwndTarget = m->enable ? m->hwnd : nullptr
+            };
+
+            RegisterRawInputDevices(&rid, 1, sizeof(rid));
+            state.raw_mouse_enabled = m->enable;
+
+            // IMPORTANT: cursor lock/unlock lives here now
+            platform_set_cursor_mode_hwnd(
+                m->hwnd,
+                m->enable ? CURSOR_MODE_LOCKED : CURSOR_MODE_NORMAL
+                );
+        }
+
+        rl_free(m, sizeof(*m), MEM_SUBSYSTEM_PLATFORM);
+        Result = 1;
     }
     break;
 
