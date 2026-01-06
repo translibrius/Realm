@@ -14,7 +14,7 @@ typedef struct rl_camera {
     f32 fov; // degrees
 } rl_camera;
 
-void camera_init(rl_camera *camera);
-void camera_get_view(const rl_camera *camera, mat4 out_view);
-void camera_get_projection(const rl_camera *camera, f32 aspect, mat4 out_proj);
-void camera_update(rl_camera *camera, f64 dt);
+REALM_API void camera_init(rl_camera *camera);
+REALM_API void camera_get_view(const rl_camera *camera, mat4 out_view);
+REALM_API void camera_get_projection(const rl_camera *camera, f32 aspect, mat4 out_proj);
+REALM_API void camera_update(rl_camera *camera, f64 dt);

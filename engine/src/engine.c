@@ -11,28 +11,24 @@
 #include "renderer/renderer_frontend.h"
 #include "util/clock.h"
 
-#include "gui/gui.h"
-
 typedef struct engine_state {
     b8 is_running;
     b8 is_suspended;
     rl_arena frame_arena;
-    platform_window window_main;
-    rl_camera camera;
+    platform_window *render_window;
+    rl_camera *render_camera;
 } engine_state;
 
 static engine_state state;
 
 // Fwd decl
-void create_main_window();
-void load_cache();
 b8 on_key_press(void *data);
 b8 on_resize(void *data);
 b8 on_focus_gained(void *data);
 b8 on_focus_lost(void *data);
 
 // Bootstrap all subsystems
-b8 create_engine(const application *app) {
+b8 create_engine() {
     state.is_running = true;
     state.is_suspended = false;
 
@@ -71,7 +67,6 @@ b8 create_engine(const application *app) {
         RL_FATAL("Failed to initialize asset sub-system, exiting...");
     }
 
-    RL_INFO("Created engine instance for application '%s'", app->config.title);
     return true;
 }
 
@@ -86,7 +81,6 @@ void destroy_engine() {
 
 b8 engine_run() {
     RL_INFO("Engine running...");
-    create_main_window();
 
     rl_arena_create(KiB(1000), &state.frame_arena, MEM_STRING);
 
@@ -121,20 +115,20 @@ b8 engine_run() {
             platform_sleep(100);
         }
 
-        camera_update(&state.camera, delta_time);
+        camera_update(state.render_camera, delta_time);
 
         renderer_begin_frame(delta_time);
 
         mat4 view = {};
         mat4 proj = {};
 
-        f32 aspect = (f32)state.window_main.settings.width / (f32)state.window_main.settings.height;
-        camera_get_view(&state.camera, view);
-        camera_get_projection(&state.camera, aspect, proj);
+        f32 aspect = (f32)state.render_window->settings.width / (f32)state.render_window->settings.height;
+        camera_get_view(state.render_camera, view);
+        camera_get_projection(state.render_camera, aspect, proj);
         renderer_set_view_projection(view, proj);
 
         rl_string fps_str = rl_string_format(&state.frame_arena, "FPS: %u", fps_display);
-        renderer_render_text(fps_str.cstr, 40, (f32)state.window_main.settings.width / 2 - 100, (f32)state.window_main.settings.height - 40, (vec4){1.0f, 1.0f, 1.0f, 1.0f});
+        renderer_render_text(fps_str.cstr, 40, (f32)state.render_window->settings.width / 2 - 100, (f32)state.render_window->settings.height - 40, (vec4){1.0f, 1.0f, 1.0f, 1.0f});
 
         renderer_end_frame();
         renderer_swap_buffers();
@@ -150,6 +144,12 @@ b8 engine_run() {
 
     destroy_engine();
     return true;
+}
+
+b8 engine_renderer_init(platform_window *render_window, rl_camera *camera) {
+    state.render_window = render_window;
+    state.render_camera = camera;
+    return renderer_init(BACKEND_OPENGL, state.render_window, camera);
 }
 
 // -- Private
@@ -185,7 +185,7 @@ b8 on_key_press(void *data) {
     // Stop engine on ESC
     if (key->key == KEY_ESCAPE && key->pressed) {
         if (platform_get_raw_input()) {
-            platform_set_raw_input(&state.window_main, false);
+            platform_set_raw_input(state.render_window, false);
         } else {
             state.is_running = false;
         }
@@ -198,17 +198,17 @@ b8 on_key_press(void *data) {
 
     if (key->key == KEY_SEMICOLON && key->pressed) {
         if (!platform_get_raw_input()) {
-            platform_set_raw_input(&state.window_main, true);
+            platform_set_raw_input(state.render_window, true);
         }
     }
 
     if (key->key == KEY_F11 && key->pressed) {
-        if (state.window_main.settings.window_mode == WINDOW_MODE_WINDOWED) {
-            platform_set_window_mode(&state.window_main, WINDOW_MODE_BORDERLESS);
-            platform_set_raw_input(&state.window_main, true);
+        if (state.render_window->settings.window_mode == WINDOW_MODE_WINDOWED) {
+            platform_set_window_mode(state.render_window, WINDOW_MODE_BORDERLESS);
+            platform_set_raw_input(state.render_window, true);
         } else {
-            platform_set_window_mode(&state.window_main, WINDOW_MODE_WINDOWED);
-            platform_set_raw_input(&state.window_main, false);
+            platform_set_window_mode(state.render_window, WINDOW_MODE_WINDOWED);
+            platform_set_raw_input(state.render_window, false);
         }
     }
 
@@ -218,9 +218,9 @@ b8 on_key_press(void *data) {
 
 b8 on_resize(void *data) {
     platform_window *window = data;
-    if (window->id == state.window_main.id) {
-        state.window_main = *window;
-        Clay_SetLayoutDimensions((Clay_Dimensions){(f32)state.window_main.settings.width, (f32)state.window_main.settings.height});
+    if (window->id == state.render_window->id) {
+        state.render_window = window;
+        Clay_SetLayoutDimensions((Clay_Dimensions){(f32)state.render_window->settings.width, (f32)state.render_window->settings.height});
 
         /*
         RL_DEBUG("Window #%d resized | POS: %d;%d | Size: %dx%d",
@@ -246,31 +246,4 @@ b8 on_resize(void *data) {
         }
     }
     return false;
-}
-
-void create_main_window() {
-    // Create an app window
-    platform_window *main_window = &state.window_main;
-    main_window->settings.title = "Realm";
-    main_window->settings.width = 500;
-    main_window->settings.height = 500;
-    main_window->settings.x = 0;
-    main_window->settings.y = 0;
-    main_window->settings.start_center = true;
-    main_window->settings.stop_on_close = true;
-    main_window->settings.window_flags = WINDOW_FLAG_DEFAULT;
-
-    if (!platform_create_window(main_window)) {
-        RL_FATAL("Failed to create main window, exiting...");
-    }
-
-    camera_init(&state.camera);
-    if (!renderer_init(BACKEND_OPENGL, &state.window_main, &state.camera)) {
-        RL_FATAL("Failed to initialize renderer, exiting...");
-    }
-
-    platform_set_raw_input(&state.window_main, true);
-    platform_set_cursor_mode(&state.window_main, CURSOR_MODE_LOCKED);
-
-    init_gui((f32)main_window->settings.width, (f32)main_window->settings.height);
 }
