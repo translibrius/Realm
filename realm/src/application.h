@@ -1,6 +1,7 @@
 #pragma once
 
 #include "defines.h"
+#include "game.h"
 #include "platform/platform.h"
 #include "core/camera.h"
 
@@ -12,6 +13,7 @@ typedef struct application {
     application_config config;
     platform_window main_window;
     rl_camera camera;
+    game game_inst;
 } application;
 
 application *create_application();

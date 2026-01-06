@@ -12,10 +12,14 @@ int main() {
 
     application *app = create_application();
 
-    // Main loop
-    if (!engine_run()) {
-        RL_FATAL("Engine did not shut down gracefully");
+    while (!platform_window_should_close(app->main_window.id)) {
+        f64 dt = engine_begin_frame();
+        game_update(&app->game_inst, dt);
+        game_render(&app->game_inst, dt);
+        engine_end_frame();
     }
+
+    destroy_engine();
 
     return 0;
 }

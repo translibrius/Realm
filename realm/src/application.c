@@ -35,5 +35,7 @@ application *create_application() {
     camera_init(&state.camera);
     engine_renderer_init(&state.main_window, &state.camera);
 
+    game_init(&state.game_inst, (f32)state.main_window.settings.width, (f32)state.main_window.settings.height);
+
     return &state;
 }

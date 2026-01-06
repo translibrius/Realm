@@ -54,6 +54,7 @@ b8 platform_pump_messages();
 b8 platform_create_window(platform_window *window);
 b8 platform_destroy_window(u16 id);
 b8 platform_set_window_mode(platform_window *window, PLATFORM_WINDOW_MODE mode);
+b8 platform_window_should_close(u16 id);
 
 // Graphics context stuff
 b8 platform_create_opengl_context(platform_window *window);

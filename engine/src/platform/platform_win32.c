@@ -441,6 +441,11 @@ b8 platform_destroy_window(u16 id) {
     return true;
 }
 
+b8 platform_window_should_close(u16 id) {
+    win32_window *w = &state.windows[id];
+    return !w->alive;
+}
+
 void platform_console_write(const char *message, const LOG_LEVEL level) {
     const b8 is_error = level == LOG_ERROR || level == LOG_FATAL;
     HANDLE console_handle = GetStdHandle(is_error ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE);

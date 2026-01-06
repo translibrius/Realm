@@ -17,6 +17,12 @@ typedef struct engine_state {
     rl_arena frame_arena;
     platform_window *render_window;
     rl_camera *render_camera;
+
+    rl_clock frame_clock;
+    f64 delta_time;
+    i64 last_frame_time;
+    u32 frame_count;
+    u32 fps_display;
 } engine_state;
 
 static engine_state state;
@@ -67,6 +73,20 @@ b8 create_engine() {
         RL_FATAL("Failed to initialize asset sub-system, exiting...");
     }
 
+    rl_arena_create(KiB(1000), &state.frame_arena, MEM_STRING);
+    state.frame_count = 0;
+    state.fps_display = 0;
+    state.delta_time = 0;
+    clock_reset(&state.frame_clock);
+    state.last_frame_time = platform_get_clock_counter();
+
+    rl_font *fps_font = (rl_font *)get_asset("JetBrainsMono-Regular.ttf")->handle;
+    if (fps_font == nullptr) {
+        RL_FATAL("Failed to load font, exiting...");
+    }
+
+    renderer_set_active_font(fps_font);
+
     return true;
 }
 
@@ -79,71 +99,41 @@ void destroy_engine() {
     RL_INFO("--------------ENGINE_STOP--------------");
 }
 
-b8 engine_run() {
-    RL_INFO("Engine running...");
+// Returns delta_time
+f64 engine_begin_frame() {
+    clock_update(&state.frame_clock);
+    state.frame_count++;
+    i64 now = state.frame_clock.last;
+    state.delta_time = (f64)(now - state.last_frame_time) / (f64)state.frame_clock.frequency;
+    state.last_frame_time = now;
 
-    rl_arena_create(KiB(1000), &state.frame_arena, MEM_STRING);
-
-    u32 frame_count = 0;
-    u32 fps_display = 0;
-
-    rl_font *fps_font = (rl_font *)get_asset("JetBrainsMono-Regular.ttf")->handle;
-    if (fps_font == nullptr) {
-        RL_FATAL("Failed to load font, exiting...");
+    input_update(); // Process user input
+    if (!platform_pump_messages()) {
+        RL_DEBUG("Platform stopped event pump, breaking main loop...");
+        state.is_running = false;
     }
 
-    renderer_set_active_font(fps_font);
-
-    f64 delta_time = 0;
-    i64 last_frame_time = platform_get_clock_counter();
-    rl_clock clock;
-    clock_reset(&clock);
-
-    while (state.is_running) {
-        clock_update(&clock);
-        frame_count++;
-        i64 now = clock.last;
-        delta_time = (f64)(now - last_frame_time) / (f64)clock.frequency;
-        last_frame_time = now;
-
-        input_update(); // Process user input
-        if (!platform_pump_messages()) {
-            RL_DEBUG("Platform stopped event pump, breaking main loop...");
-            break;
-        }
-        if (state.is_suspended) {
-            platform_sleep(100);
-        }
-
-        camera_update(state.render_camera, delta_time);
-
-        renderer_begin_frame(delta_time);
-
-        mat4 view = {};
-        mat4 proj = {};
-
-        f32 aspect = (f32)state.render_window->settings.width / (f32)state.render_window->settings.height;
-        camera_get_view(state.render_camera, view);
-        camera_get_projection(state.render_camera, aspect, proj);
-        renderer_set_view_projection(view, proj);
-
-        rl_string fps_str = rl_string_format(&state.frame_arena, "FPS: %u", fps_display);
-        renderer_render_text(fps_str.cstr, 40, (f32)state.render_window->settings.width / 2 - 100, (f32)state.render_window->settings.height - 40, (vec4){1.0f, 1.0f, 1.0f, 1.0f});
-
-        renderer_end_frame();
-        renderer_swap_buffers();
-
-        if (clock_elapsed_s(&clock) >= 0.2) {
-            fps_display = (u32)((f32)frame_count * 5);
-            frame_count = 0;
-            clock_reset(&clock);
-        }
-
-        rl_arena_reset(&state.frame_arena);
+    if (state.is_suspended) {
+        platform_sleep(100);
     }
 
-    destroy_engine();
-    return true;
+    camera_update(state.render_camera, state.delta_time);
+
+    renderer_begin_frame(state.delta_time);
+    return state.delta_time;
+}
+
+void engine_end_frame() {
+    renderer_end_frame();
+    renderer_swap_buffers();
+
+    if (clock_elapsed_s(&state.frame_clock) >= 0.2) {
+        state.fps_display = (u32)((f32)state.frame_count * 5);
+        state.frame_count = 0;
+        clock_reset(&state.frame_clock);
+    }
+
+    rl_arena_reset(&state.frame_arena);
 }
 
 b8 engine_renderer_init(platform_window *render_window, rl_camera *camera) {
@@ -157,19 +147,12 @@ b8 engine_renderer_init(platform_window *render_window, rl_camera *camera) {
 b8 on_focus_gained(void *data) {
     platform_window *window = data;
     RL_DEBUG("Window id=%d gained focus", window->id);
-    if (platform_get_raw_input()) {
-        platform_set_cursor_mode(window, CURSOR_MODE_LOCKED);
-    }
     return false;
 }
 
 b8 on_focus_lost(void *data) {
     platform_window *window = data;
     RL_DEBUG("Window id=%d lost focus", window->id);
-
-    // Make cursor visible and unlocked again
-    platform_set_cursor_mode(window, CURSOR_MODE_NORMAL);
-
     return false;
 }
 
@@ -196,12 +179,6 @@ b8 on_key_press(void *data) {
         print_memory_usage();
     }
 
-    if (key->key == KEY_SEMICOLON && key->pressed) {
-        if (!platform_get_raw_input()) {
-            platform_set_raw_input(state.render_window, true);
-        }
-    }
-
     if (key->key == KEY_F11 && key->pressed) {
         if (state.render_window->settings.window_mode == WINDOW_MODE_WINDOWED) {
             platform_set_window_mode(state.render_window, WINDOW_MODE_BORDERLESS);
@@ -220,7 +197,6 @@ b8 on_resize(void *data) {
     platform_window *window = data;
     if (window->id == state.render_window->id) {
         state.render_window = window;
-        Clay_SetLayoutDimensions((Clay_Dimensions){(f32)state.render_window->settings.width, (f32)state.render_window->settings.height});
 
         /*
         RL_DEBUG("Window #%d resized | POS: %d;%d | Size: %dx%d",
@@ -231,16 +207,11 @@ b8 on_resize(void *data) {
 
         // Minimized, suspend render
         if (window->settings.width <= 0 && window->settings.height <= 0) {
-            RL_DEBUG("Main window minimized...");
+            RL_DEBUG("Render window minimized...");
             state.is_suspended = true;
         } else {
             if (state.is_suspended) {
-                RL_DEBUG("Main window restored!");
-
-                // Window just became valid again — lock cursor
-                if (platform_get_raw_input()) {
-                    platform_set_cursor_mode(window, CURSOR_MODE_LOCKED);
-                }
+                RL_DEBUG("Render window restored!");
             }
             state.is_suspended = false;
         }
