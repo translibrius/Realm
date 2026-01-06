@@ -87,6 +87,7 @@ rl_asset *get_asset(const char *filename) {
         }
     }
 
+    RL_FATAL("FAILED TO FIND ASSET '%s'", filename);
     return nullptr;
 }
 

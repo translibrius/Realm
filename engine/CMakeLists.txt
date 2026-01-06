@@ -30,6 +30,7 @@ target_include_directories(EngineC
         ${CMAKE_CURRENT_SOURCE_DIR}/cglm
         ${CMAKE_CURRENT_SOURCE_DIR}/stb
         ${CMAKE_CURRENT_SOURCE_DIR}/yyjson
+        ${CMAKE_CURRENT_SOURCE_DIR}/clay
 )
 
 # Warnings only for my own code (no vendor)

@@ -2,6 +2,11 @@
 
 #include "defines.h"
 
+typedef struct application_config {
+    const char *title;
+} application_config;
+
 typedef struct application {
-    const char* title;
+    application_config config;
+    void (*application_init)();
 } application;

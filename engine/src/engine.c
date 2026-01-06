@@ -1,5 +1,6 @@
 #include "engine.h"
 
+#include "../vendor/clay/clay.h"
 #include "asset/asset.h"
 #include "core/camera.h"
 #include "core/event.h"
@@ -9,6 +10,8 @@
 #include "platform/platform.h"
 #include "renderer/renderer_frontend.h"
 #include "util/clock.h"
+
+#include "gui/gui.h"
 
 typedef struct engine_state {
     b8 is_running;
@@ -30,7 +33,6 @@ b8 on_focus_lost(void *data);
 
 // Bootstrap all subsystems
 b8 create_engine(const application *app) {
-    (void)app;
     state.is_running = true;
     state.is_suspended = false;
 
@@ -69,6 +71,7 @@ b8 create_engine(const application *app) {
         RL_FATAL("Failed to initialize asset sub-system, exiting...");
     }
 
+    RL_INFO("Created engine instance for application '%s'", app->config.title);
     return true;
 }
 
@@ -101,8 +104,6 @@ b8 engine_run() {
     i64 last_frame_time = platform_get_clock_counter();
     rl_clock clock;
     clock_reset(&clock);
-
-    camera_init(&state.camera);
 
     while (state.is_running) {
         clock_update(&clock);
@@ -219,6 +220,8 @@ b8 on_resize(void *data) {
     platform_window *window = data;
     if (window->id == state.window_main.id) {
         state.window_main = *window;
+        Clay_SetLayoutDimensions((Clay_Dimensions){(f32)state.window_main.settings.width, (f32)state.window_main.settings.height});
+
         /*
         RL_DEBUG("Window #%d resized | POS: %d;%d | Size: %dx%d",
                  window->id,
@@ -261,10 +264,13 @@ void create_main_window() {
         RL_FATAL("Failed to create main window, exiting...");
     }
 
-    if (!renderer_init(BACKEND_OPENGL, &state.window_main)) {
+    camera_init(&state.camera);
+    if (!renderer_init(BACKEND_OPENGL, &state.window_main, &state.camera)) {
         RL_FATAL("Failed to initialize renderer, exiting...");
     }
 
     platform_set_raw_input(&state.window_main, true);
     platform_set_cursor_mode(&state.window_main, CURSOR_MODE_LOCKED);
+
+    init_gui((f32)main_window->settings.width, (f32)main_window->settings.height);
 }

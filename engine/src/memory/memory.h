@@ -6,6 +6,7 @@
 extern "C" {
 
 
+
 #endif
 
 typedef enum MEM_TYPE {
@@ -24,6 +25,7 @@ typedef enum MEM_TYPE {
     MEM_SUBSYSTEM_ASSET,
     MEM_SUBSYSTEM_SPLASH,
     MEM_SUBSYSTEM_EVENT,
+    MEM_SUBSYSTEM_GUI,
 
     // Used to track how many total types exist
     MEM_TYPES_MAX,

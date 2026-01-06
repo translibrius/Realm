@@ -9,6 +9,7 @@ b8 opengl_compile_vertex_shader(const char *source, i32 *out_id);
 b8 opengl_compile_fragment_shader(const char *source, i32 *out_id);
 b8 opengl_create_shader_program(i32 vertex_id, i32 fragment_id, i32 *out_prog_id);
 
+// TODO: Add cache of compiled shaders to reuse
 b8 opengl_shader_setup(const char *vertex, const char *frag, GL_Shader *out_shader) {
     rl_asset_shader *default_vert = get_asset(vertex)->handle;
     rl_asset_shader *default_frag = get_asset(frag)->handle;
@@ -54,7 +55,7 @@ void opengl_shader_set_vec2(GL_Shader *shader, const char *name, vec2 value) {
     glUniform2f(loc, value[0], value[1]);
 }
 
-void opengl_shader_set_vec3(GL_Shader *shader, const char *name, vec2 value) {
+void opengl_shader_set_vec3(GL_Shader *shader, const char *name, vec3 value) {
     i32 loc = glGetUniformLocation(shader->program_id, name);
     glUniform3f(loc, value[0], value[1], value[2]);
 }

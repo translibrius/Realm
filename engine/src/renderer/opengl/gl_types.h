@@ -6,8 +6,9 @@
 #include "memory/arena.h"
 #include "memory/containers/dynamic_array.h"
 #include "platform/platform.h"
-#include "renderer/renderer_types.h"
+#include "gl_mesh.h"
 #include "asset/font.h"
+#include "core/camera.h"
 
 typedef struct {
     u32 texture_id;
@@ -30,6 +31,7 @@ typedef struct GL_TextVertex {
 typedef struct GL_Context {
     platform_window *window;
     rl_arena arena;
+    rl_camera *camera;
 
     // Text
     GL_TextPipeline text_pipeline;
@@ -38,8 +40,9 @@ typedef struct GL_Context {
 
     // Defaults
     GL_Shader default_shader;
-    u32 default_vao;
+    GL_Shader light_shader;
     GL_Texture wood_texture;
+    GL_Mesh cube_mesh;
 
     // Mat
     mat4 view;
