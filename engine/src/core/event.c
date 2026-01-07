@@ -34,21 +34,28 @@ void event_system_shutdown() {
     RL_INFO("Event system shutdown...");
 }
 
-void event_fire(EVENT_TYPE type, void *data) {
+void event_fire(EVENT_TYPE type, void *event_data) {
     for (u16 i = 0; i < state->registered_count; i++) {
         rl_event *event = state->registered_events[i];
         if (!event) {
             RL_WARN("Tried to fire an unregistered event");
-            return;
+            continue;
         }
 
-        if (event->type != type)
+        if (event->type != type) {
             continue;
-        event->event_callback(data);
+        }
+
+        if (!event->event_callback) {
+            RL_WARN("Tried to fire an unregistered callback");
+            continue;
+        }
+
+        event->event_callback(event_data, event->user_data);
     }
 }
 
-void event_register(EVENT_TYPE type, b8 (*callback)(void *data)) {
+void event_register(EVENT_TYPE type, b8 (*callback)(void *data, void *user_data), void *user_data) {
     RL_ASSERT(state->initialized);
     RL_ASSERT(state->registered_count < MAX_EVENTS);
     RL_ASSERT(callback);
@@ -56,6 +63,7 @@ void event_register(EVENT_TYPE type, b8 (*callback)(void *data)) {
     rl_event *event = rl_arena_alloc(&state->events_arena, sizeof(rl_event), alignof(rl_event));
     event->event_callback = callback;
     event->type = type;
+    event->user_data = user_data;
 
     state->registered_events[state->registered_count] = event;
     state->registered_count++;

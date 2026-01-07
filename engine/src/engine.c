@@ -1,6 +1,5 @@
 #include "engine.h"
 
-#include "../vendor/clay/clay.h"
 #include "asset/asset.h"
 #include "core/camera.h"
 #include "core/event.h"
@@ -8,6 +7,7 @@
 #include "memory/memory.h"
 #include "platform/input.h"
 #include "platform/platform.h"
+#include "profiler/profiler.h"
 #include "renderer/renderer_frontend.h"
 #include "util/clock.h"
 
@@ -28,13 +28,14 @@ typedef struct engine_state {
 static engine_state state;
 
 // Fwd decl
-b8 on_key_press(void *data);
-b8 on_resize(void *data);
-b8 on_focus_gained(void *data);
-b8 on_focus_lost(void *data);
+b8 on_key_press(void *event, void *data);
+b8 on_resize(void *event, void *data);
+b8 on_focus_gained(void *event, void *data);
+b8 on_focus_lost(void *event, void *data);
 
 // Bootstrap all subsystems
 b8 create_engine() {
+    RL_INFO("--------------ENGINE_START--------------");
     state.is_running = true;
     state.is_suspended = false;
 
@@ -63,10 +64,10 @@ b8 create_engine() {
 
     input_system_init();
 
-    event_register(EVENT_KEY_PRESS, on_key_press);
-    event_register(EVENT_WINDOW_RESIZE, on_resize);
-    event_register(EVENT_WINDOW_FOCUS_GAINED, on_focus_gained);
-    event_register(EVENT_WINDOW_FOCUS_LOST, on_focus_lost);
+    event_register(EVENT_KEY_PRESS, on_key_press, nullptr);
+    event_register(EVENT_WINDOW_RESIZE, on_resize, nullptr);
+    event_register(EVENT_WINDOW_FOCUS_GAINED, on_focus_gained, nullptr);
+    event_register(EVENT_WINDOW_FOCUS_LOST, on_focus_lost, nullptr);
 
     void *asset_system = rl_alloc(asset_system_size(), MEM_SUBSYSTEM_ASSET);
     if (!asset_system_start(asset_system) || !asset_system_load_all()) {
@@ -79,14 +80,6 @@ b8 create_engine() {
     state.delta_time = 0;
     clock_reset(&state.frame_clock);
     state.last_frame_time = platform_get_clock_counter();
-
-    rl_font *fps_font = (rl_font *)get_asset("JetBrainsMono-Regular.ttf")->handle;
-    if (fps_font == nullptr) {
-        RL_FATAL("Failed to load font, exiting...");
-    }
-
-    renderer_set_active_font(fps_font);
-
     return true;
 }
 
@@ -99,31 +92,39 @@ void destroy_engine() {
     RL_INFO("--------------ENGINE_STOP--------------");
 }
 
+b8 engine_is_running() {
+    return state.is_running;
+}
+
 // Returns delta_time
-f64 engine_begin_frame() {
+b8 engine_begin_frame(f64 *out_dt) {
+    TracyCZoneN(ctx, "Engine Begin Frame", true);
     clock_update(&state.frame_clock);
     state.frame_count++;
     i64 now = state.frame_clock.last;
     state.delta_time = (f64)(now - state.last_frame_time) / (f64)state.frame_clock.frequency;
     state.last_frame_time = now;
 
+    *out_dt = state.delta_time;
     input_update(); // Process user input
     if (!platform_pump_messages()) {
         RL_DEBUG("Platform stopped event pump, breaking main loop...");
         state.is_running = false;
+        return false;
     }
 
     if (state.is_suspended) {
         platform_sleep(100);
+        return false;
     }
 
-    camera_update(state.render_camera, state.delta_time);
-
     renderer_begin_frame(state.delta_time);
-    return state.delta_time;
+    TracyCZoneEnd(ctx);
+    return true;
 }
 
 void engine_end_frame() {
+    TracyCZoneN(ctx, "Engine End Frame", true);
     renderer_end_frame();
     renderer_swap_buffers();
 
@@ -134,30 +135,41 @@ void engine_end_frame() {
     }
 
     rl_arena_reset(&state.frame_arena);
+    TracyCZoneEnd(ctx);
 }
 
 b8 engine_renderer_init(platform_window *render_window, rl_camera *camera) {
     state.render_window = render_window;
     state.render_camera = camera;
-    return renderer_init(BACKEND_OPENGL, state.render_window, camera);
+    return renderer_init(BACKEND_VULKAN, state.render_window, camera);
+}
+
+engine_stats engine_get_stats(void) {
+    return (engine_stats){
+        .fps = state.fps_display,
+    };
 }
 
 // -- Private
 
-b8 on_focus_gained(void *data) {
-    platform_window *window = data;
+b8 on_focus_gained(void *event, void *data) {
+    platform_window *window = event;
     RL_DEBUG("Window id=%d gained focus", window->id);
+    platform_set_raw_input(state.render_window, true);
     return false;
 }
 
-b8 on_focus_lost(void *data) {
-    platform_window *window = data;
+b8 on_focus_lost(void *event, void *data) {
+    platform_window *window = event;
     RL_DEBUG("Window id=%d lost focus", window->id);
+    if (state.render_window) {
+        platform_set_raw_input(state.render_window, false);
+    }
     return false;
 }
 
-b8 on_key_press(void *data) {
-    input_key *key = data;
+b8 on_key_press(void *event, void *data) {
+    input_key *key = event;
 
     if (key->pressed) {
         RL_DEBUG("Key press: %d", key->key);
@@ -193,8 +205,8 @@ b8 on_key_press(void *data) {
     return false;
 }
 
-b8 on_resize(void *data) {
-    platform_window *window = data;
+b8 on_resize(void *event, void *data) {
+    platform_window *window = event;
     if (window->id == state.render_window->id) {
         state.render_window = window;
 

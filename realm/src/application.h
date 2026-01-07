@@ -16,4 +16,4 @@ typedef struct application {
     game game_inst;
 } application;
 
-application *create_application();
+b8 create_application(application *app);

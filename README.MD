@@ -15,6 +15,7 @@ By producing vector tiles ourselves, we avoid external map providers, internet d
 - **GLAD** – runtime OpenGL loader
 - **FreeType** – font parsing
 - **msdf-atlas-gen** - font msdf atlas
+- **tracy** - performance profiling
 
 ## Prerequisites
 

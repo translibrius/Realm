@@ -19,8 +19,8 @@ typedef struct rgba {
 
 static splash_screen state;
 
-b8 on_progress_increment(void *data) {
-    (void)data;
+b8 on_progress_increment(void *event, void *data) {
+    (void)event;
     state.progress_step++;
     return true;
 }
@@ -116,7 +116,7 @@ void splash_run(void *data) {
     (void)data;
     RL_DEBUG("Splash window spawned on thread: %d", platform_get_current_thread_id());
 
-    event_register(EVENT_SPLASH_INCREMENT, on_progress_increment);
+    event_register(EVENT_SPLASH_INCREMENT, on_progress_increment, nullptr);
     if (!splash_show()) {
         RL_DEBUG("Failed to show splash window");
         return;

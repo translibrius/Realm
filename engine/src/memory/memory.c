@@ -1,5 +1,6 @@
 #include "memory.h"
 
+#include "profiler/profiler.h"
 #include "core/event.h"
 #include "core/logger.h"
 #include "util/assert.h"
@@ -59,25 +60,41 @@ void *rl_alloc(u64 size, MEM_TYPE type) {
         state->allocations[type] += size;
     }
 
-    return malloc(size);
+    void *mem = malloc(size);
+    TracyCAlloc(mem, size);
+    return mem;
 }
 
 void *rl_realloc(void *old_ptr, u64 old_size, u64 new_size, MEM_TYPE type) {
-    // Update stats
+#ifdef TRACY_ENABLE
+    if (old_ptr)
+        TracyCFree(old_ptr);
+#endif
+
+    void *new_ptr = realloc(old_ptr, new_size);
+
+#ifdef TRACY_ENABLE
+    TracyCAlloc(new_ptr, new_size);
+#endif
+
     if (state) {
         state->total_allocated += (new_size - old_size);
         state->allocations[type] += (new_size - old_size);
     }
 
-    return realloc(old_ptr, new_size);
+    return new_ptr;
 }
 
+
 void rl_free(void *block, u64 size, MEM_TYPE type) {
-    RL_ASSERT_MSG(state != nullptr, "Trying to call a function in an uninitialized subsystem");
+    RL_ASSERT_MSG(state != nullptr, "Memory subsystem not initialized");
+
+#ifdef TRACY_ENABLE
+    TracyCFree(block);
+#endif
 
     state->total_allocated -= size;
     state->allocations[type] -= size;
-
     free(block);
 }
 
@@ -141,6 +158,10 @@ const char *mem_type_to_str(MEM_TYPE type) {
         return "(Sys) - Events";
     case MEM_TYPES_MAX:
         return "Invalid";
+    case MEM_APPLICATION:
+        return "Application";
+    case MEM_SUBSYSTEM_GUI:
+        return "(Sys) - GUI";
     default:
         break;
     }

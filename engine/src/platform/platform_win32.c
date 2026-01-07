@@ -1,4 +1,5 @@
 #include "platform.h"
+#include "profiler/profiler.h"
 
 /*
     The service thread owns the real Win32 UI thread affinity.
@@ -8,6 +9,8 @@
 */
 
 #ifdef PLATFORM_WINDOWS
+
+#define VSYNC_ENABLED false
 
 #define WIN32_LEAN_AND_MEAN
 #include "thread.h"
@@ -72,7 +75,6 @@ typedef struct win32_window {
     HDC hdc;
     HGLRC gl;
     b8 alive;
-    b8 stop_on_close;
     platform_window *window;
 
     // Fullscreen bookkeeping
@@ -132,6 +134,7 @@ HWND create_service_window() {
 // Own service window; route dangerous calls; pump its messages.
 void MessageThreadProc(void *data) {
     (void)data;
+    TracyCSetThreadName("Win32ServiceThread");
 
     // This thread owns the service window
     state.message_thread_id = GetCurrentThreadId();
@@ -244,12 +247,6 @@ b8 platform_pump_messages() {
                     u16 window_id = i;
                     if (!platform_destroy_window(window_id)) {
                         RL_FATAL("Failed to destroy window, err=%lu", GetLastError());
-                    }
-
-                    // Initiate engine shutdown if user specified so for this window close
-                    if (w->stop_on_close) {
-                        RL_DEBUG("Main window closed, stopping event pump");
-                        return false;
                     }
 
                     // Check if any windows left alive
@@ -402,7 +399,6 @@ b8 platform_create_window(platform_window *window) {
 
     w->hwnd = hwnd;
     w->alive = true;
-    w->stop_on_close = window->settings.stop_on_close;
     w->window = window;
 
     window->id = id;
@@ -498,6 +494,13 @@ b8 platform_context_make_current(platform_window *window) {
     if (!wglMakeCurrent(w->hdc, w->gl)) {
         RL_ERROR("wglMakeCurrent() failed. Error code: %lu", GetLastError());
         return false;
+    }
+
+    // Set vsync OFF on the thread that will render
+    if (!VSYNC_ENABLED) {
+        if (wglSwapIntervalEXT) {
+            wglSwapIntervalEXT(0);
+        }
     }
 
     return true;
@@ -708,8 +711,6 @@ b8 platform_create_opengl_context(platform_window *window) {
         return false;
     }
 
-    const b8 vsync = false;
-
     win32_window *native_window = &state.windows[window->id];
 
     // 1) Dummy window to load WGL extensions
@@ -865,7 +866,7 @@ b8 platform_create_opengl_context(platform_window *window) {
             wglMakeCurrent(hdc, nullptr);
             wglDeleteContext(temp_rc);
             wglMakeCurrent(hdc, modern_ctx);
-            wglSwapIntervalEXT(vsync ? 1 : 0);
+            wglSwapIntervalEXT(VSYNC_ENABLED ? 1 : 0);
             render_ctx = modern_ctx;
             RL_INFO("Created OpenGL 3.3 core profile context");
         } else {

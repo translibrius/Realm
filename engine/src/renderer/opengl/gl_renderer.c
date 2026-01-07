@@ -25,8 +25,8 @@ void update_viewport() {
         context.window->settings.height);
 }
 
-b8 resize_callback(void *data) {
-    platform_window *window = data;
+b8 resize_callback(void *event, void *data) {
+    platform_window *window = event;
     if (window->id == context.window->id) {
 
         RL_DEBUG("Window #%d resized | POS: %d;%d | Size: %dx%d",
@@ -61,7 +61,7 @@ b8 opengl_initialize(platform_window *platform_window, rl_camera *camera) {
     update_viewport();
 
     // Listen to window size
-    event_register(EVENT_WINDOW_RESIZE, resize_callback);
+    event_register(EVENT_WINDOW_RESIZE, resize_callback, nullptr);
 
     // Shader init
     if (!opengl_shader_setup("default.vert", "default.frag", &context.default_shader)) {
@@ -103,7 +103,6 @@ void opengl_begin_frame(f64 delta_time) {
 
     glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     vec3 light_pos = {1.2f, 1.0f, 2.0f};
 
@@ -131,7 +130,9 @@ void opengl_begin_frame(f64 delta_time) {
 
             glm_translate(floor_model, (vec3){(f32)x, -2.0f, (f32)z});
             opengl_shader_set_mat4(&context.default_shader, "model", floor_model);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
             gl_mesh_draw(&context.cube_mesh);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         }
     }
 

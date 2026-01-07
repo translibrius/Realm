@@ -5,6 +5,9 @@
 #include "renderer/renderer_types.h"
 #include "renderer/opengl/gl_renderer.h"
 
+#include "vulkan/vk_renderer.h"
+#include "vulkan/vk_text.h"
+
 typedef struct frontend_state {
     b8 initialized;
 } frontend_state;
@@ -78,5 +81,14 @@ void prepare_interface(RENDERER_BACKEND backend) {
         interface.set_active_font = &opengl_set_active_font;
         interface.set_view_projection = &opengl_set_view_projection;
         break;
+    case BACKEND_VULKAN:
+        interface.initialize = &vulkan_initialize;
+        interface.shutdown = &vulkan_destroy;
+        interface.begin_frame = &vulkan_begin_frame;
+        interface.end_frame = &vulkan_end_frame;
+        interface.swap_buffers = &vulkan_swap_buffers;
+        interface.render_text = &vulkan_render_text; //&vulkan_render_text;
+        interface.set_active_font = &vulkan_set_active_font; //&vulkan_set_active_font;
+        interface.set_view_projection = &vulkan_set_view_projection;
     }
 }

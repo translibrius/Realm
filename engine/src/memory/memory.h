@@ -12,6 +12,8 @@ extern "C" {
 typedef enum MEM_TYPE {
     MEM_UNKNOWN,
 
+    MEM_APPLICATION,
+
     MEM_FILE_BUFFERS,
 
     MEM_DYNAMIC_ARRAY,

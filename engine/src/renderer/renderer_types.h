@@ -11,6 +11,7 @@
 
 typedef enum RENDERER_BACKEND {
     BACKEND_OPENGL,
+    BACKEND_VULKAN
 } RENDERER_BACKEND;
 
 typedef struct renderer_interface {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "util/assert.h"
+#include "memory/memory.h"
 
 // Define the structure
 #define DA_DEFINE(name, type)                   \

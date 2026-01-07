@@ -12,6 +12,14 @@ set(MSDF_ATLAS_DYNAMIC_RUNTIME ON CACHE BOOL "" FORCE)
 set(VCPKG_TARGET_TRIPLET "x64-windows" CACHE STRING "" FORCE)
 add_subdirectory(vendor/msdf-atlas-gen)
 
+# Tracy options
+set(TRACY_ENABLE ON CACHE BOOL "" FORCE)
+set(TRACY_ON_DEMAND OFF CACHE BOOL "" FORCE)
+add_subdirectory(vendor/tracy)
+
+# --- Vulkan -------------------------------------
+find_package(Vulkan REQUIRED)
+
 # --- C sources ---as
 file(GLOB_RECURSE ENGINE_C_SOURCES
         CONFIGURE_DEPENDS
@@ -41,12 +49,16 @@ target_compile_options(EngineC PRIVATE
         -Wno-gnu-zero-variadic-macro-arguments
 )
 
+# OpenGL link
 if (WIN32)
     target_link_libraries(EngineC PRIVATE opengl32)
 elseif (UNIX)
     find_package(OpenGL REQUIRED)
     target_link_libraries(EngineC PRIVATE OpenGL::GL)
 endif ()
+
+# Vulkan link
+target_link_libraries(EngineC PRIVATE Vulkan::Vulkan)
 
 # --- C++ sources ---
 add_library(EngineCPP STATIC
@@ -73,6 +85,7 @@ target_compile_options(EngineCPP PRIVATE
 target_compile_features(EngineCPP PRIVATE cxx_std_17)
 target_link_libraries(EngineCPP PRIVATE msdf-atlas-gen)
 target_link_libraries(EngineCPP PRIVATE EngineC)
+target_link_libraries(EngineCPP PRIVATE Tracy::TracyClient)
 
 # Per-configuration compiler flags
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")

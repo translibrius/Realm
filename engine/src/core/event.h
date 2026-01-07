@@ -27,13 +27,14 @@ typedef enum EVENT_TYPE {
 
 typedef struct rl_event {
     EVENT_TYPE type;
-    b8 (*event_callback)(void *data);
+    b8 (*event_callback)(void *event, void *user_data);
+    void *user_data;
 } rl_event;
 
 u64 event_system_size();
 b8 event_system_start(void *memory);
 
-void event_fire(EVENT_TYPE type, void *data);
-void event_register(EVENT_TYPE type, b8 (*callback)(void *data));
+void event_fire(EVENT_TYPE type, void *event_data);
+void event_register(EVENT_TYPE type, b8 (*callback)(void *data, void *user_data), void *user_data);
 
 void event_system_shutdown();

@@ -7,3 +7,7 @@
 [submodule "engine/vendor/msdf-atlas-gen"]
 	path = engine/vendor/msdf-atlas-gen
 	url = https://github.com/Chlumsky/msdf-atlas-gen
+[submodule "engine/vendor/tracy"]
+	path = engine/vendor/tracy
+	url = https://github.com/wolfpld/tracy
+	branch = v0.13.1

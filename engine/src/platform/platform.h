@@ -28,7 +28,6 @@ typedef struct platform_window_settings {
     i32 width;
     i32 height;
     b8 start_center;
-    b8 stop_on_close;
     u32 window_flags;
     PLATFORM_WINDOW_MODE window_mode;
 } platform_window_settings;

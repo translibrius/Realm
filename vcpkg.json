@@ -2,7 +2,8 @@
   "name": "realm",
   "version": "0.1.0",
   "dependencies": [
-    "freetype"
+    "freetype",
+    "vulkan"
   ],
   "builtin-baseline": "5d57f5a0a5469a23e005fc79a7c1814ab4fc967e"
 }

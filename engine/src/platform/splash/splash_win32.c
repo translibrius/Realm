@@ -17,7 +17,6 @@ b8 platform_splash_create() {
     state.window.settings.title = ""; // splash visible, but no title text
     state.window.settings.width = SPLASH_WIDTH;
     state.window.settings.height = SPLASH_HEIGHT;
-    state.window.settings.stop_on_close = false;
     state.window.settings.start_center = true;
 
     // splash intent — semantic, platform neutral:
