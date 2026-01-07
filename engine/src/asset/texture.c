@@ -23,14 +23,14 @@ b8 load_texture(rl_arena *asset_arena, rl_asset *asset) {
         return false;
     }
 
-    rl_texture *texture = rl_arena_alloc(asset_arena, sizeof(rl_texture), alignof(rl_texture));
+    rl_texture *texture = rl_arena_push(asset_arena, sizeof(rl_texture), alignof(rl_texture));
     texture->width = width;
     texture->height = height;
     texture->channels = channels;
     u64 size = texture->width * texture->height * texture->channels;
     texture->size = size;
 
-    void *container = rl_arena_alloc(asset_arena, size, 1);
+    void *container = rl_arena_push(asset_arena, size, 1);
     rl_copy(data, container, size);
     texture->data = container;
 

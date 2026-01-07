@@ -60,7 +60,7 @@ void event_register(EVENT_TYPE type, b8 (*callback)(void *data, void *user_data)
     RL_ASSERT(state->registered_count < MAX_EVENTS);
     RL_ASSERT(callback);
 
-    rl_event *event = rl_arena_alloc(&state->events_arena, sizeof(rl_event), alignof(rl_event));
+    rl_event *event = rl_arena_push(&state->events_arena, sizeof(rl_event), alignof(rl_event));
     event->event_callback = callback;
     event->type = type;
     event->user_data = user_data;

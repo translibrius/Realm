@@ -29,7 +29,6 @@ void rl_arena_reset(rl_arena *arena) {
 
 void rl_arena_destroy(rl_arena *arena) {
     rl_free(arena->start, arena->capacity, arena->mem_type);
-    arena = nullptr;
 }
 
 void *rl_arena_alloc(rl_arena *arena, u64 size, u64 alignment) {
@@ -46,4 +45,12 @@ void *rl_arena_alloc(rl_arena *arena, u64 size, u64 alignment) {
 
     arena->offset = next_offset;
     return aligned_offset;
+}
+
+void rl_arena_pop(rl_arena *arena, u64 size) {
+    if (arena->offset - size <= arena->start) {
+        printf("Tried to pop more memory than arena allocated");
+        debugBreak();
+    }
+    arena->offset -= size;
 }

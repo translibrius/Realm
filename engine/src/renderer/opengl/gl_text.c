@@ -73,7 +73,7 @@ b8 opengl_text_pipeline_init(GL_Context *ctx) {
 }
 
 b8 gl_font_create(rl_font *font, GL_Context *ctx) {
-    GL_Font *gl_font = rl_arena_alloc(&ctx->arena, sizeof(GL_Font), alignof(GL_Font));
+    GL_Font *gl_font = rl_arena_push(&ctx->arena, sizeof(GL_Font), alignof(GL_Font));
 
     if (gl_font == nullptr)
         return false;

@@ -39,7 +39,7 @@ b8 create_application(application *app) {
     init_gui((f32)app->main_window.settings.width, (f32)app->main_window.settings.height);
 
     camera_init(&app->camera);
-    if (!engine_renderer_init(&app->main_window, &app->camera)) {
+    if (!engine_renderer_init(&app->main_window, &app->camera, BACKEND_VULKAN)) {
         RL_ERROR("create_application(): failed to initialize renderer");
         return false;
     }

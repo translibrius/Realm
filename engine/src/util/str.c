@@ -12,7 +12,7 @@
 
 rl_string rl_string_create(rl_arena *arena, const char *cstr) {
     u32 len = strlen(cstr);
-    void *data = rl_arena_alloc(arena, len + 1, alignof(char));
+    void *data = rl_arena_push(arena, len + 1, alignof(char));
     memcpy(data, cstr, len + 1);
 
     return (rl_string){data, len};
@@ -42,7 +42,7 @@ void rl_string_split(rl_arena *arena, rl_string *source, const char *separator, 
 }
 
 rl_string rl_string_slice(rl_arena *arena, rl_string *source, u32 start, u32 length) {
-    char *slice = rl_arena_alloc(arena, length + 1, 1);
+    char *slice = rl_arena_push(arena, length + 1, 1);
     rl_copy(source->cstr + start, slice, length);
     slice[length] = '\0';
 
@@ -96,7 +96,7 @@ rl_string rl_string_replace_all(rl_arena *arena, rl_string src, rl_string search
 
     // Alloc new string
     u32 out_len = src.len + count * (replace.len - search.len);
-    char *out = rl_arena_alloc(arena, out_len + 1, alignof(char));
+    char *out = rl_arena_push(arena, out_len + 1, alignof(char));
     u32 out_index = 0;
 
     for (u32 i = 0; i < src.len;) {
@@ -123,7 +123,7 @@ u32 cstr_len(const char *str) {
 }
 
 char *cstr_format_va(rl_arena *arena, const char *fmt, va_list args) {
-    char *buffer = rl_arena_alloc(arena, FORMAT_STRING_MAX, 1);
+    char *buffer = rl_arena_push(arena, FORMAT_STRING_MAX, 1);
 
     i32 len = vsnprintf(buffer, FORMAT_STRING_MAX, fmt, args);
     if (len < 0) {

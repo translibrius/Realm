@@ -138,10 +138,10 @@ void engine_end_frame() {
     TracyCZoneEnd(ctx);
 }
 
-b8 engine_renderer_init(platform_window *render_window, rl_camera *camera) {
+b8 engine_renderer_init(platform_window *render_window, rl_camera *camera, RENDERER_BACKEND backend) {
     state.render_window = render_window;
     state.render_camera = camera;
-    return renderer_init(BACKEND_OPENGL, state.render_window, camera);
+    return renderer_init(backend, state.render_window, camera);
 }
 
 engine_stats engine_get_stats(void) {

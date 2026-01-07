@@ -14,9 +14,9 @@ b8 load_shader(rl_arena *arena, rl_asset *asset) {
     platform_file_open(path.cstr, P_FILE_READ, &shader_file);
     platform_file_read_all(&shader_file);
 
-    rl_asset_shader *shader = rl_arena_alloc(arena, sizeof(rl_asset_shader), alignof(rl_asset_shader));
+    rl_asset_shader *shader = rl_arena_push(arena, sizeof(rl_asset_shader), alignof(rl_asset_shader));
     // Allocate space for shader text + null terminator
-    char *text = rl_arena_alloc(arena, shader_file.buf_len + 1, alignof(char));
+    char *text = rl_arena_push(arena, shader_file.buf_len + 1, alignof(char));
     rl_copy(shader_file.buf, text, shader_file.buf_len);
     text[shader_file.buf_len] = '\0';
 

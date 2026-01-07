@@ -15,7 +15,7 @@ b8 rl_font_load(rl_arena *asset_arena, rl_asset *asset) {
 
     rl_string path = rl_string_format(&scratch, "%s%s", get_assets_dir(ASSET_FONT), asset->filename);
 
-    rl_font *font = rl_arena_alloc(asset_arena, sizeof(rl_font), alignof(rl_font));
+    rl_font *font = rl_arena_push(asset_arena, sizeof(rl_font), alignof(rl_font));
     font->name = asset->filename;
     font->path = path.cstr;
     if (!msdf_load_font_ascii(path.cstr, font)) {
