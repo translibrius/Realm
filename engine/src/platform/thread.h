@@ -51,3 +51,4 @@ void platform_thread_sync_signal(rl_thread_sync *sync);
 void platform_mutex_create(rl_mutex *out_mutex);
 void platform_mutex_lock(rl_mutex *mutex);
 void platform_mutex_unlock(rl_mutex *mutex);
+void platform_mutex_destroy(rl_mutex *mutex);

@@ -74,15 +74,22 @@ void platform_thread_sync_signal(rl_thread_sync *sync) {
 }
 
 void platform_mutex_create(rl_mutex *out_mutex) {
-    InitializeSRWLock(out_mutex->handle);
+    SRWLOCK *lock = rl_alloc(sizeof(SRWLOCK), MEM_SUBSYSTEM_PLATFORM);
+    InitializeSRWLock(lock);
+    out_mutex->handle = lock;
 }
 
 void platform_mutex_lock(rl_mutex *mutex) {
-    AcquireSRWLockExclusive(mutex->handle);
+    AcquireSRWLockExclusive((SRWLOCK *)mutex->handle);
 }
 
 void platform_mutex_unlock(rl_mutex *mutex) {
-    ReleaseSRWLockExclusive(mutex->handle);
+    ReleaseSRWLockExclusive((SRWLOCK *)mutex->handle);
+}
+
+void platform_mutex_destroy(rl_mutex *mutex) {
+    rl_free(mutex->handle, sizeof(SRWLOCK), MEM_SUBSYSTEM_PLATFORM);
+    mutex->handle = NULL;
 }
 
 #endif

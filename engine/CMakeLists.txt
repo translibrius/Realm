@@ -16,8 +16,6 @@ set(TRACY_ENABLE ON CACHE BOOL "" FORCE)
 set(TRACY_ON_DEMAND OFF CACHE BOOL "" FORCE)
 add_subdirectory(vendor/tracy)
 
-add_compile_definitions(TRACY_ENABLE)
-
 # --- Vulkan -------------------------------------
 find_package(Vulkan REQUIRED)
 

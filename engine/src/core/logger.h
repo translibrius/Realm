@@ -1,9 +1,16 @@
 #pragma once
 
 #include "defines.h"
+#include "memory/arena.h"
+#include "platform/thread.h"
+
+#include <stdarg.h>
 
 #ifdef __cplusplus
 extern "C" {
+
+
+
 #endif
 
 typedef enum LOG_LEVEL {
@@ -14,6 +21,27 @@ typedef enum LOG_LEVEL {
     LOG_ERROR,
     LOG_FATAL
 } LOG_LEVEL;
+
+#define LOG_MAX_LINE 1024
+
+typedef struct log_event {
+    LOG_LEVEL level;
+    u16 len;
+    char text[LOG_MAX_LINE];
+} log_event;
+
+typedef struct logger_queue {
+    log_event *events;
+    u64 max_buf_size;
+    u32 num_queued;
+    rl_arena arena;
+
+    // sync
+    rl_mutex mutex;
+    rl_thread_sync has_data;
+
+    b8 running;
+} logger_queue;
 
 u64 logger_system_size();
 b8 logger_system_start(void *memory);
