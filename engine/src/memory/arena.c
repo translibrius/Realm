@@ -39,7 +39,7 @@ void *rl_arena_alloc(rl_arena *arena, u64 size, u64 alignment) {
     u8 *next_offset = aligned_offset + size;
 
     if (next_offset > arena->start + arena->capacity) {
-        printf("Arena allocation failed: out of memory");
+        printf("Arena allocation failed: out of memory. Size: %llu, Type: %s\n", size, mem_type_to_str(arena->mem_type));
         debugBreak();
         return nullptr;
     }

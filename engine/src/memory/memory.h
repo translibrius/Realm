@@ -45,6 +45,7 @@ void rl_free(void *block, u64 size, MEM_TYPE type);
 void *rl_zero(void *block, u64 size);
 
 void print_memory_usage();
+const char *mem_type_to_str(MEM_TYPE type);
 
 #ifdef __cplusplus
 }

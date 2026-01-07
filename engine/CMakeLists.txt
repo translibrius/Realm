@@ -90,6 +90,7 @@ target_link_libraries(EngineCPP PRIVATE Tracy::TracyClient)
 # Per-configuration compiler flags
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_options(EngineC PRIVATE -O0 -g3 -fno-omit-frame-pointer)
+    target_include_directories(EngineC PRIVATE "")
     target_compile_options(EngineCPP PRIVATE -O0 -g3 -fno-omit-frame-pointer)
 elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
     target_compile_options(EngineC PRIVATE -O3 -DNDEBUG -march=native -fno-omit-frame-pointer)

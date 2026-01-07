@@ -33,8 +33,6 @@ typedef struct memory_system_state {
 
 static memory_system_state *state;
 
-const char *mem_type_to_str(MEM_TYPE type);
-
 u64 memory_system_size() {
     return sizeof(memory_system_state);
 }
@@ -166,5 +164,5 @@ const char *mem_type_to_str(MEM_TYPE type) {
         break;
     }
 
-    return "Unknown";
+    return "Unknown (default)";
 }
