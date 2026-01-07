@@ -1,11 +1,10 @@
 # Engine library
 
-set(VCPKG_TARGET_TRIPLET "x64-mingw-dynamic")
+#set(VCPKG_TARGET_TRIPLET "x64-mingw-dynamic")
 
 # --- Vendor (C++) ---
 # Add vendor first so targets exist
 set(MSDF_ATLAS_USE_SKIA OFF CACHE BOOL "" FORCE)
-# Force MSDFGEN to use dynamic runtime (/MD, /MDd)
 set(MSDFGEN_DYNAMIC_RUNTIME ON CACHE BOOL "" FORCE)
 set(MSDF_ATLAS_DYNAMIC_RUNTIME ON CACHE BOOL "" FORCE)
 # Make sure vcpkg uses dynamic CRT too
@@ -16,6 +15,8 @@ add_subdirectory(vendor/msdf-atlas-gen)
 set(TRACY_ENABLE ON CACHE BOOL "" FORCE)
 set(TRACY_ON_DEMAND OFF CACHE BOOL "" FORCE)
 add_subdirectory(vendor/tracy)
+
+add_compile_definitions(TRACY_ENABLE)
 
 # --- Vulkan -------------------------------------
 find_package(Vulkan REQUIRED)
@@ -90,7 +91,6 @@ target_link_libraries(EngineCPP PRIVATE Tracy::TracyClient)
 # Per-configuration compiler flags
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_options(EngineC PRIVATE -O0 -g3 -fno-omit-frame-pointer)
-    target_include_directories(EngineC PRIVATE "")
     target_compile_options(EngineCPP PRIVATE -O0 -g3 -fno-omit-frame-pointer)
 elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
     target_compile_options(EngineC PRIVATE -O3 -DNDEBUG -march=native -fno-omit-frame-pointer)

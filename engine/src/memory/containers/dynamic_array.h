@@ -14,7 +14,17 @@
 #define RESIZE_FACTOR 2
 #define DEFAULT_CAPACITY 12
 
-#define da_init(xp) do { (xp)->capacity = 0; (xp)->count = 0; (xp)->items = nullptr; } while (0)
+#define da_init_with_cap(xp, cap) do {                          \
+    u64 _cap = (cap);                                           \
+    (xp)->capacity = _cap;                                      \
+    (xp)->count = 0;                                            \
+    (xp)->items = _cap                                          \
+    ? rl_alloc(_cap * sizeof(*(xp)->items), MEM_DYNAMIC_ARRAY)  \
+    : nullptr;                                                  \
+    RL_ASSERT((xp)->items || !_cap);                            \
+} while (0)
+
+#define da_init(xp) da_init_with_cap(xp, 0)
 
 // Next capacity: 1.5× for small sizes, 2× after 1024
 #define next_capacity(curr) \

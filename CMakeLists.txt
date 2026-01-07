@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.20)
 
 project(Realm VERSION 0.0.1 DESCRIPTION "3D Engine - Realm" LANGUAGES C CXX)
 
+# Vcpkg integration
+set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "" FORCE)
+
 # C Standart
 set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)

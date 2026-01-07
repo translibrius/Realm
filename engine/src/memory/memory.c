@@ -59,21 +59,11 @@ void *rl_alloc(u64 size, MEM_TYPE type) {
     }
 
     void *mem = malloc(size);
-    TracyCAlloc(mem, size);
     return mem;
 }
 
 void *rl_realloc(void *old_ptr, u64 old_size, u64 new_size, MEM_TYPE type) {
-#ifdef TRACY_ENABLE
-    if (old_ptr)
-        TracyCFree(old_ptr);
-#endif
-
     void *new_ptr = realloc(old_ptr, new_size);
-
-#ifdef TRACY_ENABLE
-    TracyCAlloc(new_ptr, new_size);
-#endif
 
     if (state) {
         state->total_allocated += (new_size - old_size);
@@ -86,10 +76,6 @@ void *rl_realloc(void *old_ptr, u64 old_size, u64 new_size, MEM_TYPE type) {
 
 void rl_free(void *block, u64 size, MEM_TYPE type) {
     RL_ASSERT_MSG(state != nullptr, "Memory subsystem not initialized");
-
-#ifdef TRACY_ENABLE
-    TracyCFree(block);
-#endif
 
     state->total_allocated -= size;
     state->allocations[type] -= size;
