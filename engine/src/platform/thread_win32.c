@@ -17,14 +17,14 @@ unsigned __stdcall ThreadProcWrapper(void *lpParam) {
     rl_thread_ctx *ctx = lpParam;
     ctx->entry(ctx->data);
 
-    rl_free(ctx, sizeof(rl_thread_ctx), MEM_SUBSYSTEM_PLATFORM);
+    mem_free(ctx, sizeof(rl_thread_ctx), MEM_SUBSYSTEM_PLATFORM);
 
     RL_TRACE("Thread %d finished work.", platform_get_current_thread_id());
     return 0;
 }
 
 b8 platform_thread_create(rl_thread_entry entry, void *data, rl_thread *out_thread) {
-    rl_thread_ctx *ctx = rl_alloc(sizeof(rl_thread_ctx), MEM_SUBSYSTEM_PLATFORM);
+    rl_thread_ctx *ctx = mem_alloc(sizeof(rl_thread_ctx), MEM_SUBSYSTEM_PLATFORM);
     ctx->entry = entry;
     ctx->data = data;
 
@@ -74,7 +74,7 @@ void platform_thread_sync_signal(rl_thread_sync *sync) {
 }
 
 void platform_mutex_create(rl_mutex *out_mutex) {
-    SRWLOCK *lock = rl_alloc(sizeof(SRWLOCK), MEM_SUBSYSTEM_PLATFORM);
+    SRWLOCK *lock = mem_alloc(sizeof(SRWLOCK), MEM_SUBSYSTEM_PLATFORM);
     InitializeSRWLock(lock);
     out_mutex->handle = lock;
 }
@@ -88,7 +88,7 @@ void platform_mutex_unlock(rl_mutex *mutex) {
 }
 
 void platform_mutex_destroy(rl_mutex *mutex) {
-    rl_free(mutex->handle, sizeof(SRWLOCK), MEM_SUBSYSTEM_PLATFORM);
+    mem_free(mutex->handle, sizeof(SRWLOCK), MEM_SUBSYSTEM_PLATFORM);
     mutex->handle = NULL;
 }
 

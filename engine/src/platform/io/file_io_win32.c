@@ -24,11 +24,9 @@ b8 platform_dir_exists(const char *path) {
 
 b8 platform_file_open(const char *path, FILE_PERM perms, rl_file *out_file) {
     RL_ASSERT_MSG(!out_file->handle, "Trying to open a non-closed file");
+    rl_temp_arena scratch = rl_arena_scratch_get();
 
     out_file->buf_len = 0;
-
-    ARENA_SCRATCH_CREATE(scratch, MiB(5), MEM_ARENA);
-    rl_arena_create(KiB(10), &out_file->file_arena, MEM_SUBSYSTEM_PLATFORM);
 
     HANDLE h = CreateFileA(
         path,
@@ -50,11 +48,11 @@ b8 platform_file_open(const char *path, FILE_PERM perms, rl_file *out_file) {
     }
     SetFilePointer(h, 0, nullptr, FILE_BEGIN);
 
-    rl_string path_str = rl_path_sanitize(&out_file->file_arena, path);
+    rl_string path_str = rl_path_sanitize(scratch.arena, path);
 
     Strings split;
     da_init(&split);
-    rl_string_split(&out_file->file_arena, &path_str, "/", &split);
+    rl_string_split(scratch.arena, &path_str, "/", &split);
     RL_ASSERT(split.count > 0);
 
     out_file->path = path;
@@ -68,7 +66,7 @@ b8 platform_file_open(const char *path, FILE_PERM perms, rl_file *out_file) {
     //RL_DEBUG("Successfully opened file. Name='%s' Size=%llu", out_file->name, out_file->size);
 
     da_free(&split);
-    ARENA_SCRATCH_DESTROY(&scratch);
+    arena_scratch_release(scratch);
     return true;
 }
 
@@ -80,18 +78,16 @@ void platform_file_close(rl_file *file) {
     file->handle = nullptr;
     if (file->buf) {
         if (file->buf_len > 0) {
-            rl_free(file->buf, file->buf_len, MEM_FILE_BUFFERS);
+            mem_free(file->buf, file->buf_len, MEM_FILE_BUFFERS);
         }
         file->buf = nullptr;
     }
-
-    rl_arena_destroy(&file->file_arena);
 }
 
 b8 platform_file_read_all(rl_file *file) {
     DWORD bytes_read = 0;
 
-    file->buf = rl_alloc(file->size, MEM_FILE_BUFFERS);
+    file->buf = mem_alloc(file->size, MEM_FILE_BUFFERS);
 
     BOOL success = ReadFile(file->handle, file->buf, file->size, &bytes_read, nullptr);
     if (!success) {

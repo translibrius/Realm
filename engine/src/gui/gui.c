@@ -11,7 +11,7 @@ void clay_error_handler(Clay_ErrorData error_data) {
 
 void init_gui(f32 width, f32 height) {
     u64 clay_memory_size = Clay_MinMemorySize();
-    Clay_Arena ui_arena = Clay_CreateArenaWithCapacityAndMemory(clay_memory_size, rl_alloc(clay_memory_size, MEM_SUBSYSTEM_GUI));
+    Clay_Arena ui_arena = Clay_CreateArenaWithCapacityAndMemory(clay_memory_size, mem_alloc(clay_memory_size, MEM_SUBSYSTEM_GUI));
 
     Clay_Initialize(ui_arena, (Clay_Dimensions){width, height}, (Clay_ErrorHandler){clay_error_handler});
 

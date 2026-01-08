@@ -2,6 +2,9 @@
 
 #ifdef __cplusplus
 extern "C" {
+
+
+
 #endif
 
 // Unsigned int types.
@@ -107,3 +110,6 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #define GiB(bytes) (u64) (bytes * 1024 * 1024 * 1024)
 #define MiB(bytes) (u64) (bytes * 1024 * 1024)
 #define KiB(bytes) (u64) (bytes * 1024)
+
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))

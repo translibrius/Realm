@@ -66,7 +66,7 @@ b32 msdf_load_font_ascii(const char *path, rl_font *out_font) {
     // The glyphs array (or fontGeometry) contains positioning data for typesetting text.
 
     out_font->glyph_count = static_cast<u32>(glyphs.size());
-    out_font->glyphs = static_cast<rl_glyph *>(rl_alloc(
+    out_font->glyphs = static_cast<rl_glyph *>(mem_alloc(
         sizeof(rl_glyph) * out_font->glyph_count,
         MEM_SUBSYSTEM_ASSET
         ));
@@ -107,7 +107,7 @@ b32 msdf_load_font_ascii(const char *path, rl_font *out_font) {
 
     u64 size = static_cast<u64>(width) * height * 4;
     out_font->atlas.size = size;
-    out_font->atlas.data = static_cast<u8 *>(rl_alloc(size, MEM_SUBSYSTEM_ASSET));
+    out_font->atlas.data = static_cast<u8 *>(mem_alloc(size, MEM_SUBSYSTEM_ASSET));
 
     // Create a *view* over our buffer
     msdfgen::BitmapRef<byte, 4> bitmap(

@@ -34,14 +34,14 @@ u64 asset_system_size() {
 
 b8 asset_system_start(void *system) {
     state = system;
-    rl_arena_create(MiB(25), &state->asset_arena, MEM_SUBSYSTEM_ASSET);
+    rl_arena_init(&state->asset_arena, MiB(200), MiB(5), MEM_SUBSYSTEM_ASSET);
     da_init(&state->assets);
     return true;
 }
 
 void asset_system_shutdown() {
     da_free(&state->assets);
-    rl_arena_destroy(&state->asset_arena);
+    rl_arena_deinit(&state->asset_arena);
     state = nullptr;
 }
 

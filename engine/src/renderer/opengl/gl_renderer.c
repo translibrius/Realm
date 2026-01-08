@@ -49,7 +49,7 @@ b8 opengl_initialize(platform_window *platform_window, rl_camera *camera) {
     context.camera = camera;
 
     da_init(&context.fonts);
-    rl_arena_create(MiB(25), &context.arena, MEM_SUBSYSTEM_RENDERER);
+    rl_arena_init(&context.arena, MiB(100), MiB(25), MEM_SUBSYSTEM_RENDERER);
 
     RL_INFO("Initializing Renderer: OpenGL");
     if (!platform_create_opengl_context(context.window)) {
@@ -91,7 +91,7 @@ b8 opengl_initialize(platform_window *platform_window, rl_camera *camera) {
 
 void opengl_destroy() {
     gl_mesh_destroy(&context.cube_mesh);
-    rl_arena_destroy(&context.arena);
+    rl_arena_deinit(&context.arena);
 }
 
 void opengl_begin_frame(f64 delta_time) {

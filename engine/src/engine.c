@@ -16,6 +16,7 @@ typedef struct engine_state {
     b8 is_suspended;
     rl_arena frame_arena;
     platform_window *render_window;
+    platform_info platform_info;
     rl_camera *render_camera;
 
     rl_clock frame_clock;
@@ -39,19 +40,22 @@ b8 create_engine() {
     state.is_running = true;
     state.is_suspended = false;
 
-    void *memory_system = rl_alloc(memory_system_size(), MEM_SUBSYSTEM_MEMORY);
-    if (!memory_system_start(memory_system)) {
+    // Important to call this to fetch page size and other important info for subsystems that go before platform
+    platform_get_info(&state.platform_info);
+
+    void *memory_system = mem_alloc(mem_system_size(), MEM_SUBSYSTEM_MEMORY);
+    if (!mem_system_start(memory_system)) {
         RL_FATAL("Failed to initialize memory sub-system, exiting...");
         return false;
     }
 
-    void *event_system = rl_alloc(event_system_size(), MEM_SUBSYSTEM_MEMORY);
+    void *event_system = mem_alloc(event_system_size(), MEM_SUBSYSTEM_MEMORY);
     if (!event_system_start(event_system)) {
         RL_FATAL("Failed to initialize event sub-system, exiting...");
         return false;
     }
 
-    void *logger_system = rl_alloc(logger_system_size(), MEM_SUBSYSTEM_LOGGER);
+    void *logger_system = mem_alloc(logger_system_size(), MEM_SUBSYSTEM_LOGGER);
     if (!logger_system_start(logger_system)) {
         RL_FATAL("Failed to initialize logger sub-system, exiting...");
         return false;
@@ -69,12 +73,12 @@ b8 create_engine() {
     event_register(EVENT_WINDOW_FOCUS_GAINED, on_focus_gained, nullptr);
     event_register(EVENT_WINDOW_FOCUS_LOST, on_focus_lost, nullptr);
 
-    void *asset_system = rl_alloc(asset_system_size(), MEM_SUBSYSTEM_ASSET);
+    void *asset_system = mem_alloc(asset_system_size(), MEM_SUBSYSTEM_ASSET);
     if (!asset_system_start(asset_system) || !asset_system_load_all()) {
         RL_FATAL("Failed to initialize asset sub-system, exiting...");
     }
 
-    rl_arena_create(KiB(1000), &state.frame_arena, MEM_STRING);
+    rl_arena_init(&state.frame_arena, KiB(4), KiB(1), MEM_STRING);
     state.frame_count = 0;
     state.fps_display = 0;
     state.delta_time = 0;
@@ -88,7 +92,7 @@ void destroy_engine() {
     platform_system_shutdown();
     logger_system_shutdown();
     event_system_shutdown();
-    memory_system_shutdown();
+    mem_system_shutdown();
     RL_INFO("--------------ENGINE_STOP--------------");
 }
 
@@ -134,7 +138,7 @@ void engine_end_frame() {
         clock_reset(&state.frame_clock);
     }
 
-    rl_arena_reset(&state.frame_arena);
+    rl_arena_clear(&state.frame_arena);
     TracyCZoneEnd(ctx);
 }
 
@@ -188,7 +192,7 @@ b8 on_key_press(void *event, void *data) {
 
     // Print mem debug on 'm'
     if (key->key == KEY_M && key->pressed) {
-        print_memory_usage();
+        mem_debug_usage();
     }
 
     if (key->key == KEY_F11 && key->pressed) {

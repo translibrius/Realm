@@ -44,9 +44,26 @@ typedef enum platform_cursor_mode {
     CURSOR_MODE_LOCKED
 } platform_cursor_mode;
 
+typedef struct platform_info {
+    u32 build_number;
+    u32 version_major;
+    u32 version_minor;
+    u32 page_size;
+    u32 logical_processors;
+    u32 alloc_granularity;
+    i64 clock_freq;
+    const char *arch;
+} platform_info;
+
 // System
 b8 platform_system_start();
 void platform_system_shutdown();
+
+// Memory
+void *platform_mem_reserve(u64 size);
+b8 platform_mem_commit(void *ptr, u64 size);
+b8 platform_mem_decommit(void *ptr, u64 size);
+b8 platform_mem_release(void *ptr, u64 size);
 
 // Windowing
 b8 platform_pump_messages();
@@ -75,3 +92,6 @@ i64 platform_get_clock_frequency();
 void platform_sleep(u32 milliseconds);
 u64 platform_get_current_thread_id();
 void platform_console_write(const char *message, LOG_LEVEL level);
+void platform_get_info(platform_info *info);
+void log_system_info(platform_info *info);
+u32 platform_get_page_size();

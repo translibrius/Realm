@@ -22,7 +22,7 @@ b8 game_init(game *game_out, platform_window *window) {
     game_out->width = (f32)window->settings.width;
     game_out->height = (f32)window->settings.height;
     game_out->window = window;
-    rl_arena_create(KiB(1024), &game_out->frame_arena, MEM_ARENA);
+    rl_arena_init(&game_out->frame_arena, KiB(4024), KiB(1024), MEM_ARENA);
 
     rl_asset *asset = get_asset("JetBrainsMono-Regular.ttf");
     game_out->font_jetbrains = asset->handle;
@@ -60,10 +60,10 @@ void game_render(game *game_inst, f64 dt) {
     //RL_INFO("FPS: %u", stats.fps);
 
     // Reset frame arena
-    rl_arena_reset(&game_inst->frame_arena);
+    rl_arena_clear(&game_inst->frame_arena);
     TracyCZoneEnd(ctx);
 }
 
 void game_destroy(game *game_inst) {
-    rl_arena_destroy(&game_inst->frame_arena);
+    rl_arena_deinit(&game_inst->frame_arena);
 }

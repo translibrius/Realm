@@ -88,7 +88,6 @@ typedef struct platform_state {
     HINSTANCE handle;
     CONSOLE_SCREEN_BUFFER_INFO std_output_csbi;
     CONSOLE_SCREEN_BUFFER_INFO err_output_csbi;
-    DWORD logical_cores;
 
     DWORD main_thread_id;
     DWORD message_thread_id;
@@ -102,6 +101,16 @@ typedef struct platform_state {
 
     platform_cursor_mode cursor_mode;
     b8 raw_mouse_enabled;
+
+    // Plat info
+    DWORD logical_cores;
+    const char *arch;
+    i64 clock_freq;
+    u32 build_number;
+    u32 version_major;
+    u32 version_minor;
+    u32 page_size;
+    u32 alloc_granularity;
 } platform_state;
 
 static platform_state state;
@@ -198,7 +207,6 @@ b8 platform_system_start() {
 
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &state.std_output_csbi);
     GetConsoleScreenBufferInfo(GetStdHandle(STD_ERROR_HANDLE), &state.err_output_csbi);
-    get_system_info();
 
     RL_INFO("Platform system started!");
     return true;
@@ -229,9 +237,7 @@ i64 platform_get_clock_counter() {
 }
 
 i64 platform_get_clock_frequency() {
-    LARGE_INTEGER freq;
-    RL_ASSERT(QueryPerformanceFrequency(&freq));
-    return freq.QuadPart;
+    return state.clock_freq;
 }
 
 // Get events from window
@@ -290,7 +296,7 @@ b8 platform_pump_messages() {
 
             event_fire(EVENT_WINDOW_RESIZE, found_window);
 
-            rl_free(p, sizeof(resize_msg), MEM_SUBSYSTEM_PLATFORM);
+            mem_free(p, sizeof(resize_msg), MEM_SUBSYSTEM_PLATFORM);
             break;
         default:
             break;
@@ -343,7 +349,7 @@ b8 platform_create_window(platform_window *window) {
     }
 
     win32_window *w = &state.windows[id];
-    rl_zero(w, sizeof(*w));
+    mem_zero(w, sizeof(*w));
 
     // To find actual client size without the borders and titlebar
     RECT rect = {0};
@@ -636,6 +642,43 @@ b8 platform_set_window_mode(platform_window *window, PLATFORM_WINDOW_MODE mode) 
     return true;
 }
 
+void platform_get_info(platform_info *info) {
+    // Means info wasn't queried yet
+    if (state.page_size == 0) {
+        get_system_info();
+    }
+
+    info->clock_freq = state.clock_freq;
+    info->version_major = state.version_major;
+    info->version_minor = state.version_minor;
+    info->build_number = state.build_number;
+    info->alloc_granularity = state.alloc_granularity;
+    info->arch = state.arch;
+    info->page_size = state.page_size;
+    info->logical_processors = state.logical_cores;
+}
+
+u32 platform_get_page_size() {
+    return state.page_size;
+}
+
+void *platform_mem_reserve(u64 size) {
+    return VirtualAlloc(NULL, size, MEM_RESERVE, PAGE_READWRITE);
+}
+
+b8 platform_mem_commit(void *ptr, u64 size) {
+    void *ret = VirtualAlloc(ptr, size, MEM_COMMIT, PAGE_READWRITE);
+    return ret != NULL;
+}
+
+b8 platform_mem_decommit(void *ptr, u64 size) {
+    return VirtualFree(ptr, size, MEM_DECOMMIT);
+}
+
+b8 platform_mem_release(void *ptr, u64 size) {
+    return VirtualFree(ptr, size, MEM_RELEASE);
+}
+
 // Private ---------------------------------------------------------------
 
 // NOTE: for calling RtlGetVersion. This seems to be the most stable way to get
@@ -672,18 +715,18 @@ void get_system_info() {
     RTL_OSVERSIONINFOW version = {0};
     get_windows_version(&version);
 
-    RL_DEBUG("System details: ");
-    RL_DEBUG("----------------------------");
-    RL_DEBUG("Operating system: Windows | Build: %d | Version: %d.%d",
-             version.dwBuildNumber, version.dwMajorVersion,
-             version.dwMinorVersion);
-    RL_DEBUG("Arch: %s", get_arch_name(system_info.wProcessorArchitecture));
-    RL_DEBUG("Page size: %d", system_info.dwPageSize);
-    RL_DEBUG("Logical processors: %d", system_info.dwNumberOfProcessors);
-    RL_DEBUG("Allocation granularity: %d", system_info.dwAllocationGranularity);
-    RL_DEBUG("Clock frequency: %d", platform_get_clock_frequency());
-
+    state.build_number = version.dwBuildNumber;
+    state.version_major = version.dwMajorVersion;
+    state.version_minor = version.dwMinorVersion;
+    state.arch = get_arch_name(system_info.wProcessorArchitecture);
+    state.page_size = system_info.dwPageSize;
     state.logical_cores = system_info.dwNumberOfProcessors;
+    state.alloc_granularity = system_info.dwAllocationGranularity;
+
+    // clock freq
+    LARGE_INTEGER freq;
+    RL_ASSERT(QueryPerformanceFrequency(&freq));
+    state.clock_freq = freq.QuadPart;
 }
 
 // CPU Architecture
@@ -964,14 +1007,14 @@ static void platform_set_cursor_mode_hwnd(HWND hwnd, platform_cursor_mode mode) 
 
 
 void platform_set_cursor_mode(platform_window *w, platform_cursor_mode mode) {
-    cursor_mode_msg *m = rl_alloc(sizeof(*m), MEM_SUBSYSTEM_PLATFORM);
+    cursor_mode_msg *m = mem_alloc(sizeof(*m), MEM_SUBSYSTEM_PLATFORM);
     m->hwnd = w->handle;
     m->mode = mode;
     PostMessageA(state.service_window, SET_CURSOR_MODE, (WPARAM)m, 0);
 }
 
 b8 platform_set_raw_input(platform_window *w, b8 enable) {
-    raw_input_msg *m = rl_alloc(sizeof(*m), MEM_SUBSYSTEM_PLATFORM);
+    raw_input_msg *m = mem_alloc(sizeof(*m), MEM_SUBSYSTEM_PLATFORM);
     m->hwnd = w->handle;
     m->enable = enable;
     PostMessageA(state.service_window, SET_RAW_INPUT, (WPARAM)m, 0);
@@ -1037,7 +1080,7 @@ static LRESULT CALLBACK ServiceWndProc(HWND Window, UINT Message, WPARAM WParam,
             platform_set_cursor_mode_hwnd(m->hwnd, m->mode);
         }
 
-        rl_free(m, sizeof(*m), MEM_SUBSYSTEM_PLATFORM);
+        mem_free(m, sizeof(*m), MEM_SUBSYSTEM_PLATFORM);
         Result = 1;
     }
     break;
@@ -1063,7 +1106,7 @@ static LRESULT CALLBACK ServiceWndProc(HWND Window, UINT Message, WPARAM WParam,
                 );
         }
 
-        rl_free(m, sizeof(*m), MEM_SUBSYSTEM_PLATFORM);
+        mem_free(m, sizeof(*m), MEM_SUBSYSTEM_PLATFORM);
         Result = 1;
     }
     break;
@@ -1100,7 +1143,7 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
     case WM_WINDOWPOSCHANGED: {
         WINDOWPOS *wp = (WINDOWPOS *)LParam;
 
-        resize_msg *msg = rl_alloc(sizeof(resize_msg), MEM_SUBSYSTEM_PLATFORM);
+        resize_msg *msg = mem_alloc(sizeof(resize_msg), MEM_SUBSYSTEM_PLATFORM);
         msg->hwnd = Window;
         msg->x = wp->x;
         msg->y = wp->y;

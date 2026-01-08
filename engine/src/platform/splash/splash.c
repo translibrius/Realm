@@ -59,9 +59,9 @@ static void splash_fill_rect(u32 x, u32 y, u32 w, u32 h, rgba color) {
 b8 splash_show() {
     state.progress_step = 0;
     state.pixels_size = SPLASH_WIDTH * SPLASH_HEIGHT * 4;
-    state.pixels = rl_alloc(state.pixels_size, MEM_SUBSYSTEM_SPLASH);
+    state.pixels = mem_alloc(state.pixels_size, MEM_SUBSYSTEM_SPLASH);
 
-    rl_zero(state.pixels, state.pixels_size);
+    mem_zero(state.pixels, state.pixels_size);
     return platform_splash_create();
 }
 
@@ -108,7 +108,7 @@ void splash_update() {
 }
 
 void splash_hide() {
-    rl_free(state.pixels, state.pixels_size, MEM_SUBSYSTEM_SPLASH);
+    mem_free(state.pixels, state.pixels_size, MEM_SUBSYSTEM_SPLASH);
     platform_splash_destroy();
 }
 

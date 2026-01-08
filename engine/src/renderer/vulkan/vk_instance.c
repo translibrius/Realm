@@ -1,7 +1,7 @@
 #include "renderer/vulkan/vk_instance.h"
 
 #include "core/logger.h"
-#include "memory/containers/dynamic_array.h"
+#include "util/assert.h"
 
 b8 vk_instance_create(VK_Context *context) {
 #ifdef _DEBUG
@@ -12,12 +12,13 @@ b8 vk_instance_create(VK_Context *context) {
 
     vkEnumerateInstanceVersion(&context->api_version);
     RL_INFO("Vulkan api version: %d.%d", VK_VERSION_MAJOR(context->api_version), VK_VERSION_MINOR(context->api_version));
+    RL_ASSERT_MSG(context->api_version >= VK_MAKE_API_VERSION(0, 1, 4, 0), "Requires Vulkan 1.4 loader");
 
     u32 instance_ext_count = 0;
     vkEnumerateInstanceExtensionProperties(nullptr, &instance_ext_count, nullptr);
 
-    da_init_with_cap(&context->extensions, instance_ext_count);
-    vkEnumerateInstanceExtensionProperties(nullptr, &instance_ext_count, context->extensions.items);
+    VkExtensionProperties *available_extensions = mem_alloc(sizeof(VkExtensionProperties) * instance_ext_count, MEM_SUBSYSTEM_RENDERER);
+    vkEnumerateInstanceExtensionProperties(nullptr, &instance_ext_count, available_extensions);
 
     RL_TRACE("VK Instance Extension Count: %lu", instance_ext_count);
 

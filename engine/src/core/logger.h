@@ -35,7 +35,6 @@ typedef struct logger_queue {
     u32 capacity;
     u32 head;
     u32 tail;
-    rl_arena arena;
 
     rl_mutex mutex;
     rl_thread_sync has_data;

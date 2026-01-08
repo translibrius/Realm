@@ -15,7 +15,6 @@ typedef struct rl_file {
     void *buf;
     const char *name;
     const char *path;
-    rl_arena file_arena;
     u64 size;
     u64 buf_len;
 } rl_file;

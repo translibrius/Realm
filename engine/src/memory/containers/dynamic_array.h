@@ -19,7 +19,7 @@
     (xp)->capacity = _cap;                                      \
     (xp)->count = 0;                                            \
     (xp)->items = _cap                                          \
-    ? rl_alloc(_cap * sizeof(*(xp)->items), MEM_DYNAMIC_ARRAY)  \
+    ? mem_alloc(_cap * sizeof(*(xp)->items), MEM_DYNAMIC_ARRAY)  \
     : nullptr;                                                  \
     RL_ASSERT((xp)->items || !_cap);                            \
 } while (0)
@@ -37,7 +37,7 @@
             u64 old_cap = (xp)->capacity;                                       \
             u64 new_cap = next_capacity(old_cap);                               \
                                                                                 \
-            void *ptr = rl_realloc(                                             \
+            void *ptr = mem_realloc(                                            \
                 (xp)->items,                                                    \
                 old_cap * sizeof(*(xp)->items),                                 \
                 new_cap * sizeof(*(xp)->items),                                 \
@@ -55,7 +55,7 @@
 
 #define da_free(xp)                                                             \
     do {                                                                        \
-        rl_free((xp)->items,                                                    \
+        mem_free((xp)->items,                                                    \
                 sizeof(*(xp)->items) * (xp)->capacity,                          \
                 MEM_DYNAMIC_ARRAY);                                             \
         (xp)->capacity = 0;                                                     \

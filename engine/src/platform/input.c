@@ -29,8 +29,8 @@ void input_system_init() {
 }
 
 void input_update() {
-    rl_copy(&state.keyboard_now, &state.keyboard_prev, sizeof(keyboard_state));
-    rl_copy(&state.mouse_now, &state.mouse_prev, sizeof(mouse_state));
+    mem_copy(&state.keyboard_now, &state.keyboard_prev, sizeof(keyboard_state));
+    mem_copy(&state.mouse_now, &state.mouse_prev, sizeof(mouse_state));
 
     state.mouse_now.dx = 0;
     state.mouse_now.dy = 0;

@@ -8,18 +8,18 @@
 #include "../vendor/stb/stb_image.h"
 
 b8 load_texture(rl_arena *asset_arena, rl_asset *asset) {
-    ARENA_SCRATCH_CREATE(scratch, MiB(5), MEM_SUBSYSTEM_ASSET);
+    rl_temp_arena scratch = rl_arena_scratch_get();
 
     const char *dir = get_assets_dir(asset->type);
     const char *filename = asset->filename;
-    rl_string path = rl_string_format(&scratch, "%s%s", dir, filename);
+    rl_string path = rl_string_format(scratch.arena, "%s%s", dir, filename);
 
     i32 width, height, channels;
     u8 *data = stbi_load(path.cstr, &width, &height, &channels, 0);
 
     if (data == NULL) {
         RL_ERROR("Failed to load texture at '%s'", path.cstr);
-        ARENA_SCRATCH_DESTROY(&scratch);
+        arena_scratch_release(scratch);
         return false;
     }
 
@@ -31,12 +31,12 @@ b8 load_texture(rl_arena *asset_arena, rl_asset *asset) {
     texture->size = size;
 
     void *container = rl_arena_push(asset_arena, size, 1);
-    rl_copy(data, container, size);
+    mem_copy(data, container, size);
     texture->data = container;
 
     asset->handle = texture;
 
     stbi_image_free(data);
-    ARENA_SCRATCH_DESTROY(&scratch);
+    arena_scratch_release(scratch);
     return true;
 }

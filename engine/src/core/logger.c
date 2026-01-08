@@ -21,6 +21,7 @@ const char *level_strs[] = {
     "[INFO]: ", "[DEBU]: ", "[TRAC]: ", "[WARN]: ", "[ERRO]: ", "[FATA]: "};
 
 void logger_writer(void *data) {
+    b8 should_fatal = false;
     while (state->queue.running) {
         // Sleep until there's data or shutdown
         platform_thread_sync_wait(&state->queue.has_data);
@@ -32,6 +33,10 @@ void logger_writer(void *data) {
         platform_mutex_lock(&state->queue.mutex);
         while (state->queue.head != state->queue.tail) {
             log_event e = state->queue.events[state->queue.head];
+            if (e.level == LOG_FATAL) {
+                should_fatal = true;
+                break;
+            }
             state->queue.head = (state->queue.head + 1) % state->queue.capacity;
             platform_mutex_unlock(&state->queue.mutex);
 
@@ -54,6 +59,10 @@ void logger_writer(void *data) {
         platform_mutex_lock(&state->queue.mutex);
     }
     platform_mutex_unlock(&state->queue.mutex);
+
+    if (should_fatal) {
+        debugBreak();
+    }
 }
 
 u64 logger_system_size() {
@@ -63,14 +72,14 @@ u64 logger_system_size() {
 b8 logger_system_start(void *memory) {
     RL_ASSERT_MSG(!state, "Logger system already started!");
     state = memory;
-    rl_arena_create(MiB(2), &state->log_arena, MEM_SUBSYSTEM_LOGGER);
+    rl_arena_init(&state->log_arena, MiB(10), MiB(2), MEM_SUBSYSTEM_LOGGER);
 
     state->queue.capacity = LOG_QUEUE_SIZE;
     state->queue.head = 0;
     state->queue.tail = 0;
 
     state->queue.events =
-        rl_alloc(sizeof(log_event) * LOG_QUEUE_SIZE, MEM_SUBSYSTEM_LOGGER);
+        mem_alloc(sizeof(log_event) * LOG_QUEUE_SIZE, MEM_SUBSYSTEM_LOGGER);
 
     platform_mutex_create(&state->queue.mutex);
     platform_thread_sync_create(&state->queue.has_data);
@@ -97,14 +106,13 @@ void logger_system_shutdown() {
 
     platform_mutex_destroy(&state->queue.mutex);
 
-    rl_free(
+    mem_free(
         state->queue.events,
         sizeof(log_event) * LOG_QUEUE_SIZE,
         MEM_SUBSYSTEM_LOGGER
         );
 
-    rl_arena_destroy(&state->queue.arena);
-    rl_arena_destroy(&state->log_arena);
+    rl_arena_deinit(&state->log_arena);
 
     state = nullptr;
 }

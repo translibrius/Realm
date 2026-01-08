@@ -43,7 +43,7 @@ void rl_string_split(rl_arena *arena, rl_string *source, const char *separator, 
 
 rl_string rl_string_slice(rl_arena *arena, rl_string *source, u32 start, u32 length) {
     char *slice = rl_arena_push(arena, length + 1, 1);
-    rl_copy(source->cstr + start, slice, length);
+    mem_copy(source->cstr + start, slice, length);
     slice[length] = '\0';
 
     return (rl_string){slice, length};
