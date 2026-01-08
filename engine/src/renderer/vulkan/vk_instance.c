@@ -9,6 +9,10 @@ b8 vk_instance_create(VK_Context *context) {
 #else
     constexpr bool enable_validation = false;
 #endif
+
+    vkEnumerateInstanceVersion(&context->api_version);
+    RL_INFO("Vulkan api version: %d.%d", VK_VERSION_MAJOR(context->api_version), VK_VERSION_MINOR(context->api_version));
+
     u32 instance_ext_count = 0;
     vkEnumerateInstanceExtensionProperties(nullptr, &instance_ext_count, nullptr);
 

@@ -31,7 +31,7 @@ void rl_arena_destroy(rl_arena *arena) {
     rl_free(arena->start, arena->capacity, arena->mem_type);
 }
 
-void *rl_arena_alloc(rl_arena *arena, u64 size, u64 alignment) {
+void *rl_arena_push(rl_arena *arena, u64 size, u64 alignment) {
     RL_ASSERT(is_power_of_two(alignment));
 
     u8 *aligned_offset = (u8 *)ALIGN_UP((u64)arena->offset, alignment);

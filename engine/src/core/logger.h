@@ -32,11 +32,11 @@ typedef struct log_event {
 
 typedef struct logger_queue {
     log_event *events;
-    u64 max_buf_size;
-    u32 num_queued;
+    u32 capacity;
+    u32 head;
+    u32 tail;
     rl_arena arena;
 
-    // sync
     rl_mutex mutex;
     rl_thread_sync has_data;
 

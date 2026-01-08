@@ -11,6 +11,7 @@
 DA_DEFINE(VKExtensions, VkExtensionProperties);
 
 typedef struct VK_Context {
+    u32 api_version;
     VkInstance instance;
     VKExtensions extensions;
 } VK_Context;
