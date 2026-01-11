@@ -27,6 +27,10 @@ static mem_fmt format_bytes(u64 bytes) {
     }
 }
 
+f64 to_mib(u64 bytes) {
+    return (f64)bytes / (1024.0 * 1024.0);
+}
+
 typedef struct {
     u64 reserved;
     u64 committed;
@@ -137,15 +141,16 @@ void mem_debug_usage() {
         if (!ar && !ac && !ml)
             continue;
 
-        mem_fmt fr = format_bytes(ar);
-        mem_fmt fc = format_bytes(ac);
-        mem_fmt fm = format_bytes(ml);
+        //mem_fmt fr = format_bytes(ar);
+        //mem_fmt fc = format_bytes(ac);
+        //mem_fmt fm = format_bytes(ml);
 
-        RL_DEBUG("  %-24s  R:%6.1f %s  C:%6.1f %s  M:%6.1f %s",
+        RL_DEBUG("  %-24s  R:%8.2f MiB  C:%8.2f MiB  M:%8.2f MiB",
                  mem_type_to_str((MEM_TYPE)i),
-                 fr.value, fr.unit,
-                 fc.value, fc.unit,
-                 fm.value, fm.unit);
+                 to_mib(ar),
+                 to_mib(ac),
+                 to_mib(ml));
+
     }
 
     RL_DEBUG("------------------------------------------");
