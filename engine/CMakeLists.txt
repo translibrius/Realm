@@ -29,7 +29,9 @@ file(GLOB_RECURSE ENGINE_C_SOURCES
 # Build C part as a static lib (no C++ here)
 add_library(EngineC STATIC ${ENGINE_C_SOURCES})
 
-target_compile_definitions(EngineC PRIVATE VK_NO_PROTOTYPES)
+target_compile_definitions(EngineC PRIVATE
+        VK_NO_PROTOTYPES
+)
 target_link_libraries(EngineC PRIVATE Vulkan::Headers)
 
 target_include_directories(EngineC
@@ -37,11 +39,14 @@ target_include_directories(EngineC
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 
         # Vendor
-        ${CMAKE_CURRENT_SOURCE_DIR}/cglm
-        ${CMAKE_CURRENT_SOURCE_DIR}/stb
-        ${CMAKE_CURRENT_SOURCE_DIR}/volk
-        ${CMAKE_CURRENT_SOURCE_DIR}/yyjson
-        ${CMAKE_CURRENT_SOURCE_DIR}/clay
+        ${CMAKE_CURRENT_SOURCE_DIR}/vendor/cglm
+        ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb
+        ${CMAKE_CURRENT_SOURCE_DIR}/vendor/volk
+        ${CMAKE_CURRENT_SOURCE_DIR}/vendor/yyjson
+        ${CMAKE_CURRENT_SOURCE_DIR}/vendor/clay
+        ${CMAKE_CURRENT_SOURCE_DIR}/vendor/glad
+        ${CMAKE_CURRENT_SOURCE_DIR}/vendor/msdf-atlas-gen/msdf-atlas-gen
+        ${CMAKE_CURRENT_SOURCE_DIR}/vendor/tracy/public/tracy
 )
 
 # Warnings only for my own code (no vendor)

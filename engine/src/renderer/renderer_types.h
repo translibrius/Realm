@@ -5,7 +5,7 @@
 #include "asset/font.h"
 #include "core/camera.h"
 
-#include "../vendor/cglm/cglm.h"
+#include "cglm.h"
 
 #define MAX_TEXT_GLYPHS 256
 

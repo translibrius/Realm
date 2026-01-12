@@ -1,7 +1,7 @@
 #pragma once
 
 #include "defines.h"
-#include "../vendor/cglm/cglm.h"
+#include "cglm.h"
 
 typedef struct GL_Shader {
     i32 program_id;

@@ -2,7 +2,7 @@
 
 #include "core/logger.h"
 #include "memory/memory.h"
-#include "../vendor/msdf-atlas-gen/msdf-atlas-gen/msdf-atlas-gen.h"
+#include "msdf-atlas-gen.h"
 
 using namespace msdf_atlas;
 
@@ -13,13 +13,13 @@ b32 msdf_load_font_ascii(const char *path, rl_font *out_font) {
     msdfgen::FreetypeHandle *ft_handle = msdfgen::initializeFreetype();
 
     if (ft_handle == nullptr) {
-        RL_ERROR("rl_msdf_load_font(): failed to initialize FreeType");
+        RL_ERROR("failed to initialize FreeType");
         return false;
     }
 
     auto font = msdfgen::loadFont(ft_handle, path);
     if (!font) {
-        RL_ERROR("rl_msdf_load_font(): failed to load font '%s'", path);
+        RL_ERROR("failed to load font '%s'", path);
         msdfgen::deinitializeFreetype(ft_handle);
         return false;
     }

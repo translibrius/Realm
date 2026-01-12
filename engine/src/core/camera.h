@@ -2,7 +2,7 @@
 
 #include "defines.h"
 
-#include "../vendor/cglm/cglm.h"
+#include "cglm.h"
 
 typedef struct rl_camera {
     vec3 pos;

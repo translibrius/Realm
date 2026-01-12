@@ -4,7 +4,7 @@
 #include "asset/font.h"
 #include "renderer/renderer_types.h"
 #include "platform/platform.h"
-#include "../vendor/cglm/cglm.h"
+#include "cglm.h"
 
 REALM_API b8 renderer_init(RENDERER_BACKEND backend, platform_window *window, rl_camera *camera);
 REALM_API void renderer_destroy();

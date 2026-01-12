@@ -19,7 +19,7 @@ b8 rl_font_load(rl_arena *asset_arena, rl_asset *asset) {
     font->name = asset->filename;
     font->path = path.cstr;
     if (!msdf_load_font_ascii(path.cstr, font)) {
-        RL_ERROR("rl_font_load(): failed to load msdf_font");
+        RL_ERROR("failed to load msdf_font");
         arena_scratch_release(scratch);
         return false;
     }

@@ -2,7 +2,7 @@
 
 #include "gl_renderer.h"
 #include "asset/shader.h"
-#include "../vendor/glad/glad.h"
+#include "glad.h"
 
 // Forward decl.
 b8 opengl_compile_vertex_shader(const char *source, i32 *out_id);

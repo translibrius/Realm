@@ -86,7 +86,7 @@
 #include <windows.h>
 #endif
 
-#include <../vendor/glad/glad.h>
+#include <glad.h>
 
 #ifndef __glad_wglext_h_
 

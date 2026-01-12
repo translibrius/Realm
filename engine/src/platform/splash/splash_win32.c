@@ -4,7 +4,7 @@
 
 #include "core/logger.h"
 #include "platform/platform.h"
-#include "../vendor/glad/glad_wgl.h"
+#include "glad_wgl.h"
 
 typedef struct win32_splash_state {
     HINSTANCE hinstance;

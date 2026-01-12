@@ -5,7 +5,7 @@
 #include "memory/arena.h"
 #include "platform/io/file_io.h"
 #include "util/str.h"
-#include "../vendor/stb/stb_image.h"
+#include "stb_image.h"
 
 b8 load_texture(rl_arena *asset_arena, rl_asset *asset) {
     rl_temp_arena scratch = rl_arena_scratch_get();

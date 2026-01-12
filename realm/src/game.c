@@ -27,7 +27,7 @@ b8 game_init(game *game_out, platform_window *window) {
     rl_asset *asset = get_asset("JetBrainsMono-Regular.ttf");
     game_out->font_jetbrains = asset->handle;
     if (game_out->font_jetbrains == nullptr) {
-        RL_ERROR("game_init(): Failed to load font '%s'", asset->filename);
+        RL_ERROR("Failed to load font '%s'", asset->filename);
         return false;
     }
     renderer_set_active_font(game_out->font_jetbrains);

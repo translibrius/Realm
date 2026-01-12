@@ -7,7 +7,7 @@
 #include <string.h>
 
 #define VOLK_IMPLEMENTATION
-#include <../vendor/volk/volk.h>
+#include <volk.h>
 
 b8 vk_instance_create(VK_Context *context) {
     ARENA_SCRATCH_START();

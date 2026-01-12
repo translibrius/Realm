@@ -4,7 +4,7 @@
 #include "renderer/opengl/gl_text.h"
 #include "core/logger.h"
 #include "platform/platform.h"
-#include "../vendor/glad/glad.h"
+#include "glad.h"
 #include "core/event.h"
 #include "renderer/opengl/gl_shader.h"
 #include "renderer/opengl/gl_types.h"

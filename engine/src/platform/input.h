@@ -2,7 +2,7 @@
 #include "defines.h"
 #include "platform.h"
 
-#include "../vendor/cglm/cglm.h"
+#include "cglm.h"
 
 typedef enum INPUT_MODE {
     INPUT_MODE_UI, // Uses OS cursor

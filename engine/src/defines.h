@@ -93,6 +93,7 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 // Platform detection
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
 #define PLATFORM_WINDOWS 1
+#define VK_USE_PLATFORM_WIN32_KHR
 #ifndef _WIN64
 #error "64-bit is required on Windows!"
 #endif

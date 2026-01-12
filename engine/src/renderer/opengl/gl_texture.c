@@ -2,7 +2,7 @@
 
 #include "asset/asset.h"
 #include "asset/texture.h"
-#include "../vendor/glad/glad.h"
+#include "glad.h"
 
 b8 opengl_texture_generate(const char *filename, GL_Texture *out_texture) {
     rl_asset *asset = get_asset(filename);

@@ -17,7 +17,7 @@
 
 #include <stdlib.h>
 #include <windows.h>
-#include <../vendor/glad/glad_wgl.h>
+#include <glad_wgl.h>
 #include <winuser.h>
 #include <winternl.h>
 #include <windowsx.h>
@@ -26,6 +26,7 @@
 #include "util/assert.h"
 #include "core/event.h"
 #include "platform/input.h"
+#include "renderer/vulkan/vk_types.h"
 
 #define CREATE_DANGEROUS_WINDOW (WM_USER + 0x1337)
 #define DESTROY_DANGEROUS_WINDOW (WM_USER + 0x1338)
@@ -623,7 +624,7 @@ b8 platform_set_window_mode(platform_window *window, PLATFORM_WINDOW_MODE mode) 
     break;
 
     default:
-        RL_WARN("platform_set_window_mode(): unknown/unimplemented mode");
+        RL_WARN("unknown/unimplemented mode");
         return false;
     }
 
@@ -658,6 +659,23 @@ u32 platform_get_required_vulkan_extensions(const char ***names_out, b8 enable_v
         *names_out = windows_exts;
         return 2;
     }
+}
+
+b8 platform_create_vulkan_surface(platform_window *window, VK_Context *context) {
+    VkWin32SurfaceCreateInfoKHR create_info = {
+        .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
+        .pNext = nullptr,
+        .hinstance = state.handle,
+        .hwnd = window->handle,
+    };
+
+    VkResult result = vkCreateWin32SurfaceKHR(context->instance, &create_info, nullptr, &context->surface);
+    if (result != VK_SUCCESS) {
+        RL_ERROR("Failed to create win32 vulkan surface, err: %s", string_VkResult(result));
+        return false;
+    }
+
+    return true;
 }
 
 void *platform_mem_reserve(u64 size) {
@@ -771,7 +789,7 @@ b8 platform_create_opengl_context(platform_window *window) {
 
     HDC dummy_hdc = GetDC(dummy_hwnd);
     if (!dummy_hdc) {
-        RL_ERROR("platform_create_opengl_context(): failed to get dummy device context, e: %d", GetLastError());
+        RL_ERROR("failed to get dummy device context, e: %d", GetLastError());
         return false;
     }
 
@@ -787,7 +805,7 @@ b8 platform_create_opengl_context(platform_window *window) {
 
     const int legacy_format = ChoosePixelFormat(dummy_hdc, &pfd);
     if (legacy_format == 0 || SetPixelFormat(dummy_hdc, legacy_format, &pfd) == FALSE) {
-        RL_ERROR("platform_create_opengl_context(): failed to set pixel format (dummy)");
+        RL_ERROR("failed to set pixel format (dummy)");
         ReleaseDC(dummy_hwnd, dummy_hdc);
         DestroyWindow(dummy_hwnd);
         UnregisterClassA("dummy_window_class", state.handle);
@@ -796,7 +814,7 @@ b8 platform_create_opengl_context(platform_window *window) {
 
     HGLRC dummy_rc = wglCreateContext(dummy_hdc);
     if (dummy_rc == NULL) {
-        RL_ERROR("platform_create_opengl_context(): failed to create dummy GL context, e: %d", GetLastError());
+        RL_ERROR("failed to create dummy GL context, e: %d", GetLastError());
         ReleaseDC(dummy_hwnd, dummy_hdc);
         DestroyWindow(dummy_hwnd);
         UnregisterClassA("dummy_window_class", state.handle);
@@ -829,7 +847,7 @@ b8 platform_create_opengl_context(platform_window *window) {
     // 2) Real window setup
     HDC hdc = GetDC(native_window->hwnd);
     if (!hdc) {
-        RL_ERROR("platform_create_opengl_context(): failed to get device context, e: %d", GetLastError());
+        RL_ERROR("failed to get device context, e: %d", GetLastError());
         return false;
     }
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "defines.h"
-#include "../vendor/glad/glad.h"
+#include "glad.h"
 
 typedef struct GL_Mesh {
     u32 vao;

@@ -6,13 +6,26 @@
 static VK_Context context;
 
 b8 vulkan_initialize(platform_window *window, rl_camera *camera) {
-    vk_instance_create(&context);
-    vk_device_init(&context);
+    if (!vk_instance_create(&context)) {
+        RL_ERROR("failed to create vulkan instance");
+        return false;
+    }
+
+    if (!platform_create_vulkan_surface(window, &context)) {
+        RL_ERROR("failed to create vulkan surface");
+    }
+
+    if (!vk_device_init(&context)) {
+        RL_ERROR("failed to find suitable GPU device");
+        return false;
+    }
+
     return true;
 }
 
 void vulkan_destroy() {
     vk_device_destroy(&context);
+    vkDestroySurfaceKHR(context.instance, context.surface, nullptr);
     vk_instance_destroy(&context);
 }
 

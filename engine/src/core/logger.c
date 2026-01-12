@@ -114,9 +114,11 @@ void logger_system_shutdown() {
     state = nullptr;
 }
 
-void log_output(const char *fmt, LOG_LEVEL level, ...) {
+void log_output(const char *fmt, LOG_LEVEL level, const char *func, ...) {
     // Fallback
     if (!state) {
+        platform_console_write(func, level);
+        platform_console_write(": ", level);
         platform_console_write(fmt, level);
         platform_console_write("\n", level);
         return;
@@ -125,11 +127,13 @@ void log_output(const char *fmt, LOG_LEVEL level, ...) {
     log_event e = {0};
     e.level = level;
 
+    // Write level prefix + function name
     int offset = snprintf(
         e.text,
         LOG_MAX_LINE,
-        "%s",
-        level_strs[level]
+        "%s[%s]: ",
+        level_strs[level],
+        func
         );
 
     va_list args;

@@ -4,7 +4,7 @@
 #include "asset/font.h"
 #include "core/logger.h"
 #include "renderer/renderer_types.h"
-#include "../vendor/glad/glad.h"
+#include "glad.h"
 
 #include <string.h>
 
@@ -106,17 +106,17 @@ void opengl_render_text(const char *text, f32 size_px, f32 x, f32 y, vec4 color)
     GL_Font *gl_font = find_gl_font(ctx, ctx->active_font);
 
     if (ctx == nullptr) {
-        RL_WARN("opengl_render_text(): No context");
+        RL_WARN("No context");
         return;
     }
 
     if (gl_font == nullptr) {
-        RL_WARN("opengl_render_text(): No gl_font");
+        RL_WARN("No gl_font");
         return;
     }
 
     if (text == nullptr) {
-        RL_WARN("opengl_render_text(): No text to render");
+        RL_WARN("No text to render");
         return;
     }
 

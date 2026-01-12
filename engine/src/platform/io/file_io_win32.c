@@ -1,7 +1,7 @@
 #include "core/logger.h"
 #include "platform/io/file_io.h"
 #include "util/str.h"
-#include "../vendor/glad/glad_wgl.h"
+#include "glad_wgl.h"
 
 #ifdef PLATFORM_WINDOWS
 

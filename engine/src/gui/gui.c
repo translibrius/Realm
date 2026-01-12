@@ -1,7 +1,7 @@
 #include "gui/gui.h"
 
 #define CLAY_IMPLEMENTATION
-#include "../vendor/clay/clay.h"
+#include "clay.h"
 #include "core/logger.h"
 #include "memory/memory.h"
 

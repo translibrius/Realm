@@ -10,7 +10,7 @@ static application_config config = {
 
 b8 create_application(application *app) {
     if (!app) {
-        RL_ERROR("create_application(): failed to allocate application");
+        RL_ERROR("failed to allocate application");
         return false;
     }
 
@@ -29,7 +29,7 @@ b8 create_application(application *app) {
     };
 
     if (!platform_create_window(&app->main_window)) {
-        RL_ERROR("create_application(): failed to create main window");
+        RL_ERROR("failed to create main window");
         return false;
     }
 
@@ -40,12 +40,12 @@ b8 create_application(application *app) {
 
     camera_init(&app->camera);
     if (!engine_renderer_init(&app->main_window, &app->camera, BACKEND_VULKAN)) {
-        RL_ERROR("create_application(): failed to initialize renderer");
+        RL_ERROR("failed to initialize renderer");
         return false;
     }
 
     if (!game_init(&app->game_inst, &app->main_window)) {
-        RL_ERROR("create_application(): failed to initialize game instance");
+        RL_ERROR("failed to initialize game instance");
         return false;
     }
 
