@@ -19,6 +19,7 @@ add_subdirectory(vendor/tracy)
 # Vulkan
 find_package(Vulkan REQUIRED)
 
+
 # --- C sources ---as
 file(GLOB_RECURSE ENGINE_C_SOURCES
         CONFIGURE_DEPENDS
@@ -32,7 +33,15 @@ add_library(EngineC STATIC ${ENGINE_C_SOURCES})
 target_compile_definitions(EngineC PRIVATE
         VK_NO_PROTOTYPES
 )
-target_link_libraries(EngineC PRIVATE Vulkan::Headers)
+
+set(SHADERC_ROOT "$ENV{VULKAN_SDK}")
+target_include_directories(EngineC PRIVATE
+        ${SHADERC_ROOT}/Include
+)
+
+target_link_libraries(EngineC PRIVATE
+        Vulkan::Headers
+        ${SHADERC_ROOT}/Lib/shaderc_shared.lib)
 
 target_include_directories(EngineC
         PUBLIC
@@ -47,6 +56,7 @@ target_include_directories(EngineC
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/glad
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/msdf-atlas-gen/msdf-atlas-gen
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/tracy/public/tracy
+        ${Vulkan_INCLUDE_DIRS} # For shaders
 )
 
 # Warnings only for my own code (no vendor)

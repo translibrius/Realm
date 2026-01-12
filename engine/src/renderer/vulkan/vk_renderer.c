@@ -1,6 +1,7 @@
 #include "renderer/vulkan/vk_renderer.h"
 
 #include "vk_device.h"
+#include "vk_shader.h"
 #include "vk_swapchain.h"
 #include "renderer/vulkan/vk_instance.h"
 
@@ -30,10 +31,16 @@ b8 vulkan_initialize(platform_window *window, rl_camera *camera, b8 vsync) {
         return false;
     }
 
+    if (!vk_shader_init_compiler(&context)) {
+        RL_ERROR("failed to initialize shader compiler");
+        return false;
+    }
+
     return true;
 }
 
 void vulkan_destroy() {
+    vk_shader_destroy_compiler(&context);
     vk_swapchain_destroy(&context);
     vk_device_destroy(&context);
     vkDestroySurfaceKHR(context.instance, context.surface, nullptr);

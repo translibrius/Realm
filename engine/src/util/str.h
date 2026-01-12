@@ -27,6 +27,7 @@ rl_string rl_path_sanitize(rl_arena *arena, const char *raw);
 u32 cstr_len(const char *str);
 char *cstr_format(rl_arena *arena, const char *fmt, ...);
 char *cstr_format_va(rl_arena *arena, const char *fmt, va_list args);
+b8 cstr_ends_with(const char *str, const char *suffix);
 
 #define RL_STRING(arena, str) rl_string_create(arena, str)
 #define RL_FORMAT_STRING(arena, fmt, ...) rl_string_format(arena, fmt, __VA_ARGS__)

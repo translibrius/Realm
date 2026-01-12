@@ -52,7 +52,10 @@ b8 asset_system_load_all() {
 
     RL_DEBUG("Loading assets...");
     for (u32 i = 0; i < ASSET_TABLE_TOTAL; i++) {
-        asset_system_load(&asset_table[i]);
+        b8 success = asset_system_load(&asset_table[i]);
+        if (!success) {
+            return false;
+        }
     }
 
     // Wait for loading to be finished

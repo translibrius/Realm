@@ -3,6 +3,23 @@
 #include "platform/io/file_io.h"
 #include "util/str.h"
 
+static SHADER_TYPE infer_shader_type(const char *filename) {
+    if (cstr_ends_with(filename, ".vert") || cstr_ends_with(filename, ".vs"))
+        return SHADER_TYPE_VERTEX;
+    if (cstr_ends_with(filename, ".frag") || cstr_ends_with(filename, ".fs"))
+        return SHADER_TYPE_FRAGMENT;
+    if (cstr_ends_with(filename, ".comp"))
+        return SHADER_TYPE_COMPUTE;
+    if (cstr_ends_with(filename, ".geom"))
+        return SHADER_TYPE_GEOMETRY;
+    if (cstr_ends_with(filename, ".tesc"))
+        return SHADER_TYPE_TESS_CONTROL;
+    if (cstr_ends_with(filename, ".tese"))
+        return SHADER_TYPE_TESS_EVAL;
+    return SHADER_TYPE_UNKNOWN;
+}
+
+
 b8 load_shader(rl_arena *arena, rl_asset *asset) {
     rl_temp_arena scratch = rl_arena_scratch_get();
 
@@ -21,6 +38,12 @@ b8 load_shader(rl_arena *arena, rl_asset *asset) {
     text[shader_file.buf_len] = '\0';
 
     shader->source = text;
+    shader->type = infer_shader_type(shader_file.name);
+    if (shader->type == SHADER_TYPE_UNKNOWN) {
+        RL_ERROR("Failed to load shader file, unsupported file extension");
+        return false;
+    }
+
     asset->handle = shader;
 
     platform_file_close(&shader_file);

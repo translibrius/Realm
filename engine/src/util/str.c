@@ -137,6 +137,16 @@ char *cstr_format_va(rl_arena *arena, const char *fmt, va_list args) {
     return buffer;
 }
 
+b8 cstr_ends_with(const char *str, const char *suffix) {
+    u32 len_str = strlen(str);
+    u32 len_suf = strlen(suffix);
+
+    if (len_suf > len_str) {
+        return false;
+    }
+    return memcmp(str + (len_str - len_suf), suffix, len_suf) == 0;
+}
+
 char *cstr_format(rl_arena *arena, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);

@@ -14,6 +14,17 @@ typedef enum RENDERER_BACKEND {
     BACKEND_VULKAN
 } RENDERER_BACKEND;
 
+typedef enum SHADER_TYPE {
+    SHADER_TYPE_VERTEX,
+    SHADER_TYPE_FRAGMENT,
+    SHADER_TYPE_COMPUTE,
+    SHADER_TYPE_GEOMETRY,
+    SHADER_TYPE_TESS_CONTROL,
+    SHADER_TYPE_TESS_EVAL,
+
+    SHADER_TYPE_UNKNOWN
+} SHADER_TYPE;
+
 typedef struct renderer_interface {
     b8 (*initialize)(platform_window *window, rl_camera *camera, b8 vsync);
     void (*shutdown)();

@@ -9,6 +9,8 @@
 #include "core/logger.h"
 #include "platform/platform.h"
 
+#include <shaderc/shaderc.h>
+
 #ifndef _DEBUG
 #define VK_CHECK(vkFnc) vkFnc
 #else
@@ -77,9 +79,19 @@ typedef struct VK_Swapchain {
 
 } VK_Swapchain;
 
+DA_DEFINE(Shaders, VkShaderModule);
+typedef struct {
+    shaderc_compiler_t compiler;
+    shaderc_compile_options_t options;
+    b8 initialized;
+} VK_Shader_Compiler;
+
 typedef struct VK_Context {
     rl_arena arena;
     platform_window *window;
+
+    VK_Shader_Compiler shader_compiler;
+    Shaders shaders;
 
     u32 api_version;
     VkInstance instance;
