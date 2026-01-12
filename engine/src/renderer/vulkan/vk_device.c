@@ -1,5 +1,7 @@
 #include "vk_device.h"
 
+#include "vk_swapchain.h"
+
 #include <string.h>
 
 // To gather unique queue indexes
@@ -291,6 +293,16 @@ b8 vk_device_init(VK_Context *context) {
 
         if (!has_swapchain) {
             RL_TRACE("    Skipped: missing extension VK_KHR_swapchain");
+            continue;
+        }
+
+        vk_swapchain_fetch_support(context, physical_devices[i]);
+        if (context->swapchain.format_count < 0) {
+            RL_TRACE("    Skipped: no swapchain formats found");
+            continue;
+        }
+        if (context->swapchain.present_mode_count < 0) {
+            RL_TRACE("    Skipped: no swapchain presentation modes found");
             continue;
         }
 

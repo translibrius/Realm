@@ -5,7 +5,7 @@ void log_surface_formats(const VkSurfaceFormat2KHR *formats, u32 count);
 static const char *present_mode_str(VkPresentModeKHR mode);
 void log_present_modes(const VkPresentModeKHR *modes, u32 count);
 
-b8 vk_swapchain_init(VK_Context *context, b8 vsync) {
+void vk_swapchain_fetch_support(VK_Context *context, VkPhysicalDevice physical_device) {
     context->swapchain = (VK_Swapchain){0};
 
     // Query the physical device's capabilities for the given surface.
@@ -18,25 +18,27 @@ b8 vk_swapchain_init(VK_Context *context, b8 vsync) {
         .sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR
     };
 
-    VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilities2KHR(context->physical_device, &surface_info2, &capabilities2));
+    VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilities2KHR(physical_device, &surface_info2, &capabilities2));
 
     context->swapchain.capabilities2 = capabilities2;
 
-    log_capabilities(&capabilities2.surfaceCapabilities);
-
-    vkGetPhysicalDeviceSurfaceFormats2KHR(context->physical_device, &surface_info2, &context->swapchain.format_count, nullptr);
+    vkGetPhysicalDeviceSurfaceFormats2KHR(physical_device, &surface_info2, &context->swapchain.format_count, nullptr);
     context->swapchain.formats = rl_arena_push(&context->arena, sizeof(VkSurfaceFormat2KHR) * context->swapchain.format_count, true);
     for (u32 i = 0; i < context->swapchain.format_count; ++i) {
         context->swapchain.formats[i].sType =
             VK_STRUCTURE_TYPE_SURFACE_FORMAT_2_KHR;
         context->swapchain.formats[i].pNext = nullptr;
     }
-    vkGetPhysicalDeviceSurfaceFormats2KHR(context->physical_device, &surface_info2, &context->swapchain.format_count, context->swapchain.formats);
+    vkGetPhysicalDeviceSurfaceFormats2KHR(physical_device, &surface_info2, &context->swapchain.format_count, context->swapchain.formats);
 
-    vkGetPhysicalDeviceSurfacePresentModesKHR(context->physical_device, context->surface, &context->swapchain.present_mode_count, nullptr);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, context->surface, &context->swapchain.present_mode_count, nullptr);
     context->swapchain.present_modes = rl_arena_push(&context->arena, sizeof(VkPresentModeKHR) * context->swapchain.present_mode_count, true);
-    vkGetPhysicalDeviceSurfacePresentModesKHR(context->physical_device, context->surface, &context->swapchain.present_mode_count, context->swapchain.present_modes);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, context->surface, &context->swapchain.present_mode_count, context->swapchain.present_modes);
+}
 
+b8 vk_swapchain_init(VK_Context *context, b8 vsync) {
+
+    log_capabilities(&context->swapchain.capabilities2.surfaceCapabilities);
     log_surface_formats(context->swapchain.formats, context->swapchain.format_count);
     log_present_modes(context->swapchain.present_modes, context->swapchain.present_mode_count);
 

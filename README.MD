@@ -55,3 +55,9 @@ cmake --build --preset debug
 ## TODO
 
 - [ ] Hot-Reloaded assets
+
+## References
+
+[Modern Vulkan 1.4 minimal samples](https://github.com/nvpro-samples/vk_minimal_latest)
+
+[Modern OpenGL 3.3+ tutorial](https://learnopengl.com/)
