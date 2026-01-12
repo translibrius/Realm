@@ -15,7 +15,7 @@ typedef enum RENDERER_BACKEND {
 } RENDERER_BACKEND;
 
 typedef struct renderer_interface {
-    b8 (*initialize)(platform_window *window, rl_camera *camera);
+    b8 (*initialize)(platform_window *window, rl_camera *camera, b8 vsync);
     void (*shutdown)();
     void (*begin_frame)(f64 delta_time);
     void (*end_frame)();

@@ -645,19 +645,22 @@ u32 platform_get_required_vulkan_extensions(const char ***names_out, b8 enable_v
         static const char *windows_exts[] = {
             "VK_KHR_surface",
             "VK_KHR_win32_surface",
-            "VK_EXT_debug_utils"
+            "VK_KHR_get_surface_capabilities2",
+            "VK_EXT_debug_utils",
+
+        };
+
+        *names_out = windows_exts;
+        return 4;
+    } else {
+        static const char *windows_exts[] = {
+            "VK_KHR_surface",
+            "VK_KHR_win32_surface",
+            "VK_KHR_get_surface_capabilities2",
         };
 
         *names_out = windows_exts;
         return 3;
-    } else {
-        static const char *windows_exts[] = {
-            "VK_KHR_surface",
-            "VK_KHR_win32_surface"
-        };
-
-        *names_out = windows_exts;
-        return 2;
     }
 }
 

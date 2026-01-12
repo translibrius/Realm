@@ -5,7 +5,8 @@
 #include "platform/platform.h"
 
 static application_config config = {
-    .title = "Realm"
+    .title = "Realm",
+    .vsync = false
 };
 
 b8 create_application(application *app) {
@@ -39,7 +40,7 @@ b8 create_application(application *app) {
     init_gui((f32)app->main_window.settings.width, (f32)app->main_window.settings.height);
 
     camera_init(&app->camera);
-    if (!engine_renderer_init(&app->main_window, &app->camera, BACKEND_VULKAN)) {
+    if (!engine_renderer_init(&app->main_window, &app->camera, BACKEND_VULKAN, app->config.vsync)) {
         RL_ERROR("failed to initialize renderer");
         return false;
     }

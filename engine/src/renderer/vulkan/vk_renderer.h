@@ -5,7 +5,7 @@
 #include "platform/platform.h"
 #include "renderer/vulkan/vk_types.h"
 
-b8 vulkan_initialize(platform_window *window, rl_camera *camera);
+b8 vulkan_initialize(platform_window *window, rl_camera *camera, b8 vsync);
 void vulkan_destroy();
 void vulkan_begin_frame(f64 delta_time);
 void vulkan_end_frame();

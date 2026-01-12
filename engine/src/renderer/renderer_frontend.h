@@ -6,7 +6,7 @@
 #include "platform/platform.h"
 #include "cglm.h"
 
-REALM_API b8 renderer_init(RENDERER_BACKEND backend, platform_window *window, rl_camera *camera);
+REALM_API b8 renderer_init(RENDERER_BACKEND backend, platform_window *window, rl_camera *camera, b8 vsync);
 REALM_API void renderer_destroy();
 REALM_API void renderer_begin_frame(f64 delta_time);
 REALM_API void renderer_end_frame();

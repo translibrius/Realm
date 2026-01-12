@@ -1,5 +1,7 @@
 #include "vk_device.h"
 
+#include <string.h>
+
 // To gather unique queue indexes
 typedef struct QueueRequest {
     u32 family_index;
@@ -219,6 +221,7 @@ b8 create_logical_device(VK_Context *context, VkCandidate *candidate) {
     return true;
 }
 
+// Todo: Allow api to take a list of Device extensions, required and optional ones
 b8 vk_device_init(VK_Context *context) {
     ARENA_SCRATCH_START();
     u32 physical_device_count = 0;
@@ -266,6 +269,30 @@ b8 vk_device_init(VK_Context *context) {
 
         vkGetPhysicalDeviceProperties2(physical_devices[i], &props);
         vkGetPhysicalDeviceFeatures2(physical_devices[i], &feats);
+
+        // ---- Check required device extensions ----
+        u32 ext_count = 0;
+        vkEnumerateDeviceExtensionProperties(physical_devices[i], nullptr, &ext_count, nullptr);
+
+        VkExtensionProperties *extensions =
+            rl_arena_push(scratch.arena,
+                          sizeof(VkExtensionProperties) * ext_count,
+                          true);
+
+        vkEnumerateDeviceExtensionProperties(physical_devices[i], nullptr, &ext_count, extensions);
+
+        b8 has_swapchain = false;
+        for (u32 e = 0; e < ext_count; e++) {
+            if (strcmp(extensions[e].extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0) {
+                has_swapchain = true;
+                break;
+            }
+        }
+
+        if (!has_swapchain) {
+            RL_TRACE("    Skipped: missing extension VK_KHR_swapchain");
+            continue;
+        }
 
         // Require Vulkan 1.4+
         if (props.properties.apiVersion < VK_API_VERSION_1_4) {
@@ -361,6 +388,8 @@ b8 vk_device_init(VK_Context *context) {
 
     // Load all vulkan device functions
     volkLoadDevice(context->device);
+
+    RL_INFO("Successfully created vulkan device");
 
     ARENA_SCRATCH_RELEASE();
     return true;

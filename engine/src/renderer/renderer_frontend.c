@@ -18,9 +18,9 @@ static frontend_state state;
 // Forward decl
 void prepare_interface(RENDERER_BACKEND backend);
 
-b8 renderer_init(RENDERER_BACKEND backend, platform_window *window, rl_camera *camera) {
+b8 renderer_init(RENDERER_BACKEND backend, platform_window *window, rl_camera *camera, b8 vsync) {
     prepare_interface(backend);
-    if (!interface.initialize(window, camera)) {
+    if (!interface.initialize(window, camera, vsync)) {
         RL_ERROR("Failed to initialize renderer backend");
         return false;
     }

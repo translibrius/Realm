@@ -44,7 +44,7 @@ void opengl_set_view_projection(mat4 view, mat4 projection) {
     glm_mat4_copy(projection, context.projection);
 }
 
-b8 opengl_initialize(platform_window *platform_window, rl_camera *camera) {
+b8 opengl_initialize(platform_window *platform_window, rl_camera *camera, b8 vsync) {
     context.window = platform_window;
     context.camera = camera;
 

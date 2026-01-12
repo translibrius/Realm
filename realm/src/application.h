@@ -7,6 +7,7 @@
 
 typedef struct application_config {
     const char *title;
+    b8 vsync;
 } application_config;
 
 typedef struct application {
