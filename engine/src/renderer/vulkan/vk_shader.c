@@ -40,7 +40,7 @@ void vk_shader_destroy_compiler(VK_Context *context) {
     RL_DEBUG("Shader compiler destroyed");
 }
 
-b8 vk_shader_compile(VK_Context *context, const char *filename) {
+b8 vk_shader_module_compile(VK_Context *context, const char *filename) {
     if (!context->shader_compiler.initialized) {
         RL_ERROR("Shader compiler not initialized before compile!");
         return false;
@@ -90,15 +90,24 @@ b8 vk_shader_compile(VK_Context *context, const char *filename) {
         .pCode = codePtr
     };
 
-    VkShaderModule *module = rl_arena_push(&context->arena, sizeof(VkShaderModule), alignof(VkShaderModule));
-    if (vkCreateShaderModule(context->device, &createInfo, NULL, module) != VK_SUCCESS) {
+    VK_Shader *vk_shader = rl_arena_push(&context->arena, sizeof(VK_Shader), true);
+    vk_shader->asset = asset_shader;
+    if (vkCreateShaderModule(context->device, &createInfo, nullptr, &vk_shader->module) != VK_SUCCESS) {
         RL_ERROR("Failed to create VkShaderModule for '%s'", filename);
         shaderc_result_release(result);
         return false;
     }
 
-    da_append(&context->shaders, *module);
+    da_append(&context->shaders, *vk_shader);
 
     shaderc_result_release(result);
+
+    RL_TRACE("Successfully compiled shader module '%s'. shaders_loaded_count=%d", filename, context->shaders.count);
     return true;
+}
+
+void vk_shader_modules_destroy(VK_Context *context) {
+    for (u32 i = 0; i < context->shaders.count; i++) {
+        vkDestroyShaderModule(context->device, context->shaders.items[i].module, nullptr);
+    }
 }

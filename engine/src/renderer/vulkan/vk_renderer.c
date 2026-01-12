@@ -3,6 +3,7 @@
 #include "vk_device.h"
 #include "vk_shader.h"
 #include "vk_swapchain.h"
+#include "vk_pipeline.h"
 #include "renderer/vulkan/vk_instance.h"
 
 static VK_Context context;
@@ -36,10 +37,16 @@ b8 vulkan_initialize(platform_window *window, rl_camera *camera, b8 vsync) {
         return false;
     }
 
+    if (!vk_pipeline_create(&context)) {
+        RL_ERROR("failed to create graphics pipeline");
+        return false;
+    }
+
     return true;
 }
 
 void vulkan_destroy() {
+    vk_pipeline_destroy(&context);
     vk_shader_destroy_compiler(&context);
     vk_swapchain_destroy(&context);
     vk_device_destroy(&context);

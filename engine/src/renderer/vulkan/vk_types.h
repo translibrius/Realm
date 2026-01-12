@@ -5,6 +5,7 @@
 #include <volk.h>
 
 #include "cglm.h"
+#include "asset/shader.h"
 #include "memory/containers/dynamic_array.h"
 #include "core/logger.h"
 #include "platform/platform.h"
@@ -79,12 +80,23 @@ typedef struct VK_Swapchain {
 
 } VK_Swapchain;
 
-DA_DEFINE(Shaders, VkShaderModule);
+typedef struct VK_Shader {
+    rl_asset_shader *asset;
+    VkShaderModule module;
+} VK_Shader;
+
+DA_DEFINE(Shaders, VK_Shader);
+
 typedef struct {
     shaderc_compiler_t compiler;
     shaderc_compile_options_t options;
     b8 initialized;
 } VK_Shader_Compiler;
+
+typedef struct VK_Pipeline {
+    u32 shader_stage_count;
+    VkPipelineShaderStageCreateInfo *shader_stages;
+} VK_Pipeline;
 
 typedef struct VK_Context {
     rl_arena arena;
@@ -108,6 +120,7 @@ typedef struct VK_Context {
     VK_QueueFamilyIndices queue_families;
 
     VK_Swapchain swapchain;
+    VK_Pipeline pipeline;
 } VK_Context;
 
 // HELPERS -----------------
