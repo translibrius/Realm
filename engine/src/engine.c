@@ -89,8 +89,9 @@ b8 create_engine() {
 void destroy_engine() {
     RL_DEBUG("Engine shutting down, cleaning up...");
     platform_system_shutdown();
-    logger_system_shutdown();
+    renderer_destroy();
     event_system_shutdown();
+    logger_system_shutdown();
     mem_system_shutdown();
     RL_INFO("--------------ENGINE_STOP--------------");
 }

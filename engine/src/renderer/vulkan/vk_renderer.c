@@ -1,14 +1,18 @@
 #include "renderer/vulkan/vk_renderer.h"
+
+#include "vk_device.h"
 #include "renderer/vulkan/vk_instance.h"
 
 static VK_Context context;
 
 b8 vulkan_initialize(platform_window *window, rl_camera *camera) {
     vk_instance_create(&context);
+    vk_device_init(&context);
     return true;
 }
 
 void vulkan_destroy() {
+    vk_device_destroy(&context);
     vk_instance_destroy(&context);
 }
 

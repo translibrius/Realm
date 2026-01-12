@@ -16,7 +16,7 @@ set(TRACY_ENABLE ON CACHE BOOL "" FORCE)
 set(TRACY_ON_DEMAND OFF CACHE BOOL "" FORCE)
 add_subdirectory(vendor/tracy)
 
-# --- Vulkan -------------------------------------
+# Vulkan
 find_package(Vulkan REQUIRED)
 
 # --- C sources ---as
@@ -29,6 +29,9 @@ file(GLOB_RECURSE ENGINE_C_SOURCES
 # Build C part as a static lib (no C++ here)
 add_library(EngineC STATIC ${ENGINE_C_SOURCES})
 
+target_compile_definitions(EngineC PRIVATE VK_NO_PROTOTYPES)
+target_link_libraries(EngineC PRIVATE Vulkan::Headers)
+
 target_include_directories(EngineC
         PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -36,6 +39,7 @@ target_include_directories(EngineC
         # Vendor
         ${CMAKE_CURRENT_SOURCE_DIR}/cglm
         ${CMAKE_CURRENT_SOURCE_DIR}/stb
+        ${CMAKE_CURRENT_SOURCE_DIR}/volk
         ${CMAKE_CURRENT_SOURCE_DIR}/yyjson
         ${CMAKE_CURRENT_SOURCE_DIR}/clay
 )
@@ -55,9 +59,6 @@ elseif (UNIX)
     find_package(OpenGL REQUIRED)
     target_link_libraries(EngineC PRIVATE OpenGL::GL)
 endif ()
-
-# Vulkan link
-target_link_libraries(EngineC PRIVATE Vulkan::Vulkan)
 
 # --- C++ sources ---
 add_library(EngineCPP STATIC
