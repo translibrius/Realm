@@ -21,7 +21,6 @@ const char *level_strs[] = {
     "[INFO]: ", "[DEBU]: ", "[TRAC]: ", "[WARN]: ", "[ERRO]: ", "[FATA]: "};
 
 void logger_writer(void *data) {
-    b8 should_fatal = false;
     while (state->queue.running) {
         // Sleep until there's data or shutdown
         platform_thread_sync_wait(&state->queue.has_data);
@@ -34,8 +33,10 @@ void logger_writer(void *data) {
         while (state->queue.head != state->queue.tail) {
             log_event e = state->queue.events[state->queue.head];
             if (e.level == LOG_FATAL) {
-                should_fatal = true;
-                break;
+                platform_console_write(e.text, e.level);
+                platform_console_write("\n", e.level);
+                debugBreak();
+                return;
             }
             state->queue.head = (state->queue.head + 1) % state->queue.capacity;
             platform_mutex_unlock(&state->queue.mutex);
@@ -59,10 +60,6 @@ void logger_writer(void *data) {
         platform_mutex_lock(&state->queue.mutex);
     }
     platform_mutex_unlock(&state->queue.mutex);
-
-    if (should_fatal) {
-        debugBreak();
-    }
 }
 
 u64 logger_system_size() {

@@ -41,3 +41,6 @@ void rl_arena_temp_end(rl_temp_arena temp);
 
 rl_temp_arena rl_arena_scratch_get(void);
 void arena_scratch_release(rl_temp_arena scratch);
+
+#define ARENA_SCRATCH_START() rl_temp_arena scratch = rl_arena_scratch_get()
+#define ARENA_SCRATCH_RELEASE() arena_scratch_release(scratch)

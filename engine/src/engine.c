@@ -16,7 +16,6 @@ typedef struct engine_state {
     b8 is_suspended;
     rl_arena frame_arena;
     platform_window *render_window;
-    platform_info platform_info;
     rl_camera *render_camera;
 
     rl_clock frame_clock;
@@ -41,7 +40,7 @@ b8 create_engine() {
     state.is_suspended = false;
 
     // Important to call this to fetch page size and other important info for subsystems that go before platform
-    platform_get_info(&state.platform_info);
+    platform_get_info();
 
     void *memory_system = mem_alloc(mem_system_size(), MEM_SUBSYSTEM_MEMORY);
     if (!mem_system_start(memory_system)) {

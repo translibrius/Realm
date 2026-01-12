@@ -45,6 +45,7 @@ typedef enum platform_cursor_mode {
 } platform_cursor_mode;
 
 typedef struct platform_info {
+    const char *platform_name; // Win32, Linux, MacOS, Android
     u32 build_number;
     u32 version_major;
     u32 version_minor;
@@ -76,6 +77,7 @@ b8 platform_window_should_close(u16 id);
 b8 platform_create_opengl_context(platform_window *window);
 b8 platform_context_make_current(platform_window *window);
 b8 platform_swap_buffers(platform_window *window);
+u32 platform_get_required_vulkan_extensions(const char ***names_out, b8 enable_validation); // Returns count of extensions
 
 // Cursor api
 void platform_set_cursor_mode(platform_window *window, platform_cursor_mode mode);
@@ -88,10 +90,8 @@ b8 platform_get_raw_input();
 
 // Misc
 i64 platform_get_clock_counter();
-i64 platform_get_clock_frequency();
 void platform_sleep(u32 milliseconds);
 u64 platform_get_current_thread_id();
 void platform_console_write(const char *message, LOG_LEVEL level);
-void platform_get_info(platform_info *info);
-void log_system_info(platform_info *info);
-u32 platform_get_page_size();
+platform_info *platform_get_info();
+void log_system_info();

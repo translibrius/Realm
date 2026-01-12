@@ -102,15 +102,7 @@ typedef struct platform_state {
     platform_cursor_mode cursor_mode;
     b8 raw_mouse_enabled;
 
-    // Plat info
-    DWORD logical_cores;
-    const char *arch;
-    i64 clock_freq;
-    u32 build_number;
-    u32 version_major;
-    u32 version_minor;
-    u32 page_size;
-    u32 alloc_granularity;
+    platform_info platform_info;
 } platform_state;
 
 static platform_state state;
@@ -234,10 +226,6 @@ i64 platform_get_clock_counter() {
     LARGE_INTEGER ticks;
     RL_ASSERT(QueryPerformanceCounter(&ticks));
     return ticks.QuadPart;
-}
-
-i64 platform_get_clock_frequency() {
-    return state.clock_freq;
 }
 
 // Get events from window
@@ -642,24 +630,34 @@ b8 platform_set_window_mode(platform_window *window, PLATFORM_WINDOW_MODE mode) 
     return true;
 }
 
-void platform_get_info(platform_info *info) {
-    // Means info wasn't queried yet
-    if (state.page_size == 0) {
+platform_info *platform_get_info() {
+    // If platform info hasn't been queried yet, fetch system info
+    if (state.platform_info.page_size == 0) {
         get_system_info();
     }
 
-    info->clock_freq = state.clock_freq;
-    info->version_major = state.version_major;
-    info->version_minor = state.version_minor;
-    info->build_number = state.build_number;
-    info->alloc_granularity = state.alloc_granularity;
-    info->arch = state.arch;
-    info->page_size = state.page_size;
-    info->logical_processors = state.logical_cores;
+    return &state.platform_info;
 }
 
-u32 platform_get_page_size() {
-    return state.page_size;
+u32 platform_get_required_vulkan_extensions(const char ***names_out, b8 enable_validation) {
+    if (enable_validation) {
+        static const char *windows_exts[] = {
+            "VK_KHR_surface",
+            "VK_KHR_win32_surface",
+            "VK_EXT_debug_utils"
+        };
+
+        *names_out = windows_exts;
+        return 3;
+    } else {
+        static const char *windows_exts[] = {
+            "VK_KHR_surface",
+            "VK_KHR_win32_surface"
+        };
+
+        *names_out = windows_exts;
+        return 2;
+    }
 }
 
 void *platform_mem_reserve(u64 size) {
@@ -715,18 +713,19 @@ void get_system_info() {
     RTL_OSVERSIONINFOW version = {0};
     get_windows_version(&version);
 
-    state.build_number = version.dwBuildNumber;
-    state.version_major = version.dwMajorVersion;
-    state.version_minor = version.dwMinorVersion;
-    state.arch = get_arch_name(system_info.wProcessorArchitecture);
-    state.page_size = system_info.dwPageSize;
-    state.logical_cores = system_info.dwNumberOfProcessors;
-    state.alloc_granularity = system_info.dwAllocationGranularity;
+    state.platform_info.platform_name = "Win32";
+    state.platform_info.build_number = version.dwBuildNumber;
+    state.platform_info.version_major = version.dwMajorVersion;
+    state.platform_info.version_minor = version.dwMinorVersion;
+    state.platform_info.arch = get_arch_name(system_info.wProcessorArchitecture);
+    state.platform_info.page_size = system_info.dwPageSize;
+    state.platform_info.logical_processors = system_info.dwNumberOfProcessors;
+    state.platform_info.alloc_granularity = system_info.dwAllocationGranularity;
 
     // clock freq
     LARGE_INTEGER freq;
     RL_ASSERT(QueryPerformanceFrequency(&freq));
-    state.clock_freq = freq.QuadPart;
+    state.platform_info.clock_freq = freq.QuadPart;
 }
 
 // CPU Architecture

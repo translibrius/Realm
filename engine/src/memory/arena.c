@@ -20,7 +20,7 @@ RL_INLINE b8 is_power_of_two(u64 x) {
 }
 
 rl_arena *rl_arena_create(u64 reserve_size, u64 commit_size, MEM_TYPE mem_type) {
-    u32 page_size = platform_get_page_size();
+    u32 page_size = platform_get_info()->page_size;
 
     reserve_size = ALIGN_UP_POW2(reserve_size, page_size);
     commit_size = ALIGN_UP_POW2(commit_size, page_size);
@@ -50,7 +50,7 @@ void rl_arena_destroy(rl_arena *arena) {
 }
 
 void rl_arena_init(rl_arena *arena, u64 reserve_size, u64 commit_size, MEM_TYPE mem_type) {
-    u32 page_size = platform_get_page_size();
+    u32 page_size = platform_get_info()->page_size;
 
     reserve_size = ALIGN_UP_POW2(reserve_size, page_size);
     commit_size = ALIGN_UP_POW2(commit_size, page_size);
