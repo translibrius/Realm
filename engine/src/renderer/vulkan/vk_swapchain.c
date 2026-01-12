@@ -6,6 +6,9 @@ static const char *present_mode_str(VkPresentModeKHR mode);
 void log_present_modes(const VkPresentModeKHR *modes, u32 count);
 i32 score_format(VkSurfaceFormatKHR *f);
 
+void create_image_views(VK_Context *context);
+void destroy_image_views(VK_Context *context);
+
 VkSurfaceFormat2KHR vk_swapchain_choose_format(VK_Context *context);
 VkPresentModeKHR vk_swapchain_choose_present_mode(VK_Context *context, b8 vsync);
 VkExtent2D vk_swapchain_choose_extent(VK_Context *context);
@@ -105,24 +108,63 @@ b8 vk_swapchain_create(VK_Context *context, b8 vsync) {
     // Retrieve swapchain images
     context->swapchain.image_count = 0;
     vkGetSwapchainImagesKHR(context->device, context->swapchain.handle, &context->swapchain.image_count, nullptr);
-    if (max_frames_in_flight <= context->swapchain.image_count) {
+    if (context->swapchain.image_count < max_frames_in_flight) {
         RL_ERROR("wrong swapchain setup");
         return false;
     }
     max_frames_in_flight = context->swapchain.image_count;
 
-    context->swapchain.swap_images = rl_arena_push(&context->arena, sizeof(VkImage) * max_frames_in_flight, true);
-    vkGetSwapchainImagesKHR(context->device, context->swapchain.handle, &context->swapchain.image_count, context->swapchain.swap_images);
+    context->swapchain.images = rl_arena_push(&context->arena, sizeof(VkImage) * max_frames_in_flight, true);
+    vkGetSwapchainImagesKHR(context->device, context->swapchain.handle, &context->swapchain.image_count, context->swapchain.images);
+
+    create_image_views(context);
 
     RL_INFO("Vulkan swapchain created successfully");
     return true;
 }
 
 void vk_swapchain_destroy(VK_Context *context) {
+    destroy_image_views(context);
     vkDestroySwapchainKHR(context->device, context->swapchain.handle, nullptr);
 }
 
 // Private
+
+void create_image_views(VK_Context *context) {
+    context->swapchain.image_views = rl_arena_push(&context->arena, sizeof(VkImageView) * context->swapchain.image_count, true);
+
+    VkImageViewCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .viewType = VK_IMAGE_VIEW_TYPE_2D,
+        .format = context->swapchain.chosen_format.surfaceFormat.format,
+        .components = {
+            .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .a = VK_COMPONENT_SWIZZLE_IDENTITY
+        },
+        .subresourceRange = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1
+        }
+    };
+
+    for (u32 i = 0; i < context->swapchain.image_count; i++) {
+        create_info.image = context->swapchain.images[i];
+        VK_CHECK(vkCreateImageView(context->device, &create_info, nullptr, &context->swapchain.image_views[i]));
+    }
+
+    RL_TRACE("Vulkan image views created successfully!");
+}
+
+void destroy_image_views(VK_Context *context) {
+    for (u32 i = 0; i < context->swapchain.image_count; i++) {
+        vkDestroyImageView(context->device, context->swapchain.image_views[i], nullptr);
+    }
+}
 
 VkExtent2D vk_swapchain_choose_extent(VK_Context *context) {
     VkSurfaceCapabilitiesKHR *caps = &context->swapchain.capabilities2.surfaceCapabilities;

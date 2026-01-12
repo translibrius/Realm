@@ -70,8 +70,10 @@ typedef struct VK_Swapchain {
     VkPresentModeKHR chosen_present_mode;
     VkExtent2D chosen_extent;
 
-    VkImage *swap_images;
+    // Swapchain images
     u32 image_count;
+    VkImage *images;
+    VkImageView *image_views;
 
 } VK_Swapchain;
 
