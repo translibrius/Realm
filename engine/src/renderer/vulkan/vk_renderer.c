@@ -9,12 +9,14 @@ static VK_Context context;
 b8 vulkan_initialize(platform_window *window, rl_camera *camera, b8 vsync) {
     rl_arena_init(&context.arena, MiB(25), MiB(2), MEM_SUBSYSTEM_RENDERER);
 
+    context.window = window;
+
     if (!vk_instance_create(&context)) {
         RL_ERROR("failed to create vulkan instance");
         return false;
     }
 
-    if (!platform_create_vulkan_surface(window, &context)) {
+    if (!platform_create_vulkan_surface(&context)) {
         RL_ERROR("failed to create vulkan surface");
     }
 
@@ -23,7 +25,7 @@ b8 vulkan_initialize(platform_window *window, rl_camera *camera, b8 vsync) {
         return false;
     }
 
-    if (!vk_swapchain_init(&context, vsync)) {
+    if (!vk_swapchain_create(&context, vsync)) {
         RL_ERROR("failed to initialize swapchain");
         return false;
     }

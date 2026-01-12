@@ -80,7 +80,7 @@ b8 platform_create_opengl_context(platform_window *window);
 b8 platform_context_make_current(platform_window *window);
 b8 platform_swap_buffers(platform_window *window);
 u32 platform_get_required_vulkan_extensions(const char ***names_out, b8 enable_validation); // Returns count of extensions
-b8 platform_create_vulkan_surface(platform_window *window, struct VK_Context *context);
+b8 platform_create_vulkan_surface(struct VK_Context *context);
 
 // Cursor api
 void platform_set_cursor_mode(platform_window *window, platform_cursor_mode mode);

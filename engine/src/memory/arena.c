@@ -98,7 +98,7 @@ void *rl_arena_push(rl_arena *arena, u64 size, b8 zero) {
         u64 new_commit_pos = new_pos;
         new_commit_pos += arena->commit_size - 1;
         new_commit_pos -= new_commit_pos % arena->commit_size;
-        new_commit_pos = MIN(new_commit_pos, arena->reserve_size);
+        new_commit_pos = RL_MIN(new_commit_pos, arena->reserve_size);
 
         u8 *mem = (u8 *)arena + arena->commit_pos;
         u64 commit_size = new_commit_pos - arena->commit_pos;
@@ -127,7 +127,7 @@ void *rl_arena_push(rl_arena *arena, u64 size, b8 zero) {
 }
 
 void rl_arena_pop(rl_arena *arena, u64 size) {
-    size = MIN(size, arena->pos - ARENA_BASE_POS);
+    size = RL_MIN(size, arena->pos - ARENA_BASE_POS);
     arena->pos -= size;
 }
 

@@ -7,6 +7,7 @@
 #include "cglm.h"
 #include "memory/containers/dynamic_array.h"
 #include "core/logger.h"
+#include "platform/platform.h"
 
 #ifndef _DEBUG
 #define VK_CHECK(vkFnc) vkFnc
@@ -53,6 +54,8 @@ typedef struct VK_QueueFamilyIndices {
 } VK_QueueFamilyIndices;
 
 typedef struct VK_Swapchain {
+    VkSwapchainKHR handle;
+
     VkSurfaceCapabilities2KHR capabilities2;
 
     // Formats
@@ -62,10 +65,19 @@ typedef struct VK_Swapchain {
     // Present modes
     u32 present_mode_count;
     VkPresentModeKHR *present_modes;
+
+    VkSurfaceFormat2KHR chosen_format;
+    VkPresentModeKHR chosen_present_mode;
+    VkExtent2D chosen_extent;
+
+    VkImage *swap_images;
+    u32 image_count;
+
 } VK_Swapchain;
 
 typedef struct VK_Context {
     rl_arena arena;
+    platform_window *window;
 
     u32 api_version;
     VkInstance instance;

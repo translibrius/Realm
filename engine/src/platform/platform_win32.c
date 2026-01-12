@@ -664,12 +664,12 @@ u32 platform_get_required_vulkan_extensions(const char ***names_out, b8 enable_v
     }
 }
 
-b8 platform_create_vulkan_surface(platform_window *window, VK_Context *context) {
+b8 platform_create_vulkan_surface(VK_Context *context) {
     VkWin32SurfaceCreateInfoKHR create_info = {
         .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
         .pNext = nullptr,
         .hinstance = state.handle,
-        .hwnd = window->handle,
+        .hwnd = context->window->handle,
     };
 
     VkResult result = vkCreateWin32SurfaceKHR(context->instance, &create_info, nullptr, &context->surface);

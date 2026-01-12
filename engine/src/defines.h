@@ -112,5 +112,7 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #define MiB(bytes) (u64) (bytes * 1024 * 1024)
 #define KiB(bytes) (u64) (bytes * 1024)
 
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#define RL_MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define RL_MAX(a, b) (((a) > (b)) ? (a) : (b))
+
+#define RL_CLAMP(x, lo, hi) ( RL_MAX((lo), RL_MIN((x), (hi))) )
