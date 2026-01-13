@@ -57,7 +57,7 @@ void game_render(game *game_inst, f64 dt) {
     //rl_string fps_str = rl_string_format(&game_inst->frame_arena, "FPS: %u", stats.fps);
     //renderer_render_text(fps_str.cstr, 40, game_inst->width / 2 - 100, game_inst->height - 40, (vec4){1.0f, 1.0f, 1.0f, 1.0f});
 
-    //RL_INFO("FPS: %u", stats.fps);
+    RL_INFO("FPS: %u", stats.fps);
 
     // Reset frame arena
     rl_arena_clear(&game_inst->frame_arena);

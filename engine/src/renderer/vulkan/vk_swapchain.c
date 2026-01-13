@@ -1,5 +1,7 @@
 #include "renderer/vulkan/vk_swapchain.h"
 
+#include "vk_frame_buffers.h"
+
 void log_capabilities(VkSurfaceCapabilitiesKHR *caps);
 void log_surface_formats(const VkSurfaceFormat2KHR *formats, u32 count);
 static const char *present_mode_str(VkPresentModeKHR mode);
@@ -9,8 +11,8 @@ i32 score_format(VkSurfaceFormatKHR *f);
 void create_image_views(VK_Context *context);
 void destroy_image_views(VK_Context *context);
 
-VkSurfaceFormat2KHR vk_swapchain_choose_format(VK_Context *context);
-VkPresentModeKHR vk_swapchain_choose_present_mode(VK_Context *context, b8 vsync);
+VkSurfaceFormat2KHR vk_swapchain_choose_format(VK_Context *context, b8 from_recreate);
+VkPresentModeKHR vk_swapchain_choose_present_mode(VK_Context *context, b8 from_recreate);
 VkExtent2D vk_swapchain_choose_extent(VK_Context *context);
 
 void vk_swapchain_fetch_support(VK_Context *context, VkPhysicalDevice physical_device) {
@@ -44,14 +46,21 @@ void vk_swapchain_fetch_support(VK_Context *context, VkPhysicalDevice physical_d
     vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, context->surface, &context->swapchain.present_mode_count, context->swapchain.present_modes);
 }
 
-b8 vk_swapchain_create(VK_Context *context, b8 vsync) {
+b8 vk_swapchain_create(VK_Context *context, b8 vsync, b8 from_recreate) {
+    //log_capabilities(&context->swapchain.capabilities2.surfaceCapabilities);
+    //log_surface_formats(context->swapchain.formats, context->swapchain.format_count);
+    //log_present_modes(context->swapchain.present_modes, context->swapchain.present_mode_count);
+    vk_swapchain_fetch_support(context, context->physical_device);
 
-    log_capabilities(&context->swapchain.capabilities2.surfaceCapabilities);
-    log_surface_formats(context->swapchain.formats, context->swapchain.format_count);
-    log_present_modes(context->swapchain.present_modes, context->swapchain.present_mode_count);
+    if (!from_recreate) {
+        log_capabilities(&context->swapchain.capabilities2.surfaceCapabilities);
+        log_surface_formats(context->swapchain.formats, context->swapchain.format_count);
+        log_present_modes(context->swapchain.present_modes, context->swapchain.present_mode_count);
+    }
 
-    context->swapchain.chosen_format = vk_swapchain_choose_format(context);
-    context->swapchain.chosen_present_mode = vk_swapchain_choose_present_mode(context, vsync);
+    context->swapchain.vsync = vsync;
+    context->swapchain.chosen_format = vk_swapchain_choose_format(context, from_recreate);
+    context->swapchain.chosen_present_mode = vk_swapchain_choose_present_mode(context, from_recreate);
     context->swapchain.chosen_extent = vk_swapchain_choose_extent(context);
 
     u32 min_image_count = context->swapchain.capabilities2.surfaceCapabilities.minImageCount;
@@ -65,13 +74,13 @@ b8 vk_swapchain_create(VK_Context *context, b8 vsync) {
         max_image_count = context->swapchain.capabilities2.surfaceCapabilities.maxImageCount;
     }
 
-    u32 max_frames_in_flight = RL_CLAMP(preferred_image_count, min_image_count, max_image_count);
+    context->max_frames_in_flight = RL_CLAMP(preferred_image_count, min_image_count, max_image_count);
 
     VkSwapchainCreateInfoKHR create_info = {
         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
         .pNext = nullptr,
         .surface = context->surface,
-        .minImageCount = max_frames_in_flight,
+        .minImageCount = context->max_frames_in_flight,
         .imageFormat = context->swapchain.chosen_format.surfaceFormat.format,
         .imageColorSpace = context->swapchain.chosen_format.surfaceFormat.colorSpace,
         .imageExtent = context->swapchain.chosen_extent,
@@ -108,24 +117,46 @@ b8 vk_swapchain_create(VK_Context *context, b8 vsync) {
     // Retrieve swapchain images
     context->swapchain.image_count = 0;
     vkGetSwapchainImagesKHR(context->device, context->swapchain.handle, &context->swapchain.image_count, nullptr);
-    if (context->swapchain.image_count < max_frames_in_flight) {
+    if (context->swapchain.image_count < context->max_frames_in_flight) {
         RL_ERROR("wrong swapchain setup");
         return false;
     }
-    max_frames_in_flight = context->swapchain.image_count;
+    context->max_frames_in_flight = context->swapchain.image_count;
 
-    context->swapchain.images = rl_arena_push(&context->arena, sizeof(VkImage) * max_frames_in_flight, true);
+    context->swapchain.images = rl_arena_push(&context->arena, sizeof(VkImage) * context->max_frames_in_flight, true);
     vkGetSwapchainImagesKHR(context->device, context->swapchain.handle, &context->swapchain.image_count, context->swapchain.images);
 
     create_image_views(context);
 
-    RL_INFO("Vulkan swapchain created successfully");
+    if (!from_recreate) {
+        RL_INFO("Vulkan swapchain created successfully");
+    }
     return true;
 }
 
 void vk_swapchain_destroy(VK_Context *context) {
     destroy_image_views(context);
     vkDestroySwapchainKHR(context->device, context->swapchain.handle, nullptr);
+}
+
+b8 vk_swapchain_recreate(VK_Context *context) {
+    vkDeviceWaitIdle(context->device);
+    RL_TRACE("Recreating swapchain...");
+
+    vk_framebuffers_destroy(context);
+    vk_swapchain_destroy(context);
+
+    if (!vk_swapchain_create(context, context->swapchain.vsync, true)) {
+        RL_ERROR("Failed to recreate swapchain");
+        return false;
+    }
+
+    if (!vk_framebuffers_create(context)) {
+        RL_ERROR("Failed to recreate swapchain: framebuffers could not be created");
+        return false;
+    }
+
+    return true;
 }
 
 // Private
@@ -200,7 +231,7 @@ VkExtent2D vk_swapchain_choose_extent(VK_Context *context) {
 }
 
 
-VkSurfaceFormat2KHR vk_swapchain_choose_format(VK_Context *context) {
+VkSurfaceFormat2KHR vk_swapchain_choose_format(VK_Context *context, b8 from_recreate) {
     u32 format_count = context->swapchain.format_count;
     VkSurfaceFormat2KHR *formats = context->swapchain.formats;
 
@@ -209,7 +240,9 @@ VkSurfaceFormat2KHR vk_swapchain_choose_format(VK_Context *context) {
 
     for (u32 i = 0; i < format_count; ++i) {
         i32 score = score_format(&formats[i].surfaceFormat);
-        RL_TRACE("Swapchain format: %s Score=%d", string_VkFormat(formats[i].surfaceFormat.format), score);
+        if (!from_recreate) {
+            RL_TRACE("Swapchain format: %s Score=%d", string_VkFormat(formats[i].surfaceFormat.format), score);
+        }
         if (score > best_score) {
             best = formats[i];
             best_score = score;
@@ -219,13 +252,15 @@ VkSurfaceFormat2KHR vk_swapchain_choose_format(VK_Context *context) {
     return best;
 }
 
-VkPresentModeKHR vk_swapchain_choose_present_mode(VK_Context *context, b8 vsync) {
+VkPresentModeKHR vk_swapchain_choose_present_mode(VK_Context *context, b8 from_recreate) {
     u32 count = context->swapchain.present_mode_count;
     VkPresentModeKHR *modes = context->swapchain.present_modes;
 
     // If vsync requested, always use FIFO (guaranteed by spec).
-    if (vsync) {
-        RL_TRACE("Present mode chosen: FIFO (vsync ON)");
+    if (context->swapchain.vsync) {
+        if (!from_recreate) {
+            RL_TRACE("Present mode chosen: FIFO (vsync ON)");
+        }
         return VK_PRESENT_MODE_FIFO_KHR;
     }
 
@@ -247,21 +282,29 @@ VkPresentModeKHR vk_swapchain_choose_present_mode(VK_Context *context, b8 vsync)
 
     // Best choices based on intent (vsync off).
     if (has_mailbox) {
-        RL_TRACE("Present mode chosen: MAILBOX (vsync OFF)");
+        if (!from_recreate) {
+            RL_TRACE("Present mode chosen: MAILBOX (vsync OFF)");
+        }
         return VK_PRESENT_MODE_MAILBOX_KHR;
     }
 
     if (has_immediate) {
-        RL_TRACE("Present mode chosen: IMMEDIATE (vsync OFF)");
+        if (!from_recreate) {
+            RL_TRACE("Present mode chosen: IMMEDIATE (vsync OFF)");
+        }
         return VK_PRESENT_MODE_IMMEDIATE_KHR;
     }
 
     if (has_fifo_relaxed) {
-        RL_TRACE("Present mode chosen: FIFO_RELAXED (vsync OFF fallback)");
+        if (!from_recreate) {
+            RL_TRACE("Present mode chosen: FIFO_RELAXED (vsync OFF fallback)");
+        }
         return VK_PRESENT_MODE_FIFO_RELAXED_KHR;
     }
 
-    RL_TRACE("Present mode chosen: FIFO (vsync OFF fallback)");
+    if (!from_recreate) {
+        RL_TRACE("Present mode chosen: FIFO (vsync OFF fallback)");
+    }
     return VK_PRESENT_MODE_FIFO_KHR;
 }
 

@@ -44,6 +44,8 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
     return VK_FALSE;
 }
 
+#define MAX_FRAMES_IN_FLIGHT 2
+
 typedef struct VK_QueueFamilyIndices {
     u32 graphics_index;
     u32 compute_index;
@@ -58,6 +60,7 @@ typedef struct VK_QueueFamilyIndices {
 
 typedef struct VK_Swapchain {
     VkSwapchainKHR handle;
+    b8 vsync;
 
     VkSurfaceCapabilities2KHR capabilities2;
 
@@ -69,6 +72,7 @@ typedef struct VK_Swapchain {
     u32 present_mode_count;
     VkPresentModeKHR *present_modes;
 
+    // Misc settings
     VkSurfaceFormat2KHR chosen_format;
     VkPresentModeKHR chosen_present_mode;
     VkExtent2D chosen_extent;
@@ -77,6 +81,10 @@ typedef struct VK_Swapchain {
     u32 image_count;
     VkImage *images;
     VkImageView *image_views;
+
+    // Frames
+    u32 frame_buffers_count;
+    VkFramebuffer *frame_buffers;
 
 } VK_Swapchain;
 
@@ -94,8 +102,11 @@ typedef struct {
 } VK_Shader_Compiler;
 
 typedef struct VK_Pipeline {
+    VkPipeline handle;
     u32 shader_stage_count;
     VkPipelineShaderStageCreateInfo *shader_stages;
+    VkPipelineLayout layout;
+    VkRenderPass render_pass;
 } VK_Pipeline;
 
 typedef struct VK_Context {
@@ -120,7 +131,17 @@ typedef struct VK_Context {
     VK_QueueFamilyIndices queue_families;
 
     VK_Swapchain swapchain;
-    VK_Pipeline pipeline;
+    VK_Pipeline graphics_pipeline;
+    VkCommandPool graphics_pool;
+
+    // Per frame
+    u32 current_frame;
+    u32 max_frames_in_flight;
+    VkCommandBuffer *command_buffers;
+    VkSemaphore *image_available_semaphores;
+    VkSemaphore *render_finished_semaphores;
+    VkFence *in_flight_fences;
+
 } VK_Context;
 
 // HELPERS -----------------
