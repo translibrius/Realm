@@ -10,6 +10,8 @@
 #include "vk_instance.h"
 #include "vk_sync.h"
 
+#include "profiler/profiler.h"
+
 static VK_Context context;
 
 b8 vulkan_initialize(platform_window *window, rl_camera *camera, b8 vsync) {
@@ -92,11 +94,15 @@ void vulkan_destroy() {
 }
 
 void vulkan_begin_frame(f64 delta_time) {
+    TracyCZoneN(fence, "vkWaitForFences", true);
     // Wait for previous frame to finish
     vkWaitForFences(context.device, 1, &context.in_flight_fences[context.current_frame], VK_TRUE, UINT64_MAX);
 
+    TracyCZoneEnd(fence);
+
     // Get image from swapchain and pass image_available semaphore
     u32 image_index;
+    TracyCZoneN(aquire, "vkAcquireNextImageKHR", true);
     VkResult result = vkAcquireNextImageKHR(context.device, context.swapchain.handle, UINT64_MAX, context.image_available_semaphores[context.current_frame], VK_NULL_HANDLE, &image_index);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
@@ -107,14 +113,18 @@ void vulkan_begin_frame(f64 delta_time) {
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         RL_FATAL("failed to acquire swap chain image");
     }
+    TracyCZoneEnd(aquire);
 
+    TracyCZoneN(record, "Reset + Record Command Buffer", true);
     // Only reset the fence if we are submitting work
     vkResetFences(context.device, 1, &context.in_flight_fences[context.current_frame]);
 
     // Reset, record and submit command buffer
     vkResetCommandBuffer(context.command_buffers[context.current_frame], 0);
     vk_command_buffer_record(&context, context.command_buffers[context.current_frame], image_index);
+    TracyCZoneEnd(record);
 
+    TracyCZoneN(submit, "vkQueueSubmit", true);
     VkSemaphore wait_semaphores[] = {context.image_available_semaphores[context.current_frame]};
     VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     VkSemaphore signal_semaphores[] = {context.render_finished_semaphores[context.current_frame]};
@@ -132,6 +142,9 @@ void vulkan_begin_frame(f64 delta_time) {
 
     VK_CHECK(vkQueueSubmit(context.graphics_queue, 1, &submit_info, context.in_flight_fences[context.current_frame]));
 
+    TracyCZoneEnd(submit);
+
+    TracyCZoneN(present, "vkQueuePresentKHR", true);
     // Present the result back to the swapchain to have it eventually show up on screen
     VkPresentInfoKHR present_info = {
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
@@ -153,6 +166,8 @@ void vulkan_begin_frame(f64 delta_time) {
     } else if (result != VK_SUCCESS) {
         RL_FATAL("failed to present swap chain image");
     }
+
+    TracyCZoneEnd(present);
 
     // advance frame
     context.current_frame = (context.current_frame + 1) % context.max_frames_in_flight;
