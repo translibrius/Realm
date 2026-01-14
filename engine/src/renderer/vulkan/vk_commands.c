@@ -1,6 +1,6 @@
 #include "vk_commands.h"
 
-b8 vk_command_pool_create(VK_Context *context, VkCommandPool *out_pool) {
+b8 vk_command_pool_create(VK_Context *context, VkCommandPool *out_pool, u32 family_index) {
 
     /*
     There are two possible flags for command pools:
@@ -11,7 +11,7 @@ b8 vk_command_pool_create(VK_Context *context, VkCommandPool *out_pool) {
     VkCommandPoolCreateInfo pool_create_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = context->queue_families.graphics_index
+        .queueFamilyIndex = family_index
     };
 
     VkResult result = vkCreateCommandPool(context->device, &pool_create_info, nullptr, out_pool);
@@ -82,26 +82,34 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
     };
 
     vkCmdBeginRenderPass(buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-    vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->graphics_pipeline.handle);
+    {
+        vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->graphics_pipeline.handle);
 
-    VkViewport viewport = {
-        .x = 0.0f,
-        .y = 0.0f,
-        .width = context->swapchain.chosen_extent.width,
-        .height = context->swapchain.chosen_extent.height,
-        .minDepth = 0.0f,
-        .maxDepth = 1.0f
-    };
-    vkCmdSetViewport(buffer, 0, 1, &viewport);
+        // Dynamic viewport
+        VkViewport viewport = {
+            .x = 0.0f,
+            .y = 0.0f,
+            .width = (f32)context->swapchain.chosen_extent.width,
+            .height = (f32)context->swapchain.chosen_extent.height,
+            .minDepth = 0.0f,
+            .maxDepth = 1.0f
+        };
+        vkCmdSetViewport(buffer, 0, 1, &viewport);
 
-    VkRect2D scissor = {
-        .offset = {0, 0},
-        .extent = context->swapchain.chosen_extent
-    };
-    vkCmdSetScissor(buffer, 0, 1, &scissor);
+        // Dynamic scissor
+        VkRect2D scissor = {
+            .offset = {0, 0},
+            .extent = context->swapchain.chosen_extent
+        };
+        vkCmdSetScissor(buffer, 0, 1, &scissor);
 
-    vkCmdDraw(buffer, 3, 1, 0, 0);
+        // Bind vertex buffer
+        VkBuffer vertex_buffers[] = {context->vertex_buffer};
+        VkDeviceSize offsets[] = {0};
+        vkCmdBindVertexBuffers(buffer, 0, 1, vertex_buffers, offsets);
 
+        vkCmdDraw(buffer, 3, 1, 0, 0);
+    }
     vkCmdEndRenderPass(buffer);
 
     result = vkEndCommandBuffer(buffer);

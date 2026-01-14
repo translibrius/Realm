@@ -9,6 +9,7 @@
 #include "vk_commands.h"
 #include "vk_instance.h"
 #include "vk_sync.h"
+#include "vk_vertex.h"
 
 #include "profiler/profiler.h"
 
@@ -18,6 +19,10 @@ b8 vulkan_initialize(platform_window *window, rl_camera *camera, b8 vsync) {
     rl_arena_init(&context.arena, MiB(25), MiB(2), MEM_SUBSYSTEM_RENDERER);
 
     context.window = window;
+
+    da_append(&context.vertices, ((vertex) {{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}}));
+    da_append(&context.vertices, ((vertex) {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}}));
+    da_append(&context.vertices, ((vertex) {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}));
 
     if (!vk_instance_create(&context)) {
         RL_ERROR("failed to create vulkan instance");
@@ -58,8 +63,25 @@ b8 vulkan_initialize(platform_window *window, rl_camera *camera, b8 vsync) {
         return false;
     }
 
-    if (!vk_command_pool_create(&context, &context.graphics_pool)) {
+    if (!vk_command_pool_create(&context, &context.graphics_pool, context.queue_families.graphics_index)) {
         RL_ERROR("failed to create command pool");
+        return false;
+    }
+
+    if (context.queue_families.has_transfer) {
+        if (!vk_command_pool_create(&context, &context.transfer_pool, context.queue_families.transfer_index)) {
+            RL_ERROR("failed to create transfer pool");
+            return false;
+        }
+    }
+
+    if (!vk_sync_create_transfer(&context)) {
+        RL_ERROR("failed to create transfer sync objects");
+        return false;
+    }
+
+    if (!vk_vertex_create_buffer(&context, &context.vertices)) {
+        RL_ERROR("failed to create vertex buffer");
         return false;
     }
 
@@ -68,7 +90,7 @@ b8 vulkan_initialize(platform_window *window, rl_camera *camera, b8 vsync) {
         return false;
     }
 
-    if (!vk_sync_objects_create(&context)) {
+    if (!vk_sync_create_frame(&context)) {
         RL_ERROR("failed to create sync objects");
         return false;
     }
@@ -80,7 +102,12 @@ void vulkan_destroy() {
     // Wait for logical device to finish operations
     vkDeviceWaitIdle(context.device);
 
-    vk_sync_objects_destroy(&context);
+    vk_sync_destroy_frame(&context);
+    vk_vertex_destroy_buffer(&context);
+    vk_sync_destroy_transfer(&context);
+    if (context.queue_families.has_transfer) {
+        vk_command_pool_destroy(&context, context.transfer_pool);
+    }
     vk_command_pool_destroy(&context, context.graphics_pool);
     vk_framebuffers_destroy(&context);
     vk_pipeline_destroy(&context);

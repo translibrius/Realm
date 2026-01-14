@@ -56,6 +56,8 @@ typedef struct VK_QueueFamilyIndices {
     b8 has_compute;
     b8 has_transfer;
     b8 has_present;
+
+    b8 transfer_is_separate;
 } VK_QueueFamilyIndices;
 
 typedef struct VK_Swapchain {
@@ -133,6 +135,8 @@ typedef struct VK_Context {
     VK_Swapchain swapchain;
     VK_Pipeline graphics_pipeline;
     VkCommandPool graphics_pool;
+    VkCommandPool transfer_pool;
+    VkFence transfer_fence; // Waiting for staging buffer to transfer vertex data
 
     // Per frame
     u32 current_frame;
@@ -142,6 +146,9 @@ typedef struct VK_Context {
     VkSemaphore *render_finished_semaphores;
     VkFence *in_flight_fences;
 
+    Vertices vertices;
+    VkBuffer vertex_buffer;
+    VkDeviceMemory vertex_buffer_memory;
 } VK_Context;
 
 // HELPERS -----------------

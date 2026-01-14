@@ -3,7 +3,7 @@
 #include "defines.h"
 #include "vk_types.h"
 
-b8 vk_command_pool_create(VK_Context *context, VkCommandPool *out_pool);
+b8 vk_command_pool_create(VK_Context *context, VkCommandPool *out_pool, u32 family_index);
 void vk_command_pool_destroy(VK_Context *context, VkCommandPool pool);
 
 b8 vk_command_buffers_create(VK_Context *context, VkCommandPool pool);

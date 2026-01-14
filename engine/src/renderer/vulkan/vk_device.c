@@ -129,6 +129,8 @@ static VK_QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device,
         q.has_transfer = true;
     }
 
+    q.transfer_is_separate = q.has_transfer && q.transfer_index != q.graphics_index && q.transfer_index != q.compute_index;
+
     ARENA_SCRATCH_RELEASE();
     return q;
 }

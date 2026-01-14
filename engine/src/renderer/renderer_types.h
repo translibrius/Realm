@@ -4,10 +4,18 @@
 #include "platform/platform.h"
 #include "asset/font.h"
 #include "core/camera.h"
+#include "memory/containers/dynamic_array.h"
 
 #include "cglm.h"
 
 #define MAX_TEXT_GLYPHS 256
+
+typedef struct vertex {
+    vec2 pos;
+    vec3 color;
+} vertex;
+
+DA_DEFINE(Vertices, vertex);
 
 typedef enum RENDERER_BACKEND {
     BACKEND_OPENGL,

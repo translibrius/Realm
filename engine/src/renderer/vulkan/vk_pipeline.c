@@ -1,6 +1,7 @@
 #include "vk_pipeline.h"
 
 #include "vk_shader.h"
+#include "vk_vertex.h"
 
 b8 create_shader_stages(VK_Context *context);
 
@@ -26,13 +27,18 @@ b8 vk_pipeline_create(VK_Context *context) {
         .pDynamicStates = dynamic_states,
     };
 
+    constexpr u32 attribute_desc_count = 2;
+    VkVertexInputBindingDescription binding_description = vk_vertex_get_binding_desc();
+    VkVertexInputAttributeDescription *attribute_descriptions = rl_arena_push(&context->arena, sizeof(VkVertexInputAttributeDescription) * attribute_desc_count, true);
+    vk_vertex_get_attr_desc(attribute_descriptions);
+
     // Vertex input
     VkPipelineVertexInputStateCreateInfo vertex_input_create_info = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        .vertexBindingDescriptionCount = 0,
-        .pVertexBindingDescriptions = nullptr,
-        .vertexAttributeDescriptionCount = 0,
-        .pVertexAttributeDescriptions = nullptr
+        .vertexBindingDescriptionCount = 1,
+        .pVertexBindingDescriptions = &binding_description,
+        .vertexAttributeDescriptionCount = attribute_desc_count,
+        .pVertexAttributeDescriptions = attribute_descriptions
     };
 
     // Input assembly

@@ -249,6 +249,7 @@ VkSurfaceFormat2KHR vk_swapchain_choose_format(VK_Context *context, b8 from_recr
         }
     }
 
+    RL_TRACE("Chosen format: %s", string_VkFormat(best.surfaceFormat.format));
     return best;
 }
 
