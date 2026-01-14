@@ -27,6 +27,21 @@
 }
 #endif
 
+#ifndef _DEBUG
+#define VK_CHECK(vkFnc) vkFnc
+#else
+#define VK_CHECK_RETURN_FALSE(vkFnc, msg)                               \
+{                                                                       \
+    const VkResult checkResult = (vkFnc);                               \
+    if(checkResult != VK_SUCCESS)                                       \
+    {                                                                   \
+        const char* errMsg = string_VkResult(checkResult);              \
+        RL_ERROR("%s VkResult=%s", errMsg);                             \
+        return false;                                                   \
+    }                                                                   \
+}
+#endif
+
 /*-- Callback function to catch validation errors  -*/
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
                                                     VkDebugUtilsMessageTypeFlagsEXT,
@@ -147,8 +162,11 @@ typedef struct VK_Context {
     VkFence *in_flight_fences;
 
     Vertices vertices;
+    Indices indices;
     VkBuffer vertex_buffer;
+    VkBuffer index_buffer;
     VkDeviceMemory vertex_buffer_memory;
+    VkDeviceMemory index_buffer_memory;
 } VK_Context;
 
 // HELPERS -----------------

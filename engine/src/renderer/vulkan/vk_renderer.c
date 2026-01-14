@@ -7,6 +7,7 @@
 #include "vk_pipeline.h"
 #include "vk_renderpass.h"
 #include "vk_commands.h"
+#include "vk_index.h"
 #include "vk_instance.h"
 #include "vk_sync.h"
 #include "vk_vertex.h"
@@ -20,9 +21,18 @@ b8 vulkan_initialize(platform_window *window, rl_camera *camera, b8 vsync) {
 
     context.window = window;
 
-    da_append(&context.vertices, ((vertex) {{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}}));
-    da_append(&context.vertices, ((vertex) {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}}));
-    da_append(&context.vertices, ((vertex) {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}));
+    // Rectangle
+    da_append(&context.vertices, ((vertex) {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}}));
+    da_append(&context.vertices, ((vertex) {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}}));
+    da_append(&context.vertices, ((vertex) {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}));
+    da_append(&context.vertices, ((vertex) {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}));
+
+    da_append(&context.indices, 0);
+    da_append(&context.indices, 1);
+    da_append(&context.indices, 2);
+    da_append(&context.indices, 2);
+    da_append(&context.indices, 3);
+    da_append(&context.indices, 0);
 
     if (!vk_instance_create(&context)) {
         RL_ERROR("failed to create vulkan instance");
@@ -85,6 +95,11 @@ b8 vulkan_initialize(platform_window *window, rl_camera *camera, b8 vsync) {
         return false;
     }
 
+    if (!vk_index_create_buffer(&context, &context.indices)) {
+        RL_ERROR("failed to create index buffer");
+        return false;
+    }
+
     if (!vk_command_buffers_create(&context, context.graphics_pool)) {
         RL_ERROR("failed to create command buffer");
         return false;
@@ -103,6 +118,7 @@ void vulkan_destroy() {
     vkDeviceWaitIdle(context.device);
 
     vk_sync_destroy_frame(&context);
+    vk_index_destroy_buffer(&context);
     vk_vertex_destroy_buffer(&context);
     vk_sync_destroy_transfer(&context);
     if (context.queue_families.has_transfer) {

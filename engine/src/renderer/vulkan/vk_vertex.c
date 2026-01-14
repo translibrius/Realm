@@ -12,29 +12,43 @@ b8 vk_vertex_create_buffer(VK_Context *context, Vertices *vertices) {
 
     VkBuffer staging_buffer;
     VkDeviceMemory staging_memory;
-    vk_buffer_create(
+    if (!vk_buffer_create(
         context,
         buffer_size,
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        &staging_buffer, &staging_memory);
+        &staging_buffer, &staging_memory)) {
+        RL_ERROR("Failed to create staging buffer");
+        return false;
+    }
 
     void *data;
-    VK_CHECK(vkMapMemory(context->device, staging_memory, 0, buffer_size, 0, &data));
+    VkResult result = vkMapMemory(context->device, staging_memory, 0, buffer_size, 0, &data);
+    if (result != VK_SUCCESS) {
+        RL_ERROR("Failed to map staging buffer memory. VkResult=%s", string_VkResult(result));
+        return false;
+    }
+
     mem_copy(vertices->items, data, (u8)buffer_size);
     vkUnmapMemory(context->device, staging_memory);
 
-    vk_buffer_create(
+    if (!vk_buffer_create(
         context,
         buffer_size,
         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         &context->vertex_buffer,
-        &context->vertex_buffer_memory);
+        &context->vertex_buffer_memory)) {
+        RL_ERROR("Failed to create vertex buffer");
+        return false;
+    }
 
     // Copy the data from staging buffer to vertex buffer
     VkCommandPool pool = context->queue_families.transfer_is_separate ? context->transfer_pool : context->graphics_pool;
-    vk_buffer_copy(context, pool, staging_buffer, context->vertex_buffer, buffer_size);
+    if (!vk_buffer_copy(context, pool, staging_buffer, context->vertex_buffer, buffer_size)) {
+        RL_ERROR("Failed to copy staging buffer to vertex buffer");
+        return false;
+    }
 
     // Clean up staging buffer+mem on GPU
     vk_buffer_destroy(context, staging_buffer, staging_memory);

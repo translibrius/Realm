@@ -108,7 +108,10 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
         VkDeviceSize offsets[] = {0};
         vkCmdBindVertexBuffers(buffer, 0, 1, vertex_buffers, offsets);
 
-        vkCmdDraw(buffer, 3, 1, 0, 0);
+        // Bind index buffer
+        vkCmdBindIndexBuffer(buffer, context->index_buffer, 0, VK_INDEX_TYPE_UINT16);
+
+        vkCmdDrawIndexed(buffer, context->indices.count, 1, 0, 0, 0);
     }
     vkCmdEndRenderPass(buffer);
 

@@ -54,7 +54,7 @@ void vk_buffer_destroy(VK_Context *context, VkBuffer buffer, VkDeviceMemory memo
     vkFreeMemory(context->device, memory, nullptr);
 }
 
-void vk_buffer_copy(VK_Context *context, VkCommandPool cmd_pool, VkBuffer src, VkBuffer dst, VkDeviceSize size) {
+b8 vk_buffer_copy(VK_Context *context, VkCommandPool cmd_pool, VkBuffer src, VkBuffer dst, VkDeviceSize size) {
     // Allocate command buffer to record the copy command
     VkCommandBufferAllocateInfo allocate_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -64,7 +64,11 @@ void vk_buffer_copy(VK_Context *context, VkCommandPool cmd_pool, VkBuffer src, V
     };
 
     VkCommandBuffer command_buffer;
-    vkAllocateCommandBuffers(context->device, &allocate_info, &command_buffer);
+    VkResult result = vkAllocateCommandBuffers(context->device, &allocate_info, &command_buffer);
+    if (result != VK_SUCCESS) {
+        RL_ERROR("Failed to alloc command buffer. VkResult=%s", string_VkResult(result));
+        return false;
+    }
 
     VkCommandBufferBeginInfo begin_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -72,7 +76,7 @@ void vk_buffer_copy(VK_Context *context, VkCommandPool cmd_pool, VkBuffer src, V
     };
 
     // Record copy command
-    vkBeginCommandBuffer(command_buffer, &begin_info);
+    VK_CHECK_RETURN_FALSE(vkBeginCommandBuffer(command_buffer, &begin_info), "Failed to begin command buffer");
     {
         VkBufferCopy copy_region = {
             .srcOffset = 0,
@@ -81,7 +85,7 @@ void vk_buffer_copy(VK_Context *context, VkCommandPool cmd_pool, VkBuffer src, V
         };
         vkCmdCopyBuffer(command_buffer, src, dst, 1, &copy_region);
     }
-    vkEndCommandBuffer(command_buffer);
+    VK_CHECK_RETURN_FALSE(vkEndCommandBuffer(command_buffer), "Failed to end command buffer");
 
     // Submit command buffer to transfer queue
     VkSubmitInfo submit_info = {
@@ -90,11 +94,11 @@ void vk_buffer_copy(VK_Context *context, VkCommandPool cmd_pool, VkBuffer src, V
         .pCommandBuffers = &command_buffer,
     };
 
-    vkResetFences(context->device, 1, &context->transfer_fence);
+    VK_CHECK_RETURN_FALSE(vkResetFences(context->device, 1, &context->transfer_fence), "Failed to reset fence");
     VkQueue q = context->queue_families.transfer_is_separate
                     ? context->transfer_queue
                     : context->graphics_queue;
-    vkQueueSubmit(q, 1, &submit_info, context->transfer_fence);
+    VK_CHECK_RETURN_FALSE(vkQueueSubmit(q, 1, &submit_info, context->transfer_fence), "Failed to submit queue");
     vkWaitForFences(context->device, 1, &context->transfer_fence, VK_TRUE, UINT64_MAX);
 
     // Wait for the copy operation to finish
@@ -102,4 +106,6 @@ void vk_buffer_copy(VK_Context *context, VkCommandPool cmd_pool, VkBuffer src, V
 
     // Clean
     vkFreeCommandBuffers(context->device, cmd_pool, 1, &command_buffer);
+
+    return true;
 }

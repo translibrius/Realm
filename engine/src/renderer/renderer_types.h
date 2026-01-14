@@ -16,6 +16,7 @@ typedef struct vertex {
 } vertex;
 
 DA_DEFINE(Vertices, vertex);
+DA_DEFINE(Indices, u16);
 
 typedef enum RENDERER_BACKEND {
     BACKEND_OPENGL,

@@ -10,4 +10,4 @@ b8 vk_buffer_create(VK_Context *context, VkDeviceSize size, VkBufferUsageFlags u
 void vk_buffer_destroy(VK_Context *context, VkBuffer buffer, VkDeviceMemory memory);
 
 // Copy data from GPU buffer src to GPU buffer dst
-void vk_buffer_copy(VK_Context *context, VkCommandPool cmd_pool, VkBuffer src, VkBuffer dst, VkDeviceSize size);
+b8 vk_buffer_copy(VK_Context *context, VkCommandPool cmd_pool, VkBuffer src, VkBuffer dst, VkDeviceSize size);
