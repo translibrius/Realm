@@ -1,9 +1,10 @@
 #include "vk_pipeline.h"
 
 #include "vk_shader.h"
-#include "vk_vertex.h"
 
 b8 create_shader_stages(VK_Context *context);
+VkVertexInputBindingDescription vk_vertex_get_binding_desc();
+void vk_vertex_get_attr_desc(VkVertexInputAttributeDescription *out_attrs);
 
 b8 vk_pipeline_create(VK_Context *context) {
     if (!vk_shader_module_compile(context, "vulkan_triangle.vert")) {
@@ -63,7 +64,7 @@ b8 vk_pipeline_create(VK_Context *context) {
         .rasterizerDiscardEnable = VK_FALSE, // VK_TRUE disables rasterizer
         .polygonMode = VK_POLYGON_MODE_FILL, // VK_POLYGON_MODE_LINE (Edges as lines) | VK_POLYGON_MODE_POINT
         .cullMode = VK_CULL_MODE_BACK_BIT, // Cull back faces
-        .frontFace = VK_FRONT_FACE_CLOCKWISE, // Clockwise order
+        .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE, // C-Clockwise order
         .depthBiasEnable = VK_FALSE, // Can be used for shadow mapping
         .depthBiasConstantFactor = 0.0f, // Optional
         .depthBiasClamp = 0.0f, // Optional
@@ -111,8 +112,8 @@ b8 vk_pipeline_create(VK_Context *context) {
     // Pipeline layout
     VkPipelineLayoutCreateInfo pipeline_layout_create_info = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 0, // Optional
-        .pSetLayouts = nullptr, // Optional
+        .setLayoutCount = 1, // Optional
+        .pSetLayouts = &context->graphics_pipeline.descriptor_set_layout, // Optional
         .pushConstantRangeCount = 0, // Optional
         .pPushConstantRanges = nullptr, // Optional
     };
@@ -159,6 +160,8 @@ void vk_pipeline_destroy(VK_Context *context) {
     vkDestroyPipelineLayout(context->device, context->graphics_pipeline.layout, nullptr);
 }
 
+// Private
+
 b8 create_shader_stages(VK_Context *context) {
     u32 stage_count = context->shaders.count;
 
@@ -198,4 +201,24 @@ b8 create_shader_stages(VK_Context *context) {
     context->graphics_pipeline.shader_stages = stages;
     context->graphics_pipeline.shader_stage_count = stage_count;
     return true;
+}
+
+VkVertexInputBindingDescription vk_vertex_get_binding_desc() {
+    return (VkVertexInputBindingDescription){
+        .binding = 0,
+        .stride = sizeof(vertex),
+        .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+    };
+}
+
+void vk_vertex_get_attr_desc(VkVertexInputAttributeDescription *out_attrs) {
+    out_attrs[0].binding = 0;
+    out_attrs[0].location = 0;
+    out_attrs[0].format = VK_FORMAT_R32G32_SFLOAT;
+    out_attrs[0].offset = offsetof(vertex, pos);
+
+    out_attrs[1].binding = 0;
+    out_attrs[1].location = 1;
+    out_attrs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+    out_attrs[1].offset = offsetof(vertex, color);
 }

@@ -14,6 +14,8 @@ u32 find_memory_type(VK_Context *context, u32 type_filter, VkMemoryPropertyFlags
     return -1;
 }
 
+// ------- GENERAL_BUF ----------
+
 b8 vk_buffer_create(VK_Context *context, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags mem_props, VkBuffer *buffer, VkDeviceMemory *memory) {
     VkSharingMode sharing_mode = context->queue_families.transfer_is_separate ? VK_SHARING_MODE_CONCURRENT : VK_SHARING_MODE_EXCLUSIVE;
 
@@ -26,7 +28,7 @@ b8 vk_buffer_create(VK_Context *context, VkDeviceSize size, VkBufferUsageFlags u
 
     VkResult result = vkCreateBuffer(context->device, &buffer_create_info, nullptr, buffer);
     if (result != VK_SUCCESS) {
-        RL_ERROR("Failed to create vertex buffer");
+        RL_ERROR("Failed to create buffer");
         return false;
     }
 
@@ -40,7 +42,7 @@ b8 vk_buffer_create(VK_Context *context, VkDeviceSize size, VkBufferUsageFlags u
 
     result = vkAllocateMemory(context->device, &allocate_info, nullptr, memory);
     if (result != VK_SUCCESS) {
-        RL_ERROR("failed to allocate vertex buffer memory");
+        RL_ERROR("failed to allocate buffer memory");
         return false;
     }
 
@@ -109,3 +111,159 @@ b8 vk_buffer_copy(VK_Context *context, VkCommandPool cmd_pool, VkBuffer src, VkB
 
     return true;
 }
+
+// ------- VERTEX_BUF ----------
+
+b8 vk_buffer_create_vertex(VK_Context *context, Vertices *vertices) {
+    if (vertices->count <= 0) {
+        RL_ERROR("failed to create vertex buffer, number of vertices must be greater than 0");
+        return false;
+    }
+
+    VkDeviceSize buffer_size = sizeof(vertex) * vertices->count;
+
+    VkBuffer staging_buffer;
+    VkDeviceMemory staging_memory;
+    if (!vk_buffer_create(
+        context,
+        buffer_size,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        &staging_buffer, &staging_memory)) {
+        RL_ERROR("Failed to create staging buffer");
+        return false;
+    }
+
+    void *data;
+    VkResult result = vkMapMemory(context->device, staging_memory, 0, buffer_size, 0, &data);
+    if (result != VK_SUCCESS) {
+        RL_ERROR("Failed to map staging buffer memory. VkResult=%s", string_VkResult(result));
+        return false;
+    }
+
+    mem_copy(vertices->items, data, buffer_size);
+    vkUnmapMemory(context->device, staging_memory);
+
+    if (!vk_buffer_create(
+        context,
+        buffer_size,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        &context->vertex_buffer,
+        &context->vertex_buffer_memory)) {
+        RL_ERROR("Failed to create vertex buffer");
+        return false;
+    }
+
+    // Copy the data from staging buffer to vertex buffer
+    VkCommandPool pool = context->queue_families.transfer_is_separate ? context->transfer_pool : context->graphics_pool;
+    if (!vk_buffer_copy(context, pool, staging_buffer, context->vertex_buffer, buffer_size)) {
+        RL_ERROR("Failed to copy staging buffer to vertex buffer");
+        return false;
+    }
+
+    // Clean up staging buffer+mem on GPU
+    vk_buffer_destroy(context, staging_buffer, staging_memory);
+    return true;
+}
+
+void vk_buffer_destroy_vertex(VK_Context *context) {
+    vk_buffer_destroy(context, context->vertex_buffer, context->vertex_buffer_memory);
+}
+
+// ------- INDEX_BUF ----------
+
+b8 vk_buffer_create_index(VK_Context *context, Indices *indices) {
+    if (indices->count <= 0) {
+        RL_ERROR("failed to create index buffer, number of indices must be greater than 0");
+        return false;
+    }
+
+    VkDeviceSize buffer_size = sizeof(indices[0]) * indices->count;
+
+    VkBuffer staging_buffer;
+    VkDeviceMemory staging_memory;
+    if (!vk_buffer_create(
+        context,
+        buffer_size,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        &staging_buffer, &staging_memory)) {
+        RL_ERROR("Failed to create staging buffer");
+        return false;
+    }
+
+    void *data;
+    VK_CHECK_RETURN_FALSE(vkMapMemory(context->device, staging_memory, 0, buffer_size, 0, &data), "Failed to map staging buffer memory.");
+    mem_copy(indices->items, data, buffer_size);
+    vkUnmapMemory(context->device, staging_memory);
+
+    if (!vk_buffer_create(
+        context,
+        buffer_size,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        &context->index_buffer,
+        &context->index_buffer_memory)) {
+        RL_ERROR("Failed to create index buffer");
+        return false;
+    }
+
+    // Copy the data from staging buffer to index buffer
+    VkCommandPool pool = context->queue_families.transfer_is_separate ? context->transfer_pool : context->graphics_pool;
+    if (!vk_buffer_copy(context, pool, staging_buffer, context->index_buffer, buffer_size)) {
+        RL_ERROR("Failed to copy staging buffer to index buffer");
+        return false;
+    }
+
+    // Clean up staging buffer+mem on GPU
+    vk_buffer_destroy(context, staging_buffer, staging_memory);
+    return true;
+}
+
+void vk_buffer_destroy_index(VK_Context *context) {
+    vk_buffer_destroy(context, context->index_buffer, context->index_buffer_memory);
+}
+
+// ------- UNIFORM_BUF ----------
+
+b8 vk_buffers_create_uniform(VK_Context *context) {
+    VkDeviceSize buffer_size = sizeof(ubo);
+
+    context->uniform_buffers = rl_arena_push(&context->arena, sizeof(VkBuffer) * context->max_frames_in_flight, true);
+    context->uniform_buffers_memory = rl_arena_push(&context->arena, sizeof(VkDeviceMemory) * context->max_frames_in_flight, true);
+    context->uniform_buffers_mapped = rl_arena_push(&context->arena, sizeof(void *) * context->max_frames_in_flight, true);
+
+    for (u32 i = 0; i < context->max_frames_in_flight; i++) {
+        if (!vk_buffer_create(
+            context,
+            buffer_size,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            &context->uniform_buffers[i],
+            &context->uniform_buffers_memory[i]
+            )) {
+            RL_ERROR("Failed to create uniform buffer");
+            return false;
+        }
+
+        VK_CHECK_RETURN_FALSE(
+            vkMapMemory(context->device,
+                context->uniform_buffers_memory[i],
+                0,
+                buffer_size,
+                0,
+                &context->uniform_buffers_mapped[i]),
+            "Failed to map uniform buffer memory");
+    }
+
+    return true;
+}
+
+void vk_buffers_destroy_uniform(VK_Context *context) {
+    for (u32 i = 0; i < context->max_frames_in_flight; i++) {
+        vk_buffer_destroy(context, context->uniform_buffers[i], context->uniform_buffers_memory[i]);
+    }
+}
+
+// ----------------------------

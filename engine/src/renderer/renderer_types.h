@@ -15,6 +15,13 @@ typedef struct vertex {
     vec3 color;
 } vertex;
 
+// Uniform Buffer Object
+typedef struct ubo {
+    mat4 model;
+    mat4 view;
+    mat4 proj;
+} ubo;
+
 DA_DEFINE(Vertices, vertex);
 DA_DEFINE(Indices, u16);
 

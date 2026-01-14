@@ -1,5 +1,6 @@
 #include "renderer/vulkan/vk_renderer.h"
 
+#include "vk_buffer.h"
 #include "vk_device.h"
 #include "vk_frame_buffers.h"
 #include "vk_shader.h"
@@ -7,10 +8,9 @@
 #include "vk_pipeline.h"
 #include "vk_renderpass.h"
 #include "vk_commands.h"
-#include "vk_index.h"
+#include "vk_descriptor.h"
 #include "vk_instance.h"
 #include "vk_sync.h"
-#include "vk_vertex.h"
 
 #include "profiler/profiler.h"
 
@@ -63,6 +63,10 @@ b8 vulkan_initialize(platform_window *window, rl_camera *camera, b8 vsync) {
         return false;
     }
 
+    if (!vk_descriptor_create_set_layout(&context)) {
+        RL_ERROR("failed to create descriptor set layout");
+    }
+
     if (!vk_pipeline_create(&context)) {
         RL_ERROR("failed to create graphics pipeline");
         return false;
@@ -90,13 +94,27 @@ b8 vulkan_initialize(platform_window *window, rl_camera *camera, b8 vsync) {
         return false;
     }
 
-    if (!vk_vertex_create_buffer(&context, &context.vertices)) {
+    if (!vk_buffer_create_vertex(&context, &context.vertices)) {
         RL_ERROR("failed to create vertex buffer");
         return false;
     }
 
-    if (!vk_index_create_buffer(&context, &context.indices)) {
+    if (!vk_buffer_create_index(&context, &context.indices)) {
         RL_ERROR("failed to create index buffer");
+        return false;
+    }
+
+    if (!vk_buffers_create_uniform(&context)) {
+        RL_ERROR("failed to create uniform buffers");
+        return false;
+    }
+
+    if (!vk_descriptor_create_pool(&context)) {
+        RL_ERROR("failed to create descriptor pool");
+        return false;
+    }
+
+    if (!vk_descriptor_create_sets(&context)) {
         return false;
     }
 
@@ -118,8 +136,10 @@ void vulkan_destroy() {
     vkDeviceWaitIdle(context.device);
 
     vk_sync_destroy_frame(&context);
-    vk_index_destroy_buffer(&context);
-    vk_vertex_destroy_buffer(&context);
+    vk_descriptor_destroy_pool(&context);
+    vk_buffers_destroy_uniform(&context);
+    vk_buffer_destroy_index(&context);
+    vk_buffer_destroy_vertex(&context);
     vk_sync_destroy_transfer(&context);
     if (context.queue_families.has_transfer) {
         vk_command_pool_destroy(&context, context.transfer_pool);
@@ -130,10 +150,30 @@ void vulkan_destroy() {
     vk_renderpass_destroy(&context);
     vk_shader_destroy_compiler(&context);
     vk_swapchain_destroy(&context);
+    vk_descriptor_destroy_set_layout(&context);
     vk_device_destroy(&context);
     vkDestroySurfaceKHR(context.instance, context.surface, nullptr);
     vk_instance_destroy(&context);
     rl_arena_deinit(&context.arena);
+}
+
+void update_uniform_buffer(u32 image_index, f64 dt) {
+    mat4 model;
+    mat4 view;
+    mat4 proj;
+
+    glm_mat4_identity(model);
+    glm_mat4_identity(view);
+    glm_mat4_identity(proj);
+
+    glm_rotate(model, glm_rad(90.0f), (vec3){0.0f, 0.0f, 1.0f});
+
+    ubo u = {0};
+    glm_mat4_copy(model, u.model);
+    glm_mat4_copy(context.view, u.view);
+    glm_mat4_copy(context.proj, u.proj);
+
+    mem_copy(&u, context.uniform_buffers_mapped[image_index], sizeof(ubo));
 }
 
 void vulkan_begin_frame(f64 delta_time) {
@@ -157,6 +197,8 @@ void vulkan_begin_frame(f64 delta_time) {
         RL_FATAL("failed to acquire swap chain image");
     }
     TracyCZoneEnd(aquire);
+
+    update_uniform_buffer(image_index, delta_time);
 
     TracyCZoneN(record, "Reset + Record Command Buffer", true);
     // Only reset the fence if we are submitting work
@@ -225,5 +267,8 @@ void vulkan_swap_buffers() {
 }
 
 void vulkan_set_view_projection(mat4 view, mat4 projection) {
+    projection[1][1] *= -1;
 
+    glm_mat4_copy(view, context.view);
+    glm_mat4_copy(projection, context.proj);
 }

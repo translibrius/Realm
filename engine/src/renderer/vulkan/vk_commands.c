@@ -111,6 +111,9 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
         // Bind index buffer
         vkCmdBindIndexBuffer(buffer, context->index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
+        // Bind descriptor sets
+        vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->graphics_pipeline.layout, 0, 1, &context->descriptor_sets[context->current_frame], 0, nullptr);
+
         vkCmdDrawIndexed(buffer, context->indices.count, 1, 0, 0, 0);
     }
     vkCmdEndRenderPass(buffer);

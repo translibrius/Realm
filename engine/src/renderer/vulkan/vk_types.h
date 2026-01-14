@@ -36,7 +36,7 @@
     if(checkResult != VK_SUCCESS)                                       \
     {                                                                   \
         const char* errMsg = string_VkResult(checkResult);              \
-        RL_ERROR("%s VkResult=%s", errMsg);                             \
+        RL_ERROR("%s VkResult=%s", msg, errMsg);                        \
         return false;                                                   \
     }                                                                   \
 }
@@ -58,8 +58,6 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
     }
     return VK_FALSE;
 }
-
-#define MAX_FRAMES_IN_FLIGHT 2
 
 typedef struct VK_QueueFamilyIndices {
     u32 graphics_index;
@@ -122,6 +120,7 @@ typedef struct VK_Pipeline {
     VkPipeline handle;
     u32 shader_stage_count;
     VkPipelineShaderStageCreateInfo *shader_stages;
+    VkDescriptorSetLayout descriptor_set_layout;
     VkPipelineLayout layout;
     VkRenderPass render_pass;
 } VK_Pipeline;
@@ -160,13 +159,22 @@ typedef struct VK_Context {
     VkSemaphore *image_available_semaphores;
     VkSemaphore *render_finished_semaphores;
     VkFence *in_flight_fences;
+    VkBuffer *uniform_buffers;
+    VkDeviceMemory *uniform_buffers_memory;
+    void **uniform_buffers_mapped;
+    VkDescriptorSet *descriptor_sets;
 
     Vertices vertices;
     Indices indices;
+    VkDescriptorPool descriptor_pool;
     VkBuffer vertex_buffer;
     VkBuffer index_buffer;
     VkDeviceMemory vertex_buffer_memory;
     VkDeviceMemory index_buffer_memory;
+
+    mat4 view;
+    mat4 proj;
+
 } VK_Context;
 
 // HELPERS -----------------
