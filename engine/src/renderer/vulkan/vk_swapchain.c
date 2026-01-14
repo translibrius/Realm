@@ -1,6 +1,8 @@
 #include "renderer/vulkan/vk_swapchain.h"
 
 #include "vk_frame_buffers.h"
+#include "vk_pipeline.h"
+#include "vk_renderpass.h"
 
 void log_capabilities(VkSurfaceCapabilitiesKHR *caps);
 void log_surface_formats(const VkSurfaceFormat2KHR *formats, u32 count);
@@ -16,7 +18,13 @@ VkPresentModeKHR vk_swapchain_choose_present_mode(VK_Context *context, b8 from_r
 VkExtent2D vk_swapchain_choose_extent(VK_Context *context);
 
 void vk_swapchain_fetch_support(VK_Context *context, VkPhysicalDevice physical_device) {
-    context->swapchain = (VK_Swapchain){0};
+    if (context->swapchain.formats != nullptr) {
+        mem_free(context->swapchain.formats, sizeof(VkSurfaceFormat2KHR) * context->swapchain.format_count, MEM_SUBSYSTEM_RENDERER);
+    }
+
+    if (context->swapchain.present_modes != nullptr) {
+        mem_free(context->swapchain.present_modes, sizeof(VkPresentModeKHR) * context->swapchain.present_mode_count, MEM_SUBSYSTEM_RENDERER);
+    }
 
     // Query the physical device's capabilities for the given surface.
     const VkPhysicalDeviceSurfaceInfo2KHR surface_info2 = {
@@ -33,7 +41,7 @@ void vk_swapchain_fetch_support(VK_Context *context, VkPhysicalDevice physical_d
     context->swapchain.capabilities2 = capabilities2;
 
     vkGetPhysicalDeviceSurfaceFormats2KHR(physical_device, &surface_info2, &context->swapchain.format_count, nullptr);
-    context->swapchain.formats = rl_arena_push(&context->arena, sizeof(VkSurfaceFormat2KHR) * context->swapchain.format_count, true);
+    context->swapchain.formats = mem_alloc(sizeof(VkSurfaceFormat2KHR) * context->swapchain.format_count, MEM_SUBSYSTEM_RENDERER);
     for (u32 i = 0; i < context->swapchain.format_count; ++i) {
         context->swapchain.formats[i].sType =
             VK_STRUCTURE_TYPE_SURFACE_FORMAT_2_KHR;
@@ -42,17 +50,13 @@ void vk_swapchain_fetch_support(VK_Context *context, VkPhysicalDevice physical_d
     vkGetPhysicalDeviceSurfaceFormats2KHR(physical_device, &surface_info2, &context->swapchain.format_count, context->swapchain.formats);
 
     vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, context->surface, &context->swapchain.present_mode_count, nullptr);
-    context->swapchain.present_modes = rl_arena_push(&context->arena, sizeof(VkPresentModeKHR) * context->swapchain.present_mode_count, true);
+    context->swapchain.present_modes = mem_alloc(sizeof(VkPresentModeKHR) * context->swapchain.present_mode_count, MEM_SUBSYSTEM_RENDERER);
     vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, context->surface, &context->swapchain.present_mode_count, context->swapchain.present_modes);
 }
 
-b8 vk_swapchain_create(VK_Context *context, b8 vsync, b8 from_recreate) {
-    //log_capabilities(&context->swapchain.capabilities2.surfaceCapabilities);
-    //log_surface_formats(context->swapchain.formats, context->swapchain.format_count);
-    //log_present_modes(context->swapchain.present_modes, context->swapchain.present_mode_count);
-    vk_swapchain_fetch_support(context, context->physical_device);
-
+b8 vk_swapchain_create(VK_Context *context, b8 vsync, b8 from_recreate, VkSwapchainKHR old_swapchain) {
     if (!from_recreate) {
+        vk_swapchain_fetch_support(context, context->physical_device);
         log_capabilities(&context->swapchain.capabilities2.surfaceCapabilities);
         log_surface_formats(context->swapchain.formats, context->swapchain.format_count);
         log_present_modes(context->swapchain.present_modes, context->swapchain.present_mode_count);
@@ -90,7 +94,7 @@ b8 vk_swapchain_create(VK_Context *context, b8 vsync, b8 from_recreate) {
         .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
         .presentMode = context->swapchain.chosen_present_mode,
         .clipped = VK_TRUE,
-        .oldSwapchain = nullptr,
+        .oldSwapchain = old_swapchain,
     };
 
     u32 queue_family_indices[2] = {
@@ -123,7 +127,7 @@ b8 vk_swapchain_create(VK_Context *context, b8 vsync, b8 from_recreate) {
     }
     context->max_frames_in_flight = context->swapchain.image_count;
 
-    context->swapchain.images = rl_arena_push(&context->arena, sizeof(VkImage) * context->max_frames_in_flight, true);
+    context->swapchain.images = mem_alloc(sizeof(VkImage) * context->max_frames_in_flight, MEM_SUBSYSTEM_RENDERER);
     vkGetSwapchainImagesKHR(context->device, context->swapchain.handle, &context->swapchain.image_count, context->swapchain.images);
 
     create_image_views(context);
@@ -136,20 +140,37 @@ b8 vk_swapchain_create(VK_Context *context, b8 vsync, b8 from_recreate) {
 
 void vk_swapchain_destroy(VK_Context *context) {
     destroy_image_views(context);
-    vkDestroySwapchainKHR(context->device, context->swapchain.handle, nullptr);
+    if (context->swapchain.handle != VK_NULL_HANDLE) {
+        vkDestroySwapchainKHR(context->device, context->swapchain.handle, nullptr);
+        context->swapchain.handle = VK_NULL_HANDLE;
+    }
 }
 
 b8 vk_swapchain_recreate(VK_Context *context) {
+    if (context->window->settings.height <= 0 || context->window->settings.width <= 0) {
+        return false;
+    }
+
+    vk_swapchain_fetch_support(context, context->physical_device);
+    if (context->swapchain.capabilities2.surfaceCapabilities.currentExtent.width <= 0 || context->swapchain.capabilities2.surfaceCapabilities.currentExtent.height <= 0) {
+        return false;
+    }
+
     vkDeviceWaitIdle(context->device);
     RL_TRACE("Recreating swapchain...");
 
     vk_framebuffers_destroy(context);
-    vk_swapchain_destroy(context);
+    destroy_image_views(context);
 
-    if (!vk_swapchain_create(context, context->swapchain.vsync, true)) {
+    VkSwapchainKHR old_swapchain = context->swapchain.handle;
+
+    if (!vk_swapchain_create(context, context->swapchain.vsync, true, old_swapchain)) {
         RL_ERROR("Failed to recreate swapchain");
         return false;
     }
+
+    // Now that new swapchain is live, destroy old one
+    vkDestroySwapchainKHR(context->device, old_swapchain, nullptr);
 
     if (!vk_framebuffers_create(context)) {
         RL_ERROR("Failed to recreate swapchain: framebuffers could not be created");
@@ -162,7 +183,7 @@ b8 vk_swapchain_recreate(VK_Context *context) {
 // Private
 
 void create_image_views(VK_Context *context) {
-    context->swapchain.image_views = rl_arena_push(&context->arena, sizeof(VkImageView) * context->swapchain.image_count, true);
+    context->swapchain.image_views = mem_alloc(sizeof(VkImageView) * context->swapchain.image_count, MEM_SUBSYSTEM_RENDERER);
 
     VkImageViewCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -192,9 +213,27 @@ void create_image_views(VK_Context *context) {
 }
 
 void destroy_image_views(VK_Context *context) {
-    for (u32 i = 0; i < context->swapchain.image_count; i++) {
-        vkDestroyImageView(context->device, context->swapchain.image_views[i], nullptr);
+    if (context->swapchain.image_views) {
+        for (u32 i = 0; i < context->swapchain.image_count; i++) {
+            if (context->swapchain.image_views[i]) {
+                vkDestroyImageView(context->device, context->swapchain.image_views[i], nullptr);
+            }
+        }
+        mem_free(context->swapchain.image_views,
+                 sizeof(VkImageView) * context->swapchain.image_count,
+                 MEM_SUBSYSTEM_RENDERER);
+        context->swapchain.image_views = nullptr;
     }
+
+    if (context->swapchain.images) {
+        mem_free(context->swapchain.images,
+                 sizeof(VkImage) * context->max_frames_in_flight,
+                 MEM_SUBSYSTEM_RENDERER);
+        context->swapchain.images = nullptr;
+    }
+
+    context->swapchain.image_count = 0;
+    context->max_frames_in_flight = 0;
 }
 
 VkExtent2D vk_swapchain_choose_extent(VK_Context *context) {
