@@ -17,14 +17,26 @@ u32 find_memory_type(VK_Context *context, u32 type_filter, VkMemoryPropertyFlags
 // ------- GENERAL_BUF ----------
 
 b8 vk_buffer_create(VK_Context *context, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags mem_props, VkBuffer *buffer, VkDeviceMemory *memory) {
-    VkSharingMode sharing_mode = context->queue_families.transfer_is_separate ? VK_SHARING_MODE_CONCURRENT : VK_SHARING_MODE_EXCLUSIVE;
+    u32 queue_family_indices[2] = {
+        context->queue_families.graphics_index,
+        context->queue_families.transfer_index
+    };
 
     VkBufferCreateInfo buffer_create_info = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .size = size,
         .usage = usage,
-        .sharingMode = sharing_mode, // Graphics & Transfer
     };
+
+    if (context->queue_families.transfer_is_separate) {
+        buffer_create_info.sharingMode = VK_SHARING_MODE_CONCURRENT;
+        buffer_create_info.queueFamilyIndexCount = 2;
+        buffer_create_info.pQueueFamilyIndices = queue_family_indices;
+    } else {
+        buffer_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        buffer_create_info.queueFamilyIndexCount = 0; // Optional
+        buffer_create_info.pQueueFamilyIndices = nullptr; // Optional
+    }
 
     VkResult result = vkCreateBuffer(context->device, &buffer_create_info, nullptr, buffer);
     if (result != VK_SUCCESS) {
