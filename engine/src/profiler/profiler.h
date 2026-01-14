@@ -1,5 +1,5 @@
 #pragma once
 
-#define TRACY_ENABLE
+//#define TRACY_ENABLE
 
 #include "TracyC.h"

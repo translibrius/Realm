@@ -9,13 +9,36 @@
 #include "vk_commands.h"
 #include "vk_instance.h"
 #include "vk_sync.h"
+#include "core/event.h"
 
 #include "profiler/profiler.h"
 
 static VK_Context context;
 
+b8 vk_resize_callback(void *event, void *data) {
+    platform_window *window = event;
+    if (window->id == context.window->id) {
+        /*
+        RL_DEBUG("Window #%d resized | POS: %d;%d | Size: %dx%d",
+                 window->id,
+                 window->settings.x, window->settings.y,
+                 window->settings.width, window->settings.height); */
+
+        context.window = window;
+        // Don't trigger swapchain recreation on minimize
+        if (window->settings.width <= 0 || window->settings.height <= 0) {
+            return false;
+        }
+        context.framebuffer_resized = true;
+    }
+    return false;
+}
+
 b8 vulkan_initialize(platform_window *window, rl_camera *camera, b8 vsync) {
     rl_arena_init(&context.arena, MiB(25), MiB(2), MEM_SUBSYSTEM_RENDERER);
+
+    // Listen to window size
+    event_register(EVENT_WINDOW_RESIZE, vk_resize_callback, nullptr);
 
     context.window = window;
 
@@ -33,7 +56,7 @@ b8 vulkan_initialize(platform_window *window, rl_camera *camera, b8 vsync) {
         return false;
     }
 
-    if (!vk_swapchain_create(&context, vsync, false)) {
+    if (!vk_swapchain_create(&context, vsync, false, VK_NULL_HANDLE)) {
         RL_ERROR("failed to initialize swapchain");
         return false;
     }
@@ -158,11 +181,9 @@ void vulkan_begin_frame(f64 delta_time) {
 
     result = vkQueuePresentKHR(context.present_queue, &present_info);
 
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-        if (context.window->settings.width == context.swapchain.chosen_extent.width && context.window->settings.height == context.swapchain.chosen_extent.height) {
-        } else {
-            vk_swapchain_recreate(&context);
-        }
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || context.framebuffer_resized) {
+        context.framebuffer_resized = false;
+        vk_swapchain_recreate(&context);
     } else if (result != VK_SUCCESS) {
         RL_FATAL("failed to present swap chain image");
     }

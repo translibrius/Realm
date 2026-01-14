@@ -112,6 +112,7 @@ typedef struct VK_Pipeline {
 typedef struct VK_Context {
     rl_arena arena;
     platform_window *window;
+    b8 framebuffer_resized;
 
     VK_Shader_Compiler shader_compiler;
     Shaders shaders;

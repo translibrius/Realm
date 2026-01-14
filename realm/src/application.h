@@ -4,10 +4,12 @@
 #include "game.h"
 #include "platform/platform.h"
 #include "core/camera.h"
+#include "renderer/renderer_types.h"
 
 typedef struct application_config {
     const char *title;
     b8 vsync;
+    RENDERER_BACKEND backend;
 } application_config;
 
 typedef struct application {
