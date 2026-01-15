@@ -6,13 +6,12 @@
 #include "util/assert.h"
 #include "util/str.h"
 
-#define LOG_QUEUE_SIZE 32
+#define LOG_QUEUE_SIZE 1024
 
 typedef struct logger_state {
-    rl_arena log_arena; // Reset per log
-
     rl_thread writer_thread;
     logger_queue queue;
+    b8 warned_full; // To warn about queue being full
 } logger_state;
 
 static logger_state *state;
@@ -45,6 +44,7 @@ void logger_writer(void *data) {
 
             platform_mutex_lock(&state->queue.mutex);
         }
+        state->warned_full = false;
         platform_mutex_unlock(&state->queue.mutex);
     }
 
@@ -59,6 +59,7 @@ void logger_writer(void *data) {
 
         platform_mutex_lock(&state->queue.mutex);
     }
+    state->warned_full = false;
     platform_mutex_unlock(&state->queue.mutex);
 }
 
@@ -69,7 +70,6 @@ u64 logger_system_size() {
 b8 logger_system_start(void *memory) {
     RL_ASSERT_MSG(!state, "Logger system already started!");
     state = memory;
-    rl_arena_init(&state->log_arena, MiB(10), MiB(2), MEM_SUBSYSTEM_LOGGER);
 
     state->queue.capacity = LOG_QUEUE_SIZE;
     state->queue.head = 0;
@@ -108,8 +108,6 @@ void logger_system_shutdown() {
         sizeof(log_event) * LOG_QUEUE_SIZE,
         MEM_SUBSYSTEM_LOGGER
         );
-
-    rl_arena_deinit(&state->log_arena);
 
     state = nullptr;
 }
@@ -165,6 +163,12 @@ void log_output(const char *fmt, LOG_LEVEL level, const char *func, ...) {
     // check full (drop oldest)
     if (next_tail == state->queue.head) {
         state->queue.head = (state->queue.head + 1) % state->queue.capacity;
+
+        if (!state->warned_full) {
+            state->warned_full = true;
+            platform_console_write("[WARN]: Logger queue full, dropping messages!\n", LOG_WARN);
+            debugBreak();
+        }
     }
 
     b8 was_empty = (state->queue.head == state->queue.tail);
