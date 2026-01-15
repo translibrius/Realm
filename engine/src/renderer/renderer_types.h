@@ -13,6 +13,7 @@
 typedef struct vertex {
     vec2 pos;
     vec3 color;
+    vec2 tex_coord;
 } vertex;
 
 // Uniform Buffer Object

@@ -47,10 +47,10 @@ b8 vulkan_initialize(platform_window *window, rl_camera *camera, b8 vsync) {
     context.window = window;
 
     // Rectangle
-    da_append(&context.vertices, ((vertex) {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}}));
-    da_append(&context.vertices, ((vertex) {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}}));
-    da_append(&context.vertices, ((vertex) {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}));
-    da_append(&context.vertices, ((vertex) {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}));
+    da_append(&context.vertices, ((vertex) {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}));
+    da_append(&context.vertices, ((vertex) {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}));
+    da_append(&context.vertices, ((vertex) {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}));
+    da_append(&context.vertices, ((vertex) {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}));
 
     da_append(&context.indices, 0);
     da_append(&context.indices, 1);
@@ -203,7 +203,7 @@ void update_uniform_buffer(u32 image_index, f64 dt) {
     glm_mat4_identity(view);
     glm_mat4_identity(proj);
 
-    glm_rotate(model, glm_rad(90.0f), (vec3){0.0f, 0.0f, 1.0f});
+    //glm_rotate(model, glm_rad(0.0f), (vec3){0.0f, 0.0f, 1.0f});
 
     ubo u = {0};
     glm_mat4_copy(model, u.model);

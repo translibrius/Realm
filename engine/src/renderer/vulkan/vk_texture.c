@@ -4,7 +4,7 @@
 #include "vk_image.h"
 
 b8 vk_texture_create(VK_Context *ctx, VK_Texture *vk_texture) {
-    rl_asset *asset = get_asset("wood_container.jpg");
+    rl_asset *asset = get_asset("face.jpg");
     rl_texture *texture = asset->handle;
 
     VkBuffer staging_buffer = nullptr;
@@ -25,7 +25,15 @@ b8 vk_texture_create(VK_Context *ctx, VK_Texture *vk_texture) {
 
     void *data;
     vkMapMemory(ctx->device, staging_buffer_memory, 0, texture->size, 0, &data);
-    mem_copy(texture->data, data, texture->size);
+    u8 *dst_bytes = data;
+    u8 *src_bytes = texture->data;
+
+    for (int y = 0; y < texture->height; y++) {
+        // read from the bottom row upward
+        u8 *src_row = src_bytes + (texture->height - 1 - y) * texture->width * texture->channels;
+        u8 *dst_row = dst_bytes + y * texture->width * texture->channels;
+        mem_copy(src_row, dst_row, texture->width * texture->channels);
+    }
     vkUnmapMemory(ctx->device, staging_buffer_memory);
 
     success = vk_image_create(

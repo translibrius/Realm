@@ -28,7 +28,7 @@ b8 vk_pipeline_create(VK_Context *context) {
         .pDynamicStates = dynamic_states,
     };
 
-    constexpr u32 attribute_desc_count = 2;
+    constexpr u32 attribute_desc_count = 3;
     VkVertexInputBindingDescription binding_description = vk_vertex_get_binding_desc();
     VkVertexInputAttributeDescription *attribute_descriptions = rl_arena_push(&context->arena, sizeof(VkVertexInputAttributeDescription) * attribute_desc_count, true);
     vk_vertex_get_attr_desc(attribute_descriptions);
@@ -221,4 +221,9 @@ void vk_vertex_get_attr_desc(VkVertexInputAttributeDescription *out_attrs) {
     out_attrs[1].location = 1;
     out_attrs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
     out_attrs[1].offset = offsetof(vertex, color);
+
+    out_attrs[2].binding = 0;
+    out_attrs[2].location = 2;
+    out_attrs[2].format  = VK_FORMAT_R32G32_SFLOAT;
+    out_attrs[2].offset = offsetof(vertex, tex_coord);
 }
