@@ -9,8 +9,10 @@
 #include "vk_renderpass.h"
 #include "vk_commands.h"
 #include "vk_descriptor.h"
+#include "vk_image.h"
 #include "vk_instance.h"
 #include "vk_sync.h"
+#include "vk_texture.h"
 #include "core/event.h"
 
 #include "profiler/profiler.h"
@@ -117,6 +119,16 @@ b8 vulkan_initialize(platform_window *window, rl_camera *camera, b8 vsync) {
         return false;
     }
 
+    if (!vk_texture_create(&context, &context.texture_wood)) {
+        RL_ERROR("failed to create wood texture");
+        return false;
+    }
+
+    if (!vk_texture_create_sampler(&context)) {
+        RL_ERROR("failed to create texture sampler");
+        return false;
+    }
+
     if (!vk_buffer_create_vertex(&context, &context.vertices)) {
         RL_ERROR("failed to create vertex buffer");
         return false;
@@ -163,6 +175,8 @@ void vulkan_destroy() {
     vk_buffers_destroy_uniform(&context);
     vk_buffer_destroy_index(&context);
     vk_buffer_destroy_vertex(&context);
+    vk_texture_destroy_sampler(&context);
+    vk_texture_destroy(&context, &context.texture_wood);
     vk_sync_destroy_transfer(&context);
     if (context.queue_families.has_transfer) {
         vk_command_pool_destroy(&context, context.transfer_pool);

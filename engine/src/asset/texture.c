@@ -15,7 +15,7 @@ b8 load_texture(rl_arena *asset_arena, rl_asset *asset) {
     rl_string path = rl_string_format(scratch.arena, "%s%s", dir, filename);
 
     i32 width, height, channels;
-    u8 *data = stbi_load(path.cstr, &width, &height, &channels, 0);
+    u8 *data = stbi_load(path.cstr, &width, &height, &channels, STBI_rgb_alpha);
 
     if (data == NULL) {
         RL_ERROR("Failed to load texture at '%s'", path.cstr);
@@ -26,13 +26,14 @@ b8 load_texture(rl_arena *asset_arena, rl_asset *asset) {
     rl_texture *texture = rl_arena_push(asset_arena, sizeof(rl_texture), alignof(rl_texture));
     texture->width = width;
     texture->height = height;
-    texture->channels = channels;
+
+    // STBI_rgb_alpha guarantees 4 channels
+    texture->channels = 4; // RGBA
     u64 size = texture->width * texture->height * texture->channels;
     texture->size = size;
 
-    void *container = rl_arena_push(asset_arena, size, 1);
-    mem_copy(data, container, size);
-    texture->data = container;
+    texture->data = rl_arena_push(asset_arena, size, 1);
+    mem_copy(data, texture->data, size);
 
     asset->handle = texture;
 

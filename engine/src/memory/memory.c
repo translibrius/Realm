@@ -190,6 +190,8 @@ const char *mem_type_to_str(MEM_TYPE type) {
         return "Application";
     case MEM_SUBSYSTEM_GUI:
         return "(Sys) - GUI";
+    case MEM_ARENA_SCRATCH:
+        return "Scratch arena";
     default:
         break;
     }

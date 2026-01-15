@@ -1,6 +1,7 @@
 #include "renderer/vulkan/vk_swapchain.h"
 
 #include "vk_frame_buffers.h"
+#include "vk_image.h"
 #include "vk_pipeline.h"
 #include "vk_renderpass.h"
 
@@ -185,28 +186,12 @@ b8 vk_swapchain_recreate(VK_Context *context) {
 void create_image_views(VK_Context *context) {
     context->swapchain.image_views = mem_alloc(sizeof(VkImageView) * context->swapchain.image_count, MEM_SUBSYSTEM_RENDERER);
 
-    VkImageViewCreateInfo create_info = {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-        .viewType = VK_IMAGE_VIEW_TYPE_2D,
-        .format = context->swapchain.chosen_format.surfaceFormat.format,
-        .components = {
-            .r = VK_COMPONENT_SWIZZLE_IDENTITY,
-            .g = VK_COMPONENT_SWIZZLE_IDENTITY,
-            .b = VK_COMPONENT_SWIZZLE_IDENTITY,
-            .a = VK_COMPONENT_SWIZZLE_IDENTITY
-        },
-        .subresourceRange = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1
-        }
-    };
-
     for (u32 i = 0; i < context->swapchain.image_count; i++) {
-        create_info.image = context->swapchain.images[i];
-        VK_CHECK(vkCreateImageView(context->device, &create_info, nullptr, &context->swapchain.image_views[i]));
+        vk_image_view_create(
+            context,
+            context->swapchain.images[i],
+            context->swapchain.chosen_format.surfaceFormat.format,
+            &context->swapchain.image_views[i]);
     }
 
     RL_TRACE("Vulkan image views created successfully!");

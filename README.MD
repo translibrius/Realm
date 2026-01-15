@@ -54,6 +54,7 @@ cmake --build --preset debug
 
 ## TODO
 
+- [ ] Optimize vulkan texture transitions & copying into a single cmd_buffer instead of multiple single use ones
 - [ ] Hot-Reloaded assets
 
 ## References

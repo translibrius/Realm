@@ -69,59 +69,49 @@ void vk_buffer_destroy(VK_Context *context, VkBuffer buffer, VkDeviceMemory memo
 }
 
 b8 vk_buffer_copy(VK_Context *context, VkCommandPool cmd_pool, VkBuffer src, VkBuffer dst, VkDeviceSize size) {
-    // Allocate command buffer to record the copy command
-    VkCommandBufferAllocateInfo allocate_info = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandPool = cmd_pool,
-        .commandBufferCount = 1
-    };
-
-    VkCommandBuffer command_buffer;
-    VkResult result = vkAllocateCommandBuffers(context->device, &allocate_info, &command_buffer);
-    if (result != VK_SUCCESS) {
-        RL_ERROR("Failed to alloc command buffer. VkResult=%s", string_VkResult(result));
-        return false;
-    }
-
-    VkCommandBufferBeginInfo begin_info = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-    };
-
-    // Record copy command
-    VK_CHECK_RETURN_FALSE(vkBeginCommandBuffer(command_buffer, &begin_info), "Failed to begin command buffer");
-    {
-        VkBufferCopy copy_region = {
-            .srcOffset = 0,
-            .dstOffset = 0,
-            .size = size,
-        };
-        vkCmdCopyBuffer(command_buffer, src, dst, 1, &copy_region);
-    }
-    VK_CHECK_RETURN_FALSE(vkEndCommandBuffer(command_buffer), "Failed to end command buffer");
-
-    // Submit command buffer to transfer queue
-    VkSubmitInfo submit_info = {
-        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .commandBufferCount = 1,
-        .pCommandBuffers = &command_buffer,
-    };
-
-    VK_CHECK_RETURN_FALSE(vkResetFences(context->device, 1, &context->transfer_fence), "Failed to reset fence");
     VkQueue q = context->queue_families.transfer_is_separate
                     ? context->transfer_queue
                     : context->graphics_queue;
-    VK_CHECK_RETURN_FALSE(vkQueueSubmit(q, 1, &submit_info, context->transfer_fence), "Failed to submit queue");
-    vkWaitForFences(context->device, 1, &context->transfer_fence, VK_TRUE, UINT64_MAX);
 
-    // Wait for the copy operation to finish
-    vkQueueWaitIdle(context->transfer_queue);
-
-    // Clean
-    vkFreeCommandBuffers(context->device, cmd_pool, 1, &command_buffer);
+    VkCommandBuffer command_buffer = vk_buffer_begin_single_use(context, cmd_pool);
+    VkBufferCopy copy_region = {.srcOffset = 0, .dstOffset = 0, .size = size};
+    vkCmdCopyBuffer(command_buffer, src, dst, 1, &copy_region);
+    vk_buffer_end_single_use(context, cmd_pool, command_buffer, q);
 
     return true;
+}
+
+VkCommandBuffer vk_buffer_begin_single_use(VK_Context *ctx, VkCommandPool cmd_pool) {
+    VkCommandBufferAllocateInfo alloc_info = {0};
+    alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    alloc_info.commandPool = cmd_pool;
+    alloc_info.commandBufferCount = 1;
+
+    VkCommandBuffer cmd_buffer;
+    vkAllocateCommandBuffers(ctx->device, &alloc_info, &cmd_buffer);
+
+    VkCommandBufferBeginInfo begin_info = {0};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(cmd_buffer, &begin_info);
+
+    return cmd_buffer;
+}
+
+void vk_buffer_end_single_use(VK_Context *ctx, VkCommandPool cmd_pool, VkCommandBuffer cmd_buffer, VkQueue q) {
+    vkEndCommandBuffer(cmd_buffer);
+
+    VkSubmitInfo submitInfo = {0};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &cmd_buffer;
+
+    vkQueueSubmit(q, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(q);
+
+    vkFreeCommandBuffers(ctx->device, cmd_pool, 1, &cmd_buffer);
 }
 
 // ------- VERTEX_BUF ----------
@@ -279,3 +269,28 @@ void vk_buffers_destroy_uniform(VK_Context *context) {
 }
 
 // ----------------------------
+
+void vk_buffer_copy_to_image(VK_Context *ctx, VkBuffer buffer, VkImage image, u32 w, u32 h) {
+    VkCommandBuffer cmd_buf = vk_buffer_begin_single_use(ctx, ctx->graphics_pool);
+
+    VkBufferImageCopy region = {0};
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = 0;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount = 1;
+
+    region.imageOffset = (VkOffset3D){0, 0, 0};
+    region.imageExtent = (VkExtent3D){
+        w,
+        h,
+        1
+    };
+
+    vkCmdCopyBufferToImage(cmd_buf, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+    vk_buffer_end_single_use(ctx, ctx->graphics_pool, cmd_buf, ctx->graphics_queue);
+}

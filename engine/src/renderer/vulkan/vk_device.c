@@ -49,6 +49,47 @@ static u32 score_gpu_device(const VkPhysicalDeviceProperties2 *props,
     return score;
 }
 
+void vk_device_dump_info(const VkCandidate *c) {
+    const VkPhysicalDeviceProperties *p = &c->props.properties;
+    const VkPhysicalDeviceLimits *l = &p->limits;
+    const VkPhysicalDeviceFeatures *f = &c->feats.features;
+    const VkPhysicalDeviceVulkan13Features *f13 = &c->features13;
+    const VkPhysicalDeviceVulkan14Features *f14 = &c->features14;
+
+    RL_TRACE("===== Vulkan Device Debug Dump =====");
+    RL_TRACE("Name              : %s", p->deviceName);
+    RL_TRACE("Vendor ID         : 0x%04X", p->vendorID);
+    RL_TRACE("Device ID         : 0x%04X", p->deviceID);
+    RL_TRACE("GPU Type          : %u", p->deviceType);
+    RL_TRACE("API Version       : %u.%u.%u",
+             VK_VERSION_MAJOR(p->apiVersion),
+             VK_VERSION_MINOR(p->apiVersion),
+             VK_VERSION_PATCH(p->apiVersion));
+
+    RL_TRACE("--- Limits ---");
+    RL_TRACE("Max 2D Image Size : %u", l->maxImageDimension2D);
+    RL_TRACE("Max Anisotropy    : %f", l->maxSamplerAnisotropy);
+    RL_TRACE("Max Push Constants: %u", l->maxPushConstantsSize);
+    RL_TRACE("Max Bound Descrs  : %u", l->maxPerStageDescriptorSampledImages);
+
+    RL_TRACE("--- Core Features ---");
+    RL_TRACE("geometryShader            : %d", f->geometryShader);
+    RL_TRACE("samplerAnisotropy         : %d", f->samplerAnisotropy);
+    RL_TRACE("multiDrawIndirect         : %d", f->multiDrawIndirect);
+    RL_TRACE("tessellationShader        : %d", f->tessellationShader);
+
+    RL_TRACE("--- Vulkan 1.3 Features ---");
+    RL_TRACE("dynamicRendering          : %d", f13->dynamicRendering);
+    RL_TRACE("maintenance4              : %d", f13->maintenance4);
+
+    RL_TRACE("--- Vulkan 1.4 Features ---");
+    RL_TRACE("maintenance5              : %d", f14->maintenance5);
+    RL_TRACE("maintenance6              : %d", f14->maintenance6);
+
+    RL_TRACE("===== End GPU Dump =====");
+}
+
+
 static VK_QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device,
                                                VkSurfaceKHR surface) {
     ARENA_SCRATCH_START();
@@ -400,8 +441,14 @@ b8 vk_device_init(VK_Context *context) {
         return false;
     }
 
+    vk_device_dump_info(&best);
+
     // Load all vulkan device functions
     volkLoadDevice(context->device);
+    context->device_properties = (VK_DeviceProperties){
+        .properties = best.props.properties,
+        .features = best.feats.features
+    };
 
     RL_INFO("Successfully created vulkan device");
 

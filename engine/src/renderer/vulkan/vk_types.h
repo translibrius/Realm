@@ -103,6 +103,17 @@ typedef struct VK_Swapchain {
 
 } VK_Swapchain;
 
+typedef struct VK_DeviceProperties {
+    VkPhysicalDeviceProperties properties;
+    VkPhysicalDeviceFeatures features;
+} VK_DeviceProperties;
+
+typedef struct VK_Texture {
+    VkImage texture_image;
+    VkImageView texture_image_view;
+    VkDeviceMemory texture_memory;
+} VK_Texture;
+
 typedef struct VK_Shader {
     rl_asset_shader *asset;
     VkShaderModule module;
@@ -138,8 +149,10 @@ typedef struct VK_Context {
     VkDebugUtilsMessengerEXT debug_messenger;
 
     VkSurfaceKHR surface;
+
     VkPhysicalDevice physical_device;
     VkDevice device;
+    VK_DeviceProperties device_properties;
 
     VkQueue graphics_queue;
     VkQueue present_queue;
@@ -172,6 +185,10 @@ typedef struct VK_Context {
     VkBuffer index_buffer;
     VkDeviceMemory vertex_buffer_memory;
     VkDeviceMemory index_buffer_memory;
+
+    // Textures
+    VkSampler texture_sampler;
+    VK_Texture texture_wood;
 
     mat4 view;
     mat4 proj;
