@@ -1,22 +1,20 @@
 #pragma once
 
 #include "defines.h"
-#include "game.h"
-#include "platform/platform.h"
-#include "core/camera.h"
 #include "renderer/renderer_types.h"
+#include "game.h"
 
-typedef struct application_config {
+typedef struct rl_application_config {
     const char *title;
     b8 vsync;
     RENDERER_BACKEND backend;
-} application_config;
 
-typedef struct application {
-    application_config config;
-    platform_window main_window;
-    rl_camera camera;
-    game game_inst;
-} application;
+} rl_application_config;
 
-b8 create_application(application *app);
+typedef struct rl_application {
+    rl_application_config config;
+    rl_game game;
+    platform_window window;
+} rl_application;
+
+b8 create_application();

@@ -19,38 +19,39 @@
 
 static VK_Context context;
 
-b8 vk_resize_callback(void *event, void *data) {
-    platform_window *window = event;
-    if (window->id == context.window->id) {
-        /*
-        RL_DEBUG("Window #%d resized | POS: %d;%d | Size: %dx%d",
-                 window->id,
-                 window->settings.x, window->settings.y,
-                 window->settings.width, window->settings.height); */
+static f64 angle;
 
-        context.window = window;
-        // Don't trigger swapchain recreation on minimize
-        if (window->settings.width <= 0 || window->settings.height <= 0) {
-            return false;
-        }
-        context.framebuffer_resized = true;
+void vulkan_resize_framebuffer(i32 w, i32 h) {
+    /*
+    RL_DEBUG("Window #%d resized | POS: %d;%d | Size: %dx%d",
+             window->id,
+             window->settings.x, window->settings.y,
+             window->settings.width, window->settings.height); */
+
+    // Don't trigger swapchain recreation on minimize
+    if (w <= 0 || h <= 0) {
+        return;
     }
-    return false;
+
+    context.framebuffer_resized = true;
 }
 
-b8 vulkan_initialize(platform_window *window, rl_camera *camera, b8 vsync) {
+b8 vulkan_initialize(platform_window *window, b8 vsync) {
     rl_arena_init(&context.arena, MiB(25), MiB(2), MEM_SUBSYSTEM_RENDERER);
-
-    // Listen to window size
-    event_register(EVENT_WINDOW_RESIZE, vk_resize_callback, nullptr);
 
     context.window = window;
 
-    // Rectangle
-    da_append(&context.vertices, ((vertex) {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}));
-    da_append(&context.vertices, ((vertex) {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}));
-    da_append(&context.vertices, ((vertex) {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}));
-    da_append(&context.vertices, ((vertex) {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}));
+    // Rec 1
+    da_append(&context.vertices, ((vertex) {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}));
+    da_append(&context.vertices, ((vertex) {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}));
+    da_append(&context.vertices, ((vertex) {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}));
+    da_append(&context.vertices, ((vertex) {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}));
+
+    // Rec 2
+    da_append(&context.vertices, ((vertex) {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}));
+    da_append(&context.vertices, ((vertex) {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}));
+    da_append(&context.vertices, ((vertex) {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}));
+    da_append(&context.vertices, ((vertex) {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}));
 
     da_append(&context.indices, 0);
     da_append(&context.indices, 1);
@@ -58,6 +59,13 @@ b8 vulkan_initialize(platform_window *window, rl_camera *camera, b8 vsync) {
     da_append(&context.indices, 2);
     da_append(&context.indices, 3);
     da_append(&context.indices, 0);
+
+    da_append(&context.indices, 4);
+    da_append(&context.indices, 5);
+    da_append(&context.indices, 6);
+    da_append(&context.indices, 6);
+    da_append(&context.indices, 7);
+    da_append(&context.indices, 4);
 
     if (!vk_instance_create(&context)) {
         RL_ERROR("failed to create vulkan instance");
@@ -203,6 +211,13 @@ void update_uniform_buffer(u32 image_index, f64 dt) {
     glm_mat4_identity(view);
     glm_mat4_identity(proj);
 
+    angle += 5.0f * dt;
+    if (angle > 360) {
+        angle = 0;
+    }
+
+    glm_rotate(model, glm_rad(angle), (vec3){0.5f, 1.0f, 0.0f});
+
     //glm_rotate(model, glm_rad(0.0f), (vec3){0.0f, 0.0f, 1.0f});
 
     ubo u = {0};
@@ -301,9 +316,17 @@ void vulkan_swap_buffers() {
 
 }
 
-void vulkan_set_view_projection(mat4 view, mat4 projection) {
+void vulkan_set_view_projection(mat4 view, mat4 projection, vec3 pos) {
     projection[1][1] *= -1;
 
     glm_mat4_copy(view, context.view);
     glm_mat4_copy(projection, context.proj);
+}
+
+platform_window* vulkan_get_active_window() {
+    return context.window;
+}
+
+void vulkan_set_active_window(platform_window* window) {
+    context.window = window;
 }

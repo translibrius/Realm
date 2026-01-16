@@ -1,26 +1,85 @@
+
 #include "application.h"
-
 #include "engine.h"
-#include "gui/gui.h"
+#include "game.h"
+#include "core/event.h"
 #include "platform/platform.h"
+#include "profiler/profiler.h"
+#include "renderer/renderer_frontend.h"
 
-static application_config config = {
+static rl_application_config config = {
     .title = "Realm",
     .vsync = false,
     .backend = BACKEND_VULKAN
 };
+static rl_application app;
 
-b8 create_application(application *app) {
-    if (!app) {
-        RL_ERROR("failed to allocate application");
+b8 create_game();
+b8 create_window();
+
+b8 on_window_resize(void *event, void *data);
+
+b8 create_application() {
+    app.config = config;
+
+    if (!create_engine()) {
+        RL_FATAL("Engine failed to bootstrap");
+    }
+
+    if (!create_window()) {
         return false;
     }
 
-    app->config = config;
+    if (!renderer_init(&app.window, app.config.backend, app.config.vsync)) {
+        RL_ERROR("failed to initialize renderer");
+        return false;
+    }
 
-    platform_window *window = &app->main_window;
-    window->settings = (platform_window_settings){
-        .title = app->config.title,
+    if (!create_game()) {
+        return false;
+    }
+
+    f64 dt = 0.0f;
+    while (engine_is_running()) {
+        TracyCFrameMark
+        if (!engine_begin_frame(&dt)) {
+            continue;
+        }
+
+        game_update(&app.game, dt);
+        game_render(&app.game, dt);
+        engine_end_frame();
+    }
+
+    destroy_engine();
+
+    return true;
+}
+
+// Private
+
+b8 create_game() {
+    rl_game_cfg game_cfg = {
+        .vsync = app.config.vsync,
+        .renderer_backend = app.config.backend,
+        .width = app.window.settings.width,
+        .height = app.window.settings.height,
+        .x = 0,
+        .y = 0
+    };
+
+    if (!game_init(&app.game, game_cfg)) {
+        RL_ERROR("failed to initialize game instance");
+        return false;
+    }
+
+    return true;
+}
+
+b8 create_window() {
+    // Window
+    app.window.settings = (platform_window_settings){
+        .title = "Realm",
         .x = 0,
         .y = 0,
         .width = 500,
@@ -30,26 +89,26 @@ b8 create_application(application *app) {
         .window_mode = WINDOW_MODE_WINDOWED
     };
 
-    if (!platform_create_window(&app->main_window)) {
+    if (!platform_create_window(&app.window)) {
         RL_ERROR("failed to create main window");
         return false;
     }
 
-    platform_set_raw_input(&app->main_window, true);
-    platform_set_cursor_mode(&app->main_window, CURSOR_MODE_LOCKED);
+    event_register(EVENT_WINDOW_RESIZE, on_window_resize, nullptr);
 
-    init_gui((f32)app->main_window.settings.width, (f32)app->main_window.settings.height);
+    return true;
+}
 
-    camera_init(&app->camera);
-    if (!engine_renderer_init(&app->main_window, &app->camera, app->config.backend, app->config.vsync)) {
-        RL_ERROR("failed to initialize renderer");
-        return false;
+b8 on_window_resize(void *event, void *data) {
+    platform_window *window = event;
+    platform_window *renderer_window = renderer_get_active_window();
+
+    if (window->id == app.window.id) {
+        app.window.settings = window->settings;
+        if (renderer_window->id == window->id) {
+            renderer_resize_framebuffer(window->settings.width, window->settings.height);
+        }
     }
-
-    if (!game_init(&app->game_inst, &app->main_window)) {
-        RL_ERROR("failed to initialize game instance");
-        return false;
-    }
-
+    // Consume event
     return true;
 }

@@ -31,7 +31,6 @@ typedef struct GL_TextVertex {
 typedef struct GL_Context {
     platform_window *window;
     rl_arena arena;
-    rl_camera *camera;
 
     // Text
     GL_TextPipeline text_pipeline;
@@ -47,4 +46,5 @@ typedef struct GL_Context {
     // Mat
     mat4 view;
     mat4 projection;
+    vec3 pos;
 } GL_Context;

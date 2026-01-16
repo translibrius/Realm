@@ -18,35 +18,18 @@ GL_Context *opengl_get_context(void) {
     return &context;
 }
 
-void update_viewport() {
-    glViewport(
-        0, 0,
-        context.window->settings.width,
-        context.window->settings.height);
+void opengl_resize_framebuffer(i32 w, i32 h) {
+    glViewport(0, 0, w, h);
 }
 
-b8 resize_callback(void *event, void *data) {
-    platform_window *window = event;
-    if (window->id == context.window->id) {
-
-        RL_DEBUG("Window #%d resized | POS: %d;%d | Size: %dx%d",
-                 window->id,
-                 window->settings.x, window->settings.y,
-                 window->settings.width, window->settings.height);
-
-        update_viewport();
-    }
-    return false;
-}
-
-void opengl_set_view_projection(mat4 view, mat4 projection) {
+void opengl_set_view_projection(mat4 view, mat4 projection, vec3 pos) {
     glm_mat4_copy(view, context.view);
     glm_mat4_copy(projection, context.projection);
+    glm_vec3_copy(pos, context.pos);
 }
 
-b8 opengl_initialize(platform_window *platform_window, rl_camera *camera, b8 vsync) {
+b8 opengl_initialize(platform_window *platform_window, b8 vsync) {
     context.window = platform_window;
-    context.camera = camera;
 
     da_init(&context.fonts);
     rl_arena_init(&context.arena, MiB(100), MiB(25), MEM_SUBSYSTEM_RENDERER);
@@ -58,10 +41,7 @@ b8 opengl_initialize(platform_window *platform_window, rl_camera *camera, b8 vsy
     }
 
     platform_context_make_current(context.window);
-    update_viewport();
-
-    // Listen to window size
-    event_register(EVENT_WINDOW_RESIZE, resize_callback, nullptr);
+    opengl_resize_framebuffer(context.window->settings.width, context.window->settings.height);
 
     // Shader init
     if (!opengl_shader_setup("default.vert", "default.frag", &context.default_shader)) {
@@ -110,7 +90,7 @@ void opengl_begin_frame(f64 delta_time) {
     opengl_shader_set_vec3(&context.default_shader, "objectColor", (vec3){1.0f, 0.5f, 0.31f});
     opengl_shader_set_vec3(&context.default_shader, "lightColor", (vec3){0.0f, 1.0f, 1.0f});
     opengl_shader_set_vec3(&context.default_shader, "lightPos", light_pos);
-    opengl_shader_set_vec3(&context.default_shader, "view_pos", context.camera->pos);
+    opengl_shader_set_vec3(&context.default_shader, "view_pos", context.pos);
 
     mat4 model = {};
     glm_mat4_identity(model);
@@ -157,4 +137,12 @@ void opengl_end_frame() {
 
 void opengl_swap_buffers() {
     platform_swap_buffers(context.window);
+}
+
+platform_window *opengl_get_active_window() {
+    return context.window;
+}
+
+void opengl_set_active_window(platform_window *window) {
+    context.window = window;
 }

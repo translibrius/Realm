@@ -2,6 +2,8 @@
 
 #include "logger.h"
 #include "platform/input.h"
+#include "renderer/renderer_types.h"
+#include "../vendor/cglm/clipspace/persp_rh_zo.h"
 
 static void camera_update_vectors(rl_camera *camera) {
     vec3 dir = {
@@ -31,18 +33,25 @@ void camera_get_view(const rl_camera *camera, mat4 out_view) {
     glm_lookat(camera->pos, target, camera->up, out_view);
 }
 
-void camera_get_projection(
-    const rl_camera *camera,
-    f32 aspect,
-    mat4 out_proj
-    ) {
-    glm_perspective(
-        glm_rad(camera->fov),
-        aspect,
-        0.1f,
-        100.0f,
-        out_proj
-        );
+void camera_get_projection(const rl_camera *camera, f32 aspect, mat4 out_proj, RENDERER_BACKEND renderer_backend) {
+
+    if (renderer_backend == BACKEND_OPENGL) {
+        glm_perspective(
+            glm_rad(camera->fov),
+            aspect,
+            0.1f,
+            100.0f,
+            out_proj
+            );
+    } else if (renderer_backend == BACKEND_VULKAN) {
+        glm_perspective_rh_zo(
+            glm_rad(camera->fov),
+            aspect,
+            0.1f,
+            100.0f,
+            out_proj
+            );
+    }
 }
 
 void camera_update(rl_camera *camera, f64 dt) {

@@ -214,7 +214,7 @@ VkVertexInputBindingDescription vk_vertex_get_binding_desc() {
 void vk_vertex_get_attr_desc(VkVertexInputAttributeDescription *out_attrs) {
     out_attrs[0].binding = 0;
     out_attrs[0].location = 0;
-    out_attrs[0].format = VK_FORMAT_R32G32_SFLOAT;
+    out_attrs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
     out_attrs[0].offset = offsetof(vertex, pos);
 
     out_attrs[1].binding = 0;

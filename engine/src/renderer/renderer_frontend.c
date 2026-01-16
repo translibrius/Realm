@@ -1,6 +1,7 @@
 
 #include "renderer/renderer_frontend.h"
 #include "core/logger.h"
+#include "../../../realm/src/application.h"
 #include "opengl/gl_text.h"
 #include "renderer/renderer_types.h"
 #include "renderer/opengl/gl_renderer.h"
@@ -18,9 +19,9 @@ static frontend_state state;
 // Forward decl
 void prepare_interface(RENDERER_BACKEND backend);
 
-b8 renderer_init(RENDERER_BACKEND backend, platform_window *window, rl_camera *camera, b8 vsync) {
+b8 renderer_init(platform_window *window, RENDERER_BACKEND backend, b8 vsync) {
     prepare_interface(backend);
-    if (!interface.initialize(window, camera, vsync)) {
+    if (!interface.initialize(window, vsync)) {
         RL_ERROR("Failed to initialize renderer backend");
         return false;
     }
@@ -63,10 +64,28 @@ void renderer_set_active_font(rl_font *font) {
     interface.set_active_font(font);
 }
 
-void renderer_set_view_projection(mat4 view, mat4 projection) {
+void renderer_set_view_projection(mat4 view, mat4 projection, vec3 pos) {
     if (!state.initialized)
         return;
-    interface.set_view_projection(view, projection);
+    interface.set_view_projection(view, projection, pos);
+}
+
+platform_window *renderer_get_active_window() {
+    if (!state.initialized)
+        return nullptr;
+    return interface.get_active_window();
+}
+
+void renderer_set_active_window(platform_window *window) {
+    if (!state.initialized)
+        return;
+    interface.set_active_window(window);
+}
+
+void renderer_resize_framebuffer(i32 w, i32 h) {
+    if (!state.initialized)
+        return;
+    interface.resize_framebuffer(w, h);
 }
 
 void prepare_interface(RENDERER_BACKEND backend) {
@@ -80,6 +99,9 @@ void prepare_interface(RENDERER_BACKEND backend) {
         interface.render_text = &opengl_render_text;
         interface.set_active_font = &opengl_set_active_font;
         interface.set_view_projection = &opengl_set_view_projection;
+        interface.get_active_window = &opengl_get_active_window;
+        interface.set_active_window = &opengl_set_active_window;
+        interface.resize_framebuffer = &opengl_resize_framebuffer;
         break;
     case BACKEND_VULKAN:
         interface.initialize = &vulkan_initialize;
@@ -90,5 +112,8 @@ void prepare_interface(RENDERER_BACKEND backend) {
         interface.render_text = &vulkan_render_text; //&vulkan_render_text;
         interface.set_active_font = &vulkan_set_active_font; //&vulkan_set_active_font;
         interface.set_view_projection = &vulkan_set_view_projection;
+        interface.get_active_window = &vulkan_get_active_window;
+        interface.set_active_window = &vulkan_set_active_window;
+        interface.resize_framebuffer = &vulkan_resize_framebuffer;
     }
 }

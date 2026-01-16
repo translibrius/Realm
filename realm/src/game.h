@@ -4,19 +4,24 @@
 #include "asset/font.h"
 #include "core/camera.h"
 #include "memory/arena.h"
-#include "platform/platform.h"
 
-typedef struct game {
+typedef struct rl_game_cfg {
+    b8 vsync;
+    RENDERER_BACKEND renderer_backend;
+    i32 width;
+    i32 height;
+    i32 x, y;
+} rl_game_cfg;
+
+typedef struct rl_game {
+    rl_game_cfg config;
     rl_camera camera;
-    f32 width, height;
-    platform_window *window;
     rl_arena frame_arena;
-
     rl_font *font_jetbrains;
-} game;
+} rl_game;
 
-b8 game_init(game *game_out, platform_window *window);
-void game_update(game *game_inst, f64 dt);
-void game_render(game *game_inst, f64 dt);
-void game_destroy(game *game_inst);
-void game_on_resize(game *game_inst, f32 width, f32 height);
+b8 game_init(rl_game *game, rl_game_cfg config);
+void game_update(rl_game *game, f64 dt);
+void game_render(rl_game *game, f64 dt);
+void game_destroy(rl_game *game);
+void game_on_resize(rl_game *game, f32 width, f32 height);

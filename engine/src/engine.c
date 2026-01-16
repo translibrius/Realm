@@ -1,7 +1,6 @@
 #include "engine.h"
 
 #include "asset/asset.h"
-#include "core/camera.h"
 #include "core/event.h"
 #include "core/logger.h"
 #include "memory/memory.h"
@@ -11,12 +10,10 @@
 #include "renderer/renderer_frontend.h"
 #include "util/clock.h"
 
+
 typedef struct engine_state {
     b8 is_running;
-    b8 is_suspended;
     rl_arena frame_arena;
-    platform_window *render_window;
-    rl_camera *render_camera;
 
     rl_clock frame_clock;
     f64 delta_time;
@@ -29,7 +26,6 @@ static engine_state state;
 
 // Fwd decl
 b8 on_key_press(void *event, void *data);
-b8 on_resize(void *event, void *data);
 b8 on_focus_gained(void *event, void *data);
 b8 on_focus_lost(void *event, void *data);
 
@@ -37,7 +33,6 @@ b8 on_focus_lost(void *event, void *data);
 b8 create_engine() {
     RL_INFO("--------------ENGINE_START--------------");
     state.is_running = true;
-    state.is_suspended = false;
 
     // Important to call this to fetch page size and other important info for subsystems that go before platform
     platform_get_info();
@@ -68,7 +63,6 @@ b8 create_engine() {
     input_system_init();
 
     event_register(EVENT_KEY_PRESS, on_key_press, nullptr);
-    event_register(EVENT_WINDOW_RESIZE, on_resize, nullptr);
     event_register(EVENT_WINDOW_FOCUS_GAINED, on_focus_gained, nullptr);
     event_register(EVENT_WINDOW_FOCUS_LOST, on_focus_lost, nullptr);
 
@@ -117,11 +111,6 @@ b8 engine_begin_frame(f64 *out_dt) {
         return false;
     }
 
-    if (state.is_suspended) {
-        platform_sleep(100);
-        return false;
-    }
-
     renderer_begin_frame(state.delta_time);
     TracyCZoneEnd(ctx);
     return true;
@@ -142,12 +131,6 @@ void engine_end_frame() {
     TracyCZoneEnd(ctx);
 }
 
-b8 engine_renderer_init(platform_window *render_window, rl_camera *camera, RENDERER_BACKEND backend, b8 vsync) {
-    state.render_window = render_window;
-    state.render_camera = camera;
-    return renderer_init(backend, state.render_window, camera, vsync);
-}
-
 engine_stats engine_get_stats(void) {
     return (engine_stats){
         .fps = state.fps_display,
@@ -159,15 +142,17 @@ engine_stats engine_get_stats(void) {
 b8 on_focus_gained(void *event, void *data) {
     platform_window *window = event;
     RL_DEBUG("Window id=%d gained focus", window->id);
-    platform_set_raw_input(state.render_window, true);
+    if (renderer_get_active_window()) {
+        platform_set_raw_input(renderer_get_active_window(), true);
+    }
     return false;
 }
 
 b8 on_focus_lost(void *event, void *data) {
     platform_window *window = event;
     RL_DEBUG("Window id=%d lost focus", window->id);
-    if (state.render_window) {
-        platform_set_raw_input(state.render_window, false);
+    if (renderer_get_active_window()) {
+        platform_set_raw_input(renderer_get_active_window(), false);
     }
     return false;
 }
@@ -183,8 +168,8 @@ b8 on_key_press(void *event, void *data) {
 
     // Stop engine on ESC
     if (key->key == KEY_ESCAPE && key->pressed) {
-        if (platform_get_raw_input()) {
-            platform_set_raw_input(state.render_window, false);
+        if (platform_get_raw_input() && renderer_get_active_window()) {
+            platform_set_raw_input(renderer_get_active_window(), false);
         } else {
             state.is_running = false;
         }
@@ -196,41 +181,17 @@ b8 on_key_press(void *event, void *data) {
     }
 
     if (key->key == KEY_F11 && key->pressed) {
-        if (state.render_window->settings.window_mode == WINDOW_MODE_WINDOWED) {
-            platform_set_window_mode(state.render_window, WINDOW_MODE_BORDERLESS);
-            platform_set_raw_input(state.render_window, true);
-        } else {
-            platform_set_window_mode(state.render_window, WINDOW_MODE_WINDOWED);
-            platform_set_raw_input(state.render_window, false);
+        if (renderer_get_active_window()) {
+            if (renderer_get_active_window()->settings.window_mode == WINDOW_MODE_WINDOWED) {
+                platform_set_window_mode(renderer_get_active_window(), WINDOW_MODE_BORDERLESS);
+                platform_set_raw_input(renderer_get_active_window(), true);
+            } else {
+                platform_set_window_mode(renderer_get_active_window(), WINDOW_MODE_WINDOWED);
+                platform_set_raw_input(renderer_get_active_window(), false);
+            }
         }
     }
 
     // Let other systems see this event
-    return false;
-}
-
-b8 on_resize(void *event, void *data) {
-    platform_window *window = event;
-    if (window->id == state.render_window->id) {
-        state.render_window = window;
-
-        /*
-        RL_DEBUG("Window #%d resized | POS: %d;%d | Size: %dx%d",
-                 window->id,
-                 window->settings.x, window->settings.y,
-                 window->settings.width, window->settings.height);
-        */
-
-        // Minimized, suspend render
-        if (window->settings.width <= 0 && window->settings.height <= 0) {
-            RL_DEBUG("Render window minimized...");
-            state.is_suspended = true;
-        } else {
-            if (state.is_suspended) {
-                RL_DEBUG("Render window restored!");
-            }
-            state.is_suspended = false;
-        }
-    }
     return false;
 }
