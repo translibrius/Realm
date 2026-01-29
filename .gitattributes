@@ -1,0 +1,22 @@
+# Line ending policy
+# - Keep LF in the repository for text files.
+# - Use CRLF only for Windows-native scripts.
+
+* text=auto eol=lf
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ttf binary
+*.otf binary
+*.spv binary
+*.ico binary
+*.exe binary
+*.dll binary
+*.lib binary
