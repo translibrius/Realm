@@ -1,8 +1,8 @@
 #include "font.h"
 
-#include "../core/logger.h"
-#include "platform/io/file_io.h"
 #include "asset/asset.h"
+#include "core/logger.h"
+#include "platform/io/file_io.h"
 
 #include "core/font/msdf_wrapper.h"
 

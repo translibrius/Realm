@@ -1,16 +1,14 @@
-#include "camera.h"
+#include "core/camera.h"
 
-#include "logger.h"
-#include "platform/input.h"
-#include "renderer/renderer_types.h"
 #include "../vendor/cglm/clipspace/persp_rh_zo.h"
+#include "platform/input.h"
+#include "renderer/renderer_backend.h"
 
 static void camera_update_vectors(rl_camera *camera) {
     vec3 dir = {
         cosf(glm_rad(camera->yaw)) * cosf(glm_rad(camera->pitch)),
         sinf(glm_rad(camera->pitch)),
-        sinf(glm_rad(camera->yaw)) * cosf(glm_rad(camera->pitch))
-    };
+        sinf(glm_rad(camera->yaw)) * cosf(glm_rad(camera->pitch))};
 
     glm_vec3_normalize_to(dir, camera->forward);
 }
@@ -41,16 +39,14 @@ void camera_get_projection(const rl_camera *camera, f32 aspect, mat4 out_proj, R
             aspect,
             0.1f,
             100.0f,
-            out_proj
-            );
+            out_proj);
     } else if (renderer_backend == BACKEND_VULKAN) {
         glm_perspective_rh_zo(
             glm_rad(camera->fov),
             aspect,
             0.1f,
             100.0f,
-            out_proj
-            );
+            out_proj);
     }
 }
 
@@ -99,6 +95,3 @@ void camera_update(rl_camera *camera, f64 dt) {
     // Recompute forward vector
     camera_update_vectors(camera);
 }
-
-
-

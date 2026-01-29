@@ -1,12 +1,33 @@
-#include "logger.h"
+#include "core/logger.h"
 
 #include "platform/platform.h"
 #include "platform/thread.h"
 
+#include "memory/memory.h"
+
 #include "util/assert.h"
 #include "util/str.h"
 
+#define LOG_MAX_LINE 1024
 #define LOG_QUEUE_SIZE 1024
+
+typedef struct log_event {
+    LOG_LEVEL level;
+    u16 len;
+    char text[LOG_MAX_LINE];
+} log_event;
+
+typedef struct logger_queue {
+    log_event *events;
+    u32 capacity;
+    u32 head;
+    u32 tail;
+
+    rl_mutex mutex;
+    rl_thread_sync has_data;
+
+    b8 running;
+} logger_queue;
 
 typedef struct logger_state {
     rl_thread writer_thread;
@@ -106,8 +127,7 @@ void logger_system_shutdown() {
     mem_free(
         state->queue.events,
         sizeof(log_event) * LOG_QUEUE_SIZE,
-        MEM_SUBSYSTEM_LOGGER
-        );
+        MEM_SUBSYSTEM_LOGGER);
 
     state = nullptr;
 }
@@ -131,8 +151,7 @@ void log_output(const char *fmt, LOG_LEVEL level, const char *func, ...) {
         LOG_MAX_LINE,
         "%s[%s]: ",
         level_strs[level],
-        func
-        );
+        func);
 
     va_list args;
     va_start(args, level);
@@ -140,8 +159,7 @@ void log_output(const char *fmt, LOG_LEVEL level, const char *func, ...) {
         e.text + offset,
         LOG_MAX_LINE - offset - 1,
         fmt,
-        args
-        );
+        args);
     va_end(args);
 
     if (written < 0)
