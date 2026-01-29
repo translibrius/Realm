@@ -1,64 +1,73 @@
-### Map Renderer (OpenGL)
+# Realm Engine (OpenGL/Vulkan)
 
-GPU-accelerated vector map renderer built on OpenGL.  
-Currently supports:
+![Showcase](showcase.png)
 
-- Windows
-- Linux
+A high-performance graphics engine built on **C23**. Designed for games, 3D simulations, and real-time interactive
+applications. This project is a hobbyist exploration of modern graphics APIs and engine architecture.
 
-The goal is to develop an in-house renderer for projects like **Spider**, **Tetris**, **ScanMaster**, and **Cell_Map**.
-By producing vector tiles ourselves, we avoid external map providers, internet dependencies, and recurring API costs.
+---
 
-## Third-party dependencies
+## 🛠 Platform Support
 
-- **OpenGL 3.3** – hardware-accelerated rendering
-- **GLAD** – runtime OpenGL loader
-- **FreeType** – font parsing
-- **msdf-atlas-gen** - font msdf atlas
-- **tracy** - performance profiling
+- **Windows**: Primary Development (Stable)
+- **Linux**: WIP (~40%)
 
-## Prerequisites
+## 📦 Dependencies
 
-- **CMake**
+Managed via **vcpkg** manifest mode:
 
-## Building
+- **OpenGL 3.3 / Vulkan** – Hardware-accelerated rendering
+- **FreeType** – Font parsing
+- **msdf-atlas-gen** – MSDF font atlas generation
+- **Tracy** – Performance profiling
+- **GLAD** – Runtime OpenGL loader
 
-### 0. Submodules
+## 🚀 Building
 
-```bash
-git submodule update --init --recursive
-```
+### 1. Prerequisites
 
-### 1. Install vcpkg
+- **CMake** (3.21+)
+- **Ninja** build system
+- **Clang** compiler
+- **vcpkg** installed with the environment variable `VCPKG_ROOT` pointing to its location.
 
-```bash
-git clone https://github.com/microsoft/vcpkg
-cd vcpkg
-.\bootstrap-vcpkg.bat
-$env:VCPKG_ROOT = "C:\path\to\vcpkg"
-$env:PATH = "$env:VCPKG_ROOT;$env:PATH"
-```
-
-### 2. Install FreeType
+### 2. Clone the Repository
 
 ```bash
-vcpkg install freetype
+git clone --recursive [https://github.com/yourusername/realm-engine](https://github.com/yourusername/realm-engine)
+cd realm-engine
+
 ```
 
-### 3. Run build
+### 3. Compile
+
+Since the project uses CMake Presets, the dependencies will be automatically installed by vcpkg during the configuration
+step.
+
+**Debug Build:**
 
 ```bash
 cmake --preset debug
 cmake --build --preset debug
-````
 
-## TODO
+```
 
-- [ ] Optimize vulkan texture transitions & copying into a single cmd_buffer instead of multiple single use ones
-- [ ] Hot-Reloaded assets
+**Release Build:**
 
-## References
+```bash
+cmake --preset release
+cmake --build --preset release
 
-[Modern Vulkan 1.4 minimal samples](https://github.com/nvpro-samples/vk_minimal_latest)
+```
 
-[Modern OpenGL 3.3+ tutorial](https://learnopengl.com/)
+## 🗺 Roadmap
+
+* [ ] **Vulkan Optimization**: Consolidate texture transitions and copies into a single `VkCommandBuffer` to minimize
+  synchronization overhead.
+* [ ] **Hot-Reloading**: Real-time asset updates for shaders and textures without restarting the engine.
+* [ ] **Linux Parity**: Complete the implementation of windowing and input handling for Linux builds.
+
+## 🤝 Contributing & Contact
+
+If you find this project interesting, feel free to open a pull request!
+**Discord:** `friezy`
