@@ -5,7 +5,7 @@ This repository contains a C23 game/graphics engine ("engine") plus a small host
 ## Quick Map
 
 - `engine/`: Engine library (mostly C, plus a small C++ wrapper for MSDF font generation)
-- `engine/include/`: Public, stable C API headers (planned/being introduced)
+- `engine/include/`: Public, stable C API headers
 - `realm/`: Executable that links the engine (acts as the current app/game layer)
 - `assets/`: Runtime data (`fonts/`, `shaders/`, `textures/`)
 - `build/`: CMake/Ninja output (do not hand-edit; often untracked/generated)
@@ -131,7 +131,7 @@ Important runtime assumption:
 
 ## Repo-Specific "Gotchas"
 
-- Engine/app coupling: some engine headers include app headers (e.g. `engine/src/engine.h` includes `realm/src/application.h`). This is convenient locally but makes it harder to treat `engine/` as a standalone library. Avoid increasing this coupling; prefer pushing shared types into `engine/` if needed.
+- Engine/app coupling: avoid any `engine/` -> `realm/` includes. If shared types are needed, push them into the public API under `engine/include/`.
 - Asset paths are relative: `get_assets_dir()` returns `../../../assets/...` (see `engine/src/asset/asset.c`). Running the executable from a different working directory may fail to load assets.
 - Backend selection is centralized: use `renderer_init(..., RENDERER_BACKEND, ...)` and update `prepare_interface()` in `engine/src/renderer/renderer_frontend.c` when adding or changing backend capabilities.
 - Windows is primary: Linux exists but is partial; avoid breaking Windows while improving parity.

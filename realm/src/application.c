@@ -1,8 +1,8 @@
 
 #include "application.h"
+#include "core/event.h"
 #include "engine.h"
 #include "game.h"
-#include "core/event.h"
 #include "platform/platform.h"
 #include "profiler/profiler.h"
 #include "renderer/renderer_frontend.h"
@@ -10,8 +10,7 @@
 static rl_application_config config = {
     .title = "Realm",
     .vsync = false,
-    .backend = BACKEND_VULKAN
-};
+    .backend = BACKEND_VULKAN};
 static rl_application app;
 
 b8 create_game();
@@ -22,7 +21,7 @@ b8 on_window_resize(void *event, void *data);
 b8 create_application() {
     app.config = config;
 
-    if (!create_engine()) {
+    if (!rl_engine_create()) {
         RL_FATAL("Engine failed to bootstrap");
     }
 
@@ -40,18 +39,17 @@ b8 create_application() {
     }
 
     f64 dt = 0.0f;
-    while (engine_is_running()) {
-        TracyCFrameMark
-        if (!engine_begin_frame(&dt)) {
+    while (rl_engine_is_running()) {
+        TracyCFrameMark if (!rl_engine_begin_frame(&dt)) {
             continue;
         }
 
         game_update(&app.game, dt);
         game_render(&app.game, dt);
-        engine_end_frame();
+        rl_engine_end_frame();
     }
 
-    destroy_engine();
+    rl_engine_destroy();
 
     return true;
 }
@@ -65,8 +63,7 @@ b8 create_game() {
         .width = app.window.settings.width,
         .height = app.window.settings.height,
         .x = 0,
-        .y = 0
-    };
+        .y = 0};
 
     if (!game_init(&app.game, game_cfg)) {
         RL_ERROR("failed to initialize game instance");
@@ -86,8 +83,7 @@ b8 create_window() {
         .height = 500,
         .start_center = true,
         .window_flags = WINDOW_FLAG_DEFAULT,
-        .window_mode = WINDOW_MODE_WINDOWED
-    };
+        .window_mode = WINDOW_MODE_WINDOWED};
 
     if (!platform_create_window(&app.window)) {
         RL_ERROR("failed to create main window");

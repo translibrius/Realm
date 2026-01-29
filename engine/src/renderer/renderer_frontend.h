@@ -1,9 +1,10 @@
 #pragma once
 
-#include "defines.h"
 #include "asset/font.h"
 #include "cglm.h"
-#include "../../../realm/src/application.h"
+#include "defines.h"
+#include "platform/platform.h"
+#include "renderer/renderer_types.h"
 
 REALM_API b8 renderer_init(platform_window *window, RENDERER_BACKEND backend, b8 vsync);
 REALM_API void renderer_destroy();
@@ -16,7 +17,7 @@ REALM_API void renderer_set_active_font(rl_font *font);
 
 void renderer_set_view_projection(mat4 view, mat4 projection, vec3 pos);
 
-platform_window* renderer_get_active_window();
-void renderer_set_active_window(platform_window* window);
+platform_window *renderer_get_active_window();
+void renderer_set_active_window(platform_window *window);
 
 void renderer_resize_framebuffer(i32 w, i32 h);

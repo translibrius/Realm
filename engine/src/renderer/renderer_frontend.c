@@ -1,10 +1,9 @@
 
 #include "renderer/renderer_frontend.h"
 #include "core/logger.h"
-#include "../../../realm/src/application.h"
 #include "opengl/gl_text.h"
-#include "renderer/renderer_types.h"
 #include "renderer/opengl/gl_renderer.h"
+#include "renderer/renderer_types.h"
 
 #include "vulkan/vk_renderer.h"
 #include "vulkan/vk_text.h"
@@ -109,7 +108,7 @@ void prepare_interface(RENDERER_BACKEND backend) {
         interface.begin_frame = &vulkan_begin_frame;
         interface.end_frame = &vulkan_end_frame;
         interface.swap_buffers = &vulkan_swap_buffers;
-        interface.render_text = &vulkan_render_text; //&vulkan_render_text;
+        interface.render_text = &vulkan_render_text;         //&vulkan_render_text;
         interface.set_active_font = &vulkan_set_active_font; //&vulkan_set_active_font;
         interface.set_view_projection = &vulkan_set_view_projection;
         interface.get_active_window = &vulkan_get_active_window;

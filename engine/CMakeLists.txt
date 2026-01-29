@@ -5,6 +5,8 @@
 # --- Vendor (C++) ---
 # Add vendor first so targets exist
 set(MSDF_ATLAS_USE_SKIA OFF CACHE BOOL "" FORCE)
+set(MSDF_ATLAS_BUILD_STANDALONE OFF CACHE BOOL "" FORCE)
+set(MSDFGEN_BUILD_STANDALONE OFF CACHE BOOL "" FORCE)
 set(MSDFGEN_DYNAMIC_RUNTIME ON CACHE BOOL "" FORCE)
 set(MSDF_ATLAS_DYNAMIC_RUNTIME ON CACHE BOOL "" FORCE)
 # Make sure vcpkg uses dynamic CRT too
@@ -45,6 +47,7 @@ target_link_libraries(EngineC PRIVATE
 
 target_include_directories(EngineC
         PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 
         # Vendor
@@ -83,6 +86,7 @@ add_library(EngineCPP STATIC
 # Give the wrapper access to C engine headers
 target_include_directories(EngineCPP
         PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/src
         vendor/msdf-atlas-gen
 )
@@ -123,5 +127,6 @@ target_link_libraries(Engine
 # Optional: export include dir from Engine too (so Realm can include engine headers)
 target_include_directories(Engine
         INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )

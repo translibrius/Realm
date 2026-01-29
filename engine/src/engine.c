@@ -10,7 +10,6 @@
 #include "renderer/renderer_frontend.h"
 #include "util/clock.h"
 
-
 typedef struct engine_state {
     b8 is_running;
     rl_arena frame_arena;
@@ -30,7 +29,7 @@ b8 on_focus_gained(void *event, void *data);
 b8 on_focus_lost(void *event, void *data);
 
 // Bootstrap all subsystems
-b8 create_engine() {
+b8 rl_engine_create(void) {
     RL_INFO("--------------ENGINE_START--------------");
     state.is_running = true;
 
@@ -80,7 +79,7 @@ b8 create_engine() {
     return true;
 }
 
-void destroy_engine() {
+void rl_engine_destroy(void) {
     RL_DEBUG("Engine shutting down, cleaning up...");
     platform_system_shutdown();
     renderer_destroy();
@@ -90,12 +89,12 @@ void destroy_engine() {
     RL_INFO("--------------ENGINE_STOP--------------");
 }
 
-b8 engine_is_running() {
+b8 rl_engine_is_running(void) {
     return state.is_running;
 }
 
 // Returns delta_time
-b8 engine_begin_frame(f64 *out_dt) {
+b8 rl_engine_begin_frame(f64 *out_dt) {
     TracyCZoneN(ctx, "Engine Begin Frame", true);
     clock_update(&state.frame_clock);
     state.frame_count++;
@@ -116,7 +115,7 @@ b8 engine_begin_frame(f64 *out_dt) {
     return true;
 }
 
-void engine_end_frame() {
+void rl_engine_end_frame(void) {
     TracyCZoneN(ctx, "Engine End Frame", true);
     renderer_end_frame();
     renderer_swap_buffers();
@@ -131,11 +130,20 @@ void engine_end_frame() {
     TracyCZoneEnd(ctx);
 }
 
-engine_stats engine_get_stats(void) {
-    return (engine_stats){
+rl_engine_stats rl_engine_get_stats(void) {
+    return (rl_engine_stats){
         .fps = state.fps_display,
     };
 }
+
+// -- Legacy API (temporary)
+
+b8 create_engine(void) { return rl_engine_create(); }
+void destroy_engine(void) { rl_engine_destroy(); }
+b8 engine_is_running(void) { return rl_engine_is_running(); }
+b8 engine_begin_frame(f64 *out_dt) { return rl_engine_begin_frame(out_dt); }
+void engine_end_frame(void) { rl_engine_end_frame(); }
+engine_stats engine_get_stats(void) { return rl_engine_get_stats(); }
 
 // -- Private
 
