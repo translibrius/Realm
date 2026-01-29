@@ -1,8 +1,9 @@
 #pragma once
 
 #include "defines.h"
-#include "renderer/renderer_types.h"
 #include "game.h"
+#include "platform/platform.h"
+#include "renderer/renderer_backend.h"
 
 typedef struct rl_application_config {
     const char *title;

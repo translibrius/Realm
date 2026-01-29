@@ -3,16 +3,16 @@
 #include "defines.h"
 
 #include "cglm.h"
-#include "renderer/renderer_types.h"
+#include "renderer/renderer_backend.h"
 
 typedef struct rl_camera {
     vec3 pos;
     vec3 forward;
     vec3 up;
 
-    f32 yaw; // degrees
+    f32 yaw;   // degrees
     f32 pitch; // degrees
-    f32 fov; // degrees
+    f32 fov;   // degrees
 } rl_camera;
 
 REALM_API void camera_init(rl_camera *camera);

@@ -1,9 +1,11 @@
 #pragma once
 #include "defines.h"
 
-#include "platform/platform.h"
+#include "renderer/renderer_backend.h"
+
 #include "asset/font.h"
 #include "memory/containers/dynamic_array.h"
+#include "platform/platform.h"
 
 #include "cglm.h"
 
@@ -24,11 +26,6 @@ typedef struct ubo {
 
 DA_DEFINE(Vertices, vertex);
 DA_DEFINE(Indices, u16);
-
-typedef enum RENDERER_BACKEND {
-    BACKEND_OPENGL,
-    BACKEND_VULKAN
-} RENDERER_BACKEND;
 
 typedef enum SHADER_TYPE {
     SHADER_TYPE_VERTEX,
@@ -51,7 +48,7 @@ typedef struct renderer_interface {
     void (*set_active_font)(rl_font *font);
     void (*set_view_projection)(mat4 view, mat4 projection, vec3 pos);
 
-    platform_window* (*get_active_window)();
-    void (*set_active_window)(platform_window* window);
+    platform_window *(*get_active_window)();
+    void (*set_active_window)(platform_window *window);
     void (*resize_framebuffer)(i32 w, i32 h);
 } renderer_interface;

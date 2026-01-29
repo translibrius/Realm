@@ -4,7 +4,7 @@
 #include "cglm.h"
 #include "defines.h"
 #include "platform/platform.h"
-#include "renderer/renderer_types.h"
+#include "renderer/renderer_backend.h"
 
 REALM_API b8 renderer_init(platform_window *window, RENDERER_BACKEND backend, b8 vsync);
 REALM_API void renderer_destroy();
