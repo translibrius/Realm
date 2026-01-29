@@ -62,10 +62,13 @@ cmake --build --preset release
 
 ## 🗺 Roadmap
 
-* [ ] **Vulkan Optimization**: Consolidate texture transitions and copies into a single `VkCommandBuffer` to minimize
-  synchronization overhead.
-* [ ] **Hot-Reloading**: Real-time asset updates for shaders and textures without restarting the engine.
-* [ ] **Linux Parity**: Complete the implementation of windowing and input handling for Linux builds.
+The living roadmap lives in `docs/roadmap.md` (key decisions in `docs/decisions.md`).
+
+* [ ] **Engine as a library**: Stable public C API in `engine/include/` (no engine->app includes).
+* [ ] **Renderer contract**: Mid-level render packet so backend switches don't change scene semantics.
+* [ ] **Asset system v2**: Configured asset root + handles/IDs + hot reload friendly metadata.
+* [ ] **Save/Load + Hot Reload**: Versioned serialization of authoritative state, rebuildable runtime caches.
+* [ ] **Linux Parity**: Complete windowing/input parity for Linux builds.
 
 ## 🤝 Contributing & Contact
 
