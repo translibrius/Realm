@@ -140,6 +140,7 @@ Important runtime assumption:
 
 - Roadmap: `docs/roadmap.md`
 - Decision log: `docs/decisions.md`
+- Hot reload plan (lower priority): `docs/hot-reload-plan.md`
 
 ### Public C API Boundary (Target State)
 

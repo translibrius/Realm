@@ -82,11 +82,14 @@ Exit criteria:
 
 ### M5: Hot Reload + Plugin System
 
+Priority: lower (tracked in `docs/hot-reload-plan.md`).
+
 Deliverables:
 
-- Load the game module dynamically (DLL) exposing a stable `game_api` C interface.
-- On reload: serialize state -> unload -> reload -> deserialize state -> rebuild caches.
-- Add file watching for assets and/or module reload.
+- Load the app module dynamically (`realm_app`) exposing a stable C ABI.
+- Host-owned state with versioned layout; reuse on reload, reset on mismatch (serialization/migration optional later).
+- Add file watching for module reload (Windows `ReadDirectoryChangesW`, Linux `inotify`).
+- Optional: asset watching for live updates.
 
 Exit criteria:
 
