@@ -5,20 +5,20 @@ to Realm. It is intended as a reference for future implementation.
 
 ## Locked Decisions
 
-- Engine remains a C library.
+- Engine is a C shared library (`Engine.dll`) loaded by both host and app module.
 - Realm executable owns the main loop.
 - App logic moves into a hot-reloadable shared library named `realm_app`.
 - ABI header lives at `realm/include/realm_app_api.h`.
 - Host owns the app state memory (allocated via `realm_app_get_state_size`).
 - State starts with `uint32_t version`; reuse if compatible, else reset.
-- App accesses engine via context function tables (separate tables per subsystem).
+- App calls engine APIs directly (no context function tables).
 - Windows and Linux file watchers (macOS later).
 - Windows reload uses copied DLL/PDB to avoid file locks.
 - Single executable with editor gated by a build flag.
 
 ## Target Layout
 
-- Engine: existing C library.
+- Engine: shared C library (`Engine.dll`).
 - realm_app: new shared library (hot-reloadable module).
 - Realm: host executable that loads `realm_app` dynamically.
 
@@ -31,8 +31,7 @@ to Realm. It is intended as a reference for future implementation.
 - `void realm_app_render(void* state, const realm_app_context* ctx);`
 - `void realm_app_shutdown(void* state, const realm_app_context* ctx);`
 
-`realm_app_context` exposes engine services via separate tables:
-input, renderer, assets, logging, time.
+`realm_app_context` contains only runtime config/state (vsync, backend, window info).
 
 ## Hot Reload Flow
 

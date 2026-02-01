@@ -112,6 +112,8 @@ Important runtime assumption:
 
 ### Do
 
+- Use u8, i32, over size_t etc. Include "defines.h" in every header
+- Prefer engine allocators (`mem_alloc`, `mem_free`, `mem_zero`) or `rl_arena` over `malloc/free` in app and engine code
 - Prefer editing code under `engine/src/`, `engine/include/`, and `realm/src/`.
 - Keep long-term plans and decisions in `docs/` (see `docs/roadmap.md`, `docs/decisions.md`).
 - Keep platform-specific code isolated to `engine/src/platform/`.

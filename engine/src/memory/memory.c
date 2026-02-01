@@ -1,9 +1,10 @@
 #include "memory.h"
 
-#include "profiler/profiler.h"
 #include "core/event.h"
 #include "core/logger.h"
+#include "memory/memory.h"
 #include "platform/platform.h"
+#include "profiler/profiler.h"
 #include "util/assert.h"
 
 #include <stdio.h>
@@ -86,7 +87,6 @@ void *mem_realloc(void *old_ptr, u64 old_size, u64 new_size, MEM_TYPE type) {
     return new_ptr;
 }
 
-
 void mem_free(void *block, u64 size, MEM_TYPE type) {
     RL_ASSERT_MSG(state != nullptr, "Memory subsystem not initialized");
 
@@ -120,7 +120,6 @@ void memory_track_arena_release(u64 reserve_size, u64 commit_size, MEM_TYPE type
     state->arena_committed[type] -= commit_size;
 }
 
-
 void mem_debug_usage() {
     RL_DEBUG("-------------- Memory Usage --------------");
 
@@ -141,16 +140,15 @@ void mem_debug_usage() {
         if (!ar && !ac && !ml)
             continue;
 
-        //mem_fmt fr = format_bytes(ar);
-        //mem_fmt fc = format_bytes(ac);
-        //mem_fmt fm = format_bytes(ml);
+        // mem_fmt fr = format_bytes(ar);
+        // mem_fmt fc = format_bytes(ac);
+        // mem_fmt fm = format_bytes(ml);
 
         RL_DEBUG("  %-24s  R:%8.2f MiB  C:%8.2f MiB  M:%8.2f MiB",
                  mem_type_to_str((MEM_TYPE)i),
                  to_mib(ar),
                  to_mib(ac),
                  to_mib(ml));
-
     }
 
     RL_DEBUG("------------------------------------------");

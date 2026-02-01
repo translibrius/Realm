@@ -1,4 +1,5 @@
 #include "platform.h"
+#include "platform/platform.h"
 #include "profiler/profiler.h"
 
 /*
@@ -15,24 +16,24 @@
 #define WIN32_LEAN_AND_MEAN
 #include "thread.h"
 
+#include <glad_wgl.h>
 #include <stdlib.h>
 #include <windows.h>
-#include <glad_wgl.h>
-#include <winuser.h>
-#include <winternl.h>
 #include <windowsx.h>
+#include <winternl.h>
+#include <winuser.h>
 
-#include "memory/memory.h"
-#include "util/assert.h"
 #include "core/event.h"
+#include "memory/memory.h"
 #include "platform/input.h"
 #include "renderer/vulkan/vk_types.h"
+#include "util/assert.h"
 
 #define CREATE_DANGEROUS_WINDOW (WM_USER + 0x1337)
 #define DESTROY_DANGEROUS_WINDOW (WM_USER + 0x1338)
 #define SHOW_DANGEROUS_WINDOW (WM_USER + 0x1400)
 #define SET_CURSOR_MODE (WM_USER + 0x2001)
-#define SET_RAW_INPUT   (WM_USER + 0x2002)
+#define SET_RAW_INPUT (WM_USER + 0x2002)
 
 // Window messages
 #define MSG_RESIZE (WM_USER + 0x1339)
@@ -352,8 +353,7 @@ b8 platform_create_window(platform_window *window) {
         &rect,
         window_style,
         FALSE, // no menu
-        window_style_ex
-        );
+        window_style_ex);
 
     if (window->settings.start_center) {
         // Get primary monitor resolution
@@ -447,13 +447,12 @@ void platform_console_write(const char *message, const LOG_LEVEL level) {
 
     static WORD level_colors[] = {
         /* INFO  */ FOREGROUND_GREEN | FOREGROUND_INTENSITY,
-                    /* DEBUG */ FOREGROUND_BLUE | FOREGROUND_INTENSITY,
-                    /* TRACE */ FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_INTENSITY,
-                    /* WARN  */ FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY, // Yellow
-                    /* ERROR */ FOREGROUND_RED | FOREGROUND_INTENSITY,
-                    /* FATAL */ (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY) | BACKGROUND_RED,
-                    /* RESET */ FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN
-    };
+        /* DEBUG */ FOREGROUND_BLUE | FOREGROUND_INTENSITY,
+        /* TRACE */ FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_INTENSITY,
+        /* WARN  */ FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY, // Yellow
+        /* ERROR */ FOREGROUND_RED | FOREGROUND_INTENSITY,
+        /* FATAL */ (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY) | BACKGROUND_RED,
+        /* RESET */ FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN};
 
     SetConsoleTextAttribute(console_handle, level_colors[level]);
 
@@ -545,8 +544,7 @@ b8 platform_center_cursor(platform_window *window) {
 
     POINT center = {
         (rect.right - rect.left) / 2,
-        (rect.bottom - rect.top) / 2
-    };
+        (rect.bottom - rect.top) / 2};
 
     ClientToScreen(window->handle, &center);
     return platform_set_cursor_position(window, (vec2){center.x, center.y});
@@ -593,13 +591,11 @@ b8 platform_set_window_mode(platform_window *window, PLATFORM_WINDOW_MODE mode) 
             mi.rcMonitor.top,
             mi.rcMonitor.right - mi.rcMonitor.left,
             mi.rcMonitor.bottom - mi.rcMonitor.top,
-            SWP_FRAMECHANGED | SWP_NOOWNERZORDER
-            );
+            SWP_FRAMECHANGED | SWP_NOOWNERZORDER);
 
         w->is_borderless = true;
         window->settings.window_mode = WINDOW_MODE_BORDERLESS;
-    }
-    break;
+    } break;
 
     case WINDOW_MODE_WINDOWED: {
         if (!w->is_borderless)
@@ -615,13 +611,11 @@ b8 platform_set_window_mode(platform_window *window, PLATFORM_WINDOW_MODE mode) 
             window->settings.y,
             window->settings.width,
             window->settings.height,
-            SWP_FRAMECHANGED | SWP_NOZORDER
-            );
+            SWP_FRAMECHANGED | SWP_NOZORDER);
 
         w->is_borderless = false;
         window->settings.window_mode = WINDOW_MODE_WINDOWED;
-    }
-    break;
+    } break;
 
     default:
         RL_WARN("unknown/unimplemented mode");
@@ -698,13 +692,52 @@ b8 platform_mem_release(void *ptr, u64 size) {
     return VirtualFree(ptr, size, MEM_RELEASE);
 }
 
+b8 platform_load_lib(const char *path, platform_lib *out_lib) {
+    out_lib->handle = LoadLibraryA(path);
+
+    if (!out_lib->handle) {
+        RL_ERROR("failed to load library: %s", path);
+        return false;
+    }
+
+    mem_zero(out_lib->path, sizeof(out_lib->path));
+    mem_copy(path, out_lib->path, sizeof(out_lib->path));
+
+    return true;
+}
+
+void platform_unload_lib(platform_lib *lib) {
+    if (lib->handle) {
+        FreeLibrary(lib->handle);
+    }
+}
+
+b8 platform_lib_symbol(platform_lib *lib, const char *symbol, void **out_addr) {
+    if (!out_addr) {
+        RL_ERROR("failed to load symbol: %s", symbol);
+        return false;
+    }
+    if (!lib->handle) {
+        RL_ERROR("failed to load symbol: %s", symbol);
+        return false;
+    }
+
+    *out_addr = GetProcAddress(lib->handle, symbol);
+    if (!*out_addr) {
+        RL_ERROR("failed to load symbol: %s", symbol);
+        return false;
+    }
+
+    return true;
+}
+
 // Private ---------------------------------------------------------------
 
 // NOTE: for calling RtlGetVersion. This seems to be the most stable way to get
 // Windows version
 typedef LONG NTSTATUS;
 
-typedef LONG (WINAPI *RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
+typedef LONG(WINAPI *RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
 
 b8 get_windows_version(RTL_OSVERSIONINFOW *out_version) {
     HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
@@ -787,8 +820,7 @@ b8 platform_create_opengl_context(platform_window *window) {
     HWND dummy_hwnd = CreateWindowA(
         "dummy_window_class", "dummy",
         0, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
-        nullptr, nullptr, state.handle, NULL
-        );
+        nullptr, nullptr, state.handle, NULL);
 
     HDC dummy_hdc = GetDC(dummy_hwnd);
     if (!dummy_hdc) {
@@ -866,8 +898,7 @@ b8 platform_create_opengl_context(platform_window *window) {
         WGL_STENCIL_BITS_ARB, 8,
         WGL_SAMPLE_BUFFERS_ARB, 1,
         WGL_SAMPLES_ARB, 4, // 4x MSAA
-        0
-    };
+        0};
 
     const int pixel_format_attribs_no_msaa[] = {
         WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
@@ -878,8 +909,7 @@ b8 platform_create_opengl_context(platform_window *window) {
         WGL_COLOR_BITS_ARB, 32,
         WGL_DEPTH_BITS_ARB, 24,
         WGL_STENCIL_BITS_ARB, 8,
-        0
-    };
+        0};
 
     int chosen_format = 0;
     UINT num_formats = 0;
@@ -922,8 +952,7 @@ b8 platform_create_opengl_context(platform_window *window) {
             WGL_CONTEXT_MINOR_VERSION_ARB, 3,
             WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB,
             WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
-            0
-        };
+            0};
         HGLRC modern_ctx = wglCreateContextAttribsARB(hdc, nullptr, attribs);
         if (modern_ctx) {
             wglMakeCurrent(hdc, nullptr);
@@ -963,8 +992,7 @@ static void platform_center_cursor_hwnd(HWND hwnd) {
 
     POINT center = {
         (rect.right - rect.left) / 2,
-        (rect.bottom - rect.top) / 2
-    };
+        (rect.bottom - rect.top) / 2};
 
     ClientToScreen(hwnd, &center);
     SetCursorPos(center.x, center.y);
@@ -982,8 +1010,7 @@ static void platform_set_cursor_mode_hwnd(HWND hwnd, platform_cursor_mode mode) 
         // Ensure cursor is visible
         for (int i = 0; i < 8 && ShowCursor(TRUE) < 0; i++) {
         }
-    }
-    break;
+    } break;
 
     case CURSOR_MODE_HIDDEN: {
         ClipCursor(NULL);
@@ -992,8 +1019,7 @@ static void platform_set_cursor_mode_hwnd(HWND hwnd, platform_cursor_mode mode) 
         // Hide cursor
         for (int i = 0; i < 8 && ShowCursor(FALSE) >= 0; i++) {
         }
-    }
-    break;
+    } break;
 
     case CURSOR_MODE_LOCKED: {
         RECT rect;
@@ -1007,8 +1033,7 @@ static void platform_set_cursor_mode_hwnd(HWND hwnd, platform_cursor_mode mode) 
 
         RECT clip = {
             ul.x, ul.y,
-            lr.x, lr.y
-        };
+            lr.x, lr.y};
 
         SetCapture(hwnd);
         ClipCursor(&clip);
@@ -1018,13 +1043,11 @@ static void platform_set_cursor_mode_hwnd(HWND hwnd, platform_cursor_mode mode) 
         }
 
         platform_center_cursor_hwnd(hwnd);
-    }
-    break;
+    } break;
     }
 
     state.cursor_mode = mode;
 }
-
 
 void platform_set_cursor_mode(platform_window *w, platform_cursor_mode mode) {
     cursor_mode_msg *m = mem_alloc(sizeof(*m), MEM_SUBSYSTEM_PLATFORM);
@@ -1040,7 +1063,6 @@ b8 platform_set_raw_input(platform_window *w, b8 enable) {
     PostMessageA(state.service_window, SET_RAW_INPUT, (WPARAM)m, 0);
     return true;
 }
-
 
 static LRESULT CALLBACK ServiceWndProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam) {
     /* This is not really a window handler per se, it's actually just
@@ -1069,13 +1091,11 @@ static LRESULT CALLBACK ServiceWndProc(HWND Window, UINT Message, WPARAM WParam,
                                           win_info->hMenu,
                                           win_info->hInstance,
                                           win_info->lpParam);
-    }
-    break;
+    } break;
 
     case DESTROY_DANGEROUS_WINDOW: {
         DestroyWindow((HWND)WParam);
-    }
-    break;
+    } break;
 
     case SHOW_DANGEROUS_WINDOW: {
         HWND hwnd = (HWND)WParam;
@@ -1090,8 +1110,7 @@ static LRESULT CALLBACK ServiceWndProc(HWND Window, UINT Message, WPARAM WParam,
         BringWindowToTop(hwnd);
 
         Result = 1;
-    }
-    break;
+    } break;
 
     case SET_CURSOR_MODE: {
         cursor_mode_msg *m = (cursor_mode_msg *)WParam;
@@ -1102,8 +1121,7 @@ static LRESULT CALLBACK ServiceWndProc(HWND Window, UINT Message, WPARAM WParam,
 
         mem_free(m, sizeof(*m), MEM_SUBSYSTEM_PLATFORM);
         Result = 1;
-    }
-    break;
+    } break;
 
     case SET_RAW_INPUT: {
         raw_input_msg *m = (raw_input_msg *)WParam;
@@ -1111,10 +1129,9 @@ static LRESULT CALLBACK ServiceWndProc(HWND Window, UINT Message, WPARAM WParam,
         if (m && IsWindow(m->hwnd)) {
             RAWINPUTDEVICE rid = {
                 .usUsagePage = 0x01, // Generic Desktop Controls
-                .usUsage = 0x02, // Mouse
+                .usUsage = 0x02,     // Mouse
                 .dwFlags = m->enable ? 0 : RIDEV_REMOVE,
-                .hwndTarget = m->enable ? m->hwnd : nullptr
-            };
+                .hwndTarget = m->enable ? m->hwnd : nullptr};
 
             RegisterRawInputDevices(&rid, 1, sizeof(rid));
             state.raw_mouse_enabled = m->enable;
@@ -1122,19 +1139,16 @@ static LRESULT CALLBACK ServiceWndProc(HWND Window, UINT Message, WPARAM WParam,
             // IMPORTANT: cursor lock/unlock lives here now
             platform_set_cursor_mode_hwnd(
                 m->hwnd,
-                m->enable ? CURSOR_MODE_LOCKED : CURSOR_MODE_NORMAL
-                );
+                m->enable ? CURSOR_MODE_LOCKED : CURSOR_MODE_NORMAL);
         }
 
         mem_free(m, sizeof(*m), MEM_SUBSYSTEM_PLATFORM);
         Result = 1;
-    }
-    break;
+    } break;
 
     default: {
         Result = DefWindowProcA(Window, Message, WParam, LParam);
-    }
-    break;
+    } break;
     }
 
     return Result;
@@ -1153,8 +1167,7 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
     */
     case WM_CLOSE: {
         PostThreadMessageA(state.main_thread_id, Message, (WPARAM)Window, LParam);
-    }
-    break;
+    } break;
 
     case WM_ERASEBKGND:
         // Notify the OS that erasing the screen will be handled by the application to prevent flicker.
@@ -1196,8 +1209,7 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
         if (pw) {
             event_fire(EVENT_WINDOW_FOCUS_GAINED, pw);
         }
-    }
-    break;
+    } break;
 
     case WM_KILLFOCUS: {
         platform_window *pw = nullptr;
@@ -1211,8 +1223,7 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
         if (pw) {
             event_fire(EVENT_WINDOW_FOCUS_LOST, pw);
         }
-    }
-    break;
+    } break;
 
     // Input
     case WM_KEYDOWN:
@@ -1237,8 +1248,7 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
 
         // Pass over to the input subsystem.
         input_process_mouse_move(x_position, y_position);
-    }
-    break;
+    } break;
     case WM_MOUSEWHEEL: {
         i32 z_delta = GET_WHEEL_DELTA_WPARAM(WParam);
         if (z_delta != 0) {
@@ -1246,8 +1256,7 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
             z_delta = (z_delta < 0) ? -1 : 1;
             input_process_mouse_scroll(z_delta);
         }
-    }
-    break;
+    } break;
     case WM_LBUTTONDOWN:
     case WM_MBUTTONDOWN:
     case WM_RBUTTONDOWN:
@@ -1277,8 +1286,7 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
         if (mouse_button != MOUSE_MAX_BUTTONS) {
             input_process_mouse_button(mouse_button, pressed);
         }
-    }
-    break;
+    } break;
 
     // Raw mouse input
     case WM_INPUT: {

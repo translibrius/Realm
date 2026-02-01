@@ -16,9 +16,9 @@ REALM_API void renderer_swap_buffers();
 REALM_API void renderer_render_text(const char *text, f32 size_px, f32 x, f32 y, vec4 color);
 REALM_API void renderer_set_active_font(rl_font *font);
 
-void renderer_set_view_projection(mat4 view, mat4 projection, vec3 pos);
+REALM_API void renderer_set_view_projection(mat4 view, mat4 projection, vec3 pos);
 
-platform_window *renderer_get_active_window();
-void renderer_set_active_window(platform_window *window);
+REALM_API platform_window *renderer_get_active_window();
+REALM_API void renderer_set_active_window(platform_window *window);
 
-void renderer_resize_framebuffer(i32 w, i32 h);
+REALM_API void renderer_resize_framebuffer(i32 w, i32 h);

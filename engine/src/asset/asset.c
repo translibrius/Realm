@@ -1,5 +1,6 @@
 #include "asset/asset_internal.h"
 
+#include "asset/asset.h"
 #include "asset/asset_table.h"
 
 #include "asset/font.h"

@@ -31,10 +31,10 @@ typedef struct rl_event {
     void *user_data;
 } rl_event;
 
-u64 event_system_size();
-b8 event_system_start(void *memory);
+REALM_API u64 event_system_size();
+REALM_API b8 event_system_start(void *memory);
 
-void event_fire(EVENT_TYPE type, void *event_data);
-void event_register(EVENT_TYPE type, b8 (*callback)(void *data, void *user_data), void *user_data);
+REALM_API void event_fire(EVENT_TYPE type, void *event_data);
+REALM_API void event_register(EVENT_TYPE type, b8 (*callback)(void *data, void *user_data), void *user_data);
 
-void event_system_shutdown();
+REALM_API void event_system_shutdown();

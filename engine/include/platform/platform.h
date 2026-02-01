@@ -21,6 +21,11 @@ typedef enum PLATFORM_WINDOW_MODE {
     WINDOW_MODE_FULLSCREEN,
 } PLATFORM_WINDOW_MODE;
 
+typedef struct platform_lib {
+    void *handle;
+    char path[260];
+} platform_lib;
+
 typedef struct platform_window_settings {
     const char *title;
     i32 x;
@@ -59,42 +64,47 @@ typedef struct platform_info {
 } platform_info;
 
 // System
-b8 platform_system_start();
-void platform_system_shutdown();
+REALM_API b8 platform_system_start();
+REALM_API void platform_system_shutdown();
 
 // Memory
-void *platform_mem_reserve(u64 size);
-b8 platform_mem_commit(void *ptr, u64 size);
-b8 platform_mem_decommit(void *ptr, u64 size);
-b8 platform_mem_release(void *ptr, u64 size);
+REALM_API void *platform_mem_reserve(u64 size);
+REALM_API b8 platform_mem_commit(void *ptr, u64 size);
+REALM_API b8 platform_mem_decommit(void *ptr, u64 size);
+REALM_API b8 platform_mem_release(void *ptr, u64 size);
 
 // Windowing
-b8 platform_pump_messages();
-b8 platform_create_window(platform_window *window);
-b8 platform_destroy_window(u16 id);
-b8 platform_set_window_mode(platform_window *window, PLATFORM_WINDOW_MODE mode);
-b8 platform_window_should_close(u16 id);
+REALM_API b8 platform_pump_messages();
+REALM_API b8 platform_create_window(platform_window *window);
+REALM_API b8 platform_destroy_window(u16 id);
+REALM_API b8 platform_set_window_mode(platform_window *window, PLATFORM_WINDOW_MODE mode);
+REALM_API b8 platform_window_should_close(u16 id);
 
 // Graphics context stuff
-b8 platform_create_opengl_context(platform_window *window);
-b8 platform_context_make_current(platform_window *window);
-b8 platform_swap_buffers(platform_window *window);
-u32 platform_get_required_vulkan_extensions(const char ***names_out, b8 enable_validation); // Returns count of extensions
-b8 platform_create_vulkan_surface(struct VK_Context *context);
+REALM_API b8 platform_create_opengl_context(platform_window *window);
+REALM_API b8 platform_context_make_current(platform_window *window);
+REALM_API b8 platform_swap_buffers(platform_window *window);
+REALM_API u32 platform_get_required_vulkan_extensions(const char ***names_out, b8 enable_validation); // Returns count of extensions
+REALM_API b8 platform_create_vulkan_surface(struct VK_Context *context);
 
 // Cursor api
-void platform_set_cursor_mode(platform_window *window, platform_cursor_mode mode);
-b8 platform_set_cursor_position(platform_window *window, vec2 position);
-b8 platform_center_cursor(platform_window *window);
+REALM_API void platform_set_cursor_mode(platform_window *window, platform_cursor_mode mode);
+REALM_API b8 platform_set_cursor_position(platform_window *window, vec2 position);
+REALM_API b8 platform_center_cursor(platform_window *window);
 
 // Raw mouse input toggle. Should be only toggled on/off on main window.
-b8 platform_set_raw_input(platform_window *window, bool enable);
-b8 platform_get_raw_input();
+REALM_API b8 platform_set_raw_input(platform_window *window, bool enable);
+REALM_API b8 platform_get_raw_input();
+
+// Dynamic
+REALM_API b8 platform_load_lib(const char *path, platform_lib *out_lib);
+REALM_API void platform_unload_lib(platform_lib *lib);
+REALM_API b8 platform_lib_symbol(platform_lib *lib, const char *symbol, void **out_addr);
 
 // Misc
-i64 platform_get_clock_counter();
-void platform_sleep(u32 milliseconds);
-u64 platform_get_current_thread_id();
-void platform_console_write(const char *message, LOG_LEVEL level);
-platform_info *platform_get_info();
-void log_system_info();
+REALM_API i64 platform_get_clock_counter();
+REALM_API void platform_sleep(u32 milliseconds);
+REALM_API u64 platform_get_current_thread_id();
+REALM_API void platform_console_write(const char *message, LOG_LEVEL level);
+REALM_API platform_info *platform_get_info();
+REALM_API void log_system_info();

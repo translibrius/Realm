@@ -1,8 +1,9 @@
 
 #include "application.h"
 #include "core/event.h"
+#include "core/logger.h"
 #include "engine.h"
-#include "game.h"
+#include "memory/memory.h"
 #include "platform/platform.h"
 #include "profiler/profiler.h"
 #include "renderer/renderer_frontend.h"
@@ -13,8 +14,9 @@ static rl_application_config config = {
     .backend = BACKEND_VULKAN};
 static rl_application app;
 
-b8 create_game();
 b8 create_window();
+b8 create_app_module();
+void destroy_app_module();
 
 b8 on_window_resize(void *event, void *data);
 
@@ -34,7 +36,8 @@ b8 create_application() {
         return false;
     }
 
-    if (!create_game()) {
+    if (!create_app_module()) {
+        RL_ERROR("failed to initialize app module");
         return false;
     }
 
@@ -45,11 +48,12 @@ b8 create_application() {
             continue;
         }
 
-        game_update(&app.game, dt);
-        game_render(&app.game, dt);
+        app.app_module.update(app.app_state, &app.app_context, dt);
+        app.app_module.render(app.app_state, &app.app_context);
         rl_engine_end_frame();
     }
 
+    destroy_app_module();
     rl_engine_destroy();
 
     return true;
@@ -57,21 +61,47 @@ b8 create_application() {
 
 // Private
 
-b8 create_game() {
-    rl_game_cfg game_cfg = {
+b8 create_app_module() {
+    if (!realm_app_module_load(&app.app_module)) {
+        RL_ERROR("failed to load app module");
+        return false;
+    }
+
+    app.app_state_size = app.app_module.get_state_size();
+    app.app_state = nullptr;
+
+    if (app.app_state_size > 0) {
+        app.app_state = mem_alloc(app.app_state_size, MEM_APPLICATION);
+        if (!app.app_state) {
+            RL_ERROR("failed to allocate app state");
+            return false;
+        }
+        mem_zero(app.app_state, app.app_state_size);
+    }
+
+    app.app_context = (realm_app_context){
         .vsync = app.config.vsync,
         .renderer_backend = app.config.backend,
         .width = app.window.settings.width,
         .height = app.window.settings.height,
-        .x = 0,
-        .y = 0};
+        .x = app.window.settings.x,
+        .y = app.window.settings.y,
+    };
 
-    if (!game_init(&app.game, game_cfg)) {
-        RL_ERROR("failed to initialize game instance");
-        return false;
-    }
-
+    app.app_module.init(app.app_state, &app.app_context);
     return true;
+}
+
+void destroy_app_module() {
+    if (realm_app_module_is_loaded(&app.app_module)) {
+        app.app_module.shutdown(app.app_state, &app.app_context);
+    }
+    if (app.app_state) {
+        mem_free(app.app_state, app.app_state_size, MEM_APPLICATION);
+    }
+    app.app_state = nullptr;
+    app.app_state_size = 0;
+    realm_app_module_unload(&app.app_module);
 }
 
 b8 create_window() {
@@ -102,6 +132,10 @@ b8 on_window_resize(void *event, void *data) {
 
     if (window->id == app.window.id) {
         app.window.settings = window->settings;
+        app.app_context.width = window->settings.width;
+        app.app_context.height = window->settings.height;
+        app.app_context.x = window->settings.x;
+        app.app_context.y = window->settings.y;
         if (renderer_window->id == window->id) {
             renderer_resize_framebuffer(window->settings.width, window->settings.height);
         }

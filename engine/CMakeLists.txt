@@ -29,8 +29,8 @@ file(GLOB_RECURSE ENGINE_C_SOURCES
         "${CMAKE_CURRENT_SOURCE_DIR}/vendor/glad/*.c"
 )
 
-# Build C part as a static lib (no C++ here)
-add_library(EngineC STATIC ${ENGINE_C_SOURCES})
+# Build C part as an object library (no C++ here)
+add_library(EngineC OBJECT ${ENGINE_C_SOURCES})
 
 target_compile_definitions(EngineC PRIVATE
         VK_NO_PROTOTYPES
@@ -41,9 +41,6 @@ target_include_directories(EngineC PRIVATE
         ${SHADERC_ROOT}/Include
 )
 
-target_link_libraries(EngineC PRIVATE
-        Vulkan::Headers
-        ${SHADERC_ROOT}/Lib/shaderc_shared.lib)
 
 target_include_directories(EngineC
         PUBLIC
@@ -70,16 +67,9 @@ target_compile_options(EngineC PRIVATE
         -Wno-gnu-zero-variadic-macro-arguments
 )
 
-# OpenGL link
-if (WIN32)
-    target_link_libraries(EngineC PRIVATE opengl32)
-elseif (UNIX)
-    find_package(OpenGL REQUIRED)
-    target_link_libraries(EngineC PRIVATE OpenGL::GL)
-endif ()
 
 # --- C++ sources ---
-add_library(EngineCPP STATIC
+add_library(EngineCPP OBJECT
         ${CMAKE_CURRENT_SOURCE_DIR}/src/core/font/msdf_wrapper.cpp
 )
 
@@ -103,8 +93,6 @@ target_compile_options(EngineCPP PRIVATE
 # Ensure C++ standard
 target_compile_features(EngineCPP PRIVATE cxx_std_17)
 target_link_libraries(EngineCPP PRIVATE msdf-atlas-gen)
-target_link_libraries(EngineCPP PRIVATE EngineC)
-target_link_libraries(EngineCPP PRIVATE Tracy::TracyClient)
 
 # Per-configuration compiler flags
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -116,17 +104,35 @@ elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
 endif ()
 
 # --- Final shared library that your app links against ---
-add_library(Engine INTERFACE)
-
-target_link_libraries(Engine
-        INTERFACE
-        EngineC
-        EngineCPP
+add_library(Engine SHARED
+        $<TARGET_OBJECTS:EngineC>
+        $<TARGET_OBJECTS:EngineCPP>
 )
 
-# Optional: export include dir from Engine too (so Realm can include engine headers)
+target_link_libraries(Engine PRIVATE
+        Vulkan::Headers
+        ${SHADERC_ROOT}/Lib/shaderc_shared.lib
+        Tracy::TracyClient
+        msdf-atlas-gen
+)
+
+# OpenGL link
+if (WIN32)
+    target_link_libraries(Engine PRIVATE opengl32)
+elseif (UNIX)
+    find_package(OpenGL REQUIRED)
+    target_link_libraries(Engine PRIVATE OpenGL::GL)
+endif ()
+
+target_compile_definitions(EngineC PRIVATE ENGINE_SHARED ENGINE_BUILD)
+target_compile_definitions(EngineCPP PRIVATE ENGINE_SHARED ENGINE_BUILD)
+
+target_compile_definitions(Engine INTERFACE ENGINE_SHARED)
+
+# Export include dirs from Engine (so Realm and modules include engine headers)
 target_include_directories(Engine
         INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/vendor/cglm
+        ${CMAKE_CURRENT_SOURCE_DIR}/vendor/tracy/public/tracy
 )

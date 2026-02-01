@@ -1,15 +1,16 @@
 #include "arena.h"
 
-#include "memory/memory.h"
-#include "util/assert.h"
 #include "core/logger.h"
+#include "memory/arena.h"
+#include "memory/memory.h"
 #include "platform/platform.h"
+#include "util/assert.h"
 
 #include <string.h>
 
 #define ALIGN_UP(x, align) (((x) + ((align) - 1)) & ~((align) - 1))
 #define ALIGN_UP_POW2(n, p) (((u64)(n) + ((u64)(p) - 1)) & (~((u64)(p) - 1)))
-#define ARENA_ALIGN (sizeof(void*))
+#define ARENA_ALIGN (sizeof(void *))
 
 #define ARENA_BASE_POS (sizeof(rl_arena))
 
@@ -90,7 +91,7 @@ void *rl_arena_push(rl_arena *arena, u64 size, b8 zero) {
     u64 new_pos = pos_aligned + size;
 
     if (new_pos > arena->reserve_size) {
-        RL_FATAL("Tried to allocate to an arena past reserved memory. AllocSize=%llu Memory_available=%llu. Arena type=%s", size, arena->reserve_size-arena->pos, mem_type_to_str(arena->mem_type));
+        RL_FATAL("Tried to allocate to an arena past reserved memory. AllocSize=%llu Memory_available=%llu. Arena type=%s", size, arena->reserve_size - arena->pos, mem_type_to_str(arena->mem_type));
         return NULL;
     }
 
@@ -143,8 +144,7 @@ void rl_arena_clear(rl_arena *arena) {
 rl_temp_arena rl_arena_temp_begin(rl_arena *arena) {
     return (rl_temp_arena){
         .arena = arena,
-        .start_pos = arena->pos
-    };
+        .start_pos = arena->pos};
 }
 void rl_arena_temp_end(rl_temp_arena temp) {
     rl_arena_pop_to(temp.arena, temp.start_pos);
