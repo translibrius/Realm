@@ -1,5 +1,6 @@
 #include "core/logger.h"
 
+#include "core/logger.h"
 #include "platform/platform.h"
 #include "platform/thread.h"
 

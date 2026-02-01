@@ -3,6 +3,7 @@
 #include "asset/asset_internal.h"
 #include "core/event.h"
 #include "core/logger.h"
+#include "engine.h"
 #include "memory/arena.h"
 #include "memory/memory.h"
 #include "platform/input.h"

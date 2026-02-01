@@ -1,11 +1,12 @@
 #pragma once
+
 #include "defines.h"
-#include "platform.h"
+#include "platform/platform.h"
 
 #include "cglm.h"
 
 typedef enum INPUT_MODE {
-    INPUT_MODE_UI, // Uses OS cursor
+    INPUT_MODE_UI,   // Uses OS cursor
     INPUT_MODE_GAME, // Hides OS cursor, uses raw input
 } INPUT_MODE;
 
@@ -22,10 +23,14 @@ typedef enum KEYBOARD_KEY {
     KEY_ENTER,
     KEY_TAB,
 
-    KEY_L_SHIFT, KEY_R_SHIFT,
-    KEY_L_CTRL, KEY_R_CTRL,
-    KEY_L_ALT, KEY_R_ALT,
-    KEY_L_SUPER, KEY_R_SUPER,
+    KEY_L_SHIFT,
+    KEY_R_SHIFT,
+    KEY_L_CTRL,
+    KEY_R_CTRL,
+    KEY_L_ALT,
+    KEY_R_ALT,
+    KEY_L_SUPER,
+    KEY_R_SUPER,
 
     KEY_ESCAPE,
 
@@ -36,13 +41,32 @@ typedef enum KEYBOARD_KEY {
     KEY_RIGHT,
 
     // ABC
-    KEY_A, KEY_B, KEY_C, KEY_D,
-    KEY_E, KEY_F, KEY_G, KEY_H,
-    KEY_I, KEY_J, KEY_K, KEY_L,
-    KEY_M, KEY_N, KEY_O, KEY_P,
-    KEY_Q, KEY_R, KEY_S, KEY_T,
-    KEY_U, KEY_V, KEY_W, KEY_X,
-    KEY_Y, KEY_Z,
+    KEY_A,
+    KEY_B,
+    KEY_C,
+    KEY_D,
+    KEY_E,
+    KEY_F,
+    KEY_G,
+    KEY_H,
+    KEY_I,
+    KEY_J,
+    KEY_K,
+    KEY_L,
+    KEY_M,
+    KEY_N,
+    KEY_O,
+    KEY_P,
+    KEY_Q,
+    KEY_R,
+    KEY_S,
+    KEY_T,
+    KEY_U,
+    KEY_V,
+    KEY_W,
+    KEY_X,
+    KEY_Y,
+    KEY_Z,
 
     KEY_NUMPAD0,
     KEY_NUMPAD1,
@@ -129,8 +153,8 @@ void input_process_mouse_raw(i32 dx, i32 dy);
 void input_process_mouse_move(i32 position_x, i32 position_y);
 void input_process_mouse_scroll(i32 delta); // Flatten the input to an OS-independent (-1, 1)
 
-REALM_API b8 input_is_key_down(KEYBOARD_KEY key); // now
-REALM_API b8 input_key_pressed(KEYBOARD_KEY key); // up -> down
+REALM_API b8 input_is_key_down(KEYBOARD_KEY key);  // now
+REALM_API b8 input_key_pressed(KEYBOARD_KEY key);  // up -> down
 REALM_API b8 input_key_released(KEYBOARD_KEY key); // down -> up
 
 REALM_API b8 input_is_mouse_down(MOUSE_BUTTON button);

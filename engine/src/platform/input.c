@@ -1,7 +1,5 @@
-#include "input.h"
-
+#include "platform/input.h"
 #include "core/event.h"
-#include "core/logger.h"
 #include "memory/memory.h"
 
 typedef struct mouse_state {

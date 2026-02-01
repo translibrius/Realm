@@ -1,5 +1,5 @@
 add_library(realm_app SHARED
-        src/realm_app_stub.c
+        src/realm_app_api.c
         src/game.c
 )
 

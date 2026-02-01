@@ -1,7 +1,7 @@
 #include "core/logger.h"
+#include "glad_wgl.h"
 #include "platform/io/file_io.h"
 #include "util/str.h"
-#include "glad_wgl.h"
 
 #ifdef PLATFORM_WINDOWS
 
@@ -20,6 +20,39 @@ b8 platform_file_exists(const char *path) {
 b8 platform_dir_exists(const char *path) {
     DWORD attrs = GetFileAttributesA(path);
     return (attrs != INVALID_FILE_ATTRIBUTES) && (attrs & FILE_ATTRIBUTE_DIRECTORY);
+}
+
+b8 platform_file_copy(const char *source_path, const char *dest_path, b8 overwrite) {
+    if (!source_path || !dest_path) {
+        RL_ERROR("Failed to copy file: invalid path(s)");
+        return false;
+    }
+
+    BOOL success = CopyFileA(source_path, dest_path, overwrite ? FALSE : TRUE);
+    if (!success) {
+        RL_ERROR("Failed to copy file '%s' -> '%s'. Error: %lu", source_path, dest_path, GetLastError());
+        return false;
+    }
+
+    return true;
+}
+
+b8 platform_file_delete(const char *path) {
+    if (!path) {
+        RL_ERROR("Failed to delete file: invalid path");
+        return false;
+    }
+
+    if (!DeleteFileA(path)) {
+        DWORD err = GetLastError();
+        if (err == ERROR_FILE_NOT_FOUND) {
+            return true;
+        }
+        RL_ERROR("Failed to delete file '%s'. Error: %lu", path, err);
+        return false;
+    }
+
+    return true;
 }
 
 b8 platform_file_open(const char *path, FILE_PERM perms, rl_file *out_file) {
@@ -63,7 +96,7 @@ b8 platform_file_open(const char *path, FILE_PERM perms, rl_file *out_file) {
     GetFileSizeEx(h, &l_int_size);
     out_file->size = l_int_size.QuadPart;
 
-    //RL_DEBUG("Successfully opened file. Name='%s' Size=%llu", out_file->name, out_file->size);
+    // RL_DEBUG("Successfully opened file. Name='%s' Size=%llu", out_file->name, out_file->size);
 
     da_free(&split);
     arena_scratch_release(scratch);

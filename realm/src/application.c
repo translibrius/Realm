@@ -4,6 +4,7 @@
 #include "core/logger.h"
 #include "engine.h"
 #include "memory/memory.h"
+#include "platform/input.h"
 #include "platform/platform.h"
 #include "profiler/profiler.h"
 #include "renderer/renderer_frontend.h"
@@ -13,12 +14,14 @@ static rl_application_config config = {
     .vsync = false,
     .backend = BACKEND_VULKAN};
 static rl_application app;
+static b8 reload_requested = false;
 
 b8 create_window();
 b8 create_app_module();
 void destroy_app_module();
 
 b8 on_window_resize(void *event, void *data);
+b8 on_key_press(void *event, void *data);
 
 b8 create_application() {
     app.config = config;
@@ -45,6 +48,19 @@ b8 create_application() {
     while (rl_engine_is_running()) {
         RL_PROFILE_FRAME_MARK();
         if (!rl_engine_begin_frame(&dt)) {
+            continue;
+        }
+
+        if (reload_requested) {
+            reload_requested = false;
+            RL_INFO("Reloading app module...");
+            if (!realm_app_module_reload(&app.app_module, app.app_state, &app.app_context)) {
+                RL_ERROR("App module reload failed");
+            }
+        }
+
+        if (!realm_app_module_is_loaded(&app.app_module)) {
+            rl_engine_end_frame();
             continue;
         }
 
@@ -122,6 +138,7 @@ b8 create_window() {
     }
 
     event_register(EVENT_WINDOW_RESIZE, on_window_resize, nullptr);
+    event_register(EVENT_KEY_PRESS, on_key_press, nullptr);
 
     return true;
 }
@@ -142,4 +159,19 @@ b8 on_window_resize(void *event, void *data) {
     }
     // Consume event
     return true;
+}
+
+b8 on_key_press(void *event, void *data) {
+    (void)data;
+    input_key *key = event;
+
+    if (!key) {
+        return false;
+    }
+
+    if (key->key == KEY_F5 && key->pressed) {
+        reload_requested = true;
+    }
+
+    return false;
 }

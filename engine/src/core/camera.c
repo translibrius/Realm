@@ -1,6 +1,7 @@
 #include "core/camera.h"
 
 #include "../vendor/cglm/clipspace/persp_rh_zo.h"
+#include "core/camera.h"
 #include "platform/input.h"
 #include "renderer/renderer_backend.h"
 
