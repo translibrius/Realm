@@ -1,9 +1,10 @@
 #pragma once
 
-#include "defines.h"
-#include "asset/font.h"
 #include "core/camera.h"
+#include "defines.h"
 #include "memory/arena.h"
+
+typedef struct rl_font rl_font;
 
 typedef struct rl_game_cfg {
     b8 vsync;

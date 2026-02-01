@@ -1,15 +1,15 @@
-#include "asset/asset.h"
+#include "asset/asset_internal.h"
 
 #include "asset/asset_table.h"
 
 #include "asset/font.h"
-#include "core/event.h"
-#include "core/logger.h"
-#include "platform/thread.h"
-#include "platform/io/file_io.h"
-#include "platform/splash/splash.h"
 #include "asset/shader.h"
 #include "asset/texture.h"
+#include "core/event.h"
+#include "core/logger.h"
+#include "platform/io/file_io.h"
+#include "platform/splash/splash.h"
+#include "platform/thread.h"
 
 #include <string.h>
 

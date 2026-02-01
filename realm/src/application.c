@@ -40,7 +40,8 @@ b8 create_application() {
 
     f64 dt = 0.0f;
     while (rl_engine_is_running()) {
-        TracyCFrameMark if (!rl_engine_begin_frame(&dt)) {
+        RL_PROFILE_FRAME_MARK();
+        if (!rl_engine_begin_frame(&dt)) {
             continue;
         }
 

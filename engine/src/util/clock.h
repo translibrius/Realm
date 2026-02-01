@@ -2,7 +2,7 @@
 
 #include "defines.h"
 
-#include "platform/platform.h"
+#include <platform/platform.h>
 
 typedef struct rl_clock {
     i64 frequency;

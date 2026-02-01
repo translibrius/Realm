@@ -1,8 +1,9 @@
 #include "engine.h"
 
-#include "asset/asset.h"
+#include "asset/asset_internal.h"
 #include "core/event.h"
 #include "core/logger.h"
+#include "memory/arena.h"
 #include "memory/memory.h"
 #include "platform/input.h"
 #include "platform/platform.h"
@@ -95,7 +96,7 @@ b8 rl_engine_is_running(void) {
 
 // Returns delta_time
 b8 rl_engine_begin_frame(f64 *out_dt) {
-    TracyCZoneN(ctx, "Engine Begin Frame", true);
+    RL_PROFILE_ZONE(begin_frame_zone, "rl_engine_begin_frame");
     clock_update(&state.frame_clock);
     state.frame_count++;
     i64 now = state.frame_clock.last;
@@ -111,12 +112,12 @@ b8 rl_engine_begin_frame(f64 *out_dt) {
     }
 
     renderer_begin_frame(state.delta_time);
-    TracyCZoneEnd(ctx);
+    RL_PROFILE_ZONE_END(begin_frame_zone);
     return true;
 }
 
 void rl_engine_end_frame(void) {
-    TracyCZoneN(ctx, "Engine End Frame", true);
+    RL_PROFILE_ZONE(end_frame_zone, "rl_engine_end_frame");
     renderer_end_frame();
     renderer_swap_buffers();
 
@@ -127,7 +128,7 @@ void rl_engine_end_frame(void) {
     }
 
     rl_arena_clear(&state.frame_arena);
-    TracyCZoneEnd(ctx);
+    RL_PROFILE_ZONE_END(end_frame_zone);
 }
 
 rl_engine_stats rl_engine_get_stats(void) {

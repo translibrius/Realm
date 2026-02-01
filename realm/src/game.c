@@ -1,9 +1,11 @@
 #include "game.h"
 
-#include "engine.h"
+#include "asset/asset.h"
 #include "core/event.h"
-#include "renderer/renderer_frontend.h"
+#include "core/logger.h"
+#include "engine.h"
 #include "profiler/profiler.h"
+#include "renderer/renderer_frontend.h"
 
 b8 game_init(rl_game *game, rl_game_cfg config) {
     game->config = config;
@@ -23,13 +25,13 @@ b8 game_init(rl_game *game, rl_game_cfg config) {
 }
 
 void game_update(rl_game *game, f64 dt) {
-    TracyCZoneN(ctx, "game_update", true);
+    RL_PROFILE_ZONE(update_zone, "game_update");
     camera_update(&game->camera, dt);
-    TracyCZoneEnd(ctx);
+    RL_PROFILE_ZONE_END(update_zone);
 }
 
 void game_render(rl_game *game, f64 dt) {
-    TracyCZoneN(ctx, "game_render", true);
+    RL_PROFILE_ZONE(render_zone, "game_render");
     mat4 view = {};
     mat4 proj = {};
 
@@ -38,16 +40,16 @@ void game_render(rl_game *game, f64 dt) {
     camera_get_projection(&game->camera, aspect, proj, game->config.renderer_backend);
     renderer_set_view_projection(view, proj, game->camera.pos);
 
-    //engine_stats stats = engine_get_stats();
+    // engine_stats stats = engine_get_stats();
 
-    //rl_string fps_str = rl_string_format(&game->frame_arena, "FPS: %u", stats.fps);
-    //renderer_render_text(fps_str.cstr, 40, game->width / 2 - 100, game->height - 40, (vec4){1.0f, 1.0f, 1.0f, 1.0f});
+    // rl_string fps_str = rl_string_format(&game->frame_arena, "FPS: %u", stats.fps);
+    // renderer_render_text(fps_str.cstr, 40, game->width / 2 - 100, game->height - 40, (vec4){1.0f, 1.0f, 1.0f, 1.0f});
 
-    //RL_INFO("FPS: %u", stats.fps);
+    // RL_INFO("FPS: %u", stats.fps);
 
     // Reset frame arena
     rl_arena_clear(&game->frame_arena);
-    TracyCZoneEnd(ctx);
+    RL_PROFILE_ZONE_END(render_zone);
 }
 
 void game_destroy(rl_game *game) {

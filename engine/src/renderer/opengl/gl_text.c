@@ -1,10 +1,11 @@
 #include "renderer/opengl/gl_text.h"
 
-#include "gl_renderer.h"
+#include "asset/asset_internal.h"
 #include "asset/font.h"
 #include "core/logger.h"
-#include "renderer/renderer_types.h"
+#include "gl_renderer.h"
 #include "glad.h"
+#include "renderer/renderer_types.h"
 
 #include <string.h>
 
@@ -193,8 +194,7 @@ void opengl_render_text(const char *text, f32 size_px, f32 x, f32 y, vec4 color)
     // Uniforms (adapt these to your shader uniform API)
     opengl_shader_set_i32(&p->shader, "u_font_atlas", 0);
     opengl_shader_set_vec4(&p->shader, "u_color", color);
-    opengl_shader_set_vec2(&p->shader, "u_screen_size", (vec2){(f32)ctx->window->settings.width,
-                                                               (f32)ctx->window->settings.height});
+    opengl_shader_set_vec2(&p->shader, "u_screen_size", (vec2){(f32)ctx->window->settings.width, (f32)ctx->window->settings.height});
 
     glDrawArrays(GL_TRIANGLES, 0, (GLsizei)vert_count);
 

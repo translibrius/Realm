@@ -1,19 +1,19 @@
 #include "renderer/vulkan/vk_renderer.h"
 
+#include "core/event.h"
 #include "vk_buffer.h"
-#include "vk_device.h"
-#include "vk_frame_buffers.h"
-#include "vk_shader.h"
-#include "vk_swapchain.h"
-#include "vk_pipeline.h"
-#include "vk_renderpass.h"
 #include "vk_commands.h"
 #include "vk_descriptor.h"
+#include "vk_device.h"
+#include "vk_frame_buffers.h"
 #include "vk_image.h"
 #include "vk_instance.h"
+#include "vk_pipeline.h"
+#include "vk_renderpass.h"
+#include "vk_shader.h"
+#include "vk_swapchain.h"
 #include "vk_sync.h"
 #include "vk_texture.h"
-#include "core/event.h"
 
 #include "profiler/profiler.h"
 
@@ -42,16 +42,16 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
     context.window = window;
 
     // Rec 1
-    da_append(&context.vertices, ((vertex) {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}));
-    da_append(&context.vertices, ((vertex) {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}));
-    da_append(&context.vertices, ((vertex) {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}));
-    da_append(&context.vertices, ((vertex) {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}));
+    da_append(&context.vertices, ((vertex){{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}));
+    da_append(&context.vertices, ((vertex){{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}));
+    da_append(&context.vertices, ((vertex){{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}));
+    da_append(&context.vertices, ((vertex){{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}));
 
     // Rec 2
-    da_append(&context.vertices, ((vertex) {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}));
-    da_append(&context.vertices, ((vertex) {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}));
-    da_append(&context.vertices, ((vertex) {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}));
-    da_append(&context.vertices, ((vertex) {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}));
+    da_append(&context.vertices, ((vertex){{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}));
+    da_append(&context.vertices, ((vertex){{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}));
+    da_append(&context.vertices, ((vertex){{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}));
+    da_append(&context.vertices, ((vertex){{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}));
 
     da_append(&context.indices, 0);
     da_append(&context.indices, 1);
@@ -218,7 +218,7 @@ void update_uniform_buffer(u32 image_index, f64 dt) {
 
     glm_rotate(model, glm_rad(angle), (vec3){0.5f, 1.0f, 0.0f});
 
-    //glm_rotate(model, glm_rad(0.0f), (vec3){0.0f, 0.0f, 1.0f});
+    // glm_rotate(model, glm_rad(0.0f), (vec3){0.0f, 0.0f, 1.0f});
 
     ubo u = {0};
     glm_mat4_copy(model, u.model);
@@ -229,15 +229,15 @@ void update_uniform_buffer(u32 image_index, f64 dt) {
 }
 
 void vulkan_begin_frame(f64 delta_time) {
-    TracyCZoneN(fence, "vkWaitForFences", true);
+    RL_PROFILE_ZONE(fence_zone, "vkWaitForFences");
     // Wait for previous frame to finish
     vkWaitForFences(context.device, 1, &context.in_flight_fences[context.current_frame], VK_TRUE, UINT64_MAX);
 
-    TracyCZoneEnd(fence);
+    RL_PROFILE_ZONE_END(fence_zone);
 
     // Get image from swapchain and pass image_available semaphore
     u32 image_index;
-    TracyCZoneN(aquire, "vkAcquireNextImageKHR", true);
+    RL_PROFILE_ZONE(acquire_zone, "vkAcquireNextImageKHR");
     VkResult result = vkAcquireNextImageKHR(context.device, context.swapchain.handle, UINT64_MAX, context.image_available_semaphores[context.current_frame], VK_NULL_HANDLE, &image_index);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
@@ -248,20 +248,20 @@ void vulkan_begin_frame(f64 delta_time) {
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         RL_FATAL("failed to acquire swap chain image");
     }
-    TracyCZoneEnd(aquire);
+    RL_PROFILE_ZONE_END(acquire_zone);
 
     update_uniform_buffer(image_index, delta_time);
 
-    TracyCZoneN(record, "Reset + Record Command Buffer", true);
+    RL_PROFILE_ZONE(record_zone, "Reset + Record Command Buffer");
     // Only reset the fence if we are submitting work
     vkResetFences(context.device, 1, &context.in_flight_fences[context.current_frame]);
 
     // Reset, record and submit command buffer
     vkResetCommandBuffer(context.command_buffers[context.current_frame], 0);
     vk_command_buffer_record(&context, context.command_buffers[context.current_frame], image_index);
-    TracyCZoneEnd(record);
+    RL_PROFILE_ZONE_END(record_zone);
 
-    TracyCZoneN(submit, "vkQueueSubmit", true);
+    RL_PROFILE_ZONE(submit_zone, "vkQueueSubmit");
     VkSemaphore wait_semaphores[] = {context.image_available_semaphores[context.current_frame]};
     VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     VkSemaphore signal_semaphores[] = {context.render_finished_semaphores[context.current_frame]};
@@ -274,14 +274,13 @@ void vulkan_begin_frame(f64 delta_time) {
         .commandBufferCount = 1,
         .pCommandBuffers = &context.command_buffers[context.current_frame],
         .signalSemaphoreCount = 1,
-        .pSignalSemaphores = signal_semaphores
-    };
+        .pSignalSemaphores = signal_semaphores};
 
     VK_CHECK(vkQueueSubmit(context.graphics_queue, 1, &submit_info, context.in_flight_fences[context.current_frame]));
 
-    TracyCZoneEnd(submit);
+    RL_PROFILE_ZONE_END(submit_zone);
 
-    TracyCZoneN(present, "vkQueuePresentKHR", true);
+    RL_PROFILE_ZONE(present_zone, "vkQueuePresentKHR");
     // Present the result back to the swapchain to have it eventually show up on screen
     VkPresentInfoKHR present_info = {
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
@@ -302,18 +301,16 @@ void vulkan_begin_frame(f64 delta_time) {
         RL_FATAL("failed to present swap chain image");
     }
 
-    TracyCZoneEnd(present);
+    RL_PROFILE_ZONE_END(present_zone);
 
     // advance frame
     context.current_frame = (context.current_frame + 1) % context.max_frames_in_flight;
 }
 
 void vulkan_end_frame() {
-
 }
 
 void vulkan_swap_buffers() {
-
 }
 
 void vulkan_set_view_projection(mat4 view, mat4 projection, vec3 pos) {
@@ -323,10 +320,10 @@ void vulkan_set_view_projection(mat4 view, mat4 projection, vec3 pos) {
     glm_mat4_copy(projection, context.proj);
 }
 
-platform_window* vulkan_get_active_window() {
+platform_window *vulkan_get_active_window() {
     return context.window;
 }
 
-void vulkan_set_active_window(platform_window* window) {
+void vulkan_set_active_window(platform_window *window) {
     context.window = window;
 }
