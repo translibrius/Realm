@@ -6,8 +6,23 @@
 #include <stdio.h>
 #include <string.h>
 
-#define REALM_APP_DLL_NAME "realm_app.dll"
-#define REALM_APP_PDB_NAME "realm_app.pdb"
+#ifndef REALM_APP_MODULE_NAME
+#error "REALM_APP_MODULE_NAME is not defined"
+#endif
+#ifndef REALM_APP_HOT_FORMAT
+#error "REALM_APP_HOT_FORMAT is not defined"
+#endif
+#ifndef REALM_APP_HAS_PDB
+#define REALM_APP_HAS_PDB 0
+#endif
+#if REALM_APP_HAS_PDB
+#ifndef REALM_APP_PDB_NAME
+#error "REALM_APP_PDB_NAME is not defined"
+#endif
+#ifndef REALM_APP_HOT_PDB_FORMAT
+#error "REALM_APP_HOT_PDB_FORMAT is not defined"
+#endif
+#endif
 
 static u32 hot_reload_generation = 0;
 
@@ -18,20 +33,21 @@ static b8 copy_module_binaries(char *dll_out, u32 dll_out_size, char *pdb_out, u
 
     hot_reload_generation++;
 
-    const int dll_len = snprintf(dll_out, dll_out_size, "realm_app_hot_%u.dll", hot_reload_generation);
+    const int dll_len = snprintf(dll_out, dll_out_size, REALM_APP_HOT_FORMAT, hot_reload_generation);
     if (dll_len <= 0 || (u32)dll_len >= dll_out_size) {
-        RL_ERROR("failed to format hot dll name");
+        RL_ERROR("failed to format hot module name");
         return false;
     }
 
-    if (!platform_file_copy(REALM_APP_DLL_NAME, dll_out, true)) {
-        RL_ERROR("failed to copy app dll for hot reload");
+    if (!platform_file_copy(REALM_APP_MODULE_NAME, dll_out, true)) {
+        RL_ERROR("failed to copy app module for hot reload");
         return false;
     }
 
     if (pdb_out && pdb_out_size > 0) {
+#if REALM_APP_HAS_PDB
         if (platform_file_exists(REALM_APP_PDB_NAME)) {
-            const int pdb_len = snprintf(pdb_out, pdb_out_size, "realm_app_hot_%u.pdb", hot_reload_generation);
+            const int pdb_len = snprintf(pdb_out, pdb_out_size, REALM_APP_HOT_PDB_FORMAT, hot_reload_generation);
             if (pdb_len <= 0 || (u32)pdb_len >= pdb_out_size) {
                 RL_ERROR("failed to format hot pdb name");
                 return false;
@@ -43,6 +59,9 @@ static b8 copy_module_binaries(char *dll_out, u32 dll_out_size, char *pdb_out, u
         } else {
             pdb_out[0] = '\0';
         }
+#else
+        pdb_out[0] = '\0';
+#endif
     }
 
     return true;

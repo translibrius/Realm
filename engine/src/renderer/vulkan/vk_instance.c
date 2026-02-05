@@ -17,7 +17,11 @@ b8 vk_instance_create(VK_Context *context) {
     constexpr bool enable_validation = false;
 #endif
 
-    VK_CHECK(volkInitialize());
+    VkResult result = volkInitialize();
+    if (result != VK_SUCCESS) {
+        RL_ERROR("Failed to initialize Vulkan loader");
+        return false;
+    }
 
     // Debug create info (used twice)
     VkDebugUtilsMessengerCreateInfoEXT debug_create_info = {
@@ -112,7 +116,7 @@ b8 vk_instance_create(VK_Context *context) {
     create_info.ppEnabledExtensionNames = platform_exts;
     create_info.pNext = enable_validation ? &debug_create_info : nullptr;
 
-    VkResult result = vkCreateInstance(&create_info, nullptr, &context->instance);
+    result = vkCreateInstance(&create_info, nullptr, &context->instance);
     if (result != VK_SUCCESS) {
         return false;
     }

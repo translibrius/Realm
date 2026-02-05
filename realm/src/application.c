@@ -35,8 +35,17 @@ b8 create_application() {
     }
 
     if (!renderer_init(&app.window, app.config.backend, app.config.vsync)) {
-        RL_ERROR("failed to initialize renderer");
-        return false;
+        if (app.config.backend != BACKEND_OPENGL) {
+            RL_WARN("Renderer init failed (backend=%d). Falling back to OpenGL.", app.config.backend);
+            app.config.backend = BACKEND_OPENGL;
+            if (!renderer_init(&app.window, app.config.backend, app.config.vsync)) {
+                RL_ERROR("failed to initialize renderer");
+                return false;
+            }
+        } else {
+            RL_ERROR("failed to initialize renderer");
+            return false;
+        }
     }
 
     if (!create_app_module()) {

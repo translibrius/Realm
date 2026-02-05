@@ -100,8 +100,12 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #if defined(__ANDROID__)
 #define PLATFORM_ANDROID 1
 #endif
+#elif defined(__APPLE__) && defined(__MACH__)
+// macOS
+#define PLATFORM_MACOS 1
+#define VK_USE_PLATFORM_METAL_EXT
 #else
-#error "Only windows is supported for now"
+#error "Only Windows, Linux, and macOS are supported for now"
 #endif
 
 // -- Memory helpers

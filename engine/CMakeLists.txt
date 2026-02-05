@@ -9,8 +9,10 @@ set(MSDF_ATLAS_BUILD_STANDALONE OFF CACHE BOOL "" FORCE)
 set(MSDFGEN_BUILD_STANDALONE OFF CACHE BOOL "" FORCE)
 set(MSDFGEN_DYNAMIC_RUNTIME ON CACHE BOOL "" FORCE)
 set(MSDF_ATLAS_DYNAMIC_RUNTIME ON CACHE BOOL "" FORCE)
-# Make sure vcpkg uses dynamic CRT too
-set(VCPKG_TARGET_TRIPLET "x64-windows" CACHE STRING "" FORCE)
+# Make sure vcpkg uses dynamic CRT too (Windows-only)
+if (WIN32)
+    set(VCPKG_TARGET_TRIPLET "x64-windows" CACHE STRING "" FORCE)
+endif ()
 add_subdirectory(vendor/msdf-atlas-gen)
 
 # Tracy options
@@ -21,6 +23,10 @@ add_subdirectory(vendor/tracy)
 # Vulkan
 find_package(Vulkan REQUIRED)
 
+# Objective-C (macOS platform layer)
+if (APPLE)
+    enable_language(OBJC)
+endif ()
 
 # --- C sources ---as
 file(GLOB_RECURSE ENGINE_C_SOURCES
@@ -29,6 +35,18 @@ file(GLOB_RECURSE ENGINE_C_SOURCES
         "${CMAKE_CURRENT_SOURCE_DIR}/vendor/glad/*.c"
 )
 
+if (APPLE)
+    file(GLOB_RECURSE ENGINE_OBJC_SOURCES
+            CONFIGURE_DEPENDS
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/*.m"
+    )
+    list(APPEND ENGINE_C_SOURCES ${ENGINE_OBJC_SOURCES})
+endif ()
+
+if (NOT WIN32)
+    list(FILTER ENGINE_C_SOURCES EXCLUDE REGEX "glad_wgl\\.c$")
+endif ()
+
 # Build C part as an object library (no C++ here)
 add_library(EngineC OBJECT ${ENGINE_C_SOURCES})
 
@@ -36,10 +54,20 @@ target_compile_definitions(EngineC PRIVATE
         VK_NO_PROTOTYPES
 )
 
-set(SHADERC_ROOT "$ENV{VULKAN_SDK}")
-target_include_directories(EngineC PRIVATE
-        ${SHADERC_ROOT}/Include
-)
+# Shaderc: keep Windows on Vulkan SDK; use vcpkg elsewhere.
+if (WIN32)
+    set(SHADERC_ROOT "$ENV{VULKAN_SDK}")
+    if (NOT SHADERC_ROOT)
+        message(FATAL_ERROR "VULKAN_SDK is not set; shaderc is required.")
+    endif ()
+    target_include_directories(EngineC PRIVATE "${SHADERC_ROOT}/Include")
+    set(SHADERC_TARGET "${SHADERC_ROOT}/Lib/shaderc_shared.lib")
+else ()
+    find_package(unofficial-shaderc CONFIG REQUIRED)
+    set(SHADERC_TARGET unofficial::shaderc::shaderc)
+endif ()
+
+target_link_libraries(EngineC PRIVATE ${SHADERC_TARGET})
 
 
 target_include_directories(EngineC
@@ -111,10 +139,14 @@ add_library(Engine SHARED
 
 target_link_libraries(Engine PRIVATE
         Vulkan::Headers
-        ${SHADERC_ROOT}/Lib/shaderc_shared.lib
+        ${SHADERC_TARGET}
         Tracy::TracyClient
         msdf-atlas-gen
 )
+
+if (APPLE)
+    target_link_libraries(Engine PRIVATE "-framework Cocoa" "-framework QuartzCore" "-framework Metal")
+endif ()
 
 # OpenGL link
 if (WIN32)

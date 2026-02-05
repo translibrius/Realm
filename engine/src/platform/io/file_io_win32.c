@@ -1,9 +1,9 @@
+#ifdef PLATFORM_WINDOWS
 #include "core/logger.h"
 #include "glad_wgl.h"
 #include "platform/io/file_io.h"
+#include "util/assert.h"
 #include "util/str.h"
-
-#ifdef PLATFORM_WINDOWS
 
 typedef struct file_system_state {
     rl_arena file_arena;

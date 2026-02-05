@@ -8,9 +8,9 @@
 #include "asset/texture.h"
 #include "core/event.h"
 #include "core/logger.h"
+#include "platform/platform.h"
 #include "platform/io/file_io.h"
 #include "platform/splash/splash.h"
-#include "platform/thread.h"
 
 #include <string.h>
 
@@ -47,20 +47,29 @@ void asset_system_shutdown() {
 }
 
 b8 asset_system_load_all() {
-    // Show loading splash & perform loading
-    rl_thread thread_splash;
-    platform_thread_create(splash_run, nullptr, &thread_splash);
+    b8 splash_active = splash_show();
+    if (splash_active) {
+        splash_update();
+    }
 
     RL_DEBUG("Loading assets...");
     for (u32 i = 0; i < ASSET_TABLE_TOTAL; i++) {
         b8 success = asset_system_load(&asset_table[i]);
         if (!success) {
+            if (splash_active) {
+                splash_hide();
+            }
             return false;
+        }
+        if (splash_active) {
+            splash_update();
+            platform_pump_messages();
         }
     }
 
-    // Wait for loading to be finished
-    platform_thread_join(&thread_splash);
+    if (splash_active) {
+        splash_hide();
+    }
 
     return true;
 }

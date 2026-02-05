@@ -5,7 +5,6 @@
 #include "core/logger.h"
 #include "memory/memory.h"
 #include "util/clock.h"
-#include "glad_wgl.h"
 
 typedef struct splash_screen {
     u32 pixels_size;
@@ -18,6 +17,7 @@ typedef struct rgba {
 } rgba;
 
 static splash_screen state;
+static b8 progress_registered = false;
 
 b8 on_progress_increment(void *event, void *data) {
     (void)event;
@@ -57,6 +57,10 @@ static void splash_fill_rect(u32 x, u32 y, u32 w, u32 h, rgba color) {
 // -------------------------------
 
 b8 splash_show() {
+    if (!progress_registered) {
+        event_register(EVENT_SPLASH_INCREMENT, on_progress_increment, nullptr);
+        progress_registered = true;
+    }
     state.progress_step = 0;
     state.pixels_size = SPLASH_WIDTH * SPLASH_HEIGHT * 4;
     state.pixels = mem_alloc(state.pixels_size, MEM_SUBSYSTEM_SPLASH);
@@ -115,8 +119,6 @@ void splash_hide() {
 void splash_run(void *data) {
     (void)data;
     RL_DEBUG("Splash window spawned on thread: %d", platform_get_current_thread_id());
-
-    event_register(EVENT_SPLASH_INCREMENT, on_progress_increment, nullptr);
     if (!splash_show()) {
         RL_DEBUG("Failed to show splash window");
         return;
