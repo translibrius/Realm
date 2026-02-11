@@ -800,11 +800,13 @@ b8 platform_create_opengl_context(platform_window *window) {
 u32 platform_get_required_vulkan_extensions(const char ***names_out, b8 enable_validation) {
     static const char *extensions[] = {
         VK_KHR_SURFACE_EXTENSION_NAME,
-        VK_EXT_METAL_SURFACE_EXTENSION_NAME
+        VK_EXT_METAL_SURFACE_EXTENSION_NAME,
+        VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME
     };
     static const char *extensions_debug[] = {
         VK_KHR_SURFACE_EXTENSION_NAME,
         VK_EXT_METAL_SURFACE_EXTENSION_NAME,
+        VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
         VK_EXT_DEBUG_UTILS_EXTENSION_NAME
     };
 

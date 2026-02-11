@@ -27,28 +27,63 @@ void vk_swapchain_fetch_support(VK_Context *context, VkPhysicalDevice physical_d
         mem_free(context->swapchain.present_modes, sizeof(VkPresentModeKHR) * context->swapchain.present_mode_count, MEM_SUBSYSTEM_RENDERER);
     }
 
-    // Query the physical device's capabilities for the given surface.
-    const VkPhysicalDeviceSurfaceInfo2KHR surface_info2 = {
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR,
-        .surface = context->surface
-    };
+    const b8 use_surface_capabilities2 =
+        vkGetPhysicalDeviceSurfaceCapabilities2KHR != nullptr &&
+        vkGetPhysicalDeviceSurfaceFormats2KHR != nullptr;
 
-    VkSurfaceCapabilities2KHR capabilities2 = {
-        .sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR
-    };
+    if (use_surface_capabilities2) {
+        // Query the physical device's capabilities for the given surface.
+        const VkPhysicalDeviceSurfaceInfo2KHR surface_info2 = {
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR,
+            .surface = context->surface
+        };
 
-    VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilities2KHR(physical_device, &surface_info2, &capabilities2));
+        VkSurfaceCapabilities2KHR capabilities2 = {
+            .sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR
+        };
 
-    context->swapchain.capabilities2 = capabilities2;
+        VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilities2KHR(physical_device, &surface_info2, &capabilities2));
 
-    vkGetPhysicalDeviceSurfaceFormats2KHR(physical_device, &surface_info2, &context->swapchain.format_count, nullptr);
-    context->swapchain.formats = mem_alloc(sizeof(VkSurfaceFormat2KHR) * context->swapchain.format_count, MEM_SUBSYSTEM_RENDERER);
-    for (u32 i = 0; i < context->swapchain.format_count; ++i) {
-        context->swapchain.formats[i].sType =
-            VK_STRUCTURE_TYPE_SURFACE_FORMAT_2_KHR;
-        context->swapchain.formats[i].pNext = nullptr;
+        context->swapchain.capabilities2 = capabilities2;
+
+        vkGetPhysicalDeviceSurfaceFormats2KHR(physical_device, &surface_info2, &context->swapchain.format_count, nullptr);
+        context->swapchain.formats = mem_alloc(sizeof(VkSurfaceFormat2KHR) * context->swapchain.format_count, MEM_SUBSYSTEM_RENDERER);
+        for (u32 i = 0; i < context->swapchain.format_count; ++i) {
+            context->swapchain.formats[i].sType =
+                VK_STRUCTURE_TYPE_SURFACE_FORMAT_2_KHR;
+            context->swapchain.formats[i].pNext = nullptr;
+        }
+        vkGetPhysicalDeviceSurfaceFormats2KHR(physical_device, &surface_info2, &context->swapchain.format_count, context->swapchain.formats);
+    } else {
+        RL_WARN("VK_KHR_get_surface_capabilities2 not available; using legacy surface queries");
+
+        VkSurfaceCapabilitiesKHR capabilities = {};
+        VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, context->surface, &capabilities));
+
+        context->swapchain.capabilities2 = (VkSurfaceCapabilities2KHR){
+            .sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR,
+            .pNext = nullptr,
+            .surfaceCapabilities = capabilities
+        };
+
+        vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, context->surface, &context->swapchain.format_count, nullptr);
+        VkSurfaceFormatKHR *formats = nullptr;
+        if (context->swapchain.format_count > 0) {
+            formats = mem_alloc(sizeof(VkSurfaceFormatKHR) * context->swapchain.format_count, MEM_SUBSYSTEM_RENDERER);
+            vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, context->surface, &context->swapchain.format_count, formats);
+        }
+
+        context->swapchain.formats = mem_alloc(sizeof(VkSurfaceFormat2KHR) * context->swapchain.format_count, MEM_SUBSYSTEM_RENDERER);
+        for (u32 i = 0; i < context->swapchain.format_count; ++i) {
+            context->swapchain.formats[i].sType = VK_STRUCTURE_TYPE_SURFACE_FORMAT_2_KHR;
+            context->swapchain.formats[i].pNext = nullptr;
+            context->swapchain.formats[i].surfaceFormat = formats[i];
+        }
+
+        if (formats) {
+            mem_free(formats, sizeof(VkSurfaceFormatKHR) * context->swapchain.format_count, MEM_SUBSYSTEM_RENDERER);
+        }
     }
-    vkGetPhysicalDeviceSurfaceFormats2KHR(physical_device, &surface_info2, &context->swapchain.format_count, context->swapchain.formats);
 
     vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, context->surface, &context->swapchain.present_mode_count, nullptr);
     context->swapchain.present_modes = mem_alloc(sizeof(VkPresentModeKHR) * context->swapchain.present_mode_count, MEM_SUBSYSTEM_RENDERER);
@@ -436,4 +471,3 @@ void log_present_modes(const VkPresentModeKHR *modes, u32 count) {
 
     RL_TRACE("--------------------------------");
 }
-

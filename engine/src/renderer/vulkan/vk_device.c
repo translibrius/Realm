@@ -4,6 +4,10 @@
 
 #include <string.h>
 
+#ifndef VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME
+#define VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME "VK_KHR_portability_subset"
+#endif
+
 // To gather unique queue indexes
 typedef struct QueueRequest {
     u32 family_index;
@@ -19,6 +23,7 @@ typedef struct VkCandidate {
     VkPhysicalDeviceVulkan13Features features13;
     VkPhysicalDeviceVulkan14Features features14;
     VK_QueueFamilyIndices indices;
+    b8 has_portability_subset;
     u32 score;
 } VkCandidate;
 
@@ -213,9 +218,12 @@ b8 create_logical_device(VK_Context *context, VkCandidate *candidate) {
     candidate->feats.pNext = &candidate->features11;
 
     // Required device extensions (minimal)
-    const char *device_extensions[] = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-    };
+    const char *device_extensions[2];
+    u32 device_extension_count = 0;
+    device_extensions[device_extension_count++] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+    if (candidate->has_portability_subset) {
+        device_extensions[device_extension_count++] = VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME;
+    }
 
     VkDeviceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -228,7 +236,7 @@ b8 create_logical_device(VK_Context *context, VkCandidate *candidate) {
         .enabledLayerCount = 0,
         .ppEnabledLayerNames = nullptr,
 
-        .enabledExtensionCount = (u32)(sizeof(device_extensions) / sizeof(device_extensions[0])),
+        .enabledExtensionCount = device_extension_count,
         .ppEnabledExtensionNames = device_extensions,
 
         // Must be NULL when using VkPhysicalDeviceFeatures2
@@ -269,6 +277,10 @@ b8 create_logical_device(VK_Context *context, VkCandidate *candidate) {
 // Todo: Allow api to take a list of Device extensions, required and optional ones
 b8 vk_device_init(VK_Context *context) {
     ARENA_SCRATCH_START();
+    u32 required_api = VK_API_VERSION_1_4;
+#if defined(PLATFORM_MACOS)
+    required_api = VK_API_VERSION_1_2;
+#endif
     u32 physical_device_count = 0;
     vkEnumeratePhysicalDevices(context->instance, &physical_device_count, nullptr);
 
@@ -327,10 +339,14 @@ b8 vk_device_init(VK_Context *context) {
         vkEnumerateDeviceExtensionProperties(physical_devices[i], nullptr, &ext_count, extensions);
 
         b8 has_swapchain = false;
+        b8 has_portability_subset = false;
         for (u32 e = 0; e < ext_count; e++) {
             if (strcmp(extensions[e].extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0) {
                 has_swapchain = true;
-                break;
+                continue;
+            }
+            if (strcmp(extensions[e].extensionName, VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME) == 0) {
+                has_portability_subset = true;
             }
         }
 
@@ -350,7 +366,7 @@ b8 vk_device_init(VK_Context *context) {
         }
 
         // Require Vulkan 1.4+
-        if (props.properties.apiVersion < VK_API_VERSION_1_4) {
+        if (props.properties.apiVersion < required_api) {
             RL_TRACE("    Skipped: %s only supports Vulkan %u.%u.%u",
                      props.properties.deviceName,
                      VK_VERSION_MAJOR(props.properties.apiVersion),
@@ -366,6 +382,7 @@ b8 vk_device_init(VK_Context *context) {
             continue;
         }
 
+#if !defined(PLATFORM_MACOS)
         if (!feats.features.geometryShader) {
             RL_TRACE("    Skipped: missing feature - 'geometryShader'");
             continue;
@@ -390,6 +407,7 @@ b8 vk_device_init(VK_Context *context) {
             RL_TRACE("Skipped: Extension VK_KHR_maintenance6 required, update driver!");
             continue;
         }
+#endif
 
         RL_TRACE("GPU #%u:", i);
         RL_TRACE("    Name: %s", props.properties.deviceName);
@@ -414,6 +432,7 @@ b8 vk_device_init(VK_Context *context) {
             best.features13 = features13;
             best.features14 = features14;
             best.indices = indices;
+            best.has_portability_subset = has_portability_subset;
         }
     }
 
