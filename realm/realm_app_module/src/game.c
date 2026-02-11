@@ -1,7 +1,9 @@
 #include "game.h"
 
+#include "util/str.h"
 #include "asset/asset.h"
 #include "core/logger.h"
+#include "engine.h"
 #include "renderer/renderer_frontend.h"
 
 b8 game_init(rl_game *game, const realm_app_context *ctx, rl_game_cfg config) {
@@ -49,6 +51,11 @@ void game_render(rl_game *game, f64 dt) {
     camera_get_view(&game->camera, view);
     camera_get_projection(&game->camera, aspect, proj, game->config.renderer_backend);
     renderer_set_view_projection(view, proj, game->camera.pos);
+
+    vec4 color = {1.0f, 1.0f, 1.0f, 1.0f};
+
+    rl_string fps = rl_string_format(&game->frame_arena, "FPS: %d", engine_get_stats().fps);
+    renderer_render_text(fps.cstr, 20, 0, 0, color);
 
     // Reset frame arena
     rl_arena_clear(&game->frame_arena);

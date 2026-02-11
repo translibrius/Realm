@@ -1,4 +1,4 @@
-#include "str.h"
+#include "util/str.h"
 
 #include <stdarg.h> // For variadic functions
 #include <stdio.h>  // vsnprintf, sscanf, sprintf

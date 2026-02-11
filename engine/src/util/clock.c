@@ -1,4 +1,4 @@
-#include "clock.h"
+#include "util/clock.h"
 
 void clock_reset(rl_clock *out_clock) {
     out_clock->frequency = platform_get_info()->clock_freq;
