@@ -12,7 +12,7 @@
 static rl_application_config config = {
     .title = "Realm",
     .vsync = false,
-    .backend = BACKEND_VULKAN};
+    .backend = BACKEND_OPENGL};
 static rl_application app;
 static b8 reload_requested = false;
 
@@ -62,9 +62,13 @@ b8 create_application() {
 
         if (reload_requested) {
             reload_requested = false;
-            RL_INFO("Reloading app module...");
-            if (!realm_app_module_reload(&app.app_module, app.app_state, &app.app_context)) {
-                RL_ERROR("App module reload failed");
+            if (!realm_app_module_rebuild()) {
+                RL_ERROR("App module rebuild failed");
+            } else {
+                RL_INFO("Reloading app module...");
+                if (!realm_app_module_reload(&app.app_module, app.app_state, &app.app_context)) {
+                    RL_ERROR("App module reload failed");
+                }
             }
         }
 

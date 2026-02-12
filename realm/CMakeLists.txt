@@ -22,6 +22,8 @@ endif ()
 # Engine last
 target_link_libraries(Realm PRIVATE Engine Tracy::TracyClient)
 target_compile_definitions(Realm PRIVATE ENGINE_SHARED)
+target_compile_definitions(Realm PRIVATE REALM_APP_BUILD_DIR="${CMAKE_BINARY_DIR}")
+target_compile_definitions(Realm PRIVATE REALM_APP_BUILD_TOOL="${CMAKE_COMMAND}")
 
 if (WIN32)
     target_compile_definitions(Realm PRIVATE

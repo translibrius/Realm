@@ -27,5 +27,6 @@ typedef struct realm_app_module {
 b8 realm_app_module_load(realm_app_module *module);
 // Reloads module by loading a new copy first, then swapping if successful.
 b8 realm_app_module_reload(realm_app_module *module, void *state, const realm_app_context *ctx);
+b8 realm_app_module_rebuild(void);
 void realm_app_module_unload(realm_app_module *module);
 b8 realm_app_module_is_loaded(const realm_app_module *module);

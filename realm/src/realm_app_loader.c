@@ -4,6 +4,7 @@
 #include "platform/io/file_io.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifndef REALM_APP_MODULE_NAME
@@ -14,6 +15,12 @@
 #endif
 #ifndef REALM_APP_HAS_PDB
 #define REALM_APP_HAS_PDB 0
+#endif
+#ifndef REALM_APP_BUILD_DIR
+#define REALM_APP_BUILD_DIR ""
+#endif
+#ifndef REALM_APP_BUILD_TOOL
+#define REALM_APP_BUILD_TOOL ""
 #endif
 #if REALM_APP_HAS_PDB
 #ifndef REALM_APP_PDB_NAME
@@ -155,6 +162,39 @@ b8 realm_app_module_reload(realm_app_module *module, void *state, const realm_ap
     }
 
     RL_INFO("app module reloaded");
+    return true;
+}
+
+b8 realm_app_module_rebuild(void) {
+#if defined(REALM_APP_BUILD_CMD)
+    const char *command = REALM_APP_BUILD_CMD;
+#else
+    const char *build_dir = REALM_APP_BUILD_DIR;
+    if (!build_dir || build_dir[0] == '\0') {
+        RL_ERROR("app module build dir is not set");
+        return false;
+    }
+
+    char command[512] = {0};
+    const char *build_tool = REALM_APP_BUILD_TOOL;
+    if (!build_tool || build_tool[0] == '\0') {
+        build_tool = "cmake";
+    }
+
+    const int command_len = snprintf(command, sizeof(command), "\"%s\" --build \"%s\" --target realm_app", build_tool, build_dir);
+    if (command_len <= 0 || (u32)command_len >= sizeof(command)) {
+        RL_ERROR("failed to format app module build command");
+        return false;
+    }
+#endif
+
+    RL_INFO("Building app module...");
+    const int result = system(command);
+    if (result != 0) {
+        RL_ERROR("app module build failed (code=%d)", result);
+        return false;
+    }
+
     return true;
 }
 
