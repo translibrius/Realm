@@ -20,6 +20,24 @@ set(TRACY_ENABLE ON CACHE BOOL "" FORCE)
 set(TRACY_ON_DEMAND OFF CACHE BOOL "" FORCE)
 add_subdirectory(vendor/tracy)
 
+function(rl_silence_third_party_warnings target)
+    if (TARGET ${target})
+        if (MSVC)
+            target_compile_options(${target} PRIVATE /W0)
+        else ()
+            target_compile_options(${target} PRIVATE -w)
+        endif ()
+        if (WIN32)
+            target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
+        endif ()
+    endif ()
+endfunction()
+
+rl_silence_third_party_warnings(msdfgen-core)
+rl_silence_third_party_warnings(msdfgen-ext)
+rl_silence_third_party_warnings(msdf-atlas-gen)
+rl_silence_third_party_warnings(TracyClient)
+
 # Vulkan
 find_package(Vulkan REQUIRED)
 

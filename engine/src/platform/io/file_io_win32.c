@@ -1,3 +1,5 @@
+#include "platform/platform.h"
+
 #ifdef PLATFORM_WINDOWS
 #include "core/logger.h"
 #include "glad_wgl.h"

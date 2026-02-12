@@ -1,7 +1,7 @@
 #include <realm_app_api.h>
 
+#include "../../include/game.h"
 #include "core/logger.h"
-#include "game.h"
 
 u32 realm_app_get_api_version(void) {
     return REALM_APP_API_VERSION;
@@ -16,10 +16,10 @@ void realm_app_init(void *state, const realm_app_context *ctx) {
     rl_game_cfg game_cfg = {
         .vsync = ctx->vsync,
         .renderer_backend = ctx->renderer_backend,
-        .width = ctx->width,
-        .height = ctx->height,
-        .x = ctx->x,
-        .y = ctx->y};
+        .width = ctx->window->settings.width,
+        .height = ctx->window->settings.height,
+        .x = ctx->window->settings.x,
+        .y = ctx->window->settings.y};
 
     if (!game_init(game, ctx, game_cfg)) {
         RL_ERROR("failed to initialize game instance");
@@ -42,4 +42,14 @@ void realm_app_shutdown(void *state, const realm_app_context *ctx) {
     (void)ctx;
     rl_game *game = (rl_game *)state;
     game_destroy(game);
+}
+
+void realm_app_set_paused(void *state, b8 paused) {
+    rl_game *game = (rl_game *)state;
+    game_set_paused(game, paused);
+}
+
+void realm_app_set_focused(void *state, b8 focused) {
+    rl_game *game = (rl_game *)state;
+    game_set_focused(game, focused);
 }

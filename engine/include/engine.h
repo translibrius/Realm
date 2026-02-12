@@ -4,6 +4,9 @@
 
 #ifdef __cplusplus
 extern "C" {
+
+
+
 #endif
 
 typedef struct rl_engine_stats {
@@ -13,6 +16,7 @@ typedef struct rl_engine_stats {
 REALM_API b8 rl_engine_create(void);
 REALM_API void rl_engine_destroy(void);
 REALM_API b8 rl_engine_is_running(void);
+REALM_API void rl_engine_stop();
 
 REALM_API b8 rl_engine_begin_frame(f64 *out_dt);
 REALM_API void rl_engine_end_frame(void);
