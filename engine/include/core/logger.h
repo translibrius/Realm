@@ -20,6 +20,8 @@ typedef enum LOG_LEVEL {
 REALM_API u64 logger_system_size();
 REALM_API b8 logger_system_start(void *memory);
 REALM_API void logger_system_shutdown();
+REALM_API void logger_set_level(LOG_LEVEL level);
+REALM_API LOG_LEVEL logger_get_level(void);
 
 REALM_API void log_output(const char *message, LOG_LEVEL level, const char *func, ...);
 

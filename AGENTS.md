@@ -40,9 +40,9 @@ Important runtime assumption:
 - App entry: `realm/src/main.c`
   - Calls `create_application()`.
 - App orchestration + main loop: `realm/src/application.c`
-  - Boot order: `create_engine()` -> create window -> `renderer_init()` -> `game_init()`
-  - Loop: `engine_begin_frame()` -> `game_update()` -> `game_render()` -> `engine_end_frame()`
-  - Shutdown: `destroy_engine()`
+  - Boot order: `rl_engine_create(&config)` -> create window -> `renderer_init()` -> `game_init()`
+  - Loop: `rl_engine_begin_frame()` -> `game_update()` -> `game_render()` -> `rl_engine_end_frame()`
+  - Shutdown: `rl_engine_destroy()`
 - Engine boot/shutdown + per-frame glue: `engine/src/engine.c`
   - Starts subsystems: memory, events, logger, platform, input, assets
   - Drives: `platform_pump_messages()`, `renderer_begin_frame()`, `renderer_end_frame()`, swap

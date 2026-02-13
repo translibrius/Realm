@@ -6,7 +6,7 @@
 DA_DEFINE(Assets, rl_asset);
 
 u64 asset_system_size();
-b8 asset_system_start(void *system);
+b8 asset_system_start(void *system, const char *asset_root);
 void asset_system_shutdown();
 
 b8 asset_system_load_all();

@@ -21,7 +21,7 @@ This is a living roadmap for turning `engine/` into a standalone library with a 
 
 ### M0: Public C API Boundary (Foundation)
 
-Status: In progress.
+Status: In progress (public API + engine config landed; migration remains).
 
 Deliverables:
 

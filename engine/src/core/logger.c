@@ -1,13 +1,10 @@
 #include "core/logger.h"
-
-#include "core/logger.h"
 #include "platform/platform.h"
 #include "platform/thread.h"
 
 #include "memory/memory.h"
 
 #include "util/assert.h"
-#include "util/str.h"
 
 #define LOG_MAX_LINE 1024
 #define LOG_QUEUE_SIZE 1024
@@ -34,12 +31,32 @@ typedef struct logger_state {
     rl_thread writer_thread;
     logger_queue queue;
     b8 warned_full; // To warn about queue being full
+    LOG_LEVEL min_level;
 } logger_state;
 
 static logger_state *state;
 
 const char *level_strs[] = {
     "[INFO]: ", "[DEBU]: ", "[TRAC]: ", "[WARN]: ", "[ERRO]: ", "[FATA]: "};
+
+static u8 logger_level_rank(LOG_LEVEL level) {
+    switch (level) {
+    case LOG_TRACE:
+        return 0;
+    case LOG_DEBUG:
+        return 1;
+    case LOG_INFO:
+        return 2;
+    case LOG_WARN:
+        return 3;
+    case LOG_ERROR:
+        return 4;
+    case LOG_FATAL:
+        return 5;
+    }
+
+    return 2;
+}
 
 void logger_writer(void *data) {
     while (state->queue.running) {
@@ -99,6 +116,7 @@ b8 logger_system_start(void *memory) {
 
     state->queue.events =
         mem_alloc(sizeof(log_event) * LOG_QUEUE_SIZE, MEM_SUBSYSTEM_LOGGER);
+    state->min_level = LOG_INFO;
 
     platform_mutex_create(&state->queue.mutex);
     platform_thread_sync_create(&state->queue.has_data);
@@ -108,6 +126,26 @@ b8 logger_system_start(void *memory) {
 
     RL_INFO("Logger system started!");
     return true;
+}
+
+void logger_set_level(LOG_LEVEL level) {
+    if (!state) {
+        return;
+    }
+
+    if (level < LOG_INFO || level > LOG_FATAL) {
+        level = LOG_INFO;
+    }
+
+    state->min_level = level;
+}
+
+LOG_LEVEL logger_get_level(void) {
+    if (!state) {
+        return LOG_INFO;
+    }
+
+    return state->min_level;
 }
 
 void logger_system_shutdown() {
@@ -140,6 +178,10 @@ void log_output(const char *fmt, LOG_LEVEL level, const char *func, ...) {
         platform_console_write(": ", level);
         platform_console_write(fmt, level);
         platform_console_write("\n", level);
+        return;
+    }
+
+    if (logger_level_rank(level) < logger_level_rank(state->min_level)) {
         return;
     }
 

@@ -3,7 +3,6 @@
 #include "asset/asset_internal.h"
 #include "core/event.h"
 #include "core/logger.h"
-#include "engine.h"
 #include "memory/arena.h"
 #include "memory/memory.h"
 #include "platform/input.h"
@@ -14,6 +13,8 @@
 
 typedef struct engine_state {
     b8 is_running;
+    rl_engine_config config;
+
     rl_arena frame_arena;
 
     rl_clock frame_clock;
@@ -25,12 +26,27 @@ typedef struct engine_state {
 
 static engine_state state;
 
-// Fwd decl
-b8 on_key_press(void *event, void *data);
+rl_engine_config rl_engine_config_default(void) {
+    return (rl_engine_config){
+        .asset_root = "../../../assets/",
+        .log_level = LOG_INFO,
+    };
+}
 
 // Bootstrap all subsystems
-b8 rl_engine_create(void) {
-    RL_INFO("--------------ENGINE_START--------------");
+b8 rl_engine_create(const rl_engine_config *config) {
+    state.config = rl_engine_config_default();
+    if (config) {
+        if (config->asset_root && config->asset_root[0]) {
+            state.config.asset_root = config->asset_root;
+        }
+        state.config.log_level = config->log_level;
+    }
+
+    if (state.config.log_level < LOG_INFO || state.config.log_level > LOG_FATAL) {
+        state.config.log_level = LOG_INFO;
+    }
+
     state.is_running = true;
 
     // Important to call this to fetch page size and other important info for subsystems that go before platform
@@ -54,6 +70,10 @@ b8 rl_engine_create(void) {
         return false;
     }
 
+    logger_set_level(state.config.log_level);
+    RL_INFO("--------------ENGINE_START--------------");
+    RL_INFO("Engine config: asset_root='%s' log_level=%d", state.config.asset_root, state.config.log_level);
+
     if (!platform_system_start()) {
         RL_FATAL("Failed to initialize platform sub-system, exiting...");
         return false;
@@ -62,8 +82,9 @@ b8 rl_engine_create(void) {
     input_system_init();
 
     void *asset_system = mem_alloc(asset_system_size(), MEM_SUBSYSTEM_ASSET);
-    if (!asset_system_start(asset_system) || !asset_system_load_all()) {
+    if (!asset_system_start(asset_system, state.config.asset_root) || !asset_system_load_all()) {
         RL_FATAL("Failed to initialize asset sub-system, exiting...");
+        return false;
     }
 
     rl_arena_init(&state.frame_arena, KiB(4), KiB(1), MEM_STRING);
@@ -79,6 +100,7 @@ void rl_engine_destroy(void) {
     RL_DEBUG("Engine shutting down, cleaning up...");
     platform_system_shutdown();
     renderer_destroy();
+    asset_system_shutdown();
     event_system_shutdown();
     logger_system_shutdown();
     mem_system_shutdown();
@@ -89,7 +111,7 @@ b8 rl_engine_is_running(void) {
     return state.is_running;
 }
 
-void rl_engine_stop() {
+void rl_engine_stop(void) {
     state.is_running = false;
 }
 
@@ -135,12 +157,3 @@ rl_engine_stats rl_engine_get_stats(void) {
         .fps = state.fps_display,
     };
 }
-
-// -- Legacy API (temporary)
-
-b8 create_engine(void) { return rl_engine_create(); }
-void destroy_engine(void) { rl_engine_destroy(); }
-b8 engine_is_running(void) { return rl_engine_is_running(); }
-b8 engine_begin_frame(f64 *out_dt) { return rl_engine_begin_frame(out_dt); }
-void engine_end_frame(void) { rl_engine_end_frame(); }
-engine_stats engine_get_stats(void) { return rl_engine_get_stats(); }

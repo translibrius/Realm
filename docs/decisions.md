@@ -16,6 +16,21 @@ Consequences:
 ## Decisions
 
 Date: 2026-02-13
+Decision: Introduce `rl_engine_config` for explicit engine startup contract
+Context:
+- Engine startup behavior relied on hardcoded defaults, especially asset root path assumptions.
+- M0/M1 require clearer host->engine boundaries and fewer implicit global conventions.
+Decision:
+- Add `rl_engine_config` and require it in `rl_engine_create(const rl_engine_config*)`.
+- Provide `rl_engine_config_default()` as the forward-compatible initialization path.
+- Route asset system root through engine config instead of hardcoded literals.
+- Remove temporary legacy `create_engine/engine_*` aliases from the public engine API.
+Consequences:
+- Host startup responsibilities are explicit and stable for future engine embedding.
+- Engine can run from custom asset roots without code edits in the asset subsystem.
+- Any downstream caller must migrate to `rl_engine_*` API names.
+
+Date: 2026-02-13
 Decision: Finalize M5 hot reload baseline
 Context:
 - Hot reload infrastructure existed but had drift from the documented plan.

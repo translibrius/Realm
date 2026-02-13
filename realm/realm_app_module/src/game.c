@@ -72,7 +72,7 @@ void game_render(rl_game *game, f64 dt) {
 
     vec4 color = {1.0f, 1.0f, 1.0f, 1.0f};
 
-    rl_string fps = rl_string_format(&game->frame_arena, "FPSss: %d", engine_get_stats().fps);
+    rl_string fps = rl_string_format(&game->frame_arena, "FPSss: %d", rl_engine_get_stats().fps);
     renderer_render_text(fps.cstr, 20, 0, 0, color);
 
     // Reset frame arena

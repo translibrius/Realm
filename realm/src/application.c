@@ -25,6 +25,10 @@ b8 on_window_resize(void *event, void *data);
 b8 on_key_press(void *event, void *data);
 
 b8 create_application() {
+    rl_engine_config engine_config = rl_engine_config_default();
+    engine_config.asset_root = "../../../assets/";
+    engine_config.log_level = LOG_INFO;
+
     app.config = config;
     app.game_state = nullptr;
     app.game_state_size = 0;
@@ -33,7 +37,7 @@ b8 create_application() {
     app.rebuild_requested = false;
     app.reload_requested = false;
 
-    if (!rl_engine_create()) {
+    if (!rl_engine_create(&engine_config)) {
         RL_FATAL("Engine failed to bootstrap");
         return false;
     }
