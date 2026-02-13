@@ -470,15 +470,15 @@ b8 platform_pump_messages() {
             case NSEventTypeLeftMouseDragged:
             case NSEventTypeRightMouseDragged:
             case NSEventTypeOtherMouseDragged: {
-                if (!mw || !mw->window) {
-                    break;
-                }
                 if (state.raw_mouse_enabled) {
                     i32 dx = (i32)llround(event.deltaX);
                     i32 dy = (i32)llround(event.deltaY);
                     if (dx || dy) {
                         input_process_mouse_raw(dx, dy);
                     }
+                    break;
+                }
+                if (!mw || !mw->window) {
                     break;
                 }
                 NSPoint pos = event.locationInWindow;
@@ -853,27 +853,31 @@ b8 platform_create_vulkan_surface(VK_Context *context) {
 }
 
 void platform_set_cursor_mode(platform_window *window, platform_cursor_mode mode) {
-    if (mode == state.cursor_mode) {
+    platform_cursor_mode previous_mode = state.cursor_mode;
+    if (mode == previous_mode) {
         return;
     }
 
-    state.cursor_mode = mode;
+    b8 was_visible = previous_mode == CURSOR_MODE_NORMAL;
+    b8 is_visible = mode == CURSOR_MODE_NORMAL;
+    b8 was_locked = previous_mode == CURSOR_MODE_LOCKED;
+    b8 is_locked = mode == CURSOR_MODE_LOCKED;
 
-    switch (mode) {
-    case CURSOR_MODE_NORMAL:
+    if (was_visible && !is_visible) {
+        CGDisplayHideCursor(kCGDirectMainDisplay);
+    } else if (!was_visible && is_visible) {
         CGDisplayShowCursor(kCGDirectMainDisplay);
-        CGAssociateMouseAndMouseCursorPosition(true);
-        break;
-    case CURSOR_MODE_HIDDEN:
-        CGDisplayHideCursor(kCGDirectMainDisplay);
-        CGAssociateMouseAndMouseCursorPosition(true);
-        break;
-    case CURSOR_MODE_LOCKED:
-        CGDisplayHideCursor(kCGDirectMainDisplay);
-        CGAssociateMouseAndMouseCursorPosition(false);
-        platform_center_cursor(window);
-        break;
     }
+
+    if (was_locked != is_locked) {
+        CGAssociateMouseAndMouseCursorPosition(!is_locked);
+    }
+
+    if (is_locked) {
+        platform_center_cursor(window);
+    }
+
+    state.cursor_mode = mode;
 }
 
 b8 platform_set_cursor_position(platform_window *window, vec2 position) {
@@ -917,8 +921,16 @@ b8 platform_center_cursor(platform_window *window) {
 }
 
 b8 platform_set_raw_input(platform_window *window, bool enable) {
-    (void)window;
+    if (state.raw_mouse_enabled == enable) {
+        return true;
+    }
+
     state.raw_mouse_enabled = enable;
+
+    if (window) {
+        platform_set_cursor_mode(window, enable ? CURSOR_MODE_LOCKED : CURSOR_MODE_NORMAL);
+    }
+
     return true;
 }
 
