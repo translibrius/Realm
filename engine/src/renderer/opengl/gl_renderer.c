@@ -44,17 +44,17 @@ b8 opengl_initialize(platform_window *platform_window, b8 vsync) {
     opengl_resize_framebuffer(context.window->settings.width, context.window->settings.height);
 
     // Shader init
-    if (!opengl_shader_setup("default.vert", "default.frag", &context.default_shader)) {
+    if (!opengl_shader_setup(ASSET_ID_SHADER_DEFAULT_VERT, ASSET_ID_SHADER_DEFAULT_FRAG, &context.default_shader)) {
         RL_ERROR("opengl_shader_setup() failed");
         return false;
     }
-    if (!opengl_shader_setup("default.vert", "light.frag", &context.light_shader)) {
+    if (!opengl_shader_setup(ASSET_ID_SHADER_DEFAULT_VERT, ASSET_ID_SHADER_LIGHT_FRAG, &context.light_shader)) {
         RL_ERROR("opengl_shader_setup() failed");
         return false;
     }
 
     // Texture init
-    if (!opengl_texture_generate("wood_container.jpg", &context.wood_texture)) {
+    if (!opengl_texture_generate(ASSET_ID_TEXTURE_WOOD_CONTAINER, &context.wood_texture)) {
         RL_ERROR("opengl_texture_generate() failed");
         return false;
     }

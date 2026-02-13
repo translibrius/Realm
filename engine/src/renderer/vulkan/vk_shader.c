@@ -40,13 +40,19 @@ void vk_shader_destroy_compiler(VK_Context *context) {
     RL_DEBUG("Shader compiler destroyed");
 }
 
-b8 vk_shader_module_compile(VK_Context *context, const char *filename) {
+b8 vk_shader_module_compile(VK_Context *context, ASSET_ID asset_id) {
     if (!context->shader_compiler.initialized) {
         RL_ERROR("Shader compiler not initialized before compile!");
         return false;
     }
 
-    rl_asset_shader *asset_shader = get_asset(filename)->handle;
+    rl_asset *asset = get_asset_by_id(asset_id);
+    if (!asset) {
+        return false;
+    }
+
+    const char *filename = asset->filename;
+    rl_asset_shader *asset_shader = asset->handle;
 
     shaderc_shader_kind kind;
     switch (asset_shader->type) {

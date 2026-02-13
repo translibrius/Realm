@@ -23,9 +23,7 @@ static SHADER_TYPE infer_shader_type(const char *filename) {
 b8 load_shader(rl_arena *arena, rl_asset *asset) {
     rl_temp_arena scratch = rl_arena_scratch_get();
 
-    const char *dir = get_assets_dir(asset->type);
-    const char *filename = asset->filename;
-    rl_string path = rl_string_format(scratch.arena, "%s%s", dir, filename);
+    rl_string path = rl_string_format(scratch.arena, "%s%s", get_asset_root(), asset->source_path);
 
     rl_file shader_file = {};
     platform_file_open(path.cstr, P_FILE_READ, &shader_file);

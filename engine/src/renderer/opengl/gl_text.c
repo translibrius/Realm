@@ -28,7 +28,7 @@ static GL_Font *find_gl_font(GL_Context *ctx, rl_font *font) {
 
 b8 opengl_text_pipeline_init(GL_Context *ctx) {
     GL_TextPipeline *pipeline = &ctx->text_pipeline;
-    if (!opengl_shader_setup("text.vert", "text.frag", &pipeline->shader)) {
+    if (!opengl_shader_setup(ASSET_ID_SHADER_TEXT_VERT, ASSET_ID_SHADER_TEXT_FRAG, &pipeline->shader)) {
         RL_ERROR("opengl_shader_setup() failed");
         return false;
     }

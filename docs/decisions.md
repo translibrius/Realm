@@ -16,6 +16,22 @@ Consequences:
 ## Decisions
 
 Date: 2026-02-13
+Decision: Asset identity uses enum-first IDs only
+Context:
+- M3 requires stable asset identity beyond fragile filename lookups.
+- Current renderer/game call sites were still asset-filename driven.
+Decision:
+- Introduce public `ASSET_ID` enum and `get_asset_by_id(ASSET_ID)` lookup API.
+- Extend `rl_asset` with `id` and define asset table entries as ID-indexed records.
+- Add metadata fields to registry entries (`source_path`, `source_version`, `source_hash`).
+- Remove filename-based lookup from the public API to keep identity strictly ID-driven.
+- Normalize configured `asset_root` path in asset system startup and keep default fallback.
+Consequences:
+- Existing engine and app call sites now use stable IDs.
+- Asset identity is now explicit in API and data tables, enabling future metadata/handle layers.
+- Asset change detection has a baseline hash/version model that can power future file-watch/runtime reload.
+
+Date: 2026-02-13
 Decision: Introduce `rl_engine_config` for explicit engine startup contract
 Context:
 - Engine startup behavior relied on hardcoded defaults, especially asset root path assumptions.

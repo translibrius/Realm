@@ -10,25 +10,31 @@ b8 opengl_compile_fragment_shader(const char *source, i32 *out_id);
 b8 opengl_create_shader_program(i32 vertex_id, i32 fragment_id, i32 *out_prog_id);
 
 // TODO: Add cache of compiled shaders to reuse
-b8 opengl_shader_setup(const char *vertex, const char *frag, GL_Shader *out_shader) {
-    rl_asset_shader *default_vert = get_asset(vertex)->handle;
-    rl_asset_shader *default_frag = get_asset(frag)->handle;
-
-    i32 vert_id, frag_id, program_id;
-    if (!opengl_compile_vertex_shader(default_vert->source, &vert_id)) {
+b8 opengl_shader_setup(ASSET_ID vertex_id, ASSET_ID frag_id, GL_Shader *out_shader) {
+    rl_asset *vertex_asset = get_asset_by_id(vertex_id);
+    rl_asset *fragment_asset = get_asset_by_id(frag_id);
+    if (!vertex_asset || !fragment_asset) {
         return false;
     }
 
-    if (!opengl_compile_fragment_shader(default_frag->source, &frag_id)) {
+    rl_asset_shader *default_vert = vertex_asset->handle;
+    rl_asset_shader *default_frag = fragment_asset->handle;
+
+    i32 vert_shader_id, frag_shader_id, program_id;
+    if (!opengl_compile_vertex_shader(default_vert->source, &vert_shader_id)) {
         return false;
     }
 
-    if (!opengl_create_shader_program(vert_id, frag_id, &program_id)) {
+    if (!opengl_compile_fragment_shader(default_frag->source, &frag_shader_id)) {
         return false;
     }
 
-    out_shader->fragment_id = frag_id;
-    out_shader->vertex_id = vert_id;
+    if (!opengl_create_shader_program(vert_shader_id, frag_shader_id, &program_id)) {
+        return false;
+    }
+
+    out_shader->fragment_id = frag_shader_id;
+    out_shader->vertex_id = vert_shader_id;
     out_shader->program_id = program_id;
 
     return true;

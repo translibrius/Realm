@@ -64,13 +64,20 @@ Exit criteria:
 
 ### M3: Asset System v2 (Root-relative + Identity)
 
-Status: Not started.
+Status: Completed (2026-02-13).
 
 Deliverables:
 
 - Add `asset_root` configuration; canonicalize paths.
 - Introduce asset handles/IDs and a metadata registry (type, source path, version, hash).
 - Store handles in systems; avoid storing file paths in game/runtime state.
+
+Implemented notes:
+
+- `asset_root` now comes from `rl_engine_config` and is normalized (`\\` -> `/`, trailing slash ensured).
+- Asset identity now has a public enum-first `ASSET_ID` API with `get_asset_by_id()`.
+- Asset registry entries now include metadata fields (`type`, `source_path`, `source_version`, `source_hash`).
+- Loader/runtime call sites now use IDs only; filename-based lookup API has been removed.
 
 Exit criteria:
 

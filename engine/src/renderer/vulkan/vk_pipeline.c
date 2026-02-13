@@ -7,11 +7,11 @@ VkVertexInputBindingDescription vk_vertex_get_binding_desc();
 void vk_vertex_get_attr_desc(VkVertexInputAttributeDescription *out_attrs);
 
 b8 vk_pipeline_create(VK_Context *context) {
-    if (!vk_shader_module_compile(context, "vulkan_triangle.vert")) {
+    if (!vk_shader_module_compile(context, ASSET_ID_SHADER_VULKAN_TRIANGLE_VERT)) {
         return false;
     }
 
-    if (!vk_shader_module_compile(context, "vulkan_triangle.frag")) {
+    if (!vk_shader_module_compile(context, ASSET_ID_SHADER_VULKAN_TRIANGLE_FRAG)) {
         return false;
     }
 

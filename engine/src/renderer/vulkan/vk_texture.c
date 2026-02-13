@@ -4,7 +4,11 @@
 #include "vk_image.h"
 
 b8 vk_texture_create(VK_Context *ctx, VK_Texture *vk_texture) {
-    rl_asset *asset = get_asset("face.jpg");
+    rl_asset *asset = get_asset_by_id(ASSET_ID_TEXTURE_FACE);
+    if (!asset) {
+        return false;
+    }
+
     rl_texture *texture = asset->handle;
 
     VkBuffer staging_buffer = nullptr;
@@ -118,4 +122,3 @@ b8 vk_texture_create_sampler(VK_Context *ctx) {
 void vk_texture_destroy_sampler(VK_Context *ctx) {
     vkDestroySampler(ctx->device, ctx->texture_sampler, nullptr);
 }
-

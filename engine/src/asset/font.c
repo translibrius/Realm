@@ -13,11 +13,11 @@ b8 rl_font_load(rl_arena *asset_arena, rl_asset *asset) {
 
     RL_DEBUG("Initializing font: %s", asset->filename);
 
-    rl_string path = rl_string_format(scratch.arena, "%s%s", get_assets_dir(ASSET_FONT), asset->filename);
+    rl_string path = rl_string_format(scratch.arena, "%s%s", get_asset_root(), asset->source_path);
 
     rl_font *font = rl_arena_push(asset_arena, sizeof(rl_font), alignof(rl_font));
     font->name = asset->filename;
-    font->path = path.cstr;
+    font->path = asset->source_path;
     if (!msdf_load_font_ascii(path.cstr, font)) {
         RL_ERROR("failed to load msdf_font");
         arena_scratch_release(scratch);

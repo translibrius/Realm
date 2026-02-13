@@ -33,7 +33,8 @@ cmake --build --preset release
 
 Important runtime assumption:
 
-- Asset loading uses relative paths like `../../../assets/...` (see `engine/src/asset/asset.c`), which generally assumes the working directory is the `bin/` folder under `build/*/bin`.
+- Asset loading uses `rl_engine_config.asset_root` (see `engine/include/engine.h`, `engine/src/asset/asset.c`).
+- Current host default is still `../../../assets/`, so running from `build/*/bin` remains the default expected layout unless host config overrides it.
 
 ## Program Flow (Entry Points)
 
@@ -134,7 +135,7 @@ Important runtime assumption:
 ## Repo-Specific "Gotchas"
 
 - Engine/app coupling: avoid any `engine/` -> `realm/` includes. If shared types are needed, push them into the public API under `engine/include/`.
-- Asset paths are relative: `get_assets_dir()` returns `../../../assets/...` (see `engine/src/asset/asset.c`). Running the executable from a different working directory may fail to load assets.
+- Asset root is config-driven: `rl_engine_config.asset_root` controls where assets load from (see `engine/src/asset/asset.c`).
 - Backend selection is centralized: use `renderer_init(..., RENDERER_BACKEND, ...)` and update `prepare_interface()` in `engine/src/renderer/renderer_frontend.c` when adding or changing backend capabilities.
 - Windows is primary: Linux exists but is partial; avoid breaking Windows while improving parity.
 
@@ -174,9 +175,10 @@ Important runtime assumption:
 
 - Add a new asset type:
   - Extend `ASSET_TYPE` in `engine/src/asset/asset.h`
+  - Add/update `ASSET_ID` entries for concrete assets in `engine/include/asset/asset.h`
   - Add loader implementation in `engine/src/asset/`
-  - Add entries to `engine/src/asset/asset_table.h`
-  - Update `get_assets_dir()` and `asset_system_load()` switch in `engine/src/asset/asset.c`
+  - Add entries to `engine/src/asset/asset_table.h` (include `source_path`, `source_version`)
+  - Update `asset_system_load()` switch in `engine/src/asset/asset.c`
 
 - Add a new renderer feature (API surface):
   - Add to `renderer_interface` in `engine/src/renderer/renderer_types.h`
