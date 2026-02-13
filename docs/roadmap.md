@@ -15,7 +15,7 @@ This is a living roadmap for turning `engine/` into a standalone library with a 
 
 - Engine/app coupling exists (engine headers include `realm/` headers); this blocks a stable API boundary.
 - Renderer API/state is coupled enough that swapping backends changes scene results.
-- Assets assume a working directory (`../../../assets/...`), and there is no asset identity/metadata system.
+- Simulation and rendering currently execute serially in one loop; there is no buffered frame-data handoff yet.
 
 ## Milestones
 
@@ -50,13 +50,25 @@ Exit criteria:
 
 ### M2: Renderer Contract (Mid-level Render Packet)
 
-Status: Not started.
+Status: Planned (2026-02-13 milestone breakdown defined).
 
 Deliverables:
 
 - Define a public `render_packet` (frame data) containing cameras, lights, and draw items.
 - Draw items reference engine-managed resource handles (mesh/material/texture) and transforms.
 - Renderer backends (Vulkan/OpenGL) consume the same packet and produce equivalent results.
+
+Planned phases:
+
+- M2A (Boundary first, single-thread): module produces backend-agnostic frame data; host submits it to renderer.
+- M2B (Buffered handoff): add double/triple-buffered frame packet publish/consume flow.
+- M2C (Parallelism): run simulation + packet build on worker thread while main thread handles platform + render.
+- M2D (Safety passes): make hot reload and backend switching pause/sync correctly with threaded frame pipeline.
+
+Notes:
+
+- Windows is the primary target for perf gains, but platform/event pumping and renderer ownership remain main-thread controlled for portability.
+- Renderer backend internals remain private; packet/commands are engine-level abstractions, not Vulkan command buffers.
 
 Exit criteria:
 

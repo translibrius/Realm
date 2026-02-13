@@ -16,6 +16,21 @@ Consequences:
 ## Decisions
 
 Date: 2026-02-13
+Decision: M2 renderer decoupling ships in phased order before threading
+Context:
+- Current game module still calls renderer APIs directly, which keeps scene semantics backend-coupled.
+- Goal is to improve CPU frame-time overlap, but direct threading without a frame-data boundary risks race-prone design.
+- Windows is the primary platform target, but cross-platform constraints (main-thread platform/event ownership) still apply.
+Decision:
+- Implement M2 in four phases: boundary extraction (M2A), buffered handoff (M2B), parallel sim/render scheduling (M2C), then reload/switch hardening (M2D).
+- Keep platform pump and renderer ownership on the main thread; move simulation + frame-data build to a worker thread only after packet buffering exists.
+- Treat module output as backend-agnostic draw/frame data. Backend-specific command buffers stay private to renderer implementations.
+Consequences:
+- Reduces abstraction risk: packet shape is validated in single-thread mode before adding synchronization complexity.
+- Enables incremental performance work and easier rollback if threaded scheduling exposes issues.
+- Preserves backend portability while still optimizing for Windows-first development.
+
+Date: 2026-02-13
 Decision: Asset identity uses enum-first IDs only
 Context:
 - M3 requires stable asset identity beyond fragile filename lookups.
