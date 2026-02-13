@@ -17,9 +17,11 @@ static rl_application_config config = {
 
 static rl_application app;
 
-b8 create_window();
+b8 create_window(const platform_window_settings *settings_override);
 b8 create_app_module();
 void destroy_app_module();
+static b8 switch_renderer_backend(RENDERER_BACKEND backend);
+static RENDERER_BACKEND get_next_backend(RENDERER_BACKEND backend);
 
 b8 on_window_resize(void *event, void *data);
 b8 on_key_press(void *event, void *data);
@@ -36,13 +38,15 @@ b8 create_application() {
     app.paused = false;
     app.rebuild_requested = false;
     app.reload_requested = false;
+    app.backend_switch_requested = false;
+    app.requested_backend = app.config.backend;
 
     if (!rl_engine_create(&engine_config)) {
         RL_FATAL("Engine failed to bootstrap");
         return false;
     }
 
-    if (!create_window()) {
+    if (!create_window(nullptr)) {
         return false;
     }
 
@@ -118,6 +122,11 @@ b8 create_application() {
         app.app_module.update(app.game_state, &app.app_context, dt);
         app.app_module.render(app.game_state, &app.app_context);
         rl_engine_end_frame();
+
+        if (app.backend_switch_requested) {
+            app.backend_switch_requested = false;
+            switch_renderer_backend(app.requested_backend);
+        }
     }
 
     realm_app_watcher_stop(&app.app_watcher);
@@ -174,22 +183,83 @@ void destroy_app_module() {
     realm_app_module_unload(&app.app_module);
 }
 
-b8 create_window() {
+b8 create_window(const platform_window_settings *settings_override) {
     // Window
-    app.window.settings = (platform_window_settings){
-        .title = "Realm",
-        .x = 0,
-        .y = 0,
-        .width = 500,
-        .height = 500,
-        .start_center = true,
-        .window_flags = WINDOW_FLAG_DEFAULT,
-        .window_mode = WINDOW_MODE_WINDOWED};
+    if (settings_override) {
+        app.window.settings = *settings_override;
+    } else {
+        app.window.settings = (platform_window_settings){
+            .title = "Realm",
+            .x = 0,
+            .y = 0,
+            .width = 500,
+            .height = 500,
+            .start_center = true,
+            .window_flags = WINDOW_FLAG_DEFAULT,
+            .window_mode = WINDOW_MODE_WINDOWED};
+    }
 
     if (!platform_create_window(&app.window)) {
         RL_ERROR("failed to create main window");
         return false;
     }
 
+    return true;
+}
+
+static RENDERER_BACKEND get_next_backend(RENDERER_BACKEND backend) {
+    return backend == BACKEND_VULKAN ? BACKEND_OPENGL : BACKEND_VULKAN;
+}
+
+static b8 switch_renderer_backend(RENDERER_BACKEND backend) {
+    if (backend == app.config.backend) {
+        return true;
+    }
+
+    const RENDERER_BACKEND previous_backend = app.config.backend;
+    const platform_window_settings previous_window_settings = app.window.settings;
+
+    RL_INFO("Switching renderer backend: %d -> %d", previous_backend, backend);
+
+    renderer_destroy();
+    platform_destroy_window(app.window.id);
+
+    if (!create_window(&previous_window_settings)) {
+        RL_ERROR("Failed to recreate window for renderer switch");
+        rl_engine_stop();
+        return false;
+    }
+
+    if (!renderer_init(&app.window, backend, app.config.vsync)) {
+        RL_ERROR("Failed to initialize renderer backend %d, attempting rollback", backend);
+
+        renderer_destroy();
+        platform_destroy_window(app.window.id);
+
+        if (!create_window(&previous_window_settings)) {
+            RL_FATAL("Failed to recreate window while rolling back renderer backend");
+            rl_engine_stop();
+            return false;
+        }
+
+        if (!renderer_init(&app.window, previous_backend, app.config.vsync)) {
+            RL_FATAL("Failed to restore previous renderer backend %d", previous_backend);
+            rl_engine_stop();
+            return false;
+        }
+
+        app.config.backend = previous_backend;
+        app.app_context.renderer_backend = previous_backend;
+        app.app_context.window = &app.window;
+        app.requested_backend = get_next_backend(previous_backend);
+        return false;
+    }
+
+    app.config.backend = backend;
+    app.app_context.renderer_backend = backend;
+    app.app_context.window = &app.window;
+    app.reload_requested = true;
+
+    RL_INFO("Renderer backend switched successfully to %d. App module reload scheduled.", backend);
     return true;
 }

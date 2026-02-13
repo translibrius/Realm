@@ -28,6 +28,8 @@ typedef struct rl_application {
     b8 focused;
     b8 rebuild_requested;
     b8 reload_requested;
+    b8 backend_switch_requested;
+    RENDERER_BACKEND requested_backend;
 } rl_application;
 
 b8 create_application();

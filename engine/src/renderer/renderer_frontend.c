@@ -33,6 +33,7 @@ void renderer_destroy() {
     if (!state.initialized)
         return;
     interface.shutdown();
+    state.initialized = false;
 }
 
 void renderer_begin_frame(f64 delta_time) {

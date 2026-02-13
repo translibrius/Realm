@@ -133,5 +133,12 @@ b8 on_key_press(void *event, void *data) {
         }
     }
 
+    if (key->key == KEY_F10 && key->pressed) {
+        handler->application->requested_backend =
+            handler->application->config.backend == BACKEND_VULKAN ? BACKEND_OPENGL : BACKEND_VULKAN;
+        handler->application->backend_switch_requested = true;
+        RL_INFO("Scheduled renderer backend switch to %d", handler->application->requested_backend);
+    }
+
     return false;
 }
