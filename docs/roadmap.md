@@ -21,6 +21,8 @@ This is a living roadmap for turning `engine/` into a standalone library with a 
 
 ### M0: Public C API Boundary (Foundation)
 
+Status: In progress.
+
 Deliverables:
 
 - Add `engine/include/` public headers; keep internals in `engine/src/`.
@@ -34,6 +36,8 @@ Exit criteria:
 
 ### M1: Decouple App/Game From Engine Core
 
+Status: In progress.
+
 Deliverables:
 
 - Engine lifecycle becomes `engine_create/configure/update/destroy` via public C API.
@@ -45,6 +49,8 @@ Exit criteria:
 - Engine can be built/linked into a trivial "hello window" host without `realm/` present.
 
 ### M2: Renderer Contract (Mid-level Render Packet)
+
+Status: Not started.
 
 Deliverables:
 
@@ -58,6 +64,8 @@ Exit criteria:
 
 ### M3: Asset System v2 (Root-relative + Identity)
 
+Status: Not started.
+
 Deliverables:
 
 - Add `asset_root` configuration; canonicalize paths.
@@ -69,6 +77,8 @@ Exit criteria:
 - Running from arbitrary working directories can still locate assets via configured root.
 
 ### M4: Serialization/Deserialization (Rooms, Save/Load)
+
+Status: Not started.
 
 Deliverables:
 
@@ -82,6 +92,8 @@ Exit criteria:
 
 ### M5: Hot Reload + Plugin System
 
+Status: Completed (2026-02-13).
+
 Priority: lower (tracked in `docs/hot-reload-plan.md`).
 
 Deliverables:
@@ -91,11 +103,20 @@ Deliverables:
 - Add file watching for module reload (Windows `ReadDirectoryChangesW`, Linux `inotify`).
 - Optional: asset watching for live updates.
 
+Implemented notes:
+
+- `realm_app` is built/loaded as a shared module via `realm/include/realm_app_api.h`.
+- Host-triggered rebuild+reload path is wired (F5 rebuilds `realm_app`, then reloads).
+- State compatibility checks are enforced during reload (size + leading `u32 version` field).
+- File watching is implemented with native APIs on Windows/Linux and polling fallback on other platforms.
+
 Exit criteria:
 
 - Game logic can be recompiled and reloaded without restarting the engine.
 
 ### M6: Multiplayer Readiness (Design Constraints)
+
+Status: Not started.
 
 Deliverables:
 

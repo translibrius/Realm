@@ -10,6 +10,7 @@ applications. This project is a hobbyist exploration of modern graphics APIs and
 ## 🛠 Platform Support
 
 - **Windows**: Primary Development (Stable)
+- **macOS**: Supported (Active Development)
 - **Linux**: WIP (~40%)
 
 ## 📦 Dependencies
@@ -26,7 +27,7 @@ Managed via **vcpkg** manifest mode:
 
 ### 1. Prerequisites
 
-- **CMake** (3.21+)
+- **CMake** (3.20+)
 - **Ninja** build system
 - **Clang** compiler
 - **vcpkg** installed with the environment variable `VCPKG_ROOT` pointing to its location.
@@ -67,7 +68,8 @@ The living roadmap lives in `docs/roadmap.md` (key decisions in `docs/decisions.
 * [ ] **Engine as a library**: Stable public C API in `engine/include/` (no engine->app includes).
 * [ ] **Renderer contract**: Mid-level render packet so backend switches don't change scene semantics.
 * [ ] **Asset system v2**: Configured asset root + handles/IDs + hot reload friendly metadata.
-* [ ] **Save/Load + Hot Reload**: Versioned serialization of authoritative state, rebuildable runtime caches.
+* [ ] **Save/Load**: Versioned serialization of authoritative state, rebuildable runtime caches.
+* [x] **Hot Reload + App Module**: Runtime app module rebuild/reload with state version checks.
 * [ ] **Linux Parity**: Complete windowing/input parity for Linux builds.
 
 ## 🤝 Contributing & Contact

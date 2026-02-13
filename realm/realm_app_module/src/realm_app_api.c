@@ -11,6 +11,10 @@ u64 realm_app_get_state_size(void) {
     return sizeof(rl_game);
 }
 
+u32 realm_app_get_state_version(void) {
+    return RL_GAME_STATE_VERSION;
+}
+
 void realm_app_init(void *state, const realm_app_context *ctx) {
     rl_game *game = (rl_game *)state;
     rl_game_cfg game_cfg = {

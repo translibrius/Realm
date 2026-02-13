@@ -14,12 +14,18 @@ b8 game_init(rl_game *game, const realm_app_context *ctx, rl_game_cfg config) {
         return false;
     }
 
-    game->paused = true;
-    game->focused = true;
-    game->input_captured = false;
+    b8 state_compatible = game->version == RL_GAME_STATE_VERSION;
+
+    if (!state_compatible) {
+        game->version = RL_GAME_STATE_VERSION;
+        game->paused = true;
+        game->focused = true;
+        game->input_captured = false;
+        camera_init(&game->camera);
+    }
+
     game->app_context = ctx;
     game->config = config;
-    camera_init(&game->camera);
     rl_arena_init(&game->frame_arena, KiB(4024), KiB(1024), MEM_ARENA);
 
     rl_asset *asset = get_asset("JetBrainsMono-Regular.ttf");
@@ -31,7 +37,12 @@ b8 game_init(rl_game *game, const realm_app_context *ctx, rl_game_cfg config) {
     }
     renderer_set_active_font(game->font_jetbrains);
 
-    game_set_paused(game, false);
+    if (!state_compatible) {
+        game_set_paused(game, false);
+    } else {
+        game_apply_input_capture(game);
+    }
+
     return true;
 }
 

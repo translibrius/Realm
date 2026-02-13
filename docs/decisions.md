@@ -15,6 +15,22 @@ Consequences:
 
 ## Decisions
 
+Date: 2026-02-13
+Decision: Finalize M5 hot reload baseline
+Context:
+- Hot reload infrastructure existed but had drift from the documented plan.
+- ABI/state compatibility checks were not enforced in host reload flow.
+- Rebuild and reload paths were not fully wired together.
+Decision:
+- Add and require `realm_app_get_state_version()` in the module ABI.
+- Enforce module ABI version + state size validation when loading/reloading.
+- On reload, reuse state only when compatible; otherwise reset/reallocate before `realm_app_init`.
+- Wire `F5` to rebuild `realm_app` and then reload.
+- Add app-module file watching (Windows `ReadDirectoryChanges` path, Linux `inotify`, polling fallback elsewhere).
+Consequences:
+- Reload behavior is now deterministic and safer across module layout changes.
+- Host/module boundaries are cleaner, but full renderer/asset/serialization milestones remain.
+
 Date: 2026-01-30
 Decision: Hot-reloadable app module plan (`realm_app`)
 Context:

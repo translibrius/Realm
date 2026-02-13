@@ -3,6 +3,13 @@
 This document captures the agreed plan for adding a hot-reloadable app module
 to Realm. It is intended as a reference for future implementation.
 
+## Implementation Status (2026-02-13)
+
+- Core hot reload loop is implemented in host (`Realm`) + `realm_app` shared module.
+- Manual reload flow is implemented (`F5` rebuilds module, then reloads without restarting engine).
+- State compatibility checks are implemented (state size + version field reset policy).
+- Native file watching is implemented on Windows/Linux; polling fallback is used elsewhere.
+
 ## Locked Decisions
 
 - Engine is a C shared library (`Engine.dll`) loaded by both host and app module.
@@ -12,7 +19,7 @@ to Realm. It is intended as a reference for future implementation.
 - Host owns the app state memory (allocated via `realm_app_get_state_size`).
 - State starts with `uint32_t version`; reuse if compatible, else reset.
 - App calls engine APIs directly (no context function tables).
-- Windows and Linux file watchers (macOS later).
+- Windows and Linux file watchers; fallback polling on other platforms.
 - Windows reload uses copied DLL/PDB to avoid file locks.
 - Single executable with editor gated by a build flag.
 
@@ -26,6 +33,7 @@ to Realm. It is intended as a reference for future implementation.
 
 - `uint32_t realm_app_get_api_version(void);`
 - `size_t realm_app_get_state_size(void);`
+- `uint32_t realm_app_get_state_version(void);`
 - `void realm_app_init(void* state, const realm_app_context* ctx);`
 - `void realm_app_update(void* state, const realm_app_context* ctx, float dt);`
 - `void realm_app_render(void* state, const realm_app_context* ctx);`
@@ -42,13 +50,13 @@ On module change:
 3. Load copied binary (Windows file lock workaround)
 4. Resolve symbols
 5. `realm_app_init`
-6. If state version mismatches, reset state before init
+6. If state size/version mismatch, reset state before init
 
 ## File Watching
 
 - Windows: `ReadDirectoryChangesW`
 - Linux: `inotify`
-- macOS deferred
+- Fallback polling on platforms without native watcher integration
 
 ## Editor Mode (Single Exe)
 

@@ -2,10 +2,10 @@
 
 #include "defines.h"
 #include "event_handler.h"
-#include "game.h"
 #include "platform/platform.h"
 #include "renderer/renderer_backend.h"
 
+#include "realm_app_watcher.h"
 #include "realm_app_loader.h"
 
 typedef struct rl_application_config {
@@ -18,10 +18,15 @@ typedef struct rl_application_config {
 typedef struct rl_application {
     rl_application_config config;
     platform_window window;
-    rl_game *game_state;
+    void *game_state;
+    u64 game_state_size;
     realm_app_context app_context;
     realm_app_module app_module;
+    realm_app_watcher app_watcher;
     app_event_handler event_handler;
+    b8 paused;
+    b8 focused;
+    b8 rebuild_requested;
     b8 reload_requested;
 } rl_application;
 

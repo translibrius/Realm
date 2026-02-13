@@ -7,6 +7,8 @@
 
 typedef struct rl_font rl_font;
 
+#define RL_GAME_STATE_VERSION 1
+
 typedef struct rl_game_cfg {
     b8 vsync;
     RENDERER_BACKEND renderer_backend;
@@ -16,6 +18,7 @@ typedef struct rl_game_cfg {
 } rl_game_cfg;
 
 typedef struct rl_game {
+    u32 version;
     rl_game_cfg config;
     rl_camera camera;
     rl_arena frame_arena;

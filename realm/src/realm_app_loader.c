@@ -1,6 +1,7 @@
 #include "realm_app_loader.h"
 
 #include "core/logger.h"
+#include "memory/memory.h"
 #include "platform/io/file_io.h"
 
 #include <stdio.h>
@@ -32,6 +33,14 @@
 #endif
 
 static u32 hot_reload_generation = 0;
+
+static u32 realm_app_state_version_read(const void *state) {
+    if (!state) {
+        return 0;
+    }
+
+    return *((const u32 *)state);
+}
 
 static b8 copy_module_binaries(char *dll_out, u32 dll_out_size, char *pdb_out, u32 pdb_out_size) {
     if (!dll_out || dll_out_size == 0) {
@@ -109,12 +118,17 @@ b8 realm_app_module_load(realm_app_module *module) {
 
     module->set_paused = nullptr;
     module->set_focused = nullptr;
+    module->get_state_version = nullptr;
 
     if (!platform_lib_symbol(&module->lib, "realm_app_get_api_version", (void **)&module->get_api_version)) {
         realm_app_module_unload(module);
         return false;
     }
     if (!platform_lib_symbol(&module->lib, "realm_app_get_state_size", (void **)&module->get_state_size)) {
+        realm_app_module_unload(module);
+        return false;
+    }
+    if (!platform_lib_symbol(&module->lib, "realm_app_get_state_version", (void **)&module->get_state_version)) {
         realm_app_module_unload(module);
         return false;
     }
@@ -138,12 +152,26 @@ b8 realm_app_module_load(realm_app_module *module) {
     platform_lib_symbol(&module->lib, "realm_app_set_paused", (void **)&module->set_paused);
     platform_lib_symbol(&module->lib, "realm_app_set_focused", (void **)&module->set_focused);
 
+    const u32 api_version = module->get_api_version();
+    if (api_version != REALM_APP_API_VERSION) {
+        RL_ERROR("app module ABI mismatch: expected=%u got=%u", REALM_APP_API_VERSION, api_version);
+        realm_app_module_unload(module);
+        return false;
+    }
+
+    const u64 required_state_size = module->get_state_size();
+    if (required_state_size < sizeof(u32)) {
+        RL_ERROR("app module state size too small for version header: %llu", required_state_size);
+        realm_app_module_unload(module);
+        return false;
+    }
+
     return true;
 }
 
-b8 realm_app_module_reload(realm_app_module *module, void *state, const realm_app_context *ctx) {
-    if (!module) {
-        RL_ERROR("realm_app_module_reload: module is null");
+b8 realm_app_module_reload(realm_app_module *module, void **state, u64 *state_size, const realm_app_context *ctx) {
+    if (!module || !state || !state_size) {
+        RL_ERROR("realm_app_module_reload: invalid arguments");
         return false;
     }
 
@@ -153,21 +181,55 @@ b8 realm_app_module_reload(realm_app_module *module, void *state, const realm_ap
         return false;
     }
 
-    if (realm_app_module_is_loaded(module) && module->shutdown) {
-        module->shutdown(state, ctx);
+    const u64 required_state_size = new_module.get_state_size();
+    const u32 required_state_version = new_module.get_state_version();
+    if (required_state_size < sizeof(u32)) {
+        RL_ERROR("app module state size too small for version header: %llu", required_state_size);
+        realm_app_module_unload(&new_module);
+        return false;
+    }
+
+    b8 requires_realloc = !*state || *state_size != required_state_size;
+    void *replacement_state = nullptr;
+    if (requires_realloc) {
+        replacement_state = mem_alloc(required_state_size, MEM_APPLICATION);
+        if (!replacement_state) {
+            RL_ERROR("failed to allocate %llu bytes for app module state", required_state_size);
+            realm_app_module_unload(&new_module);
+            return false;
+        }
+        mem_zero(replacement_state, required_state_size);
+    }
+
+    if (realm_app_module_is_loaded(module) && module->shutdown && *state) {
+        module->shutdown(*state, ctx);
     }
 
     if (realm_app_module_is_loaded(module)) {
         realm_app_module_unload(module);
     }
 
-    *module = new_module;
-
-    if (module->init) {
-        module->init(state, ctx);
+    if (requires_realloc) {
+        if (*state) {
+            mem_free(*state, *state_size, MEM_APPLICATION);
+        }
+        *state = replacement_state;
+        *state_size = required_state_size;
+    } else {
+        u32 current_state_version = realm_app_state_version_read(*state);
+        if (current_state_version != required_state_version) {
+            RL_WARN("state version mismatch during reload (%u -> %u), resetting state", current_state_version, required_state_version);
+            mem_zero(*state, *state_size);
+        }
     }
 
-    RL_INFO("app module reloaded");
+    *module = new_module;
+
+    if (module->init && *state) {
+        module->init(*state, ctx);
+    }
+
+    RL_INFO("app module reloaded (state_size=%llu, state_version=%u)", *state_size, required_state_version);
     return true;
 }
 
@@ -228,6 +290,7 @@ void realm_app_module_unload(realm_app_module *module) {
 
     module->get_api_version = nullptr;
     module->get_state_size = nullptr;
+    module->get_state_version = nullptr;
     module->init = nullptr;
     module->update = nullptr;
     module->render = nullptr;
@@ -241,5 +304,11 @@ b8 realm_app_module_is_loaded(const realm_app_module *module) {
         return false;
     }
 
-    return module->get_api_version && module->get_state_size && module->init && module->update && module->render && module->shutdown;
+    return module->get_api_version &&
+           module->get_state_size &&
+           module->get_state_version &&
+           module->init &&
+           module->update &&
+           module->render &&
+           module->shutdown;
 }

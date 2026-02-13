@@ -26,9 +26,16 @@ b8 on_key_press(void *event, void *data);
 
 b8 create_application() {
     app.config = config;
+    app.game_state = nullptr;
+    app.game_state_size = 0;
+    app.focused = true;
+    app.paused = false;
+    app.rebuild_requested = false;
+    app.reload_requested = false;
 
     if (!rl_engine_create()) {
         RL_FATAL("Engine failed to bootstrap");
+        return false;
     }
 
     if (!create_window()) {
@@ -56,6 +63,10 @@ b8 create_application() {
         return false;
     }
 
+    if (!realm_app_watcher_start(&app.app_watcher, REALM_APP_MODULE_NAME)) {
+        RL_WARN("failed to start app module watcher");
+    }
+
     f64 dt = 0.0f;
     while (rl_engine_is_running()) {
         RL_PROFILE_FRAME_MARK();
@@ -63,11 +74,35 @@ b8 create_application() {
             continue;
         }
 
+        if (realm_app_watcher_poll(&app.app_watcher)) {
+            app.reload_requested = true;
+            RL_INFO("Detected app module file change, scheduling reload");
+        }
+
         if (app.reload_requested) {
             app.reload_requested = false;
+
+            if (app.rebuild_requested) {
+                app.rebuild_requested = false;
+                if (!realm_app_module_rebuild()) {
+                    RL_ERROR("App module rebuild failed");
+                    rl_engine_end_frame();
+                    continue;
+                }
+                realm_app_watcher_mark_clean(&app.app_watcher);
+            }
+
             RL_INFO("Reloading app module...");
-            if (!realm_app_module_reload(&app.app_module, app.game_state, &app.app_context)) {
+            if (!realm_app_module_reload(&app.app_module, &app.game_state, &app.game_state_size, &app.app_context)) {
                 RL_ERROR("App module reload failed");
+            } else {
+                if (app.app_module.set_focused) {
+                    app.app_module.set_focused(app.game_state, app.focused);
+                }
+                if (app.app_module.set_paused) {
+                    app.app_module.set_paused(app.game_state, app.paused);
+                }
+                realm_app_watcher_mark_clean(&app.app_watcher);
             }
         }
 
@@ -81,6 +116,7 @@ b8 create_application() {
         rl_engine_end_frame();
     }
 
+    realm_app_watcher_stop(&app.app_watcher);
     destroy_app_module();
     rl_engine_destroy();
 
@@ -95,15 +131,22 @@ b8 create_app_module() {
         return false;
     }
 
-    u64 game_state_size = sizeof(rl_game);
-    app.game_state = nullptr;
-
-    app.game_state = mem_alloc(game_state_size, MEM_APPLICATION);
-    if (!app.game_state) {
-        RL_ERROR("failed to allocate app state");
+    app.game_state_size = app.app_module.get_state_size();
+    if (app.game_state_size < sizeof(u32)) {
+        RL_ERROR("app module state size is invalid: %llu", app.game_state_size);
+        realm_app_module_unload(&app.app_module);
         return false;
     }
-    mem_zero(app.game_state, game_state_size);
+
+    app.game_state = nullptr;
+
+    app.game_state = mem_alloc(app.game_state_size, MEM_APPLICATION);
+    if (!app.game_state) {
+        RL_ERROR("failed to allocate app state");
+        realm_app_module_unload(&app.app_module);
+        return false;
+    }
+    mem_zero(app.game_state, app.game_state_size);
 
     app.app_context = (realm_app_context){
         .window = &app.window,
@@ -120,9 +163,10 @@ void destroy_app_module() {
         app.app_module.shutdown(app.game_state, &app.app_context);
     }
     if (app.game_state) {
-        mem_free(app.game_state, sizeof(rl_game), MEM_APPLICATION);
+        mem_free(app.game_state, app.game_state_size, MEM_APPLICATION);
     }
     app.game_state = nullptr;
+    app.game_state_size = 0;
     realm_app_module_unload(&app.app_module);
 }
 

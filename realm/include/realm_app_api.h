@@ -31,6 +31,8 @@ typedef struct realm_app_context {
 
 REALM_APP_API u32 realm_app_get_api_version(void);
 REALM_APP_API u64 realm_app_get_state_size(void);
+// App state must begin with a u32 version field returned by this function.
+REALM_APP_API u32 realm_app_get_state_version(void);
 
 REALM_APP_API void realm_app_init(void *state, const realm_app_context *ctx);
 REALM_APP_API void realm_app_update(void *state, const realm_app_context *ctx, f64 dt);

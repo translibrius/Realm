@@ -4,6 +4,7 @@
 #include "engine.h"
 
 #include "core/event.h"
+#include "memory/memory.h"
 #include "platform/input.h"
 #include "renderer/renderer_frontend.h"
 
@@ -30,6 +31,9 @@ b8 on_focus_gained(void *event, void *data) {
 
     RL_DEBUG("Window id=%d gained focus", window->id);
     if (window->id == handler->application->window.id) {
+        handler->application->focused = true;
+        handler->application->paused = false;
+
         if (handler->application->app_module.set_focused) {
             handler->application->app_module.set_focused(handler->application->game_state, true);
         }
@@ -46,6 +50,9 @@ b8 on_focus_lost(void *event, void *data) {
 
     RL_DEBUG("Window id=%d lost focus", window->id);
     if (window->id == handler->application->window.id) {
+        handler->application->focused = false;
+        handler->application->paused = true;
+
         if (handler->application->app_module.set_focused) {
             handler->application->app_module.set_focused(handler->application->game_state, false);
         }
@@ -71,7 +78,6 @@ b8 on_window_resize(void *event, void *data) {
 }
 
 b8 on_key_press(void *event, void *data) {
-    (void)data;
     input_key *key = event;
     app_event_handler *handler = data;
 
@@ -86,21 +92,24 @@ b8 on_key_press(void *event, void *data) {
     }
 
     if (key->key == KEY_F5 && key->pressed) {
+        handler->application->rebuild_requested = true;
         handler->application->reload_requested = true;
     }
 
-    if (key->key == KEY_SPACE && key->pressed) {
+    if (key->key == KEY_ENTER && key->pressed) {
+        handler->application->paused = !handler->application->paused;
         if (handler->application->app_module.set_paused) {
             handler->application->app_module.set_paused(handler->application->game_state,
-                                                        !handler->application->game_state->paused);
+                                                        handler->application->paused);
         }
     }
 
     // Stop engine on ESC
     if (key->key == KEY_ESCAPE && key->pressed) {
-        if (handler->application->game_state->paused) {
+        if (handler->application->paused) {
             rl_engine_stop();
         } else {
+            handler->application->paused = true;
             if (handler->application->app_module.set_paused) {
                 handler->application->app_module.set_paused(handler->application->game_state, true);
             }
