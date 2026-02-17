@@ -57,3 +57,8 @@ void realm_app_set_focused(void *state, b8 focused) {
     rl_game *game = (rl_game *)state;
     game_set_focused(game, focused);
 }
+
+void realm_app_push_toast(void *state, realm_app_toast_type type, const char *message) {
+    rl_game *game = (rl_game *)state;
+    game_push_toast(game, type, message);
+}

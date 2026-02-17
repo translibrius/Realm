@@ -8,6 +8,15 @@
 typedef struct rl_font rl_font;
 
 #define RL_GAME_STATE_VERSION 1
+#define RL_GAME_MAX_TOASTS 6
+#define RL_GAME_TOAST_TEXT_MAX 96
+
+typedef struct rl_game_toast {
+    char message[RL_GAME_TOAST_TEXT_MAX];
+    f32 ttl_seconds;
+    realm_app_toast_type type;
+    b8 active;
+} rl_game_toast;
 
 typedef struct rl_game_cfg {
     b8 vsync;
@@ -29,6 +38,7 @@ typedef struct rl_game {
     b8 focused;
     b8 input_captured;
     f32 scene_angle;
+    rl_game_toast toasts[RL_GAME_MAX_TOASTS];
 } rl_game;
 
 b8 game_init(rl_game *game, const realm_app_context *ctx, rl_game_cfg config);
@@ -38,3 +48,4 @@ void game_destroy(rl_game *game);
 void game_on_resize(rl_game *game, f32 width, f32 height);
 void game_set_paused(rl_game *game, b8 paused);
 void game_set_focused(rl_game *game, b8 focused);
+void game_push_toast(rl_game *game, realm_app_toast_type type, const char *message);

@@ -22,6 +22,7 @@ b8 create_app_module();
 void destroy_app_module();
 static b8 switch_renderer_backend(RENDERER_BACKEND backend);
 static RENDERER_BACKEND get_next_backend(RENDERER_BACKEND backend);
+static void app_push_toast(realm_app_toast_type type, const char *message);
 
 b8 on_window_resize(void *event, void *data);
 b8 on_key_press(void *event, void *data);
@@ -85,6 +86,7 @@ b8 create_application() {
         if (realm_app_watcher_poll(&app.app_watcher)) {
             app.reload_requested = true;
             RL_INFO("Detected app module file change, scheduling reload");
+            app_push_toast(REALM_APP_TOAST_INFO, "Detected module change");
         }
 
         if (app.reload_requested) {
@@ -94,6 +96,7 @@ b8 create_application() {
                 app.rebuild_requested = false;
                 if (!realm_app_module_rebuild()) {
                     RL_ERROR("App module rebuild failed");
+                    app_push_toast(REALM_APP_TOAST_ERROR, "App module rebuild failed");
                     rl_engine_end_frame();
                     continue;
                 }
@@ -101,8 +104,10 @@ b8 create_application() {
             }
 
             RL_INFO("Reloading app module...");
+            app_push_toast(REALM_APP_TOAST_INFO, "Reloading app module...");
             if (!realm_app_module_reload(&app.app_module, &app.game_state, &app.game_state_size, &app.app_context)) {
                 RL_ERROR("App module reload failed");
+                app_push_toast(REALM_APP_TOAST_ERROR, "App module reload failed");
             } else {
                 if (app.app_module.set_focused) {
                     app.app_module.set_focused(app.game_state, app.focused);
@@ -111,6 +116,7 @@ b8 create_application() {
                     app.app_module.set_paused(app.game_state, app.paused);
                 }
                 realm_app_watcher_mark_clean(&app.app_watcher);
+                app_push_toast(REALM_APP_TOAST_INFO, "App module reloaded");
             }
         }
 
@@ -168,6 +174,7 @@ b8 create_app_module() {
     };
 
     app.app_module.init(app.game_state, &app.app_context);
+    app_push_toast(REALM_APP_TOAST_INFO, "App module initialized");
     return true;
 }
 
@@ -220,30 +227,35 @@ static b8 switch_renderer_backend(RENDERER_BACKEND backend) {
     const platform_window_settings previous_window_settings = app.window.settings;
 
     RL_INFO("Switching renderer backend: %d -> %d", previous_backend, backend);
+    app_push_toast(REALM_APP_TOAST_INFO, "Switching renderer backend...");
 
     renderer_destroy();
     platform_destroy_window(app.window.id);
 
     if (!create_window(&previous_window_settings)) {
         RL_ERROR("Failed to recreate window for renderer switch");
+        app_push_toast(REALM_APP_TOAST_ERROR, "Renderer switch failed: window recreate failed");
         rl_engine_stop();
         return false;
     }
 
     if (!renderer_init(&app.window, backend, app.config.vsync)) {
         RL_ERROR("Failed to initialize renderer backend %d, attempting rollback", backend);
+        app_push_toast(REALM_APP_TOAST_ERROR, "Renderer switch failed, rolling back");
 
         renderer_destroy();
         platform_destroy_window(app.window.id);
 
         if (!create_window(&previous_window_settings)) {
             RL_FATAL("Failed to recreate window while rolling back renderer backend");
+            app_push_toast(REALM_APP_TOAST_ERROR, "Renderer rollback failed: window recreate failed");
             rl_engine_stop();
             return false;
         }
 
         if (!renderer_init(&app.window, previous_backend, app.config.vsync)) {
             RL_FATAL("Failed to restore previous renderer backend %d", previous_backend);
+            app_push_toast(REALM_APP_TOAST_ERROR, "Renderer rollback failed");
             rl_engine_stop();
             return false;
         }
@@ -252,6 +264,7 @@ static b8 switch_renderer_backend(RENDERER_BACKEND backend) {
         app.app_context.renderer_backend = previous_backend;
         app.app_context.window = &app.window;
         app.requested_backend = get_next_backend(previous_backend);
+        app_push_toast(REALM_APP_TOAST_WARNING, "Renderer rollback complete");
         return false;
     }
 
@@ -261,5 +274,18 @@ static b8 switch_renderer_backend(RENDERER_BACKEND backend) {
     app.reload_requested = true;
 
     RL_INFO("Renderer backend switched successfully to %d. App module reload scheduled.", backend);
+    if (backend == BACKEND_VULKAN) {
+        app_push_toast(REALM_APP_TOAST_INFO, "Renderer switched to Vulkan");
+    } else {
+        app_push_toast(REALM_APP_TOAST_INFO, "Renderer switched to OpenGL");
+    }
     return true;
+}
+
+static void app_push_toast(realm_app_toast_type type, const char *message) {
+    if (!message || !app.game_state || !app.app_module.push_toast) {
+        return;
+    }
+
+    app.app_module.push_toast(app.game_state, type, message);
 }

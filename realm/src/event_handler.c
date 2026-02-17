@@ -13,6 +13,7 @@ b8 on_focus_gained(void *event, void *data);
 b8 on_focus_lost(void *event, void *data);
 b8 on_window_resize(void *event, void *data);
 b8 on_key_press(void *event, void *data);
+static void app_push_toast(rl_application *application, realm_app_toast_type type, const char *message);
 
 void app_event_handler_init(app_event_handler *handler, rl_application *application) {
     handler->application = application;
@@ -40,6 +41,7 @@ b8 on_focus_gained(void *event, void *data) {
         if (handler->application->app_module.set_paused) {
             handler->application->app_module.set_paused(handler->application->game_state, false);
         }
+        app_push_toast(handler->application, REALM_APP_TOAST_INFO, "Window focused");
     }
     return false;
 }
@@ -59,6 +61,7 @@ b8 on_focus_lost(void *event, void *data) {
         if (handler->application->app_module.set_paused) {
             handler->application->app_module.set_paused(handler->application->game_state, true);
         }
+        app_push_toast(handler->application, REALM_APP_TOAST_WARNING, "Window unfocused - paused");
     }
     return false;
 }
@@ -94,6 +97,7 @@ b8 on_key_press(void *event, void *data) {
     if (key->key == KEY_F5 && key->pressed) {
         handler->application->rebuild_requested = true;
         handler->application->reload_requested = true;
+        app_push_toast(handler->application, REALM_APP_TOAST_INFO, "Hot reload requested");
     }
 
     if (key->key == KEY_ENTER && key->pressed) {
@@ -102,17 +106,22 @@ b8 on_key_press(void *event, void *data) {
             handler->application->app_module.set_paused(handler->application->game_state,
                                                         handler->application->paused);
         }
+        app_push_toast(handler->application,
+                       REALM_APP_TOAST_INFO,
+                       handler->application->paused ? "Paused" : "Resumed");
     }
 
     // Stop engine on ESC
     if (key->key == KEY_ESCAPE && key->pressed) {
         if (handler->application->paused) {
+            app_push_toast(handler->application, REALM_APP_TOAST_WARNING, "Stopping application...");
             rl_engine_stop();
         } else {
             handler->application->paused = true;
             if (handler->application->app_module.set_paused) {
                 handler->application->app_module.set_paused(handler->application->game_state, true);
             }
+            app_push_toast(handler->application, REALM_APP_TOAST_WARNING, "Paused (ESC again to exit)");
         }
     }
 
@@ -126,9 +135,11 @@ b8 on_key_press(void *event, void *data) {
             if (renderer_get_active_window()->settings.window_mode == WINDOW_MODE_WINDOWED) {
                 platform_set_window_mode(renderer_get_active_window(), WINDOW_MODE_BORDERLESS);
                 platform_set_raw_input(renderer_get_active_window(), true);
+                app_push_toast(handler->application, REALM_APP_TOAST_INFO, "Window mode: borderless");
             } else {
                 platform_set_window_mode(renderer_get_active_window(), WINDOW_MODE_WINDOWED);
                 platform_set_raw_input(renderer_get_active_window(), false);
+                app_push_toast(handler->application, REALM_APP_TOAST_INFO, "Window mode: windowed");
             }
         }
     }
@@ -138,7 +149,21 @@ b8 on_key_press(void *event, void *data) {
             handler->application->config.backend == BACKEND_VULKAN ? BACKEND_OPENGL : BACKEND_VULKAN;
         handler->application->backend_switch_requested = true;
         RL_INFO("Scheduled renderer backend switch to %d", handler->application->requested_backend);
+
+        if (handler->application->requested_backend == BACKEND_VULKAN) {
+            app_push_toast(handler->application, REALM_APP_TOAST_INFO, "Switching renderer to Vulkan...");
+        } else {
+            app_push_toast(handler->application, REALM_APP_TOAST_INFO, "Switching renderer to OpenGL...");
+        }
     }
 
     return false;
+}
+
+static void app_push_toast(rl_application *application, realm_app_toast_type type, const char *message) {
+    if (!application || !message || !application->game_state || !application->app_module.push_toast) {
+        return;
+    }
+
+    application->app_module.push_toast(application->game_state, type, message);
 }
