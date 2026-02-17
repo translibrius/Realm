@@ -202,6 +202,6 @@ void opengl_render_text(const char *text, f32 size_px, f32 x, f32 y, vec4 color)
 }
 
 void opengl_set_active_font(rl_font *font) {
-    RL_INFO("OpenGL Active font: %s", font->name);
+    //RL_INFO("OpenGL Active font: %s", font->name);
     opengl_get_context()->active_font = font;
 }

@@ -13,7 +13,7 @@
 static rl_application_config config = {
     .title = "Realm",
     .vsync = false,
-    .backend = BACKEND_VULKAN};
+    .backend = BACKEND_OPENGL};
 
 static rl_application app;
 

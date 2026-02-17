@@ -190,6 +190,7 @@ typedef struct VK_Context {
     VkSampler texture_sampler;
     VK_Texture texture_wood;
 
+    mat4 model;
     mat4 view;
     mat4 proj;
 

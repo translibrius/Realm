@@ -88,6 +88,12 @@ void renderer_resize_framebuffer(i32 w, i32 h) {
     interface.resize_framebuffer(w, h);
 }
 
+void renderer_submit_frame_data(rl_frame_data *frame_data) {
+    if (!state.initialized || !interface.submit_frame_data)
+        return;
+    interface.submit_frame_data(frame_data);
+}
+
 void prepare_interface(RENDERER_BACKEND backend) {
     switch (backend) {
     case BACKEND_OPENGL:
@@ -102,6 +108,7 @@ void prepare_interface(RENDERER_BACKEND backend) {
         interface.get_active_window = &opengl_get_active_window;
         interface.set_active_window = &opengl_set_active_window;
         interface.resize_framebuffer = &opengl_resize_framebuffer;
+        interface.submit_frame_data = &opengl_submit_frame_data;
         break;
     case BACKEND_VULKAN:
         interface.initialize = &vulkan_initialize;
@@ -115,5 +122,6 @@ void prepare_interface(RENDERER_BACKEND backend) {
         interface.get_active_window = &vulkan_get_active_window;
         interface.set_active_window = &vulkan_set_active_window;
         interface.resize_framebuffer = &vulkan_resize_framebuffer;
+        interface.submit_frame_data = &vulkan_submit_frame_data;
     }
 }

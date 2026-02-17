@@ -14,12 +14,11 @@
 #include "vk_swapchain.h"
 #include "vk_sync.h"
 #include "vk_texture.h"
+#include "vk_text.h"
 
 #include "profiler/profiler.h"
 
 static VK_Context context;
-
-static f64 angle;
 
 void vulkan_resize_framebuffer(i32 w, i32 h) {
     /*
@@ -40,6 +39,9 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
     rl_arena_init(&context.arena, MiB(25), MiB(2), MEM_SUBSYSTEM_RENDERER);
 
     context.window = window;
+    glm_mat4_identity(context.model);
+    glm_mat4_identity(context.view);
+    glm_mat4_identity(context.proj);
 
     // Rec 1
     da_append(&context.vertices, ((vertex){{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}));
@@ -203,25 +205,10 @@ void vulkan_destroy() {
 }
 
 void update_uniform_buffer(u32 image_index, f64 dt) {
-    mat4 model;
-    mat4 view;
-    mat4 proj;
-
-    glm_mat4_identity(model);
-    glm_mat4_identity(view);
-    glm_mat4_identity(proj);
-
-    angle += 5.0f * dt;
-    if (angle > 360) {
-        angle = 0;
-    }
-
-    glm_rotate(model, glm_rad(angle), (vec3){0.5f, 1.0f, 0.0f});
-
-    // glm_rotate(model, glm_rad(0.0f), (vec3){0.0f, 0.0f, 1.0f});
+    (void)dt;
 
     ubo u = {0};
-    glm_mat4_copy(model, u.model);
+    glm_mat4_copy(context.model, u.model);
     glm_mat4_copy(context.view, u.view);
     glm_mat4_copy(context.proj, u.proj);
 
@@ -313,11 +300,52 @@ void vulkan_end_frame() {
 void vulkan_swap_buffers() {
 }
 
+void vulkan_submit_frame_data(rl_frame_data *frame_data) {
+    if (!frame_data) {
+        return;
+    }
+
+    if (frame_data->camera.valid) {
+        mat4 view = {0};
+        mat4 projection = {0};
+        vec3 position = {0};
+
+        glm_mat4_copy(frame_data->camera.view, view);
+        glm_mat4_copy(frame_data->camera.projection, projection);
+        glm_vec3_copy(frame_data->camera.position, position);
+
+        vulkan_set_view_projection(view, projection, position);
+    }
+
+    if (frame_data->mesh_count > 0 && frame_data->meshes) {
+        rl_frame_mesh *selected_mesh = &frame_data->meshes[0];
+        for (u32 i = 0; i < frame_data->mesh_count; i++) {
+            if (frame_data->meshes[i].kind == RL_FRAME_MESH_KIND_LIT) {
+                selected_mesh = &frame_data->meshes[i];
+                break;
+            }
+        }
+
+        glm_mat4_copy(selected_mesh->model, context.model);
+    }
+
+    for (u32 i = 0; frame_data->texts && i < frame_data->text_count; i++) {
+        rl_frame_text *text = &frame_data->texts[i];
+        if (!text->text) {
+            continue;
+        }
+        vec4 color = {0};
+        glm_vec4_copy(text->color, color);
+        vulkan_render_text(text->text, text->size_px, text->x, text->y, color);
+    }
+}
+
 void vulkan_set_view_projection(mat4 view, mat4 projection, vec3 pos) {
-    projection[1][1] *= -1;
+    (void)pos;
 
     glm_mat4_copy(view, context.view);
     glm_mat4_copy(projection, context.proj);
+    context.proj[1][1] *= -1;
 }
 
 platform_window *vulkan_get_active_window() {

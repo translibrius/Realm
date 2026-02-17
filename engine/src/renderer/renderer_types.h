@@ -2,6 +2,7 @@
 #include "defines.h"
 
 #include "renderer/renderer_backend.h"
+#include "renderer/frame_data.h"
 
 #include "asset/font.h"
 #include "memory/containers/dynamic_array.h"
@@ -51,4 +52,5 @@ typedef struct renderer_interface {
     platform_window *(*get_active_window)();
     void (*set_active_window)(platform_window *window);
     void (*resize_framebuffer)(i32 w, i32 h);
+    void (*submit_frame_data)(rl_frame_data *frame_data);
 } renderer_interface;

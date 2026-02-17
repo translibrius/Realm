@@ -28,6 +28,7 @@ typedef struct rl_game {
     b8 paused;
     b8 focused;
     b8 input_captured;
+    f32 scene_angle;
 } rl_game;
 
 b8 game_init(rl_game *game, const realm_app_context *ctx, rl_game_cfg config);

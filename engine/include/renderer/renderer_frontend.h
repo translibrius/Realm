@@ -2,6 +2,7 @@
 
 #include "cglm.h"
 #include "defines.h"
+#include "renderer/frame_data.h"
 #include "renderer/renderer_backend.h"
 
 typedef struct platform_window platform_window;
@@ -22,3 +23,4 @@ REALM_API platform_window *renderer_get_active_window();
 REALM_API void renderer_set_active_window(platform_window *window);
 
 REALM_API void renderer_resize_framebuffer(i32 w, i32 h);
+REALM_API void renderer_submit_frame_data(rl_frame_data *frame_data);
