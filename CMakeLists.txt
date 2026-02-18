@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.20)
 
 project(Realm VERSION 0.0.1 DESCRIPTION "3D Engine - Realm" LANGUAGES C CXX)
 
+option(REALM_BUILD_TESTS "Build Realm unit tests" ON)
+include(CTest)
+
 # Vcpkg integration
 set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "" FORCE)
 
@@ -37,3 +40,26 @@ add_custom_target(copy_compile_commands ALL
 # Add subprojects
 add_subdirectory(engine)
 add_subdirectory(realm)
+
+if (BUILD_TESTING AND REALM_BUILD_TESTS)
+    add_subdirectory(tests)
+endif ()
+
+if (TARGET RealmTests)
+    add_custom_target(run_realm_checked
+            COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+            COMMAND $<TARGET_FILE:Realm>
+            DEPENDS Realm RealmTests
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            USES_TERMINAL
+            COMMENT "Run tests, then launch Realm"
+    )
+else ()
+    add_custom_target(run_realm_checked
+            COMMAND $<TARGET_FILE:Realm>
+            DEPENDS Realm
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            USES_TERMINAL
+            COMMENT "Launch Realm"
+    )
+endif ()
