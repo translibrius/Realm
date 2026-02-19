@@ -97,6 +97,11 @@ b8 gl_font_create(rl_font *font, GL_Context *ctx) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     gl_font->font = font;
+    for (u32 i = 0; i < font->glyph_count; i++) {
+        u32 cp = (u32)font->glyphs[i].codepoint;
+        if (cp < 256)
+            gl_font->glyph_map[cp] = &font->glyphs[i];
+    }
     da_append(&ctx->fonts, *gl_font);
 
     return true;
@@ -141,7 +146,7 @@ void opengl_render_text(const char *text, f32 size_px, f32 x, f32 y, vec4 color)
         if (vert_count + 6 > 6 * MAX_TEXT_GLYPHS)
             break;
 
-        const rl_glyph *g = rl_font_find_glyph(font, (u32)*c);
+        const rl_glyph *g = (*c < 256) ? gl_font->glyph_map[*c] : rl_font_find_glyph(font, (u32)*c);
         if (!g)
             continue;
 
