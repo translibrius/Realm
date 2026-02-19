@@ -32,6 +32,7 @@ REALM_API void rl_arena_init(rl_arena *arena, u64 reserve_size, u64 commit_size,
 REALM_API void rl_arena_deinit(rl_arena *arena);
 
 REALM_API void *rl_arena_push(rl_arena *arena, u64 size, b8 zero);
+REALM_API void *rl_arena_push_aligned(rl_arena *arena, u64 size, u64 alignment, b8 zero);
 REALM_API void rl_arena_pop(rl_arena *arena, u64 size);
 REALM_API void rl_arena_clear(rl_arena *arena);
 
