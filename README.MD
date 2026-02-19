@@ -2,77 +2,66 @@
 
 ![Showcase](showcase.png)
 
-A high-performance graphics engine built on **C23**. Designed for games, 3D simulations, and real-time interactive
-applications. This project is a hobbyist exploration of modern graphics APIs and engine architecture.
+A graphics engine built on **C23** with a dual Vulkan/OpenGL backend. Hobbyist exploration of modern graphics APIs and engine architecture.
 
 ---
 
-## 🛠 Platform Support
+## Platform Support
 
-- **Windows**: Primary Development (Stable)
-- **macOS**: Supported (Active Development)
-- **Linux**: WIP (~40%)
+- **Windows** — primary, stable
+- **macOS** — active development
+- **Linux** — WIP (~40%)
 
-## 📦 Dependencies
+## Dependencies
 
-Managed via **vcpkg** manifest mode:
+Managed via **vcpkg** manifest mode (installed automatically on first configure):
 
-- **OpenGL 3.3 / Vulkan** – Hardware-accelerated rendering
-- **FreeType** – Font parsing
-- **msdf-atlas-gen** – MSDF font atlas generation
-- **Tracy** – Performance profiling
-- **GLAD** – Runtime OpenGL loader
+- **OpenGL 3.3 / Vulkan** — rendering backends
+- **FreeType** + **msdf-atlas-gen** — font parsing and atlas generation
+- **Tracy** — performance profiling
+- **GLAD** / **volk** — OpenGL/Vulkan loaders
+- **cglm** — math library
 
-## 🚀 Building
+## Building
 
-### 1. Prerequisites
-
-- **CMake** (3.20+)
-- **Ninja** build system
-- **Clang** compiler
-- **vcpkg** installed with the environment variable `VCPKG_ROOT` pointing to its location.
-
-### 2. Clone the Repository
+**Prerequisites**: CMake 3.20+, Ninja, Clang, vcpkg (`VCPKG_ROOT` env set), Vulkan SDK (`VULKAN_SDK` env set)
 
 ```bash
-git clone --recursive [https://github.com/yourusername/realm-engine](https://github.com/yourusername/realm-engine)
-cd realm-engine
+git clone --recursive https://github.com/translibrius/Realm
+cd Realm
 
+cmake --preset debug && cmake --build --preset debug
+# or
+cmake --preset release && cmake --build --preset release
 ```
 
-### 3. Compile
-
-Since the project uses CMake Presets, the dependencies will be automatically installed by vcpkg during the configuration
-step.
-
-**Debug Build:**
+## Running
 
 ```bash
-cmake --preset debug
-cmake --build --preset debug
-
+# From the repo root, after a debug build:
+./build/debug/bin/Realm
 ```
 
-**Release Build:**
+**Runtime keybindings:**
+- `F5` — rebuild and hot-reload the app module
+- `F7` — switch renderer backend (OpenGL ↔ Vulkan)
+
+## Tests
 
 ```bash
-cmake --preset release
-cmake --build --preset release
+# Run the full test suite
+ctest --preset debug
 
+# Run tests, then launch the app if they pass
+cmake --build --preset debug --target run_realm_checked
+
+# Run specific tests directly (from build/debug/)
+bin/RealmTests --list
+bin/RealmTests --filter <pattern>
+bin/RealmTests --fail-fast
 ```
 
-## 🗺 Roadmap
+## Contributing & Contact
 
-The living roadmap lives in `docs/roadmap.md` (key decisions in `docs/decisions.md`).
-
-* [ ] **Engine as a library**: Stable public C API in `engine/include/` (no engine->app includes).
-* [ ] **Renderer contract**: Mid-level render packet so backend switches don't change scene semantics.
-* [ ] **Asset system v2**: Configured asset root + handles/IDs + hot reload friendly metadata.
-* [ ] **Save/Load**: Versioned serialization of authoritative state, rebuildable runtime caches.
-* [x] **Hot Reload + App Module**: Runtime app module rebuild/reload with state version checks.
-* [ ] **Linux Parity**: Complete windowing/input parity for Linux builds.
-
-## 🤝 Contributing & Contact
-
-If you find this project interesting, feel free to open a pull request!
+Feel free to open a pull request!
 **Discord:** `friezy`
