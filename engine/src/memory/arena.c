@@ -127,6 +127,46 @@ void *rl_arena_push(rl_arena *arena, u64 size, b8 zero) {
     return out;
 }
 
+void *rl_arena_push_aligned(rl_arena *arena, u64 size, u64 alignment, b8 zero) {
+    u64 pos_aligned = ALIGN_UP_POW2(arena->pos, alignment);
+    u64 new_pos = pos_aligned + size;
+
+    if (new_pos > arena->reserve_size) {
+        RL_FATAL("Tried to allocate to an arena past reserved memory. AllocSize=%llu Memory_available=%llu. Arena type=%s", size, arena->reserve_size - arena->pos, mem_type_to_str(arena->mem_type));
+        return NULL;
+    }
+
+    if (new_pos > arena->commit_pos) {
+        u64 new_commit_pos = new_pos;
+        new_commit_pos += arena->commit_size - 1;
+        new_commit_pos -= new_commit_pos % arena->commit_size;
+        new_commit_pos = RL_MIN(new_commit_pos, arena->reserve_size);
+
+        u8 *mem = (u8 *)arena + arena->commit_pos;
+        u64 commit_size = new_commit_pos - arena->commit_pos;
+
+        memory_track_arena_commit(commit_size, arena->mem_type);
+
+        if (!platform_mem_commit(mem, commit_size)) {
+            RL_FATAL("Failed to commit arena memory. Size=%llu", commit_size);
+            return nullptr;
+        }
+
+        arena->commit_pos = new_commit_pos;
+    }
+
+    arena->pos = new_pos;
+
+    u8 *arena_ptr = arena->base ? arena->base : (void *)arena;
+    u8 *out = arena_ptr + pos_aligned;
+
+    if (zero) {
+        memset(out, 0, size);
+    }
+
+    return out;
+}
+
 void rl_arena_pop(rl_arena *arena, u64 size) {
     size = RL_MIN(size, arena->pos - ARENA_BASE_POS);
     arena->pos -= size;

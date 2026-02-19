@@ -176,7 +176,7 @@ void game_render(rl_game *game, f64 dt) {
     }
 
     u32 max_text_count = 1 + active_toast_count;
-    rl_frame_text *frame_texts = rl_arena_push(&game->frame_arena, sizeof(rl_frame_text) * max_text_count, true);
+    rl_frame_text *frame_texts = rl_arena_push_aligned(&game->frame_arena, sizeof(rl_frame_text) * max_text_count, _Alignof(rl_frame_text), true);
     u32 text_index = 0;
 
     frame_texts[text_index++] = (rl_frame_text){
