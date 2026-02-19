@@ -13,6 +13,7 @@
 typedef struct {
     u32 texture_id;
     rl_font *font;
+    const rl_glyph *glyph_map[256]; // direct lookup by codepoint for ASCII range
 } GL_Font;
 
 DA_DEFINE(GL_Fonts, GL_Font);
