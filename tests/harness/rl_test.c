@@ -4,7 +4,24 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #define RL_TEST_MAX_CASES 1024
+
+// Catppuccin Mocha palette (true-color ANSI)
+#define C_RESET     "\x1b[0m"
+#define C_BOLD      "\x1b[1m"
+#define C_DIM       "\x1b[2m"
+
+#define C_TEXT      "\x1b[38;2;205;214;244m" // #cdd6f4  text
+#define C_SUBTEXT1  "\x1b[38;2;186;194;222m" // #bac2de  subtext1
+#define C_OVERLAY0  "\x1b[38;2;108;112;134m" // #6c7086  overlay0
+#define C_GREEN     "\x1b[38;2;166;227;161m" // #a6e3a1  green
+#define C_RED       "\x1b[38;2;243;139;168m" // #f38ba8  red
+#define C_YELLOW    "\x1b[38;2;249;226;175m" // #f9e2af  yellow
+#define C_LAVENDER  "\x1b[38;2;180;190;254m" // #b4befe  lavender
 
 typedef struct rl_test_case {
     const char *name;
@@ -26,6 +43,22 @@ static u32 g_current_failures;
 
 static u32 g_total_assertions;
 static u32 g_total_failures;
+
+static void rl_test_enable_ansi(void) {
+#ifdef _WIN32
+    SetConsoleOutputCP(65001);
+
+    HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+    HANDLE err = GetStdHandle(STD_ERROR_HANDLE);
+    DWORD mode = 0;
+    if (out != INVALID_HANDLE_VALUE && GetConsoleMode(out, &mode)) {
+        SetConsoleMode(out, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    }
+    if (err != INVALID_HANDLE_VALUE && GetConsoleMode(err, &mode)) {
+        SetConsoleMode(err, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    }
+#endif
+}
 
 static void rl_test_print_usage(const char *exe_name) {
     printf("Usage: %s [--list] [--filter <substring>] [--fail-fast]\n", exe_name);
@@ -97,15 +130,17 @@ void rl_test_expect_impl(b8 condition,
     g_current_failures++;
     g_total_failures++;
 
-    fprintf(stderr, "    %s:%d: expectation failed: %s", file, line, expression ? expression : "<unknown>");
+    fprintf(stderr,
+            "         " C_RED "x " C_RESET C_OVERLAY0 "%s:%d " C_RESET C_TEXT "%s" C_RESET,
+            file, line, expression ? expression : "<unknown>");
 
     if (fmt && fmt[0]) {
-        fprintf(stderr, " (");
+        fprintf(stderr, C_OVERLAY0 " -> ");
         va_list args;
         va_start(args, fmt);
         vfprintf(stderr, fmt, args);
         va_end(args);
-        fprintf(stderr, ")");
+        fprintf(stderr, C_RESET);
     }
 
     fprintf(stderr, "\n");
@@ -117,16 +152,15 @@ void rl_test_fail_impl(const char *file, i32 line, const char *fmt, ...) {
     g_current_failures++;
     g_total_failures++;
 
-    fprintf(stderr, "    %s:%d: failure", file, line);
+    fprintf(stderr, "         " C_RED "x " C_RESET C_OVERLAY0 "%s:%d", file, line);
     if (fmt && fmt[0]) {
-        fprintf(stderr, " (");
+        fprintf(stderr, " -> ");
         va_list args;
         va_start(args, fmt);
         vfprintf(stderr, fmt, args);
         va_end(args);
-        fprintf(stderr, ")");
     }
-    fprintf(stderr, "\n");
+    fprintf(stderr, C_RESET "\n");
 }
 
 void rl_test_expect_str_eq_impl(const char *actual,
@@ -157,7 +191,7 @@ void rl_test_expect_str_eq_impl(const char *actual,
                         "string equality",
                         file,
                         line,
-                        "%s=%s %s=%s",
+                        "%s=\"%s\" %s=\"%s\"",
                         actual_expr,
                         actual,
                         expected_expr,
@@ -165,6 +199,8 @@ void rl_test_expect_str_eq_impl(const char *actual,
 }
 
 i32 rl_test_run_from_args(i32 argc, const char **argv) {
+    rl_test_enable_ansi();
+
     rl_test_options options = {0};
     if (!rl_test_parse_options(argc, argv, &options)) {
         rl_test_print_usage(argv[0]);
@@ -174,11 +210,17 @@ i32 rl_test_run_from_args(i32 argc, const char **argv) {
     if (options.list_only) {
         for (u32 i = 0; i < g_case_count; i++) {
             if (rl_test_matches_filter(g_cases[i].name, options.filter)) {
-                printf("%s\n", g_cases[i].name);
+                printf("  %s\n", g_cases[i].name);
             }
         }
         return 0;
     }
+
+    // Header
+    printf("\n");
+    printf("  " C_LAVENDER C_BOLD "Realm" C_RESET C_SUBTEXT1 " test suite" C_RESET "\n");
+    printf("  " C_OVERLAY0 "%u test(s) registered" C_RESET "\n", g_case_count);
+    printf("\n");
 
     u32 passed_count = 0;
     u32 failed_count = 0;
@@ -198,35 +240,47 @@ i32 rl_test_run_from_args(i32 argc, const char **argv) {
         g_current_assertions = 0;
         g_current_failures = 0;
 
-        printf("[ RUN  ] %s\n", g_current_case);
         test_case.fn();
 
         if (g_current_failures == 0) {
             passed_count++;
-            printf("[ PASS ] %s (%u assertions)\n", g_current_case, g_current_assertions);
+            printf("  " C_GREEN "o " C_RESET C_TEXT "%s " C_OVERLAY0 "%u checks" C_RESET "\n",
+                   g_current_case, g_current_assertions);
         } else {
             failed_count++;
-            printf("[ FAIL ] %s (%u failed of %u assertions)\n",
+            printf("  " C_RED "x " C_RESET C_TEXT "%s " C_RED "%u failed" C_OVERLAY0 " / %u checks" C_RESET "\n",
                    g_current_case,
                    g_current_failures,
                    g_current_assertions);
 
             if (options.fail_fast) {
+                printf("\n  " C_YELLOW "stopped early " C_OVERLAY0 "(--fail-fast)" C_RESET "\n");
                 break;
             }
         }
     }
 
     if ((passed_count + failed_count) == 0) {
-        fprintf(stderr, "No tests matched filter\n");
+        printf("\n  " C_YELLOW "no tests matched filter" C_RESET "\n\n");
         return 1;
     }
 
-    printf("\n[ DONE ] passed=%u failed=%u skipped=%u assertions=%u\n",
-           passed_count,
-           failed_count,
-           skipped_count,
-           g_total_assertions);
+    // Summary
+    printf("\n");
+    printf("  " C_OVERLAY0 "---" C_RESET "\n");
+    printf("\n");
+
+    if (failed_count == 0) {
+        printf("  " C_GREEN C_BOLD "all %u tests passed" C_RESET "\n", passed_count);
+    } else {
+        printf("  " C_RED C_BOLD "%u of %u tests failed" C_RESET "\n", failed_count, passed_count + failed_count);
+    }
+
+    printf("  " C_OVERLAY0 "%u assertions" C_RESET, g_total_assertions);
+    if (skipped_count > 0) {
+        printf(C_OVERLAY0 "  |  %u skipped" C_RESET, skipped_count);
+    }
+    printf("\n\n");
 
     return failed_count > 0 ? 1 : 0;
 }
