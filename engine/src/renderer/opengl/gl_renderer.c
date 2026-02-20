@@ -83,19 +83,8 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
         }
     }
 
-    for (u32 i = 0; frame_data->texts && i < frame_data->text_count; i++) {
-        rl_frame_text *text = &frame_data->texts[i];
-        if (!text->text) {
-            continue;
-        }
-
-        if (text->font) {
-            opengl_set_active_font(text->font);
-        }
-
-        vec4 color = {0};
-        glm_vec4_copy(text->color, color);
-        opengl_render_text(text->text, text->size_px, text->x, text->y, color);
+    if (frame_data->texts && frame_data->text_count > 0) {
+        opengl_render_text_batch(frame_data->texts, frame_data->text_count);
     }
 }
 

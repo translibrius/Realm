@@ -22,11 +22,14 @@ typedef struct GL_TextPipeline {
     u32 vao;
     u32 vbo;
     GL_Shader shader;
+    i32 loc_font_atlas;
+    i32 loc_screen_size;
 } GL_TextPipeline;
 
 typedef struct GL_TextVertex {
     vec2 pos;
     vec2 uv;
+    vec4 color;
 } GL_TextVertex;
 
 typedef struct GL_Context {
