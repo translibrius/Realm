@@ -3,6 +3,7 @@ add_executable(RealmTests
         harness/rl_test.c
         support/test_runtime.c
         cases/test_camera.c
+        cases/test_config.c
         cases/test_str.c
 )
 

@@ -1,5 +1,6 @@
 
 #include "application.h"
+#include "core/config.h"
 #include "core/event.h"
 #include "core/logger.h"
 #include "engine.h"
@@ -47,7 +48,25 @@ b8 create_application() {
         return false;
     }
 
-    if (!create_window(nullptr)) {
+    // Apply persisted config
+    rl_config *cfg = config_get();
+    if (cfg) {
+        app.config.backend = cfg->renderer_backend;
+        app.config.vsync = cfg->vsync;
+    }
+
+    platform_window_settings win_settings = {
+        .title = "Realm",
+        .x = cfg ? cfg->window_x : 0,
+        .y = cfg ? cfg->window_y : 0,
+        .width = cfg ? cfg->window_width : 500,
+        .height = cfg ? cfg->window_height : 500,
+        .start_center = !cfg || (cfg->window_x == 0 && cfg->window_y == 0),
+        .window_flags = WINDOW_FLAG_DEFAULT,
+        .window_mode = cfg ? cfg->window_mode : WINDOW_MODE_WINDOWED,
+    };
+
+    if (!create_window(&win_settings)) {
         return false;
     }
 
@@ -272,6 +291,13 @@ static b8 switch_renderer_backend(RENDERER_BACKEND backend) {
     app.app_context.renderer_backend = backend;
     app.app_context.window = &app.window;
     app.reload_requested = true;
+
+    // Persist backend change
+    rl_config *pcfg = config_get();
+    if (pcfg) {
+        pcfg->renderer_backend = backend;
+        config_mark_dirty();
+    }
 
     RL_INFO("Renderer backend switched successfully to %d. App module reload scheduled.", backend);
     if (backend == BACKEND_VULKAN) {
