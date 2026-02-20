@@ -30,7 +30,7 @@ b8 on_key_press(void *event, void *data);
 b8 create_application() {
     rl_engine_config engine_config = rl_engine_config_default();
     engine_config.asset_root = "../../../assets/";
-    engine_config.log_level = LOG_INFO;
+    engine_config.log_level = LOG_TRACE;
 
     app.config = config;
     app.game_state = nullptr;

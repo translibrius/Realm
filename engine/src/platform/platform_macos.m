@@ -709,8 +709,18 @@ b8 platform_window_should_close(u16 id) {
 }
 
 void platform_console_write(const char *message, LOG_LEVEL level) {
+    // ANSI color codes matching the Windows console colors
+    static const char *level_colors[] = {
+        /* INFO  */ "\033[92m", // bright green
+        /* DEBUG */ "\033[94m", // bright blue
+        /* TRACE */ "\033[95m", // bright magenta
+        /* WARN  */ "\033[93m", // bright yellow
+        /* ERROR */ "\033[91m", // bright red
+        /* FATAL */ "\033[97;41m", // white on red
+    };
+
     FILE *out = (level == LOG_ERROR || level == LOG_FATAL) ? stderr : stdout;
-    fputs(message, out);
+    fprintf(out, "%s%s\033[0m", level_colors[level], message);
 }
 
 b8 platform_context_make_current(platform_window *window) {
