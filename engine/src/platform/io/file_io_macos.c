@@ -140,6 +140,33 @@ b8 platform_file_read_all(rl_file *file) {
     return true;
 }
 
+b8 platform_file_write_all(const char *path, const void *data, u64 size) {
+    if (!path || !data) {
+        RL_ERROR("platform_file_write_all: invalid arguments");
+        return false;
+    }
+
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0) {
+        RL_ERROR("Failed to open file for writing: '%s'. Error: %d", path, errno);
+        return false;
+    }
+
+    u64 total_written = 0;
+    while (total_written < size) {
+        ssize_t written = write(fd, (const u8 *)data + total_written, size - total_written);
+        if (written < 0) {
+            RL_ERROR("Failed to write file '%s'. Error: %d", path, errno);
+            close(fd);
+            return false;
+        }
+        total_written += (u64)written;
+    }
+
+    close(fd);
+    return true;
+}
+
 void platform_file_close(rl_file *file) {
     if (!file || !file->handle) {
         return;

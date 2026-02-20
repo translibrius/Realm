@@ -1,6 +1,7 @@
 #include "engine.h"
 
 #include "asset/asset_internal.h"
+#include "core/config.h"
 #include "core/event.h"
 #include "core/logger.h"
 #include "memory/arena.h"
@@ -74,6 +75,19 @@ b8 rl_engine_create(const rl_engine_config *config) {
     RL_INFO("--------------ENGINE_START--------------");
     RL_INFO("Engine config: asset_root='%s' log_level=%d", state.config.asset_root, state.config.log_level);
 
+    void *config_system = mem_alloc(config_system_size(), MEM_SUBSYSTEM_CONFIG);
+    if (!config_system_start(config_system)) {
+        RL_FATAL("Failed to initialize config sub-system, exiting...");
+        return false;
+    }
+
+    // Override log level from persisted config
+    rl_config *cfg = config_get();
+    if (cfg) {
+        state.config.log_level = cfg->log_level;
+        logger_set_level(state.config.log_level);
+    }
+
     if (!platform_system_start()) {
         RL_FATAL("Failed to initialize platform sub-system, exiting...");
         return false;
@@ -100,6 +114,7 @@ void rl_engine_destroy(void) {
     RL_DEBUG("Engine shutting down, cleaning up...");
     platform_system_shutdown();
     renderer_destroy();
+    config_system_shutdown();
     asset_system_shutdown();
     event_system_shutdown();
     logger_system_shutdown();
@@ -148,6 +163,7 @@ void rl_engine_end_frame(void) {
         clock_reset(&state.frame_clock);
     }
 
+    config_flush_if_dirty(state.delta_time);
     rl_arena_clear(&state.frame_arena);
     RL_PROFILE_ZONE_END(end_frame_zone);
 }

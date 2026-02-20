@@ -26,6 +26,7 @@ typedef enum MEM_TYPE {
     MEM_SUBSYSTEM_SPLASH,
     MEM_SUBSYSTEM_EVENT,
     MEM_SUBSYSTEM_GUI,
+    MEM_SUBSYSTEM_CONFIG,
 
     // Used to track how many total types exist
     MEM_TYPES_MAX,
