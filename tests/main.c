@@ -6,6 +6,10 @@
 void register_camera_tests(void);
 void register_config_tests(void);
 void register_str_tests(void);
+void register_memory_tests(void);
+void register_arena_tests(void);
+void register_dynamic_array_tests(void);
+void register_event_tests(void);
 
 int main(int argc, const char **argv) {
     if (!rl_test_runtime_init()) {
@@ -16,6 +20,10 @@ int main(int argc, const char **argv) {
     register_camera_tests();
     register_config_tests();
     register_str_tests();
+    register_memory_tests();
+    register_arena_tests();
+    register_dynamic_array_tests();
+    register_event_tests();
 
     i32 result = rl_test_run_from_args(argc, argv);
 
