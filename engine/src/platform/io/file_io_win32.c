@@ -139,6 +139,38 @@ b8 platform_file_read_all(rl_file *file) {
     return true;
 }
 
+b8 platform_file_write_all(const char *path, const void *data, u64 size) {
+    if (!path || !data) {
+        RL_ERROR("platform_file_write_all: invalid arguments");
+        return false;
+    }
+
+    HANDLE h = CreateFileA(
+        path,
+        GENERIC_WRITE,
+        0,
+        nullptr,
+        CREATE_ALWAYS,
+        FILE_ATTRIBUTE_NORMAL,
+        nullptr);
+
+    if (h == INVALID_HANDLE_VALUE) {
+        RL_ERROR("Failed to open file for writing: '%s'. Error: %lu", path, GetLastError());
+        return false;
+    }
+
+    DWORD bytes_written = 0;
+    BOOL success = WriteFile(h, data, (DWORD)size, &bytes_written, nullptr);
+    CloseHandle(h);
+
+    if (!success || bytes_written != (DWORD)size) {
+        RL_ERROR("Failed to write file '%s'. Error: %lu", path, GetLastError());
+        return false;
+    }
+
+    return true;
+}
+
 // Private
 DWORD access_perms(const FILE_PERM *perms) {
     switch (*perms) {

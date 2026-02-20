@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 void register_camera_tests(void);
+void register_config_tests(void);
 void register_str_tests(void);
 
 int main(int argc, const char **argv) {
@@ -13,6 +14,7 @@ int main(int argc, const char **argv) {
     }
 
     register_camera_tests();
+    register_config_tests();
     register_str_tests();
 
     i32 result = rl_test_run_from_args(argc, argv);

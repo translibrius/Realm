@@ -26,4 +26,5 @@ REALM_API b8 platform_file_delete(const char *path);
 
 REALM_API b8 platform_file_open(const char *path, FILE_PERM perms, rl_file *out_file);
 REALM_API b8 platform_file_read_all(rl_file *file);
+REALM_API b8 platform_file_write_all(const char *path, const void *data, u64 size);
 REALM_API void platform_file_close(rl_file *file);

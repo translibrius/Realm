@@ -565,7 +565,9 @@ b8 platform_create_window(platform_window *window) {
 
     CGFloat content_w = (CGFloat)window->settings.width / scale;
     CGFloat content_h = (CGFloat)window->settings.height / scale;
-    NSRect content_rect = NSMakeRect(window->settings.x, window->settings.y, content_w, content_h);
+    CGFloat origin_x = (CGFloat)window->settings.x / scale;
+    CGFloat origin_y = (CGFloat)window->settings.y / scale;
+    NSRect content_rect = NSMakeRect(origin_x, origin_y, content_w, content_h);
 
     NSUInteger style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
 
@@ -590,6 +592,8 @@ b8 platform_create_window(platform_window *window) {
 
     if (window->settings.start_center) {
         [ns_window center];
+    } else {
+        [ns_window setFrameOrigin:NSMakePoint(origin_x, origin_y)];
     }
 
     if (window->settings.window_flags & WINDOW_FLAG_ON_TOP) {
