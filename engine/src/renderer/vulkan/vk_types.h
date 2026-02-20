@@ -6,6 +6,7 @@
 
 #include "cglm.h"
 #include "asset/shader.h"
+#include "asset/font.h"
 #include "memory/containers/dynamic_array.h"
 #include "core/logger.h"
 #include "platform/platform.h"
@@ -114,6 +115,38 @@ typedef struct VK_Texture {
     VkDeviceMemory texture_memory;
 } VK_Texture;
 
+typedef struct VK_TextVertex {
+    vec2 pos;
+    vec2 uv;
+    vec4 color;
+} VK_TextVertex;
+
+typedef struct VK_Font {
+    VkImage atlas_image;
+    VkImageView atlas_view;
+    VkDeviceMemory atlas_memory;
+    VkDescriptorSet *descriptor_sets; // per-frame descriptor sets for this font's atlas
+    rl_font *font;
+    const rl_glyph *glyph_map[256];
+} VK_Font;
+
+DA_DEFINE(VK_Fonts, VK_Font);
+
+typedef struct VK_TextPipeline {
+    VkPipeline handle;
+    VkPipelineLayout layout;
+    VkDescriptorSetLayout descriptor_set_layout;
+    VkDescriptorPool descriptor_pool;
+    VkSampler font_sampler;
+    VkBuffer *vertex_buffers;
+    VkDeviceMemory *vertex_buffer_memory;
+    void **vertex_buffer_mapped;
+    u32 vertex_count;
+    VK_Fonts fonts;
+    rl_font *active_font;
+    VK_Font *batch_font; // font used in the current batch (for descriptor binding)
+} VK_TextPipeline;
+
 typedef struct VK_Shader {
     rl_asset_shader *asset;
     VkShaderModule module;
@@ -168,6 +201,8 @@ typedef struct VK_Context {
 
     // Per frame
     u32 current_frame;
+    u32 current_image_index;
+    b8 frame_acquired;
     u32 max_frames_in_flight;
     VkCommandBuffer *command_buffers;
     VkSemaphore *image_available_semaphores;
@@ -189,6 +224,9 @@ typedef struct VK_Context {
     // Textures
     VkSampler texture_sampler;
     VK_Texture texture_wood;
+
+    // Text
+    VK_TextPipeline text_pipeline;
 
     mat4 model;
     mat4 view;

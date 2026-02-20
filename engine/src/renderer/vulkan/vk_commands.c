@@ -1,4 +1,5 @@
 #include "vk_commands.h"
+#include "vk_text.h"
 
 b8 vk_command_pool_create(VK_Context *context, VkCommandPool *out_pool, u32 family_index) {
 
@@ -115,6 +116,9 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
         vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->graphics_pipeline.layout, 0, 1, &context->descriptor_sets[context->current_frame], 0, nullptr);
 
         vkCmdDrawIndexed(buffer, context->indices.count, 1, 0, 0, 0);
+
+        // Text overlay (after geometry, before end render pass)
+        vulkan_text_record_commands(context, buffer);
     }
     vkCmdEndRenderPass(buffer);
 
