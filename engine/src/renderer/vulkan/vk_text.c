@@ -241,12 +241,15 @@ void vulkan_text_record_commands(VK_Context *ctx, VkCommandBuffer cmd) {
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, tp->handle);
 
-    // Push screen size
-    vec2 screen_size = {
-        (f32)ctx->swapchain.chosen_extent.width,
-        (f32)ctx->swapchain.chosen_extent.height
+    // Push screen size + pixel range
+    struct {
+        vec2 screen_size;
+        f32 px_range;
+    } push_data = {
+        .screen_size = {(f32)ctx->swapchain.chosen_extent.width, (f32)ctx->swapchain.chosen_extent.height},
+        .px_range = tp->batch_font->font->pixel_range,
     };
-    vkCmdPushConstants(cmd, tp->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(vec2), screen_size);
+    vkCmdPushConstants(cmd, tp->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(push_data), &push_data);
 
     // Bind descriptor set for the batch font's atlas
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, tp->layout, 0, 1, &tp->batch_font->descriptor_sets[frame], 0, nullptr);
@@ -379,11 +382,11 @@ static b8 vk_text_create_pipeline(VK_Context *ctx) {
         return false;
     }
 
-    // Push constant range for screen_size (vec2, 8 bytes, vertex stage)
+    // Push constant range for screen_size (vec2) + px_range (float) = 12 bytes
     VkPushConstantRange push_range = {
-        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
         .offset = 0,
-        .size = sizeof(vec2),
+        .size = sizeof(vec2) + sizeof(f32),
     };
 
     VkPipelineLayoutCreateInfo layout_info = {

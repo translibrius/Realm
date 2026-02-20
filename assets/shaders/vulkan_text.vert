@@ -9,6 +9,7 @@ layout (location = 1) out vec4 frag_color;
 
 layout (push_constant) uniform PushConstants {
     vec2 screen_size;
+    float px_range;
 } pc;
 
 void main() {
