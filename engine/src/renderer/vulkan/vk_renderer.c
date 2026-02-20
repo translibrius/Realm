@@ -20,6 +20,10 @@
 
 static VK_Context context;
 
+VK_Context *vulkan_get_context_ptr(void) {
+    return &context;
+}
+
 void vulkan_resize_framebuffer(i32 w, i32 h) {
     /*
     RL_DEBUG("Window #%d resized | POS: %d;%d | Size: %dx%d",
@@ -173,6 +177,11 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
         return false;
     }
 
+    if (!vulkan_text_pipeline_init(&context)) {
+        RL_ERROR("failed to initialize text pipeline");
+        return false;
+    }
+
     return true;
 }
 
@@ -180,6 +189,7 @@ void vulkan_destroy() {
     // Wait for logical device to finish operations
     vkDeviceWaitIdle(context.device);
 
+    vulkan_text_pipeline_destroy(&context);
     vk_sync_destroy_frame(&context);
     vk_descriptor_destroy_pool(&context);
     vk_buffers_destroy_uniform(&context);
@@ -216,19 +226,20 @@ void update_uniform_buffer(u32 image_index, f64 dt) {
 }
 
 void vulkan_begin_frame(f64 delta_time) {
+    context.frame_acquired = false;
+
     RL_PROFILE_ZONE(fence_zone, "vkWaitForFences");
     // Wait for previous frame to finish
     vkWaitForFences(context.device, 1, &context.in_flight_fences[context.current_frame], VK_TRUE, UINT64_MAX);
-
     RL_PROFILE_ZONE_END(fence_zone);
 
     // Get image from swapchain and pass image_available semaphore
-    u32 image_index;
     RL_PROFILE_ZONE(acquire_zone, "vkAcquireNextImageKHR");
-    VkResult result = vkAcquireNextImageKHR(context.device, context.swapchain.handle, UINT64_MAX, context.image_available_semaphores[context.current_frame], VK_NULL_HANDLE, &image_index);
+    VkResult result = vkAcquireNextImageKHR(context.device, context.swapchain.handle, UINT64_MAX, context.image_available_semaphores[context.current_frame], VK_NULL_HANDLE, &context.current_image_index);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         vk_swapchain_recreate(&context);
+        RL_PROFILE_ZONE_END(acquire_zone);
         return;
     }
 
@@ -237,17 +248,25 @@ void vulkan_begin_frame(f64 delta_time) {
     }
     RL_PROFILE_ZONE_END(acquire_zone);
 
-    update_uniform_buffer(image_index, delta_time);
+    context.frame_acquired = true;
 
-    RL_PROFILE_ZONE(record_zone, "Reset + Record Command Buffer");
-    // Only reset the fence if we are submitting work
+    update_uniform_buffer(context.current_image_index, delta_time);
+
+    // Reset fence and command buffer — recording deferred to end_frame
     vkResetFences(context.device, 1, &context.in_flight_fences[context.current_frame]);
-
-    // Reset, record and submit command buffer
     vkResetCommandBuffer(context.command_buffers[context.current_frame], 0);
-    vk_command_buffer_record(&context, context.command_buffers[context.current_frame], image_index);
+}
+
+void vulkan_end_frame() {
+    if (!context.frame_acquired)
+        return;
+
+    // Record command buffer (text vertex data is now ready from submit_frame_data)
+    RL_PROFILE_ZONE(record_zone, "Record Command Buffer");
+    vk_command_buffer_record(&context, context.command_buffers[context.current_frame], context.current_image_index);
     RL_PROFILE_ZONE_END(record_zone);
 
+    // Submit
     RL_PROFILE_ZONE(submit_zone, "vkQueueSubmit");
     VkSemaphore wait_semaphores[] = {context.image_available_semaphores[context.current_frame]};
     VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
@@ -264,22 +283,21 @@ void vulkan_begin_frame(f64 delta_time) {
         .pSignalSemaphores = signal_semaphores};
 
     VK_CHECK(vkQueueSubmit(context.graphics_queue, 1, &submit_info, context.in_flight_fences[context.current_frame]));
-
     RL_PROFILE_ZONE_END(submit_zone);
 
+    // Present
     RL_PROFILE_ZONE(present_zone, "vkQueuePresentKHR");
-    // Present the result back to the swapchain to have it eventually show up on screen
     VkPresentInfoKHR present_info = {
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         .waitSemaphoreCount = 1,
         .pWaitSemaphores = signal_semaphores,
         .swapchainCount = 1,
         .pSwapchains = &context.swapchain.handle,
-        .pImageIndices = &image_index,
+        .pImageIndices = &context.current_image_index,
         .pResults = nullptr // Optional
     };
 
-    result = vkQueuePresentKHR(context.present_queue, &present_info);
+    VkResult result = vkQueuePresentKHR(context.present_queue, &present_info);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || context.framebuffer_resized) {
         context.framebuffer_resized = false;
@@ -292,9 +310,6 @@ void vulkan_begin_frame(f64 delta_time) {
 
     // advance frame
     context.current_frame = (context.current_frame + 1) % context.max_frames_in_flight;
-}
-
-void vulkan_end_frame() {
 }
 
 void vulkan_swap_buffers() {
@@ -329,14 +344,8 @@ void vulkan_submit_frame_data(rl_frame_data *frame_data) {
         glm_mat4_copy(selected_mesh->model, context.model);
     }
 
-    for (u32 i = 0; frame_data->texts && i < frame_data->text_count; i++) {
-        rl_frame_text *text = &frame_data->texts[i];
-        if (!text->text) {
-            continue;
-        }
-        vec4 color = {0};
-        glm_vec4_copy(text->color, color);
-        vulkan_render_text(text->text, text->size_px, text->x, text->y, color);
+    if (frame_data->texts && frame_data->text_count > 0) {
+        vulkan_render_text_batch(&context, frame_data->texts, frame_data->text_count);
     }
 }
 
