@@ -46,8 +46,12 @@ rl_arena *rl_arena_create(u64 reserve_size, u64 commit_size, MEM_TYPE mem_type) 
 }
 
 void rl_arena_destroy(rl_arena *arena) {
-    platform_mem_release(arena, arena->reserve_size);
-    memory_track_arena_release(arena->reserve_size, arena->commit_size, arena->mem_type);
+    u64 reserve = arena->reserve_size;
+    u64 commit = arena->commit_pos;
+    MEM_TYPE type = arena->mem_type;
+
+    platform_mem_release(arena, reserve);
+    memory_track_arena_release(reserve, commit, type);
 }
 
 void rl_arena_init(rl_arena *arena, u64 reserve_size, u64 commit_size, MEM_TYPE mem_type) {
