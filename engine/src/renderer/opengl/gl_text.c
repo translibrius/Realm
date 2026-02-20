@@ -36,6 +36,7 @@ b8 opengl_text_pipeline_init(GL_Context *ctx) {
     // Cache uniform locations
     pipeline->loc_font_atlas = glGetUniformLocation(pipeline->shader.program_id, "u_font_atlas");
     pipeline->loc_screen_size = glGetUniformLocation(pipeline->shader.program_id, "u_screen_size");
+    pipeline->loc_px_range = glGetUniformLocation(pipeline->shader.program_id, "u_px_range");
 
     // Create vao & bind
     glGenVertexArrays(1, &pipeline->vao);
@@ -183,6 +184,7 @@ void opengl_render_text(const char *text, f32 size_px, f32 x, f32 y, vec4 color)
 
     glUniform1i(p->loc_font_atlas, 0);
     glUniform2f(p->loc_screen_size, (f32)ctx->window->settings.width, (f32)ctx->window->settings.height);
+    glUniform1f(p->loc_px_range, font->pixel_range);
 
     glDrawArrays(GL_TRIANGLES, 0, (GLsizei)vert_count);
 
@@ -284,6 +286,7 @@ void opengl_render_text_batch(rl_frame_text *texts, u32 text_count) {
 
     glUniform1i(p->loc_font_atlas, 0);
     glUniform2f(p->loc_screen_size, (f32)ctx->window->settings.width, (f32)ctx->window->settings.height);
+    glUniform1f(p->loc_px_range, gl_font->font->pixel_range);
 
     glDrawArrays(GL_TRIANGLES, 0, (GLsizei)vert_count);
 
