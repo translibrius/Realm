@@ -33,8 +33,61 @@ RL_TEST(str_replace_all_replaces_every_match) {
     rl_arena_deinit(&arena);
 }
 
+RL_TEST(str_string_split_separates_correctly) {
+    rl_arena arena = {0};
+    rl_arena_init(&arena, KiB(64), KiB(4), MEM_ARENA);
+
+    rl_string source = rl_string_create(&arena, "hello,world,foo");
+    Strings parts;
+    da_init(&parts);
+
+    rl_string_split(&arena, &source, ",", &parts);
+
+    RL_EXPECT_MSG(parts.count == 3, "expected 3 parts, got=%llu", parts.count);
+    RL_EXPECT_STR_EQ(parts.items[0].cstr, "hello");
+    RL_EXPECT_STR_EQ(parts.items[1].cstr, "world");
+    RL_EXPECT_STR_EQ(parts.items[2].cstr, "foo");
+
+    da_free(&parts);
+    rl_arena_deinit(&arena);
+}
+
+RL_TEST(str_string_slice_extracts_substring) {
+    rl_arena arena = {0};
+    rl_arena_init(&arena, KiB(64), KiB(4), MEM_ARENA);
+
+    rl_string source = rl_string_create(&arena, "Hello World");
+    rl_string result = rl_string_slice(&arena, &source, 6, 5);
+
+    RL_EXPECT_STR_EQ(result.cstr, "World");
+    RL_EXPECT_EQ_U32(result.len, 5);
+
+    rl_arena_deinit(&arena);
+}
+
+RL_TEST(str_string_format_interpolates) {
+    rl_arena arena = {0};
+    rl_arena_init(&arena, KiB(64), KiB(4), MEM_ARENA);
+
+    rl_string result = rl_string_format(&arena, "value=%d name=%s", 42, "test");
+    RL_EXPECT_STR_EQ(result.cstr, "value=42 name=test");
+    RL_EXPECT_EQ_U32(result.len, 18);
+
+    rl_arena_deinit(&arena);
+}
+
+RL_TEST(str_cstr_len_matches_strlen) {
+    RL_EXPECT_EQ_U32(cstr_len("hello"), 5);
+    RL_EXPECT_EQ_U32(cstr_len(""), 0);
+    RL_EXPECT_EQ_U32(cstr_len("a"), 1);
+}
+
 void register_str_tests(void) {
     RL_REGISTER_TEST(str_cstr_ends_with_handles_basic_cases);
     RL_REGISTER_TEST(str_path_sanitize_normalizes_slashes);
     RL_REGISTER_TEST(str_replace_all_replaces_every_match);
+    RL_REGISTER_TEST(str_string_split_separates_correctly);
+    RL_REGISTER_TEST(str_string_slice_extracts_substring);
+    RL_REGISTER_TEST(str_string_format_interpolates);
+    RL_REGISTER_TEST(str_cstr_len_matches_strlen);
 }
