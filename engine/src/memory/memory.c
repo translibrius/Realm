@@ -61,16 +61,24 @@ b8 mem_system_start(void *memory) {
     return true;
 }
 
-void mem_system_shutdown() {
-    if (state->live_malloc > 0) {
-        RL_WARN("Memory leak detected: %llu bytes still allocated", state->live_malloc);
-        for (u32 i = 0; i < MEM_TYPES_MAX; i++) {
-            if (state->malloc_live[i] > 0) {
-                mem_fmt f = format_bytes(state->malloc_live[i]);
-                RL_WARN("  %-24s  %.1f %s", mem_type_to_str((MEM_TYPE)i), f.value, f.unit);
-            }
+void mem_report_leaks() {
+    if (!state) return;
+
+    // Exclude subsystems that are still alive at report time (logger, memory itself)
+    u64 leaked = state->live_malloc - state->malloc_live[MEM_SUBSYSTEM_LOGGER] - state->malloc_live[MEM_SUBSYSTEM_MEMORY];
+    if (leaked == 0) return;
+
+    RL_WARN("Memory leak detected: %llu bytes still allocated", leaked);
+    for (u32 i = 0; i < MEM_TYPES_MAX; i++) {
+        if (i == MEM_SUBSYSTEM_LOGGER || i == MEM_SUBSYSTEM_MEMORY) continue;
+        if (state->malloc_live[i] > 0) {
+            mem_fmt f = format_bytes(state->malloc_live[i]);
+            RL_WARN("  %-24s  %.1f %s", mem_type_to_str((MEM_TYPE)i), f.value, f.unit);
         }
     }
+}
+
+void mem_system_shutdown() {
     state = nullptr;
     RL_INFO("Memory system shutdown...");
 }

@@ -35,6 +35,7 @@ typedef enum MEM_TYPE {
 REALM_API u64 mem_system_size();
 REALM_API b8 mem_system_start(void *memory);
 REALM_API void mem_system_shutdown();
+REALM_API void mem_report_leaks();
 
 REALM_API void *mem_alloc(u64 size, MEM_TYPE type);
 REALM_API void *mem_realloc(void *old_ptr, u64 old_size, u64 new_size, MEM_TYPE type);
