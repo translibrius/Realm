@@ -11,12 +11,7 @@ target_include_directories(realm_app
 
 target_compile_definitions(realm_app PRIVATE REALM_APP_BUILD=1 ENGINE_SHARED)
 
-# Per-configuration compiler flags
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_compile_options(realm_app PRIVATE -O0 -g3 -fno-omit-frame-pointer)
-elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
-    target_compile_options(realm_app PRIVATE -O3 -DNDEBUG -march=native -fno-omit-frame-pointer)
-endif ()
+rl_set_compiler_flags(realm_app)
 
 if (REALM_WERROR)
     target_compile_options(realm_app PRIVATE -Werror)

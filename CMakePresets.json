@@ -23,6 +23,16 @@
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++"
       }
+    },
+    {
+      "name": "ci",
+      "displayName": "CI (Debug + Werror)",
+      "inherits": "debug",
+      "binaryDir": "build/ci",
+      "cacheVariables": {
+        "REALM_WERROR": "ON",
+        "REALM_MARCH_NATIVE": "OFF"
+      }
     }
   ],
   "buildPresets": [
@@ -33,6 +43,10 @@
     {
       "name": "release",
       "configurePreset": "release"
+    },
+    {
+      "name": "ci",
+      "configurePreset": "ci"
     }
   ],
   "testPresets": [
@@ -46,6 +60,13 @@
     {
       "name": "release",
       "configurePreset": "release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci",
+      "configurePreset": "ci",
       "output": {
         "outputOnFailure": true
       }

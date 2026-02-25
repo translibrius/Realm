@@ -141,14 +141,8 @@ target_compile_options(EngineCPP PRIVATE
 target_compile_features(EngineCPP PRIVATE cxx_std_17)
 target_link_libraries(EngineCPP PRIVATE msdf-atlas-gen)
 
-# Per-configuration compiler flags
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_compile_options(EngineC PRIVATE -O0 -g3 -fno-omit-frame-pointer)
-    target_compile_options(EngineCPP PRIVATE -O0 -g3 -fno-omit-frame-pointer)
-elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
-    target_compile_options(EngineC PRIVATE -O3 -DNDEBUG -march=native -fno-omit-frame-pointer)
-    target_compile_options(EngineCPP PRIVATE -O3 -DNDEBUG -march=native -fno-omit-frame-pointer)
-endif ()
+rl_set_compiler_flags(EngineC)
+rl_set_compiler_flags(EngineCPP)
 
 # --- Final shared library that your app links against ---
 add_library(Engine SHARED

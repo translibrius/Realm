@@ -12,12 +12,7 @@ target_include_directories(Realm
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-# Per-configuration compiler flags
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_compile_options(Realm PRIVATE -O0 -g3 -fno-omit-frame-pointer)
-elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
-    target_compile_options(Realm PRIVATE -O3 -DNDEBUG -march=native -fno-omit-frame-pointer)
-endif ()
+rl_set_compiler_flags(Realm)
 
 if (REALM_WERROR)
     target_compile_options(Realm PRIVATE -Werror)
