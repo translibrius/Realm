@@ -69,3 +69,22 @@ void event_register(EVENT_TYPE type, b8 (*callback)(void *data, void *user_data)
     state->registered_events[state->registered_count] = event;
     state->registered_count++;
 }
+
+void event_unregister(EVENT_TYPE type, b8 (*callback)(void *data, void *user_data), void *user_data) {
+    for (u16 i = 0; i < state->registered_count; i++) {
+        rl_event *event = state->registered_events[i];
+        if (!event) continue;
+
+        if (event->type == type && event->event_callback == callback && event->user_data == user_data) {
+            // Shift remaining entries down
+            for (u16 j = i; j < state->registered_count - 1; j++) {
+                state->registered_events[j] = state->registered_events[j + 1];
+            }
+            state->registered_events[state->registered_count - 1] = nullptr;
+            state->registered_count--;
+            return;
+        }
+    }
+
+    RL_WARN("event_unregister: no matching callback found for event type %d", type);
+}

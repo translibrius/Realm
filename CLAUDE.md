@@ -72,6 +72,13 @@ F5 → rebuild + reload app module. F7 → switch backend (destroys renderer + w
 - Style is straight C with explicit structs and function tables. Don't introduce abstraction layers that fight this.
 - Don't change global build flags (warnings, CRT, vcpkg triplets) silently.
 
+## Git
+
+- Never add a `Co-Authored-By` line to commit messages.
+- Do not write commit message bodies — use a single summary line only.
+- Always ask before committing. Never commit automatically — let the user review changes in their IDE first.
+- Always ask before pushing. Never push automatically.
+
 ## Gotchas
 
 - Vulkan: any change touching swapchain must handle the resize/recreation path.

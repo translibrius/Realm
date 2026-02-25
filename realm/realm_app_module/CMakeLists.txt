@@ -18,4 +18,8 @@ elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
     target_compile_options(realm_app PRIVATE -O3 -DNDEBUG -march=native -fno-omit-frame-pointer)
 endif ()
 
+if (REALM_WERROR)
+    target_compile_options(realm_app PRIVATE -Werror)
+endif ()
+
 target_link_libraries(realm_app PRIVATE Engine)

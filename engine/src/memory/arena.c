@@ -16,10 +16,6 @@
 
 _Thread_local static rl_arena *_scratch_arena = nullptr;
 
-RL_INLINE b8 is_power_of_two(u64 x) {
-    return (x & (x - 1)) == 0;
-}
-
 rl_arena *rl_arena_create(u64 reserve_size, u64 commit_size, MEM_TYPE mem_type) {
     u32 page_size = platform_get_info()->page_size;
 

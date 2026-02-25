@@ -9,6 +9,23 @@
 #define VOLK_IMPLEMENTATION
 #include <volk.h>
 
+/*-- Callback function to catch validation errors  -*/
+static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
+                                                    VkDebugUtilsMessageTypeFlagsEXT type,
+                                                    const VkDebugUtilsMessengerCallbackDataEXT *callbackData,
+                                                    void *userData) {
+    (void)type;
+    (void)userData;
+    if ((severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) != 0) {
+        RL_ERROR("[VULKAN] %s", callbackData->pMessage);
+    } else if ((severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) != 0) {
+        RL_WARN("[VULKAN] %s", callbackData->pMessage);
+    } else {
+        RL_INFO("[VULKAN] %s", callbackData->pMessage);
+    }
+    return VK_FALSE;
+}
+
 #if defined(PLATFORM_MACOS)
 #include <dlfcn.h>
 #include <stdio.h>

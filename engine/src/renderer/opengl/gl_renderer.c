@@ -89,6 +89,7 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
 }
 
 b8 opengl_initialize(platform_window *platform_window, b8 vsync) {
+    (void)vsync; // vsync is handled at platform surface level
     context.window = platform_window;
 
     da_init(&context.fonts);

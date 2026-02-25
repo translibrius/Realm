@@ -31,7 +31,7 @@ b8 load_texture(rl_arena *asset_arena, rl_asset *asset) {
     texture->size = size;
 
     texture->data = rl_arena_push(asset_arena, size, 1);
-    mem_copy(data, texture->data, size);
+    mem_copy(texture->data, data, size);
 
     asset->handle = texture;
 

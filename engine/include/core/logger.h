@@ -29,13 +29,12 @@ REALM_API void log_output(const char *message, LOG_LEVEL level, const char *func
 #ifdef _DEBUG
 #define RL_DEBUG(msg, ...) log_output(msg, LOG_DEBUG, __func__, ##__VA_ARGS__);
 #define RL_TRACE(msg, ...) log_output(msg, LOG_TRACE, __func__, ##__VA_ARGS__);
-#define RL_WARN(msg, ...) log_output(msg, LOG_WARN, __func__, ##__VA_ARGS__);
 #else
 // These expand to nothing but still swallow parameters correctly.
 #define RL_DEBUG(msg, ...) ((void)0)
 #define RL_TRACE(msg, ...) ((void)0)
-#define RL_WARN(msg, ...) ((void)0)
 #endif
+#define RL_WARN(msg, ...) log_output(msg, LOG_WARN, __func__, ##__VA_ARGS__);
 #define RL_ERROR(msg, ...) log_output(msg, LOG_ERROR, __func__, ##__VA_ARGS__);
 #define RL_FATAL(msg, ...) log_output(msg, LOG_FATAL, __func__, ##__VA_ARGS__);
 

@@ -32,7 +32,7 @@ b8 load_shader(rl_arena *arena, rl_asset *asset) {
     rl_asset_shader *shader = rl_arena_push(arena, sizeof(rl_asset_shader), alignof(rl_asset_shader));
     // Allocate space for shader text + null terminator
     char *text = rl_arena_push(arena, shader_file.buf_len + 1, alignof(char));
-    mem_copy(shader_file.buf, text, shader_file.buf_len);
+    mem_copy(text, shader_file.buf, shader_file.buf_len);
     text[shader_file.buf_len] = '\0';
 
     shader->source = text;

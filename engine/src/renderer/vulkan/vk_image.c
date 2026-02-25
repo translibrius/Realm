@@ -63,6 +63,7 @@ void vk_image_view_destroy(VK_Context *ctx, VkImageView view) {
 }
 
 void vk_image_transition_layout(VK_Context *ctx, VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout) {
+    (void)format; // reserved for format-dependent barrier logic
     VkCommandBuffer cmd_buf = vk_buffer_begin_single_use(ctx, ctx->graphics_pool);
 
     VkImageMemoryBarrier barrier = {0};

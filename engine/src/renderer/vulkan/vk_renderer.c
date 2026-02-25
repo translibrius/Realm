@@ -222,7 +222,7 @@ void update_uniform_buffer(u32 image_index, f64 dt) {
     glm_mat4_copy(context.view, u.view);
     glm_mat4_copy(context.proj, u.proj);
 
-    mem_copy(&u, context.uniform_buffers_mapped[image_index], sizeof(ubo));
+    mem_copy(context.uniform_buffers_mapped[image_index], &u, sizeof(ubo));
 }
 
 void vulkan_begin_frame(f64 delta_time) {
