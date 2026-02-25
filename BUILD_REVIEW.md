@@ -1,3 +1,25 @@
+<!-- CONTEXT PROMPT: Paste this into a new Claude Code session to continue where we left off.
+
+Read CLAUDE.md, then read this file (BUILD_REVIEW.md). This is an ongoing build system review.
+What's been done so far:
+1. Full build system audit (CMake, CI, warnings, onboarding) — results below
+2. Added REALM_WERROR option (OFF by default, ON in CI) — committed & pushed
+3. Documented build options in README — committed & pushed
+4. Auto-fetch vcpkg when VCPKG_ROOT is not set (clones into .vcpkg/) — committed & pushed
+5. Removed CMAKE_TOOLCHAIN_FILE from CMakePresets.json (CMakeLists.txt handles it now)
+
+Still open from the review:
+- Compiler flag duplication across 4 CMakeLists.txt (extract to shared cmake function)
+- -march=native in release not behind an option
+- No Windows preset in CMakePresets.json (base presets hardcode clang)
+- macOS CI job not added yet
+- Sanitizer CI job (asan+ubsan) not added yet
+- clang-format check not enforced in CI
+- No -Wconversion/-Wsign-conversion yet
+
+The user wants to keep improving the build system. Ask what to tackle next.
+-->
+
 # Build System Review
 
 ## Compiler Warnings — Current State
@@ -13,7 +35,7 @@
 
 ### What's missing
 
-- **No `-Werror`** — warnings won't fail the build or CI. A new contributor could introduce warnings and CI still goes green. Consider at least `-Werror` in CI via a preset or option flag.
+- ~~**No `-Werror`**~~ **DONE** — `REALM_WERROR` option added (OFF locally, ON in CI).
 - **No `-Wconversion` / `-Wsign-conversion`** — these catch real bugs in C code with mixed `u32`/`i32`/`f32` types. Worth trying; may produce some noise but also real catches.
 
 ### TODOs left in engine code
@@ -75,19 +97,13 @@ Fine for dev, problematic if distributing or running CI with different arch. Con
 option(REALM_MARCH_NATIVE "Optimize for local CPU" ON)
 ```
 
-### 3. No early validation of `VCPKG_ROOT`
+### ~~3. No early validation of `VCPKG_ROOT`~~ DONE
 
-Add at the top of root CMakeLists.txt:
+vcpkg is now auto-fetched into `.vcpkg/` when `VCPKG_ROOT` is not set.
 
-```cmake
-if(NOT DEFINED ENV{VCPKG_ROOT})
-    message(FATAL_ERROR "VCPKG_ROOT not set. Clone vcpkg and set the env var. See README.")
-endif()
-```
+### ~~4. Redundant toolchain file setup~~ DONE
 
-### 4. Redundant toolchain file setup
-
-`CMAKE_TOOLCHAIN_FILE` is set in both `CMakeLists.txt` AND `CMakePresets.json`. The preset always wins during preset-based configure. Pick one place (presets).
+`CMAKE_TOOLCHAIN_FILE` removed from presets. CMakeLists.txt handles it with auto-bootstrap.
 
 ### 5. No Windows preset in CMakePresets.json
 
@@ -96,9 +112,9 @@ The hardcoded `/usr/bin/clang` means the base presets only work on Unix. Options
 - Platform-conditional presets (CMake presets v6 supports `condition`)
 - Separate `debug-win` / `debug-unix` presets
 
-### 6. `CMakeUserPresets.json` is committed with personal paths
+### ~~6. `CMakeUserPresets.json` is committed with personal paths~~ DONE
 
-This file should be in `.gitignore` — it's meant for machine-local overrides. Anyone who clones gets `/Users/daumantasb/vcpkg` paths.
+Already in `.gitignore`.
 
 ---
 
@@ -187,9 +203,9 @@ Beyond Build & Test:
 |------|-------|-------|
 | **CMake organization** | 8/10 | Clean target structure, modern practices, some duplication |
 | **Dependency management** | 8/10 | vcpkg manifest + pinned baseline is correct |
-| **Warning discipline** | 7/10 | Good flags, missing `-Werror` enforcement |
+| **Warning discipline** | 9/10 | `-Werror` via `REALM_WERROR`, always on in CI |
 | **Maintainer experience** | 9/10 | Presets, hot-reload, test harness all work well |
-| **Fresh clone experience** | 5/10 | vcpkg setup is a stumbling block, no validation |
+| **Fresh clone experience** | 8/10 | vcpkg auto-fetched, just need cmake/ninja/clang |
 | **CI coverage** | 5/10 | Windows only, no sanitizers, no format check |
 | **Cross-platform** | 6/10 | Works but presets aren't portable, no multi-platform CI |
 
