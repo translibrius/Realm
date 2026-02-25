@@ -72,12 +72,9 @@ target_compile_definitions(EngineC PRIVATE
         VK_NO_PROTOTYPES
 )
 
-# Shaderc: keep Windows on Vulkan SDK; use vcpkg elsewhere.
-if (WIN32)
+# Shaderc: prefer Vulkan SDK shared lib on Windows (local dev); fall back to vcpkg.
+if (WIN32 AND DEFINED ENV{VULKAN_SDK} AND EXISTS "$ENV{VULKAN_SDK}/Lib/shaderc_shared.lib")
     set(SHADERC_ROOT "$ENV{VULKAN_SDK}")
-    if (NOT SHADERC_ROOT)
-        message(FATAL_ERROR "VULKAN_SDK is not set; shaderc is required.")
-    endif ()
     target_include_directories(EngineC PRIVATE "${SHADERC_ROOT}/Include")
     set(SHADERC_TARGET "${SHADERC_ROOT}/Lib/shaderc_shared.lib")
 else ()
