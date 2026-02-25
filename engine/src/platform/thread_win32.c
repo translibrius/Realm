@@ -3,7 +3,7 @@
 #ifdef PLATFORM_WINDOWS
 
 #define WIN32_LEAN_AND_MEAN
-#include "platform.h"
+#include "platform/platform.h"
 
 #include <windows.h>
 #include <process.h>

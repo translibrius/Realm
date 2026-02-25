@@ -1,4 +1,4 @@
-#include "platform.h"
+#include "platform/platform.h"
 
 #ifdef PLATFORM_MACOS
 
