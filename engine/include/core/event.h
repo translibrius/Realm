@@ -36,5 +36,6 @@ REALM_API b8 event_system_start(void *memory);
 
 REALM_API void event_fire(EVENT_TYPE type, void *event_data);
 REALM_API void event_register(EVENT_TYPE type, b8 (*callback)(void *data, void *user_data), void *user_data);
+REALM_API void event_unregister(EVENT_TYPE type, b8 (*callback)(void *data, void *user_data), void *user_data);
 
 REALM_API void event_system_shutdown();

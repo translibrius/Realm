@@ -72,12 +72,9 @@ target_compile_definitions(EngineC PRIVATE
         VK_NO_PROTOTYPES
 )
 
-# Shaderc: keep Windows on Vulkan SDK; use vcpkg elsewhere.
-if (WIN32)
+# Shaderc: prefer Vulkan SDK shared lib on Windows (local dev); fall back to vcpkg.
+if (WIN32 AND DEFINED ENV{VULKAN_SDK} AND EXISTS "$ENV{VULKAN_SDK}/Lib/shaderc_shared.lib")
     set(SHADERC_ROOT "$ENV{VULKAN_SDK}")
-    if (NOT SHADERC_ROOT)
-        message(FATAL_ERROR "VULKAN_SDK is not set; shaderc is required.")
-    endif ()
     target_include_directories(EngineC PRIVATE "${SHADERC_ROOT}/Include")
     set(SHADERC_TARGET "${SHADERC_ROOT}/Lib/shaderc_shared.lib")
 else ()
@@ -92,8 +89,11 @@ target_include_directories(EngineC
         PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
 
-        # Vendor
+# Vendor headers as SYSTEM to suppress their warnings
+target_include_directories(EngineC SYSTEM
+        PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/cglm
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/volk
@@ -102,7 +102,7 @@ target_include_directories(EngineC
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/glad
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/msdf-atlas-gen/msdf-atlas-gen
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/tracy/public/tracy
-        ${Vulkan_INCLUDE_DIRS} # For shaders
+        ${Vulkan_INCLUDE_DIRS}
 )
 
 # Warnings only for my own code (no vendor)
@@ -111,6 +111,7 @@ target_compile_options(EngineC PRIVATE
         -Wno-newline-eof
         -Wno-missing-braces
         -Wno-gnu-zero-variadic-macro-arguments
+        $<$<BOOL:${REALM_WERROR}>:-Werror>
 )
 
 
@@ -183,6 +184,9 @@ target_compile_definitions(Engine INTERFACE ENGINE_SHARED)
 target_include_directories(Engine
         INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_include_directories(Engine SYSTEM
+        INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/cglm
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/tracy/public/tracy
 )

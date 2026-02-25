@@ -36,7 +36,7 @@ b8 vk_texture_create(VK_Context *ctx, VK_Texture *vk_texture) {
         // read from the bottom row upward
         u8 *src_row = src_bytes + (texture->height - 1 - y) * texture->width * texture->channels;
         u8 *dst_row = dst_bytes + y * texture->width * texture->channels;
-        mem_copy(src_row, dst_row, texture->width * texture->channels);
+        mem_copy(dst_row, src_row, texture->width * texture->channels);
     }
     vkUnmapMemory(ctx->device, staging_buffer_memory);
 

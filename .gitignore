@@ -1,6 +1,6 @@
 build/
+.vcpkg/
 .idea/
-.cache/
 .cache/
 .vs/
 compile_commands.json

@@ -3,7 +3,7 @@
 #ifdef PLATFORM_MACOS
 
 #include <pthread.h>
-#include <semaphore.h>
+#include <dispatch/dispatch.h>
 
 #include "core/logger.h"
 #include "memory/memory.h"
@@ -16,7 +16,7 @@ typedef struct mac_thread_sync {
 } mac_thread_sync;
 
 typedef struct mac_semaphore {
-    sem_t sem;
+    dispatch_semaphore_t sem;
 } mac_semaphore;
 
 static void *thread_proc_wrapper(void *data) {
@@ -119,7 +119,7 @@ void platform_mutex_destroy(rl_mutex *mutex) {
 
 void platform_semaphore_create(rl_semaphore *out_semaphore, int initial) {
     mac_semaphore *sem = mem_alloc(sizeof(mac_semaphore), MEM_SUBSYSTEM_PLATFORM);
-    sem_init(&sem->sem, 0, initial);
+    sem->sem = dispatch_semaphore_create(initial);
     out_semaphore->handle = sem;
 }
 
@@ -128,7 +128,7 @@ void platform_semaphore_wait(rl_semaphore *semaphore) {
     if (!sem) {
         return;
     }
-    sem_wait(&sem->sem);
+    dispatch_semaphore_wait(sem->sem, DISPATCH_TIME_FOREVER);
 }
 
 void platform_semaphore_signal(rl_semaphore *semaphore) {
@@ -136,7 +136,7 @@ void platform_semaphore_signal(rl_semaphore *semaphore) {
     if (!sem) {
         return;
     }
-    sem_post(&sem->sem);
+    dispatch_semaphore_signal(sem->sem);
 }
 
 #endif // PLATFORM_MACOS

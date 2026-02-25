@@ -2,6 +2,8 @@
 
 #ifdef PLATFORM_MACOS
 
+#define GL_SILENCE_DEPRECATION
+
 #include "core/event.h"
 #include "core/logger.h"
 #include "memory/memory.h"
@@ -790,11 +792,14 @@ b8 platform_create_opengl_context(platform_window *window) {
         return false;
     }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     [mw->gl setView:mw->view];
     [mw->gl makeCurrentContext];
 
     GLint swap = 0;
     [mw->gl setValues:&swap forParameter:NSOpenGLCPSwapInterval];
+#pragma clang diagnostic pop
 
     if (gladLoadGL() == 0) {
         RL_ERROR("Failed to initialize OpenGL via GLAD.");
@@ -979,7 +984,7 @@ b8 platform_load_lib(const char *path, platform_lib *out_lib) {
         return false;
     }
     mem_zero(out_lib->path, sizeof(out_lib->path));
-    mem_copy(path, out_lib->path, sizeof(out_lib->path));
+    mem_copy(out_lib->path, path, sizeof(out_lib->path));
     return true;
 }
 

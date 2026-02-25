@@ -2,8 +2,6 @@
 
 #include "vk_frame_buffers.h"
 #include "vk_image.h"
-#include "vk_pipeline.h"
-#include "vk_renderpass.h"
 
 void log_capabilities(VkSurfaceCapabilitiesKHR *caps);
 void log_surface_formats(const VkSurfaceFormat2KHR *formats, u32 count);
