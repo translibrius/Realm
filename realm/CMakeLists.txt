@@ -19,6 +19,10 @@ elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
     target_compile_options(Realm PRIVATE -O3 -DNDEBUG -march=native -fno-omit-frame-pointer)
 endif ()
 
+if (REALM_WERROR)
+    target_compile_options(Realm PRIVATE -Werror)
+endif ()
+
 # Engine last
 target_link_libraries(Realm PRIVATE Engine Tracy::TracyClient)
 target_compile_definitions(Realm PRIVATE ENGINE_SHARED)

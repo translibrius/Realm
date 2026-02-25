@@ -40,7 +40,7 @@ jobs:
           restore-keys: vcpkg-win-
 
       - name: Configure
-        run: cmake --preset debug
+        run: cmake --preset debug -DREALM_WERROR=ON
 
       - name: Build
         run: cmake --build --preset debug

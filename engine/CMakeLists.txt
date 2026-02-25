@@ -111,6 +111,7 @@ target_compile_options(EngineC PRIVATE
         -Wno-newline-eof
         -Wno-missing-braces
         -Wno-gnu-zero-variadic-macro-arguments
+        $<$<BOOL:${REALM_WERROR}>:-Werror>
 )
 
 

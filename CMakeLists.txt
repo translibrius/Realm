@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.20)
 project(Realm VERSION 0.0.1 DESCRIPTION "3D Engine - Realm" LANGUAGES C CXX)
 
 option(REALM_BUILD_TESTS "Build Realm unit tests" ON)
+option(REALM_WERROR "Treat warnings as errors" OFF)
 include(CTest)
 
 # Vcpkg integration
