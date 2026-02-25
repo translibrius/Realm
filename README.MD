@@ -67,6 +67,18 @@ cmake --preset release && cmake --build --preset release
 
 Dependencies (FreeType, msdf-atlas-gen, Tracy, GLAD, volk, cglm) are managed via vcpkg manifest mode and install automatically on first configure.
 
+### Build Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `REALM_WERROR` | `OFF` | Treat compiler warnings as errors |
+| `REALM_BUILD_TESTS` | `ON` | Build the unit test executable |
+
+```bash
+# Enable warnings-as-errors (always on in CI)
+cmake --preset debug -DREALM_WERROR=ON
+```
+
 ## Running
 
 ```bash
