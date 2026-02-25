@@ -197,7 +197,8 @@ void vulkan_render_text_batch(VK_Context *ctx, rl_frame_text *texts, u32 text_co
             if (vert_count + 6 > 6 * MAX_TEXT_GLYPHS)
                 break;
 
-            const rl_glyph *g = (*c < 256) ? vk_font->glyph_map[*c] : vk_font_find_glyph(font, (u32)*c);
+            u32 cp = *c;
+            const rl_glyph *g = (cp < 256) ? vk_font->glyph_map[cp] : vk_font_find_glyph(font, cp);
             if (!g)
                 continue;
 

@@ -59,6 +59,7 @@ static u8 logger_level_rank(LOG_LEVEL level) {
 }
 
 void logger_writer(void *data) {
+    (void)data;
     while (state->queue.running) {
         // Sleep until there's data or shutdown
         platform_thread_sync_wait(&state->queue.has_data);

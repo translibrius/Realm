@@ -38,7 +38,7 @@ REALM_API void mem_system_shutdown();
 
 REALM_API void *mem_alloc(u64 size, MEM_TYPE type);
 REALM_API void *mem_realloc(void *old_ptr, u64 old_size, u64 new_size, MEM_TYPE type);
-REALM_API void *mem_copy(void *destination, void *origin, u64 size);
+REALM_API void *mem_copy(void *destination, const void *origin, u64 size);
 
 REALM_API void mem_free(void *block, u64 size, MEM_TYPE type);
 REALM_API void *mem_zero(void *block, u64 size);

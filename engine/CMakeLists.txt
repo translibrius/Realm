@@ -89,8 +89,11 @@ target_include_directories(EngineC
         PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
 
-        # Vendor
+# Vendor headers as SYSTEM to suppress their warnings
+target_include_directories(EngineC SYSTEM
+        PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/cglm
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/volk
@@ -99,7 +102,7 @@ target_include_directories(EngineC
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/glad
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/msdf-atlas-gen/msdf-atlas-gen
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/tracy/public/tracy
-        ${Vulkan_INCLUDE_DIRS} # For shaders
+        ${Vulkan_INCLUDE_DIRS}
 )
 
 # Warnings only for my own code (no vendor)
@@ -180,6 +183,9 @@ target_compile_definitions(Engine INTERFACE ENGINE_SHARED)
 target_include_directories(Engine
         INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_include_directories(Engine SYSTEM
+        INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/cglm
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/tracy/public/tracy
 )

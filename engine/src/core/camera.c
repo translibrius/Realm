@@ -27,9 +27,9 @@ void camera_init(rl_camera *camera) {
 
 void camera_get_view(const rl_camera *camera, mat4 out_view) {
     vec3 target;
-    glm_vec3_add(camera->pos, camera->forward, target);
+    glm_vec3_add((float *)camera->pos, (float *)camera->forward, target);
 
-    glm_lookat(camera->pos, target, camera->up, out_view);
+    glm_lookat((float *)camera->pos, target, (float *)camera->up, out_view);
 }
 
 void camera_get_projection(const rl_camera *camera, f32 aspect, mat4 out_proj, RENDERER_BACKEND renderer_backend) {

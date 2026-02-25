@@ -43,23 +43,6 @@
 }
 #endif
 
-/*-- Callback function to catch validation errors  -*/
-static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-                                                    VkDebugUtilsMessageTypeFlagsEXT,
-                                                    const VkDebugUtilsMessengerCallbackDataEXT *callbackData,
-                                                    void *) {
-    if ((severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) != 0) {
-        RL_ERROR("[VULKAN] %s", callbackData->pMessage);
-    } else {
-        if ((severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) != 0) {
-            RL_WARN("[VULKAN] %s", callbackData->pMessage);
-        } else {
-            RL_INFO("[VULKAN] %s", callbackData->pMessage);
-        }
-    }
-    return VK_FALSE;
-}
-
 typedef struct VK_QueueFamilyIndices {
     u32 graphics_index;
     u32 compute_index;

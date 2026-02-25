@@ -21,6 +21,7 @@ static b8 progress_registered = false;
 
 b8 on_progress_increment(void *event, void *data) {
     (void)event;
+    (void)data;
     state.progress_step++;
     return true;
 }
