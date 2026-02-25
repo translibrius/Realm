@@ -1,4 +1,3 @@
-#include "platform.h"
 #include "platform/platform.h"
 #include "profiler/profiler.h"
 

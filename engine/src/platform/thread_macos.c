@@ -7,7 +7,7 @@
 
 #include "core/logger.h"
 #include "memory/memory.h"
-#include "platform.h"
+#include "platform/platform.h"
 
 typedef struct mac_thread_sync {
     pthread_mutex_t mutex;
