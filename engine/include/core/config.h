@@ -33,6 +33,7 @@ REALM_API void config_system_shutdown(void);
 REALM_API rl_config *config_get(void);
 REALM_API rl_config config_defaults(void);
 
+REALM_API void config_track_window(platform_window *window);
 REALM_API void config_mark_dirty(void);
 REALM_API void config_flush_if_dirty(f64 dt);
 REALM_API b8 config_save(void);

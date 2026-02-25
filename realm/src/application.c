@@ -70,6 +70,8 @@ b8 create_application() {
         return false;
     }
 
+    config_track_window(&app.window);
+
     app_event_handler_init(&app.event_handler, &app);
 
     if (!renderer_init(&app.window, app.config.backend, app.config.vsync)) {

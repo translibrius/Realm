@@ -79,6 +79,7 @@ typedef struct config_state {
     rl_config config;
     b8 dirty;
     f64 time_since_flush;
+    platform_window *tracked_window;
 } config_state;
 
 static config_state *state;
@@ -336,6 +337,10 @@ static b8 on_window_resize(void *event, void *user_data) {
     if (!state) return false;
 
     platform_window *window = event;
+
+    // Only persist position/size for the tracked (main) window.
+    if (window != state->tracked_window) return false;
+
     state->config.window_x = window->settings.x;
     state->config.window_y = window->settings.y;
     state->config.window_width = window->settings.width;
@@ -383,6 +388,12 @@ rl_config *config_get(void) {
 void config_mark_dirty(void) {
     if (state) {
         state->dirty = true;
+    }
+}
+
+void config_track_window(platform_window *window) {
+    if (state) {
+        state->tracked_window = window;
     }
 }
 
