@@ -143,7 +143,7 @@ b8 vk_buffer_create_vertex(VK_Context *context, Vertices *vertices) {
         return false;
     }
 
-    mem_copy(vertices->items, data, buffer_size);
+    mem_copy(data, vertices->items, buffer_size);
     vkUnmapMemory(context->device, staging_memory);
 
     if (!vk_buffer_create(
@@ -197,7 +197,7 @@ b8 vk_buffer_create_index(VK_Context *context, Indices *indices) {
 
     void *data;
     VK_CHECK_RETURN_FALSE(vkMapMemory(context->device, staging_memory, 0, buffer_size, 0, &data), "Failed to map staging buffer memory.");
-    mem_copy(indices->items, data, buffer_size);
+    mem_copy(data, indices->items, buffer_size);
     vkUnmapMemory(context->device, staging_memory);
 
     if (!vk_buffer_create(

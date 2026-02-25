@@ -95,7 +95,7 @@ void mem_free(void *block, u64 size, MEM_TYPE type) {
     free(block);
 }
 
-void *mem_copy(void *origin, void *destination, u64 size) {
+void *mem_copy(void *destination, void *origin, u64 size) {
     return memcpy(destination, origin, size);
 }
 

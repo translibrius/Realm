@@ -979,7 +979,7 @@ b8 platform_load_lib(const char *path, platform_lib *out_lib) {
         return false;
     }
     mem_zero(out_lib->path, sizeof(out_lib->path));
-    mem_copy(path, out_lib->path, sizeof(out_lib->path));
+    mem_copy(out_lib->path, path, sizeof(out_lib->path));
     return true;
 }
 

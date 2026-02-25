@@ -295,7 +295,7 @@ static b8 vk_text_create_font_atlas(VK_Context *ctx, rl_font *font, VK_Font *out
 
     void *data;
     vkMapMemory(ctx->device, staging_memory, 0, image_size, 0, &data);
-    mem_copy(atlas->data, data, image_size);
+    mem_copy(data, atlas->data, image_size);
     vkUnmapMemory(ctx->device, staging_memory);
 
     // Create VkImage
