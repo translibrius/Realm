@@ -1,5 +1,7 @@
 # Realm Engine
 
+[![Build & Test](https://github.com/translibrius/Realm/actions/workflows/build.yml/badge.svg)](https://github.com/translibrius/Realm/actions/workflows/build.yml)
+
 ![Showcase](showcase.png)
 
 A from-scratch game engine written in **C23** with dual **Vulkan** and **OpenGL 3.3** backends. No frameworks, no ECS libraries, no hidden dependencies — just C, graphics APIs, and a lot of manual memory management.
