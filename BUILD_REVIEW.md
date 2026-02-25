@@ -7,13 +7,13 @@ What's been done so far:
 3. Documented build options in README — committed & pushed
 4. Auto-fetch vcpkg when VCPKG_ROOT is not set (clones into .vcpkg/) — committed & pushed
 5. Removed CMAKE_TOOLCHAIN_FILE from CMakePresets.json (CMakeLists.txt handles it now)
+6. Extracted compiler flags to cmake/RealmCompilerFlags.cmake (deduplicated 4 CMakeLists.txt)
+7. Added REALM_MARCH_NATIVE option (ON by default, OFF in CI)
+8. Added `ci` preset to CMakePresets.json (inherits debug, werror on, march off)
+9. Added macOS CI job
+10. Added Ubuntu sanitizer CI job (ASan + UBSan)
 
 Still open from the review:
-- Compiler flag duplication across 4 CMakeLists.txt (extract to shared cmake function)
-- -march=native in release not behind an option
-- No Windows preset in CMakePresets.json (base presets hardcode clang)
-- macOS CI job not added yet
-- Sanitizer CI job (asan+ubsan) not added yet
 - clang-format check not enforced in CI
 - No -Wconversion/-Wsign-conversion yet
 
@@ -73,29 +73,13 @@ The user wants to keep improving the build system. Ask what to tackle next.
 
 ## CMake Structure — What Could Improve
 
-### 1. Compiler flags are copy-pasted across 4 CMakeLists.txt files
+### ~~1. Compiler flags are copy-pasted across 4 CMakeLists.txt files~~ DONE
 
-Engine, Realm, realm_app, tests all repeat the same `-O0 -g3` / `-O3 -DNDEBUG -march=native` blocks. Extract to a function:
+Extracted to `cmake/RealmCompilerFlags.cmake` with `rl_set_compiler_flags(target)` function. All 4 targets now call it.
 
-```cmake
-# cmake/RealmCompilerFlags.cmake
-function(rl_set_compiler_flags target)
-    target_compile_options(${target} PRIVATE
-        $<$<CONFIG:Debug>:-O0 -g3 -fno-omit-frame-pointer>
-        $<$<CONFIG:Release>:-O3 -DNDEBUG -fno-omit-frame-pointer>
-    )
-endfunction()
-```
+### ~~2. `-march=native` in release means binaries aren't portable~~ DONE
 
-Then each target is just `rl_set_compiler_flags(Realm)`. One place to change, no drift.
-
-### 2. `-march=native` in release means binaries aren't portable
-
-Fine for dev, problematic if distributing or running CI with different arch. Consider:
-
-```cmake
-option(REALM_MARCH_NATIVE "Optimize for local CPU" ON)
-```
+`REALM_MARCH_NATIVE` option (ON by default, OFF in CI preset).
 
 ### ~~3. No early validation of `VCPKG_ROOT`~~ DONE
 
@@ -105,12 +89,9 @@ vcpkg is now auto-fetched into `.vcpkg/` when `VCPKG_ROOT` is not set.
 
 `CMAKE_TOOLCHAIN_FILE` removed from presets. CMakeLists.txt handles it with auto-bootstrap.
 
-### 5. No Windows preset in CMakePresets.json
+### ~~5. No Windows preset in CMakePresets.json~~ N/A
 
-The hardcoded `/usr/bin/clang` means the base presets only work on Unix. Options:
-
-- Platform-conditional presets (CMake presets v6 supports `condition`)
-- Separate `debug-win` / `debug-unix` presets
+Presets already use bare `clang`/`clang++` (not `/usr/bin/clang`), which works cross-platform. Added a `ci` preset that inherits `debug` with `REALM_WERROR=ON` and `REALM_MARCH_NATIVE=OFF`.
 
 ### ~~6. `CMakeUserPresets.json` is committed with personal paths~~ DONE
 
@@ -120,50 +101,17 @@ Already in `.gitignore`.
 
 ## GitHub Actions — Current State
 
-Windows-only CI, builds debug, runs tests, caches vcpkg + Vulkan SDK, auto-cancels stale runs. The badge in the README is good.
+~~Windows-only CI~~ Now Windows + macOS + Ubuntu (sanitizers). All jobs use `cmake --preset ci` with `REALM_WERROR=ON` and `REALM_MARCH_NATIVE=OFF`.
 
 ## GitHub Actions — Suggested Additions
 
-### 1. macOS job
+### ~~1. macOS job~~ DONE
 
-Already developing on macOS — gate it in CI:
+Added to `.github/workflows/build.yml`.
 
-```yaml
-macos:
-  runs-on: macos-latest
-  steps:
-    - uses: actions/checkout@v4
-      with: { submodules: recursive }
-    - name: Install deps
-      run: brew install cmake ninja
-    - name: Install Vulkan SDK
-      uses: humbletim/install-vulkan-sdk@v1.2
-      with: { version: latest, cache: true }
-    - name: Cache vcpkg
-      uses: actions/cache@v4
-      with:
-        path: build/debug/vcpkg_installed
-        key: vcpkg-mac-${{ hashFiles('vcpkg.json') }}
-    - name: Build & Test
-      run: cmake --preset debug && cmake --build --preset debug && ctest --preset debug
-```
+### ~~2. Sanitizer build~~ DONE
 
-### 2. Sanitizer build (highest value addition for a C codebase)
-
-AddressSanitizer + UBSan catch real memory bugs:
-
-```yaml
-sanitizers:
-  runs-on: ubuntu-latest
-  steps:
-    # ... setup ...
-    - name: Build with sanitizers
-      run: |
-        cmake --preset debug -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
-        cmake --build --preset debug
-    - name: Test
-      run: ctest --preset debug
-```
+Ubuntu job with ASan + UBSan (`-fsanitize=address,undefined -fno-sanitize-recover=all`), leak detection enabled.
 
 ### 3. Format check
 
@@ -188,25 +136,18 @@ Beyond Build & Test:
 - Lines of code (via `tokei` or similar)
 - Code coverage (if `--coverage` flags + codecov integration added)
 
-### Priority order
-
-1. macOS CI job (already building there, just gate it)
-2. Sanitizer job (catches real memory bugs cheaply)
-3. Format check (prevents style drift)
-4. Coverage (nice-to-have, shows test gaps)
-
 ---
 
 ## Summary Scorecard
 
 | Area | Score | Notes |
 |------|-------|-------|
-| **CMake organization** | 8/10 | Clean target structure, modern practices, some duplication |
+| **CMake organization** | 9/10 | Shared flag function, clean target structure, modern practices |
 | **Dependency management** | 8/10 | vcpkg manifest + pinned baseline is correct |
 | **Warning discipline** | 9/10 | `-Werror` via `REALM_WERROR`, always on in CI |
 | **Maintainer experience** | 9/10 | Presets, hot-reload, test harness all work well |
 | **Fresh clone experience** | 8/10 | vcpkg auto-fetched, just need cmake/ninja/clang |
-| **CI coverage** | 5/10 | Windows only, no sanitizers, no format check |
-| **Cross-platform** | 6/10 | Works but presets aren't portable, no multi-platform CI |
+| **CI coverage** | 8/10 | Windows + macOS + Ubuntu sanitizers, no format check yet |
+| **Cross-platform** | 8/10 | Multi-platform CI, portable presets, `-march=native` gated |
 
-The foundation is solid — the architecture decisions (object libraries, vendor silencing, manifest mode, preset workflow) are all correct. The gaps are mostly about **onboarding** (early error messages, documenting vcpkg setup) and **CI breadth** (more platforms, sanitizers, format enforcement).
+The foundation is solid — the architecture decisions (object libraries, vendor silencing, manifest mode, preset workflow) are all correct. Remaining gaps: **format enforcement** in CI and **`-Wconversion`/`-Wsign-conversion`** warnings.
