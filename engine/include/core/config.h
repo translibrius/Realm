@@ -22,6 +22,8 @@ typedef struct rl_config {
     b8 vsync;
 
     LOG_LEVEL log_level;
+
+    b8 loaded; // true if config was loaded from file (not just defaults)
 } rl_config;
 
 REALM_API u64 config_system_size(void);

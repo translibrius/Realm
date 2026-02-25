@@ -277,6 +277,7 @@ static b8 config_load(void) {
     free(text);
     platform_file_close(&file);
 
+    state->config.loaded = true;
     RL_INFO("Config loaded from '%s'", RL_CONFIG_FILENAME);
     return true;
 }
