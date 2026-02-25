@@ -54,7 +54,7 @@ The renderer is never touched by game code directly. The game fills an `rl_frame
 
 ## Building
 
-**Prerequisites:** CMake 3.20+, Ninja, Clang, vcpkg (`VCPKG_ROOT`), Vulkan SDK (`VULKAN_SDK`)
+**Prerequisites:** CMake 3.20+, Ninja, Clang, Git
 
 ```bash
 git clone --recursive https://github.com/translibrius/Realm
@@ -65,7 +65,7 @@ cmake --preset debug && cmake --build --preset debug
 cmake --preset release && cmake --build --preset release
 ```
 
-Dependencies (FreeType, msdf-atlas-gen, Tracy, GLAD, volk, cglm) are managed via vcpkg manifest mode and install automatically on first configure.
+Dependencies (FreeType, shaderc, Vulkan headers) are managed via vcpkg manifest mode. If `VCPKG_ROOT` is set, your existing installation is used. Otherwise, vcpkg is fetched automatically into `.vcpkg/` on first configure.
 
 ### Build Options
 

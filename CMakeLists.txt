@@ -1,13 +1,35 @@
 cmake_minimum_required(VERSION 3.20)
 
+# --- vcpkg auto-bootstrap ---
+# Priority: CMAKE_TOOLCHAIN_FILE (preset/cli) > VCPKG_ROOT (env) > auto-fetch
+if (NOT DEFINED CMAKE_TOOLCHAIN_FILE OR CMAKE_TOOLCHAIN_FILE STREQUAL "")
+    if (DEFINED ENV{VCPKG_ROOT})
+        set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+                CACHE STRING "vcpkg toolchain" FORCE)
+    else ()
+        set(REALM_VCPKG_DIR "${CMAKE_CURRENT_SOURCE_DIR}/.vcpkg")
+        if (NOT EXISTS "${REALM_VCPKG_DIR}/scripts/buildsystems/vcpkg.cmake")
+            message(STATUS "VCPKG_ROOT not set — fetching vcpkg into ${REALM_VCPKG_DIR}...")
+            find_package(Git REQUIRED)
+            execute_process(
+                    COMMAND ${GIT_EXECUTABLE} clone --depth 1
+                    https://github.com/microsoft/vcpkg.git "${REALM_VCPKG_DIR}"
+                    RESULT_VARIABLE _vcpkg_result
+            )
+            if (NOT _vcpkg_result EQUAL 0)
+                message(FATAL_ERROR "Failed to clone vcpkg. Set VCPKG_ROOT manually or check your network.")
+            endif ()
+        endif ()
+        set(CMAKE_TOOLCHAIN_FILE "${REALM_VCPKG_DIR}/scripts/buildsystems/vcpkg.cmake"
+                CACHE STRING "vcpkg toolchain" FORCE)
+    endif ()
+endif ()
+
 project(Realm VERSION 0.0.1 DESCRIPTION "3D Engine - Realm" LANGUAGES C CXX)
 
 option(REALM_BUILD_TESTS "Build Realm unit tests" ON)
 option(REALM_WERROR "Treat warnings as errors" OFF)
 include(CTest)
-
-# Vcpkg integration
-set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "" FORCE)
 
 # C Standart
 set(CMAKE_C_STANDARD 23)
