@@ -117,7 +117,6 @@ void rl_engine_destroy(void) {
     config_system_shutdown();
     asset_system_shutdown();
     event_system_shutdown();
-    mem_report_leaks();
     logger_system_shutdown();
     mem_system_shutdown();
     RL_INFO("--------------ENGINE_STOP--------------");
