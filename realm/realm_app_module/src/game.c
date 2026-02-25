@@ -33,6 +33,11 @@ b8 game_init(rl_game *game, const realm_app_context *ctx, rl_game_cfg config) {
 
     game->app_context = ctx;
     game->config = config;
+
+    // Always reset input_captured so game_apply_input_capture() re-registers
+    // raw input with the (possibly new) window after a backend switch or reload.
+    game->input_captured = false;
+
     rl_arena_init(&game->frame_arena, KiB(4024), KiB(1024), MEM_ARENA);
 
     rl_asset *asset = get_asset_by_id(ASSET_ID_FONT_JETBRAINS_MONO_REGULAR);

@@ -412,6 +412,19 @@ b8 platform_destroy_window(u16 id) {
     if (!w->alive)
         return true; // Already cleaned
 
+    // Reset input state so it gets re-applied correctly on the next window.
+    // Raw input registration and cursor clip/capture are tied to the HWND
+    // and become invalid once the window is destroyed.
+    if (state.cursor_mode != CURSOR_MODE_NORMAL) {
+        ClipCursor(NULL);
+        ReleaseCapture();
+        // Restore the per-process ShowCursor counter to visible (>= 0).
+        for (int i = 0; i < 8 && ShowCursor(TRUE) < 0; i++) {
+        }
+    }
+    state.cursor_mode = CURSOR_MODE_NORMAL;
+    state.raw_mouse_enabled = false;
+
     w->alive = false;
 
     if (w->gl) {

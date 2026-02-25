@@ -61,7 +61,7 @@ b8 create_application() {
         .y = cfg ? cfg->window_y : 0,
         .width = cfg ? cfg->window_width : 500,
         .height = cfg ? cfg->window_height : 500,
-        .start_center = !cfg || (cfg->window_x == 0 && cfg->window_y == 0),
+        .start_center = !cfg || !cfg->loaded,
         .window_flags = WINDOW_FLAG_DEFAULT,
         .window_mode = cfg ? cfg->window_mode : WINDOW_MODE_WINDOWED,
     };

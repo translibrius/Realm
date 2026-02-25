@@ -251,7 +251,10 @@ b8 realm_app_module_rebuild(void) {
         build_tool = "cmake";
     }
 
-    const int command_len = snprintf(command, sizeof(command), "\"%s\" --build \"%s\" --target realm_app", build_tool, build_dir);
+    /* cmd.exe strips the first and last quote when the string starts with a
+       quote character.  Wrapping the entire command line in an extra pair of
+       quotes makes cmd /c parse the inner quoted paths correctly. */
+    const int command_len = snprintf(command, sizeof(command), "\"\"%s\" --build \"%s\" --target realm_app\"", build_tool, build_dir);
     if (command_len <= 0 || (u32)command_len >= sizeof(command)) {
         RL_ERROR("failed to format app module build command");
         return false;
