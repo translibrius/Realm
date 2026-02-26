@@ -22,7 +22,9 @@ jobs:
           submodules: recursive
 
       - name: Update vcpkg
-        run: git -C $env:VCPKG_ROOT fetch origin && git -C $env:VCPKG_ROOT checkout $((Get-Content vcpkg.json | ConvertFrom-Json).'builtin-baseline')
+        run: |
+          git -C $env:VCPKG_ROOT fetch origin --unshallow 2>$null; git -C $env:VCPKG_ROOT fetch origin
+          git -C $env:VCPKG_ROOT checkout $((Get-Content vcpkg.json | ConvertFrom-Json).'builtin-baseline')
 
       - name: Install Vulkan SDK
         uses: humbletim/install-vulkan-sdk@v1.2
@@ -89,7 +91,9 @@ jobs:
           submodules: recursive
 
       - name: Update vcpkg
-        run: git -C "$VCPKG_ROOT" fetch origin && git -C "$VCPKG_ROOT" checkout "$(jq -r '.["builtin-baseline"]' vcpkg.json)"
+        run: |
+          git -C "$VCPKG_ROOT" fetch origin --unshallow || git -C "$VCPKG_ROOT" fetch origin
+          git -C "$VCPKG_ROOT" checkout "$(jq -r '.["builtin-baseline"]' vcpkg.json)"
 
       - name: Install Clang 19, Ninja, and OpenGL headers
         run: sudo apt-get update && sudo apt-get install -y clang-19 ninja-build libgl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
