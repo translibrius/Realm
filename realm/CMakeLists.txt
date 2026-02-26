@@ -18,6 +18,9 @@ if (REALM_WERROR)
     target_compile_options(Realm PRIVATE -Werror)
 endif ()
 
+# Engine contains C++ objects; use C++ linker so sanitizer runtimes resolve.
+set_target_properties(Realm PROPERTIES LINKER_LANGUAGE CXX)
+
 # Engine last
 target_link_libraries(Realm PRIVATE Engine Tracy::TracyClient)
 target_compile_definitions(Realm PRIVATE ENGINE_SHARED)
