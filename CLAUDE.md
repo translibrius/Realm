@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-C23 graphics engine (`engine/`) with a Vulkan and OpenGL 3.3 backend, plus a thin host executable (`realm/`) that hot-reloads a game module at runtime. Windows is primary; macOS is active; Linux is ~40%.
+C23 graphics engine (`engine/`) with a Vulkan and OpenGL 3.3 backend, plus a thin host executable (`realm/`) that hot-reloads a game module at runtime. Windows is the primary development platform; macOS and Linux are complete.
 
 ## Build
 

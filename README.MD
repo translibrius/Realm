@@ -1,6 +1,16 @@
 # Realm Engine
 
 [![Build & Test](https://github.com/translibrius/Realm/actions/workflows/build.yml/badge.svg)](https://github.com/translibrius/Realm/actions/workflows/build.yml)
+![C23](https://img.shields.io/badge/C23-00599C?style=flat&logo=c&logoColor=white)
+![Vulkan](https://img.shields.io/badge/Vulkan-AC162C?style=flat&logo=vulkan&logoColor=white)
+![OpenGL](https://img.shields.io/badge/OpenGL_3.3-5586A4?style=flat&logo=opengl&logoColor=white)
+![Platform](https://img.shields.io/badge/Windows%20%7C%20macOS%20%7C%20Linux-grey?style=flat)
+![Lines of Code](https://tokei.rs/b1/github/translibrius/Realm?category=code&style=flat)
+![License](https://img.shields.io/github/license/translibrius/Realm?style=flat)
+![GitHub stars](https://img.shields.io/github/stars/translibrius/Realm?style=flat)
+![GitHub last commit](https://img.shields.io/github/last-commit/translibrius/Realm?style=flat)
+![GitHub repo size](https://img.shields.io/github/repo-size/translibrius/Realm?style=flat)
+![GitHub issues](https://img.shields.io/github/issues/translibrius/Realm?style=flat)
 
 ![Showcase](showcase.png)
 
@@ -37,7 +47,7 @@ engine/ (shared library)
       ├── asset/          → static asset registry indexed by enum ID
       ├── core/           → logger, events, camera, config
       ├── memory/         → arena allocator, tracked malloc/free
-      └── platform/       → win32, macOS, linux (WIP) abstraction
+      └── platform/       → win32, macOS, linux abstraction
 ```
 
 The host owns game state memory. The game module exports `init` / `update` / `render` / `shutdown` and declares its state size and version. On hot reload, state is reused if the layout matches — otherwise it reinitializes cleanly.
@@ -48,9 +58,9 @@ The renderer is never touched by game code directly. The game fills an `rl_frame
 
 | Platform | Status |
 |----------|--------|
-| Windows  | Primary, stable |
-| macOS    | Active development |
-| Linux    | WIP (~40%) |
+| Windows  | Primary development platform |
+| macOS    | Complete |
+| Linux    | Complete |
 
 ## Building
 
