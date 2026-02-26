@@ -5,3 +5,4 @@ build/
 .vs/
 compile_commands.json
 CMakeUserPresets.json
+.claude/
