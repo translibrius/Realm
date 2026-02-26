@@ -222,7 +222,8 @@ b8 asset_system_load(rl_asset *asset) {
     RL_TRACE("  '%s' = %s", asset->filename, success ? "OK!" : "Failed");
     da_append(&state->assets, *asset);
     state->asset_index_by_id[asset->id] = (i32)(state->assets.count - 1);
-    event_fire(EVENT_SPLASH_INCREMENT, nullptr);
+    e_splash_payload splash_payload = {.asset_name = asset->filename};
+    event_fire(EVENT_SPLASH_INCREMENT, &splash_payload);
     return success;
 }
 

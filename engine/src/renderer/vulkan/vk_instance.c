@@ -184,7 +184,9 @@ b8 vk_instance_create(VK_Context *context) {
     RL_TRACE("Required vulkan extensions for platform (%s): %d", platform_get_info()->platform_name, platform_ext_count);
     const char **enabled_exts = rl_arena_push(scratch.arena, sizeof(const char *) * platform_ext_count, true);
     u32 enabled_ext_count = 0;
+#if defined(PLATFORM_MACOS)
     b8 enable_portability_enumeration = false;
+#endif
     for (u32 i = 0; i < platform_ext_count; i++) {
         RL_TRACE("Required vulkan ext: %s", platform_exts[i]);
         b8 found = false;

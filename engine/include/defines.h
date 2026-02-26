@@ -97,6 +97,7 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #elif defined(__linux__) || defined(__gnu_linux__)
 // Linux OS
 #define PLATFORM_LINUX 1
+#define VK_USE_PLATFORM_XLIB_KHR
 #if defined(__ANDROID__)
 #define PLATFORM_ANDROID 1
 #endif
@@ -106,6 +107,11 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #define VK_USE_PLATFORM_METAL_EXT
 #else
 #error "Only Windows, Linux, and macOS are supported for now"
+#endif
+
+// -- Version (injected by CMake from project(VERSION ...))
+#ifndef REALM_VERSION
+#define REALM_VERSION "0.0.0"
 #endif
 
 // -- Memory helpers

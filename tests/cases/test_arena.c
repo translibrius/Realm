@@ -172,6 +172,85 @@ RL_TEST(arena_temp_begin_end_restores_position) {
     rl_arena_destroy(arena);
 }
 
+// --- Init-style arena: push past initial commit ---
+
+RL_TEST(arena_init_push_past_initial_commit) {
+    rl_arena arena = {0};
+    // Small initial commit (4KiB) with large reserve — forces commit growth on push
+    rl_arena_init(&arena, KiB(64), KiB(4), MEM_ARENA);
+
+    // Push enough to exceed the initial 4KiB commit
+    u8 *ptr = rl_arena_push(&arena, KiB(8), true);
+    RL_EXPECT(ptr != nullptr);
+
+    // Verify the memory is usable (zeroed and writable)
+    for (u32 i = 0; i < KiB(8); i++) {
+        RL_EXPECT_MSG(ptr[i] == 0, "byte[%u] should be 0, got=%u", i, ptr[i]);
+    }
+
+    // Write a pattern and read it back to confirm the committed memory is real
+    memset(ptr, 0xCD, KiB(8));
+    for (u32 i = 0; i < KiB(8); i++) {
+        RL_EXPECT_MSG(ptr[i] == 0xCD, "byte[%u] expected=0xCD got=0x%02X", i, ptr[i]);
+    }
+
+    rl_arena_deinit(&arena);
+}
+
+// --- Init-style arena: pop and clear ---
+
+RL_TEST(arena_init_pop_resets_to_zero) {
+    rl_arena arena = {0};
+    rl_arena_init(&arena, KiB(64), KiB(4), MEM_ARENA);
+
+    RL_EXPECT_MSG(arena.pos == 0, "init arena base pos=%llu expected=0", arena.pos);
+
+    rl_arena_push(&arena, 256, false);
+    RL_EXPECT_MSG(arena.pos > 0, "pos should advance after push");
+
+    rl_arena_pop(&arena, 256);
+    RL_EXPECT_MSG(arena.pos == 0,
+                  "pos after pop=%llu expected=0", arena.pos);
+
+    rl_arena_deinit(&arena);
+}
+
+RL_TEST(arena_init_clear_resets_to_zero) {
+    rl_arena arena = {0};
+    rl_arena_init(&arena, KiB(64), KiB(4), MEM_ARENA);
+
+    rl_arena_push(&arena, 100, false);
+    rl_arena_push(&arena, 200, false);
+    rl_arena_push(&arena, 300, false);
+
+    RL_EXPECT_MSG(arena.pos > 0, "pos should be past zero after pushes");
+
+    rl_arena_clear(&arena);
+    RL_EXPECT_MSG(arena.pos == 0,
+                  "pos after clear=%llu expected=0", arena.pos);
+
+    rl_arena_deinit(&arena);
+}
+
+RL_TEST(arena_init_temp_begin_end_restores_position) {
+    rl_arena arena = {0};
+    rl_arena_init(&arena, KiB(64), KiB(4), MEM_ARENA);
+
+    rl_arena_push(&arena, 64, false);
+    u64 saved_pos = arena.pos;
+
+    rl_temp_arena temp = rl_arena_temp_begin(&arena);
+
+    rl_arena_push(&arena, 256, false);
+    RL_EXPECT_MSG(arena.pos > saved_pos, "pos should advance in temp scope");
+
+    rl_arena_temp_end(temp);
+    RL_EXPECT_MSG(arena.pos == saved_pos,
+                  "pos after temp_end=%llu expected=%llu", arena.pos, saved_pos);
+
+    rl_arena_deinit(&arena);
+}
+
 // --- Scratch arena (uses rl_arena_create internally) ---
 
 RL_TEST(arena_scratch_get_returns_usable_memory) {
@@ -199,5 +278,9 @@ void register_arena_tests(void) {
     RL_REGISTER_TEST(arena_pop_reduces_position);
     RL_REGISTER_TEST(arena_clear_resets_to_base);
     RL_REGISTER_TEST(arena_temp_begin_end_restores_position);
+    RL_REGISTER_TEST(arena_init_push_past_initial_commit);
+    RL_REGISTER_TEST(arena_init_pop_resets_to_zero);
+    RL_REGISTER_TEST(arena_init_clear_resets_to_zero);
+    RL_REGISTER_TEST(arena_init_temp_begin_end_restores_position);
     RL_REGISTER_TEST(arena_scratch_get_returns_usable_memory);
 }

@@ -1,3 +1,7 @@
+#if defined(__linux__)
+#define _GNU_SOURCE
+#endif
+
 #include "realm_app_watcher.h"
 
 #include "core/logger.h"

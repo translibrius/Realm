@@ -1,6 +1,9 @@
 # Realm Engine
 
 [![Build & Test](https://github.com/translibrius/Realm/actions/workflows/build.yml/badge.svg)](https://github.com/translibrius/Realm/actions/workflows/build.yml)
+![Last Commit](https://img.shields.io/github/last-commit/translibrius/Realm?style=flat)
+![License](https://img.shields.io/github/license/translibrius/Realm?style=flat)
+![Lines of Code](https://img.shields.io/endpoint?url=https%3A%2F%2Fghloc.vercel.app%2Fapi%2Ftranslibrius%2FRealm%2Fbadge%3Ffilter%3D.c%2C.h%2C.m&style=flat&label=lines%20of%20code)
 
 ![Showcase](showcase.png)
 
@@ -37,7 +40,7 @@ engine/ (shared library)
       ├── asset/          → static asset registry indexed by enum ID
       ├── core/           → logger, events, camera, config
       ├── memory/         → arena allocator, tracked malloc/free
-      └── platform/       → win32, macOS, linux (WIP) abstraction
+      └── platform/       → win32, macOS, linux abstraction
 ```
 
 The host owns game state memory. The game module exports `init` / `update` / `render` / `shutdown` and declares its state size and version. On hot reload, state is reused if the layout matches — otherwise it reinitializes cleanly.
@@ -48,9 +51,9 @@ The renderer is never touched by game code directly. The game fills an `rl_frame
 
 | Platform | Status |
 |----------|--------|
-| Windows  | Primary, stable |
-| macOS    | Active development |
-| Linux    | WIP (~40%) |
+| Windows  | Primary development platform |
+| macOS    | Complete |
+| Linux    | Complete |
 
 ## Building
 

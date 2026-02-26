@@ -161,6 +161,11 @@ if (APPLE)
     target_link_libraries(Engine PRIVATE "-framework Cocoa" "-framework QuartzCore" "-framework Metal")
 endif ()
 
+if (UNIX AND NOT APPLE)
+    find_package(X11 REQUIRED)
+    target_link_libraries(Engine PRIVATE X11::X11 pthread dl)
+endif ()
+
 # OpenGL link
 if (WIN32)
     target_link_libraries(Engine PRIVATE opengl32)
@@ -169,7 +174,8 @@ elseif (UNIX)
     target_link_libraries(Engine PRIVATE OpenGL::GL)
 endif ()
 
-target_compile_definitions(EngineC PRIVATE ENGINE_SHARED ENGINE_BUILD)
+target_compile_definitions(EngineC PRIVATE ENGINE_SHARED ENGINE_BUILD
+        REALM_VERSION="${PROJECT_VERSION}")
 target_compile_definitions(EngineCPP PRIVATE ENGINE_SHARED ENGINE_BUILD)
 
 target_compile_definitions(Engine INTERFACE ENGINE_SHARED)

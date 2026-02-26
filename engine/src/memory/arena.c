@@ -14,6 +14,16 @@
 
 #define ARENA_BASE_POS (sizeof(rl_arena))
 
+// For create-style arenas: metadata lives at the start of the reservation, base is NULL.
+// For init-style arenas: metadata is external, base points to the reservation, pos starts at 0.
+static inline u8 *arena_mem_base(rl_arena *arena) {
+    return arena->base ? (u8 *)arena->base : (u8 *)arena;
+}
+
+static inline u64 arena_base_pos(rl_arena *arena) {
+    return arena->base ? 0 : ARENA_BASE_POS;
+}
+
 _Thread_local static rl_arena *_scratch_arena = nullptr;
 
 rl_arena *rl_arena_create(u64 reserve_size, u64 commit_size, MEM_TYPE mem_type) {
@@ -101,7 +111,8 @@ void *rl_arena_push(rl_arena *arena, u64 size, b8 zero) {
         new_commit_pos -= new_commit_pos % arena->commit_size;
         new_commit_pos = RL_MIN(new_commit_pos, arena->reserve_size);
 
-        u8 *mem = (u8 *)arena + arena->commit_pos;
+        u8 *base = arena_mem_base(arena);
+        u8 *mem = base + arena->commit_pos;
         u64 commit_size = new_commit_pos - arena->commit_pos;
 
         memory_track_arena_commit(commit_size, arena->mem_type);
@@ -116,9 +127,7 @@ void *rl_arena_push(rl_arena *arena, u64 size, b8 zero) {
 
     arena->pos = new_pos;
 
-    // Based on if arena was created or initialized
-    u8 *arena_ptr = arena->base ? arena->base : (void *)arena;
-    u8 *out = arena_ptr + pos_aligned;
+    u8 *out = arena_mem_base(arena) + pos_aligned;
 
     if (zero) {
         memset(out, 0, size);
@@ -142,7 +151,8 @@ void *rl_arena_push_aligned(rl_arena *arena, u64 size, u64 alignment, b8 zero) {
         new_commit_pos -= new_commit_pos % arena->commit_size;
         new_commit_pos = RL_MIN(new_commit_pos, arena->reserve_size);
 
-        u8 *mem = (u8 *)arena + arena->commit_pos;
+        u8 *base = arena_mem_base(arena);
+        u8 *mem = base + arena->commit_pos;
         u64 commit_size = new_commit_pos - arena->commit_pos;
 
         memory_track_arena_commit(commit_size, arena->mem_type);
@@ -157,8 +167,7 @@ void *rl_arena_push_aligned(rl_arena *arena, u64 size, u64 alignment, b8 zero) {
 
     arena->pos = new_pos;
 
-    u8 *arena_ptr = arena->base ? arena->base : (void *)arena;
-    u8 *out = arena_ptr + pos_aligned;
+    u8 *out = arena_mem_base(arena) + pos_aligned;
 
     if (zero) {
         memset(out, 0, size);
@@ -168,7 +177,9 @@ void *rl_arena_push_aligned(rl_arena *arena, u64 size, u64 alignment, b8 zero) {
 }
 
 void rl_arena_pop(rl_arena *arena, u64 size) {
-    size = RL_MIN(size, arena->pos - ARENA_BASE_POS);
+    u64 base_pos = arena_base_pos(arena);
+    u64 available = arena->pos > base_pos ? arena->pos - base_pos : 0;
+    size = RL_MIN(size, available);
     arena->pos -= size;
 }
 
@@ -178,7 +189,7 @@ void rl_arena_pop_to(rl_arena *arena, u64 pos) {
 }
 
 void rl_arena_clear(rl_arena *arena) {
-    rl_arena_pop_to(arena, ARENA_BASE_POS);
+    rl_arena_pop_to(arena, arena_base_pos(arena));
 }
 
 rl_temp_arena rl_arena_temp_begin(rl_arena *arena) {
