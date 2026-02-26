@@ -1,16 +1,9 @@
 # Realm Engine
 
 [![Build & Test](https://github.com/translibrius/Realm/actions/workflows/build.yml/badge.svg)](https://github.com/translibrius/Realm/actions/workflows/build.yml)
-![C23](https://img.shields.io/badge/C23-00599C?style=flat&logo=c&logoColor=white)
-![Vulkan](https://img.shields.io/badge/Vulkan-AC162C?style=flat&logo=vulkan&logoColor=white)
-![OpenGL](https://img.shields.io/badge/OpenGL_3.3-5586A4?style=flat&logo=opengl&logoColor=white)
-![Platform](https://img.shields.io/badge/Windows%20%7C%20macOS%20%7C%20Linux-grey?style=flat)
-![Lines of Code](https://tokei.rs/b1/github/translibrius/Realm?category=code&style=flat)
+![Last Commit](https://img.shields.io/github/last-commit/translibrius/Realm?style=flat)
 ![License](https://img.shields.io/github/license/translibrius/Realm?style=flat)
-![GitHub stars](https://img.shields.io/github/stars/translibrius/Realm?style=flat)
-![GitHub last commit](https://img.shields.io/github/last-commit/translibrius/Realm?style=flat)
-![GitHub repo size](https://img.shields.io/github/repo-size/translibrius/Realm?style=flat)
-![GitHub issues](https://img.shields.io/github/issues/translibrius/Realm?style=flat)
+![Lines of Code](https://img.shields.io/endpoint?url=https%3A%2F%2Fghloc.vercel.app%2Fapi%2Ftranslibrius%2FRealm%2Fbadge%3Ffilter%3D.c%2C.h%2C.m&style=flat&label=lines%20of%20code)
 
 ![Showcase](showcase.png)
 
