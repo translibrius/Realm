@@ -56,12 +56,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install Vulkan SDK
-        uses: humbletim/install-vulkan-sdk@v1.2
-        with:
-          version: latest
-          cache: true
-
       - name: Install Ninja
         run: brew install ninja
 
@@ -83,17 +77,13 @@ jobs:
 
   sanitizers:
     runs-on: ubuntu-latest
+    env:
+      VCPKG_ROOT: /usr/local/share/vcpkg
 
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Install Vulkan SDK
-        uses: humbletim/install-vulkan-sdk@v1.2
-        with:
-          version: latest
-          cache: true
 
       - name: Install Clang and Ninja
         run: sudo apt-get update && sudo apt-get install -y clang ninja-build

@@ -19,6 +19,19 @@ if (NOT DEFINED CMAKE_TOOLCHAIN_FILE OR CMAKE_TOOLCHAIN_FILE STREQUAL "")
             if (NOT _vcpkg_result EQUAL 0)
                 message(FATAL_ERROR "Failed to clone vcpkg. Set VCPKG_ROOT manually or check your network.")
             endif ()
+            # Fetch the baseline commit referenced in vcpkg.json (shallow clone won't have it)
+            file(READ "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg.json" _vcpkg_json)
+            string(JSON _vcpkg_baseline GET "${_vcpkg_json}" "builtin-baseline")
+            if (_vcpkg_baseline)
+                message(STATUS "Fetching vcpkg baseline ${_vcpkg_baseline}...")
+                execute_process(
+                        COMMAND ${GIT_EXECUTABLE} -C "${REALM_VCPKG_DIR}" fetch origin "${_vcpkg_baseline}"
+                        RESULT_VARIABLE _baseline_result
+                )
+                if (NOT _baseline_result EQUAL 0)
+                    message(WARNING "Could not fetch vcpkg baseline commit. Build may fail if baseline is not reachable.")
+                endif ()
+            endif ()
         endif ()
         set(CMAKE_TOOLCHAIN_FILE "${REALM_VCPKG_DIR}/scripts/buildsystems/vcpkg.cmake"
                 CACHE STRING "vcpkg toolchain" FORCE)

@@ -73,5 +73,36 @@
     "allow_concurrent_runs": false,
     "reveal": "always",
     "tags": ["build"]
+  },
+  {
+    "label": "Configure CI",
+    "command": "cmake --preset ci",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "Build CI",
+    "command": "cmake --build --preset ci",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "tags": ["build"]
+  },
+  {
+    "label": "Test (CI)",
+    "command": "ctest --preset ci",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "tags": ["test"]
+  },
+  {
+    "label": "Clean + Build CI",
+    "command": "cmake --build --preset ci --clean-first",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "tags": ["build"]
   }
 ]
