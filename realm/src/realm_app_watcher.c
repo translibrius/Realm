@@ -1,3 +1,7 @@
+#if defined(__linux__)
+#define _GNU_SOURCE
+#endif
+
 #include "realm_app_watcher.h"
 
 #include "core/logger.h"
@@ -9,7 +13,6 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #elif PLATFORM_LINUX
-#define _GNU_SOURCE
 #include <errno.h>
 #include <sys/inotify.h>
 #include <sys/stat.h>
