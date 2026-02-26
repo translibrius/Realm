@@ -52,6 +52,9 @@ set(CMAKE_C_EXTENSIONS OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# All targets need PIC on Linux since static libs get linked into libEngine.so
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 # Per-configuration compiler flags
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     message(STATUS "Configuring Debug build no optimizations")

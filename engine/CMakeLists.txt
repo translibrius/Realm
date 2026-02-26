@@ -144,9 +144,6 @@ target_link_libraries(EngineCPP PRIVATE msdf-atlas-gen)
 rl_set_compiler_flags(EngineC)
 rl_set_compiler_flags(EngineCPP)
 
-# OBJECT libraries need PIC since they end up in a shared library
-set_target_properties(EngineC EngineCPP PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
 # --- Final shared library that your app links against ---
 add_library(Engine SHARED
         $<TARGET_OBJECTS:EngineC>
