@@ -40,7 +40,9 @@ jobs:
       - name: Cache vcpkg packages
         uses: actions/cache@v4
         with:
-          path: build/ci/vcpkg_installed
+          path: |
+            build/ci/vcpkg_installed
+            ~\AppData\Local\vcpkg\archives
           key: vcpkg-win-${{ hashFiles('vcpkg.json') }}
           restore-keys: vcpkg-win-
 
@@ -67,7 +69,9 @@ jobs:
       - name: Cache vcpkg packages
         uses: actions/cache@v4
         with:
-          path: build/ci/vcpkg_installed
+          path: |
+            build/ci/vcpkg_installed
+            ~/.cache/vcpkg/archives
           key: vcpkg-mac-${{ hashFiles('vcpkg.json') }}
           restore-keys: vcpkg-mac-
 
@@ -101,7 +105,9 @@ jobs:
       - name: Cache vcpkg packages
         uses: actions/cache@v4
         with:
-          path: build/ci/vcpkg_installed
+          path: |
+            build/ci/vcpkg_installed
+            ~/.cache/vcpkg/archives
           key: vcpkg-linux-${{ hashFiles('vcpkg.json') }}
           restore-keys: vcpkg-linux-
 
