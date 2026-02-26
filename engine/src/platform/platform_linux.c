@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include "platform/platform.h"
 // Linux platform layer
 #ifdef PLATFORM_LINUX
@@ -22,15 +23,17 @@
 
 // X11 headers must come before vk_types.h because volk includes
 // vulkan_xlib.h which needs Display/Window types.
+// glad.h must come before GL/glx.h to prevent duplicate GL header errors.
+#include "glad.h"
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/Xatom.h>
 #include <X11/keysym.h>
 #include <X11/XKBlib.h>
 #include <X11/cursorfont.h>
 #include <GL/glx.h>
 
 #include "renderer/vulkan/vk_types.h"
-#include "glad.h"
 
 typedef struct linux_window {
     Window xwindow;
