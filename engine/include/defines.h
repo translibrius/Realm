@@ -109,6 +109,11 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #error "Only Windows, Linux, and macOS are supported for now"
 #endif
 
+// -- Version (injected by CMake from project(VERSION ...))
+#ifndef REALM_VERSION
+#define REALM_VERSION "0.0.0"
+#endif
+
 // -- Memory helpers
 #define GiB(bytes) ((u64)(bytes) * 1024 * 1024 * 1024)
 #define MiB(bytes) ((u64)(bytes) * 1024 * 1024)

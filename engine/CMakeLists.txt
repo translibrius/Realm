@@ -174,7 +174,8 @@ elseif (UNIX)
     target_link_libraries(Engine PRIVATE OpenGL::GL)
 endif ()
 
-target_compile_definitions(EngineC PRIVATE ENGINE_SHARED ENGINE_BUILD)
+target_compile_definitions(EngineC PRIVATE ENGINE_SHARED ENGINE_BUILD
+        REALM_VERSION="${PROJECT_VERSION}")
 target_compile_definitions(EngineCPP PRIVATE ENGINE_SHARED ENGINE_BUILD)
 
 target_compile_definitions(Engine INTERFACE ENGINE_SHARED)
