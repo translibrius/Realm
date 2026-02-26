@@ -9,6 +9,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #elif PLATFORM_LINUX
+#define _GNU_SOURCE
 #include <errno.h>
 #include <sys/inotify.h>
 #include <sys/stat.h>
