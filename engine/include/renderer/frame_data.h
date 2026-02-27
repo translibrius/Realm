@@ -1,6 +1,6 @@
 #pragma once
 
-#include "asset/asset.h"
+#include <asset/asset.h>
 #include "cglm.h"
 #include "defines.h"
 
