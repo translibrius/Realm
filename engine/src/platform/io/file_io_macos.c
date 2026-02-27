@@ -28,6 +28,21 @@ static int file_access_mode(const FILE_PERM *perms) {
     return O_RDONLY;
 }
 
+b8 platform_file_get_stamp(const char *path, platform_file_stamp *out) {
+    if (!path || !path[0] || !out) {
+        return false;
+    }
+
+    struct stat st = {0};
+    if (stat(path, &st) != 0) {
+        return false;
+    }
+
+    out->write_time_ns = (u64)st.st_mtimespec.tv_sec * 1000000000ull + (u64)st.st_mtimespec.tv_nsec;
+    out->size = (u64)st.st_size;
+    return true;
+}
+
 b8 platform_file_exists(const char *path) {
     if (!path) {
         return false;

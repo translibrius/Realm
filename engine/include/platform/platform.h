@@ -107,4 +107,5 @@ REALM_API void platform_sleep(u32 milliseconds);
 REALM_API u64 platform_get_current_thread_id();
 REALM_API void platform_console_write(const char *message, LOG_LEVEL level);
 REALM_API platform_info *platform_get_info();
+REALM_API i32 platform_system(const char *command);
 REALM_API void log_system_info();

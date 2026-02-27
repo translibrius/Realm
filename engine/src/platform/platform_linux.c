@@ -15,6 +15,7 @@
 #include <math.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/utsname.h>
@@ -970,6 +971,13 @@ platform_info *platform_get_info() {
         linux_get_system_info();
     }
     return &state.platform_info;
+}
+
+i32 platform_system(const char *command) {
+    if (!command) {
+        return -1;
+    }
+    return system(command);
 }
 
 #endif // PLATFORM_LINUX

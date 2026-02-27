@@ -18,6 +18,7 @@
 #import <QuartzCore/CALayer.h>
 #import <mach/mach_time.h>
 #include <math.h>
+#include <stdlib.h>
 #import <pthread.h>
 #include <stdio.h>
 #import <sys/mman.h>
@@ -1098,6 +1099,13 @@ void platform_splash_destroy() {
     splash_state.ns_window = nil;
     splash_state.view = nil;
     splash_state.layer = nil;
+}
+
+i32 platform_system(const char *command) {
+    if (!command) {
+        return -1;
+    }
+    return system(command);
 }
 
 #endif // PLATFORM_MACOS

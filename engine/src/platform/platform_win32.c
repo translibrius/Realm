@@ -16,6 +16,7 @@
 #include "thread.h"
 
 #include <glad_wgl.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <windows.h>
 #include <windowsx.h>
@@ -1546,6 +1547,22 @@ KEYBOARD_KEY map_keycode_to_key(u16 keycode, u32 lparam) {
     default:
         return KEY_MAX_KEYS;
     }
+}
+
+i32 platform_system(const char *command) {
+    if (!command) {
+        return -1;
+    }
+
+    /* cmd.exe strips the first and last quote when the string starts with a
+       quote character.  Wrapping the entire command line in an extra pair of
+       quotes makes cmd /c parse the inner quoted paths correctly. */
+    char wrapped[1024] = {0};
+    int len = snprintf(wrapped, sizeof(wrapped), "\"%s\"", command);
+    if (len <= 0 || (u32)len >= sizeof(wrapped)) {
+        return system(command);
+    }
+    return system(wrapped);
 }
 
 #endif // PLATFORM_WINDOWS
