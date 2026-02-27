@@ -38,6 +38,7 @@ typedef struct rl_game {
     b8 focused;
     b8 input_captured;
     f32 scene_angle;
+    f32 time_elapsed;
     rl_game_toast toasts[RL_GAME_MAX_TOASTS];
 } rl_game;
 
