@@ -2,6 +2,7 @@
 
 #include "asset/asset.h"
 #include "core/logger.h"
+#include "debug/debug_scene.h"
 #include "engine.h"
 #include "memory/memory.h"
 #include "platform/platform.h"
@@ -90,7 +91,7 @@ void game_update(rl_game *game, f64 dt) {
         game->toasts[i].active = false;
     }
 
-    game->scene_angle += 100.0f * (f32)dt;
+    game->scene_angle += rl_debug_scene_get()->rotation_speed * (f32)dt;
     if (game->scene_angle > 360.0f) {
         game->scene_angle -= 360.0f;
     }
@@ -129,14 +130,13 @@ void game_render(rl_game *game, f64 dt) {
         SCENE_MESH_COUNT = 2 + FLOOR_TILE_COUNT,
     };
 
-    rl_frame_point_light frame_lights[1] = {
-        {
-            .position = {1.2f, 1.0f, 2.0f},
-            .ambient  = {0.2f, 0.2f, 0.2f},
-            .diffuse  = {0.5f, 0.5f, 0.5f},
-            .specular = {1.0f, 1.0f, 1.0f},
-        },
-    };
+    rl_debug_scene *dbg = rl_debug_scene_get();
+
+    rl_frame_point_light frame_lights[1] = {0};
+    glm_vec3_copy(dbg->light_position, frame_lights[0].position);
+    glm_vec3_copy(dbg->light_ambient,  frame_lights[0].ambient);
+    glm_vec3_copy(dbg->light_diffuse,  frame_lights[0].diffuse);
+    glm_vec3_copy(dbg->light_specular, frame_lights[0].specular);
 
     rl_frame_mesh frame_meshes[SCENE_MESH_COUNT] = {0};
     u32 mesh_index = 0;
@@ -146,8 +146,8 @@ void game_render(rl_game *game, f64 dt) {
     rotating_cube->kind = RL_FRAME_MESH_KIND_LIT;
     rotating_cube->material = (rl_material){
         .diffuse_map = ASSET_ID_TEXTURE_WOOD_CONTAINER2,
-        .specular = {0.5f, 0.5f, 0.5f},
-        .shininess = 32.0f,
+        .specular = {dbg->material_specular[0], dbg->material_specular[1], dbg->material_specular[2]},
+        .shininess = dbg->material_shininess,
     };
     rotating_cube->wireframe = false;
     glm_mat4_identity(rotating_cube->model);
@@ -160,8 +160,8 @@ void game_render(rl_game *game, f64 dt) {
             floor_tile->kind = RL_FRAME_MESH_KIND_LIT;
             floor_tile->material = (rl_material){
                 .diffuse_map = ASSET_ID_TEXTURE_WOOD_CONTAINER2,
-                .specular = {0.5f, 0.5f, 0.5f},
-                .shininess = 32.0f,
+                .specular = {dbg->material_specular[0], dbg->material_specular[1], dbg->material_specular[2]},
+                .shininess = dbg->material_shininess,
             };
             floor_tile->wireframe = false;
             glm_mat4_identity(floor_tile->model);

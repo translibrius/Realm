@@ -998,6 +998,72 @@ b8 platform_create_opengl_context(platform_window *window) {
     return true;
 }
 
+b8 platform_create_opengl_context_shared(platform_window *window, platform_window *share_from) {
+    if (!window || window->id >= MAX_WINDOWS || !state.windows[window->id].alive) {
+        RL_ERROR("Failed to create shared opengl context, invalid window handle");
+        return false;
+    }
+    if (!share_from || share_from->id >= MAX_WINDOWS || !state.windows[share_from->id].alive) {
+        RL_ERROR("Failed to create shared opengl context, invalid share_from handle");
+        return false;
+    }
+
+    win32_window *native_window = &state.windows[window->id];
+    win32_window *share_window = &state.windows[share_from->id];
+
+    if (!share_window->gl) {
+        RL_ERROR("Failed to create shared opengl context, share_from has no GL context");
+        return false;
+    }
+
+    HDC hdc = GetDC(native_window->hwnd);
+    if (!hdc) {
+        RL_ERROR("Failed to get device context for shared GL context, e: %d", GetLastError());
+        return false;
+    }
+
+    // Use the same pixel format as the share_from window
+    PIXELFORMATDESCRIPTOR pfd = {0};
+    int format = GetPixelFormat(share_window->hdc);
+    DescribePixelFormat(hdc, format, sizeof(pfd), &pfd);
+    if (!SetPixelFormat(hdc, format, &pfd)) {
+        RL_ERROR("SetPixelFormat failed for shared GL context");
+        ReleaseDC(native_window->hwnd, hdc);
+        return false;
+    }
+
+    if (!wglCreateContextAttribsARB) {
+        RL_ERROR("wglCreateContextAttribsARB not available for shared context");
+        ReleaseDC(native_window->hwnd, hdc);
+        return false;
+    }
+
+    const int attribs[] = {
+        WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+        WGL_CONTEXT_MINOR_VERSION_ARB, 3,
+        WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB,
+        WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+        0};
+
+    HGLRC shared_ctx = wglCreateContextAttribsARB(hdc, share_window->gl, attribs);
+    if (!shared_ctx) {
+        RL_ERROR("Failed to create shared OpenGL context, e: %d", GetLastError());
+        ReleaseDC(native_window->hwnd, hdc);
+        return false;
+    }
+
+    wglMakeCurrent(hdc, shared_ctx);
+    if (wglSwapIntervalEXT) {
+        wglSwapIntervalEXT(0);
+    }
+
+    native_window->hdc = hdc;
+    native_window->gl = shared_ctx;
+
+    RL_INFO("Created shared OpenGL context for window %d (sharing with window %d)", window->id, share_from->id);
+    return true;
+}
+
 static void platform_center_cursor_hwnd(HWND hwnd) {
     RECT rect;
     GetClientRect(hwnd, &rect);

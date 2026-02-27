@@ -1,7 +1,7 @@
 #include "profiler/profiler.h"
 #include <core/logger.h>
 
-#include "application.h"
+#include "app/application.h"
 
 int main() {
     TracyCSetThreadName("Main");

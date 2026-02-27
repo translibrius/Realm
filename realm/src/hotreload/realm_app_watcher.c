@@ -2,7 +2,7 @@
 #define _GNU_SOURCE
 #endif
 
-#include "realm_app_watcher.h"
+#include "hotreload/realm_app_watcher.h"
 
 #include "core/logger.h"
 #include "platform/platform.h"

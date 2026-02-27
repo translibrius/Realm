@@ -7,6 +7,7 @@
 #include "asset/font.h"
 #include "memory/containers/dynamic_array.h"
 #include "platform/platform.h"
+#include "ui/ui.h"
 
 #include "cglm.h"
 
@@ -53,4 +54,6 @@ typedef struct renderer_interface {
     void (*set_active_window)(platform_window *window);
     void (*resize_framebuffer)(i32 w, i32 h);
     void (*submit_frame_data)(rl_frame_data *frame_data);
+    void (*render_debug_window)(platform_window *debug_window);
+    void (*draw_ui)(rl_ui_draw_list *list);
 } renderer_interface;

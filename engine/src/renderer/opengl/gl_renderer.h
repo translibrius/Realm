@@ -4,6 +4,7 @@
 #include "gl_types.h"
 #include "platform/platform.h"
 #include "renderer/frame_data.h"
+#include "ui/ui.h"
 
 b8 opengl_initialize(platform_window *platform_window, b8 vsync);
 void opengl_destroy();
@@ -18,3 +19,5 @@ platform_window *opengl_get_active_window();
 void opengl_set_active_window(platform_window *window);
 void opengl_resize_framebuffer(i32 w, i32 h);
 void opengl_submit_frame_data(rl_frame_data *frame_data);
+void opengl_render_debug_window(platform_window *debug_window);
+void opengl_draw_ui(rl_ui_draw_list *list);

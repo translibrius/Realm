@@ -1,14 +1,18 @@
 #include "renderer/opengl/gl_renderer.h"
 
+#include "debug/debug_scene.h"
 #include "gl_texture.h"
+#include "gl_ui.h"
 #include "renderer/opengl/gl_text.h"
 #include "core/logger.h"
+#include "memory/arena.h"
 #include "platform/platform.h"
 #include "glad.h"
 #include "core/event.h"
 #include "renderer/opengl/gl_shader.h"
 #include "renderer/opengl/gl_types.h"
 #include "core/camera.h"
+#include "ui/ui.h"
 
 static GL_Context context;
 
@@ -142,6 +146,12 @@ b8 opengl_initialize(platform_window *platform_window, b8 vsync) {
     // Text pipeline
     opengl_text_pipeline_init(&context);
 
+    // UI pipeline
+    if (!opengl_ui_pipeline_init(&context)) {
+        RL_ERROR("opengl_ui_pipeline_init() failed");
+        return false;
+    }
+
     glEnable(GL_DEPTH_TEST);
 
     context.cube_mesh = gl_mesh_create_cube();
@@ -174,4 +184,87 @@ platform_window *opengl_get_active_window() {
 
 void opengl_set_active_window(platform_window *window) {
     context.window = window;
+}
+
+void opengl_render_debug_window(platform_window *debug_window) {
+    if (!debug_window) {
+        return;
+    }
+
+    // Throttle debug window to ~15fps (every 4th frame at 60fps, much less at higher)
+    static u32 frame_counter = 0;
+    frame_counter++;
+    if (frame_counter % 4 != 0) {
+        return;
+    }
+
+    // Switch to debug window's GL context
+    platform_context_make_current(debug_window);
+
+    i32 w = debug_window->settings.width;
+    i32 h = debug_window->settings.height;
+    glViewport(0, 0, w, h);
+    glClearColor(0.12f, 0.12f, 0.14f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // Build and render UI
+    ARENA_SCRATCH_START();
+
+    rl_debug_scene *dbg = rl_debug_scene_get();
+    const f32 pad = 8.0f;
+    const f32 sw = (f32)w - pad * 2.0f;
+    const f32 row = 18.0f;
+    f32 y = 0.0f;
+
+    rl_ui_begin(scratch.arena, (f32)w, (f32)h);
+
+    // Header
+    rl_ui_panel(0.0f, y, (f32)w, 22.0f, (vec4){0.16f, 0.16f, 0.20f, 1.0f});
+    rl_ui_label(pad, y + 5.0f, "Realm Debug", 12.0f, (vec4){0.9f, 0.9f, 0.95f, 1.0f});
+    y += 28.0f;
+
+    // -- Light Position --
+    rl_ui_section(pad, &y, sw, "Light Position");
+    rl_ui_slider_f32(pad, y, sw, "X", &dbg->light_position[0], -10.0f, 10.0f); y += row;
+    rl_ui_slider_f32(pad, y, sw, "Y", &dbg->light_position[1], -10.0f, 10.0f); y += row;
+    rl_ui_slider_f32(pad, y, sw, "Z", &dbg->light_position[2], -10.0f, 10.0f); y += row + 2.0f;
+
+    // -- Light Ambient --
+    rl_ui_section(pad, &y, sw, "Light Ambient");
+    rl_ui_slider_f32(pad, y, sw, "R", &dbg->light_ambient[0], 0.0f, 1.0f); y += row;
+    rl_ui_slider_f32(pad, y, sw, "G", &dbg->light_ambient[1], 0.0f, 1.0f); y += row;
+    rl_ui_slider_f32(pad, y, sw, "B", &dbg->light_ambient[2], 0.0f, 1.0f); y += row + 2.0f;
+
+    // -- Light Diffuse --
+    rl_ui_section(pad, &y, sw, "Light Diffuse");
+    rl_ui_slider_f32(pad, y, sw, "R", &dbg->light_diffuse[0], 0.0f, 1.0f); y += row;
+    rl_ui_slider_f32(pad, y, sw, "G", &dbg->light_diffuse[1], 0.0f, 1.0f); y += row;
+    rl_ui_slider_f32(pad, y, sw, "B", &dbg->light_diffuse[2], 0.0f, 1.0f); y += row + 2.0f;
+
+    // -- Light Specular --
+    rl_ui_section(pad, &y, sw, "Light Specular");
+    rl_ui_slider_f32(pad, y, sw, "R", &dbg->light_specular[0], 0.0f, 1.0f); y += row;
+    rl_ui_slider_f32(pad, y, sw, "G", &dbg->light_specular[1], 0.0f, 1.0f); y += row;
+    rl_ui_slider_f32(pad, y, sw, "B", &dbg->light_specular[2], 0.0f, 1.0f); y += row + 2.0f;
+
+    // -- Material --
+    rl_ui_section(pad, &y, sw, "Material");
+    rl_ui_slider_f32(pad, y, sw, "Shininess",   &dbg->material_shininess,    1.0f, 256.0f); y += row;
+    rl_ui_slider_f32(pad, y, sw, "Specular R",  &dbg->material_specular[0],  0.0f, 1.0f);   y += row;
+    rl_ui_slider_f32(pad, y, sw, "Specular G",  &dbg->material_specular[1],  0.0f, 1.0f);   y += row;
+    rl_ui_slider_f32(pad, y, sw, "Specular B",  &dbg->material_specular[2],  0.0f, 1.0f);   y += row + 2.0f;
+
+    // -- Scene --
+    rl_ui_section(pad, &y, sw, "Scene");
+    rl_ui_slider_f32(pad, y, sw, "Rot Speed", &dbg->rotation_speed, 0.0f, 500.0f);
+
+    rl_ui_draw_list *list = rl_ui_end();
+    opengl_draw_ui(list);
+
+    ARENA_SCRATCH_RELEASE();
+
+    platform_swap_buffers(debug_window);
+
+    // Restore main window's GL context
+    platform_context_make_current(context.window);
 }

@@ -104,6 +104,15 @@ static rl_asset asset_table[ASSET_TABLE_TOTAL] = {
         .filename = "vulkan_text.frag",
         .handle = nullptr,
     },
+    [ASSET_ID_SHADER_UI_FRAG] = (rl_asset){
+        .id = ASSET_ID_SHADER_UI_FRAG,
+        .type = ASSET_SHADER,
+        .source_path = "shaders/ui.frag",
+        .source_version = 1,
+        .source_hash = 0,
+        .filename = "ui.frag",
+        .handle = nullptr,
+    },
     [ASSET_ID_TEXTURE_WOOD_CONTAINER] = (rl_asset){
         .id = ASSET_ID_TEXTURE_WOOD_CONTAINER,
         .type = ASSET_TEXTURE,

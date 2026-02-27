@@ -68,7 +68,7 @@ GL_Mesh gl_mesh_create_cube() {
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    // Attributes
+    // Attributes (stride = 8 floats: 3 pos + 3 normal + 2 texcoord)
     // position
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
     glEnableVertexAttribArray(0);

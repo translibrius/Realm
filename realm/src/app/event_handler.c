@@ -1,6 +1,7 @@
-#include "event_handler.h"
+#include "app/event_handler.h"
 
-#include "application.h"
+#include "app/app_toast.h"
+#include "app/application.h"
 #include "engine.h"
 
 #include "core/event.h"
@@ -13,7 +14,6 @@ b8 on_focus_gained(void *event, void *data);
 b8 on_focus_lost(void *event, void *data);
 b8 on_window_resize(void *event, void *data);
 b8 on_key_press(void *event, void *data);
-static void app_push_toast(rl_application *application, realm_app_toast_type type, const char *message);
 
 void app_event_handler_init(app_event_handler *handler, rl_application *application) {
     handler->application = application;
@@ -52,6 +52,11 @@ b8 on_focus_lost(void *event, void *data) {
 
     RL_DEBUG("Window id=%d lost focus", window->id);
     if (window->id == handler->application->window.id) {
+        // Don't pause if the debug window is open — user is likely clicking the debug panel
+        if (handler->application->debug_window.open) {
+            return false;
+        }
+
         handler->application->focused = false;
         handler->application->paused = true;
 
@@ -72,9 +77,10 @@ b8 on_window_resize(void *event, void *data) {
 
     if (window->id == handler->application->window.id) {
         handler->application->window.settings = window->settings;
-        if (handler->application->window.id == window->id) {
-            renderer_resize_framebuffer(window->settings.width, window->settings.height);
-        }
+        renderer_resize_framebuffer(window->settings.width, window->settings.height);
+    } else if (handler->application->debug_window.open &&
+               window->id == handler->application->debug_window.window.id) {
+        handler->application->debug_window.window.settings = window->settings;
     }
     // Consume event
     return true;
@@ -144,6 +150,10 @@ b8 on_key_press(void *event, void *data) {
         }
     }
 
+    if (key->key == KEY_F8 && key->pressed) {
+        handler->application->debug_window.toggle_requested = true;
+    }
+
     if (key->key == KEY_F10 && key->pressed) {
         handler->application->requested_backend =
             handler->application->config.backend == BACKEND_VULKAN ? BACKEND_OPENGL : BACKEND_VULKAN;
@@ -160,10 +170,3 @@ b8 on_key_press(void *event, void *data) {
     return false;
 }
 
-static void app_push_toast(rl_application *application, realm_app_toast_type type, const char *message) {
-    if (!application || !message || !application->game_state || !application->app_module.push_toast) {
-        return;
-    }
-
-    application->app_module.push_toast(application->game_state, type, message);
-}

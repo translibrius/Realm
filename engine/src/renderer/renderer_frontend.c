@@ -2,6 +2,7 @@
 #include "renderer/renderer_frontend.h"
 #include "core/logger.h"
 #include "opengl/gl_text.h"
+#include "opengl/gl_ui.h"
 #include "renderer/opengl/gl_renderer.h"
 #include "renderer/renderer_types.h"
 
@@ -94,6 +95,18 @@ void renderer_submit_frame_data(rl_frame_data *frame_data) {
     interface.submit_frame_data(frame_data);
 }
 
+void renderer_render_debug_window(platform_window *debug_window) {
+    if (!state.initialized || !interface.render_debug_window)
+        return;
+    interface.render_debug_window(debug_window);
+}
+
+void renderer_draw_ui(rl_ui_draw_list *list) {
+    if (!state.initialized || !interface.draw_ui)
+        return;
+    interface.draw_ui(list);
+}
+
 void prepare_interface(RENDERER_BACKEND backend) {
     switch (backend) {
     case BACKEND_OPENGL:
@@ -109,6 +122,8 @@ void prepare_interface(RENDERER_BACKEND backend) {
         interface.set_active_window = &opengl_set_active_window;
         interface.resize_framebuffer = &opengl_resize_framebuffer;
         interface.submit_frame_data = &opengl_submit_frame_data;
+        interface.render_debug_window = &opengl_render_debug_window;
+        interface.draw_ui = &opengl_draw_ui;
         break;
     case BACKEND_VULKAN:
         interface.initialize = &vulkan_initialize;
@@ -123,5 +138,7 @@ void prepare_interface(RENDERER_BACKEND backend) {
         interface.set_active_window = &vulkan_set_active_window;
         interface.resize_framebuffer = &vulkan_resize_framebuffer;
         interface.submit_frame_data = &vulkan_submit_frame_data;
+        interface.render_debug_window = nullptr;
+        interface.draw_ui = nullptr;
     }
 }

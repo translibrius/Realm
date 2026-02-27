@@ -751,6 +751,68 @@ b8 platform_create_opengl_context(platform_window *window) {
     return true;
 }
 
+b8 platform_create_opengl_context_shared(platform_window *window, platform_window *share_from) {
+    if (!window || window->id >= MAX_WINDOWS) {
+        RL_ERROR("Failed to create shared opengl context, invalid window handle");
+        return false;
+    }
+    if (!share_from || share_from->id >= MAX_WINDOWS) {
+        RL_ERROR("Failed to create shared opengl context, invalid share_from handle");
+        return false;
+    }
+
+    linux_window *lw = linux_get_window(window->id);
+    if (!lw || !lw->alive) {
+        RL_ERROR("Failed to create shared opengl context, invalid window handle");
+        return false;
+    }
+
+    linux_window *share_lw = linux_get_window(share_from->id);
+    if (!share_lw || !share_lw->gl) {
+        RL_ERROR("Failed to create shared opengl context, share_from has no GL context");
+        return false;
+    }
+
+    int visual_attribs[] = {
+        GLX_RGBA,
+        GLX_DOUBLEBUFFER,
+        GLX_RED_SIZE, 8,
+        GLX_GREEN_SIZE, 8,
+        GLX_BLUE_SIZE, 8,
+        GLX_ALPHA_SIZE, 8,
+        GLX_DEPTH_SIZE, 24,
+        GLX_STENCIL_SIZE, 8,
+        None
+    };
+
+    XVisualInfo *vi = glXChooseVisual(state.display, state.screen, visual_attribs);
+    if (!vi) {
+        RL_ERROR("Failed to find suitable GLX visual for shared context");
+        return false;
+    }
+
+    GLXContext ctx = glXCreateContext(state.display, vi, share_lw->gl, GL_TRUE);
+    XFree(vi);
+
+    if (!ctx) {
+        RL_ERROR("Failed to create shared GLX context");
+        return false;
+    }
+
+    glXMakeCurrent(state.display, lw->xwindow, ctx);
+    lw->gl = ctx;
+
+    typedef void (*glXSwapIntervalEXTProc)(Display *, GLXDrawable, int);
+    glXSwapIntervalEXTProc glXSwapIntervalEXT =
+        (glXSwapIntervalEXTProc)glXGetProcAddressARB((const GLubyte *)"glXSwapIntervalEXT");
+    if (glXSwapIntervalEXT) {
+        glXSwapIntervalEXT(state.display, lw->xwindow, 0);
+    }
+
+    RL_INFO("Created shared OpenGL context for window %d (sharing with window %d)", window->id, share_from->id);
+    return true;
+}
+
 b8 platform_context_make_current(platform_window *window) {
     if (!window || window->id >= MAX_WINDOWS) {
         return false;

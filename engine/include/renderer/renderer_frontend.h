@@ -7,6 +7,7 @@
 
 typedef struct platform_window platform_window;
 typedef struct rl_font rl_font;
+typedef struct rl_ui_draw_list rl_ui_draw_list;
 
 REALM_API b8 renderer_init(platform_window *window, RENDERER_BACKEND backend, b8 vsync);
 REALM_API void renderer_destroy();
@@ -24,3 +25,5 @@ REALM_API void renderer_set_active_window(platform_window *window);
 
 REALM_API void renderer_resize_framebuffer(i32 w, i32 h);
 REALM_API void renderer_submit_frame_data(rl_frame_data *frame_data);
+REALM_API void renderer_render_debug_window(platform_window *debug_window);
+REALM_API void renderer_draw_ui(rl_ui_draw_list *list);

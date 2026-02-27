@@ -3,6 +3,7 @@
 #include "defines.h"
 #include "gl_shader.h"
 #include "gl_texture.h"
+#include "gl_ui.h"
 #include "memory/arena.h"
 #include "memory/containers/dynamic_array.h"
 #include "platform/platform.h"
@@ -41,6 +42,9 @@ typedef struct GL_Context {
     GL_TextPipeline text_pipeline;
     GL_Fonts fonts;
     rl_font *active_font;
+
+    // UI
+    GL_UIPipeline ui_pipeline;
 
     // Defaults
     GL_Shader default_shader;

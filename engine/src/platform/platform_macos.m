@@ -816,6 +816,53 @@ b8 platform_create_opengl_context(platform_window *window) {
     return true;
 }
 
+b8 platform_create_opengl_context_shared(platform_window *window, platform_window *share_from) {
+    if (!window || window->id >= MAX_WINDOWS) {
+        RL_ERROR("Failed to create shared opengl context, invalid window handle");
+        return false;
+    }
+    if (!share_from || share_from->id >= MAX_WINDOWS) {
+        RL_ERROR("Failed to create shared opengl context, invalid share_from handle");
+        return false;
+    }
+
+    mac_window *mw = mac_get_window(window->id);
+    if (!mw || !mw->window) {
+        RL_ERROR("Failed to create shared opengl context, invalid window handle");
+        return false;
+    }
+
+    mac_window *share_mw = mac_get_window(share_from->id);
+    if (!share_mw || !share_mw->gl) {
+        RL_ERROR("Failed to create shared opengl context, share_from has no GL context");
+        return false;
+    }
+
+    mw->pixel_format = mac_create_pixel_format();
+    if (!mw->pixel_format) {
+        RL_ERROR("Failed to create NSOpenGLPixelFormat for shared context");
+        return false;
+    }
+
+    mw->gl = [[NSOpenGLContext alloc] initWithFormat:mw->pixel_format shareContext:share_mw->gl];
+    if (!mw->gl) {
+        RL_ERROR("Failed to create shared NSOpenGLContext");
+        return false;
+    }
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    [mw->gl setView:mw->view];
+    [mw->gl makeCurrentContext];
+
+    GLint swap = 0;
+    [mw->gl setValues:&swap forParameter:NSOpenGLCPSwapInterval];
+#pragma clang diagnostic pop
+
+    RL_INFO("Created shared OpenGL context for window %d (sharing with window %d)", window->id, share_from->id);
+    return true;
+}
+
 u32 platform_get_required_vulkan_extensions(const char ***names_out, b8 enable_validation) {
     static const char *extensions[] = {
         VK_KHR_SURFACE_EXTENSION_NAME,
