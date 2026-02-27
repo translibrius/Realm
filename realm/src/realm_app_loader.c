@@ -253,8 +253,14 @@ b8 realm_app_module_rebuild(void) {
 
     /* cmd.exe strips the first and last quote when the string starts with a
        quote character.  Wrapping the entire command line in an extra pair of
-       quotes makes cmd /c parse the inner quoted paths correctly. */
+       quotes makes cmd /c parse the inner quoted paths correctly.
+       On POSIX shells this outer quoting turns the whole line into a single
+       token (filename), so we only apply it on Windows. */
+#if defined(_WIN32)
     const int command_len = snprintf(command, sizeof(command), "\"\"%s\" --build \"%s\" --target realm_app\"", build_tool, build_dir);
+#else
+    const int command_len = snprintf(command, sizeof(command), "\"%s\" --build \"%s\" --target realm_app", build_tool, build_dir);
+#endif
     if (command_len <= 0 || (u32)command_len >= sizeof(command)) {
         RL_ERROR("failed to format app module build command");
         return false;
