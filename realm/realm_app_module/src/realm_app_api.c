@@ -17,15 +17,8 @@ u32 realm_app_get_state_version(void) {
 
 void realm_app_init(void *state, const realm_app_context *ctx) {
     rl_game *game = (rl_game *)state;
-    rl_game_cfg game_cfg = {
-        .vsync = ctx->vsync,
-        .renderer_backend = ctx->renderer_backend,
-        .width = ctx->window->settings.width,
-        .height = ctx->window->settings.height,
-        .x = ctx->window->settings.x,
-        .y = ctx->window->settings.y};
 
-    if (!game_init(game, ctx, game_cfg)) {
+    if (!game_init(game, ctx)) {
         RL_ERROR("failed to initialize game instance");
     }
 }

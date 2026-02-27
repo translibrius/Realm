@@ -14,7 +14,7 @@ static void game_apply_input_capture(rl_game *game);
 static const char *game_toast_type_tag(realm_app_toast_type type);
 static void game_toast_color(realm_app_toast_type type, vec4 out_color);
 
-b8 game_init(rl_game *game, const realm_app_context *ctx, rl_game_cfg config) {
+b8 game_init(rl_game *game, const realm_app_context *ctx) {
     if (!game) {
         return false;
     }
@@ -33,7 +33,6 @@ b8 game_init(rl_game *game, const realm_app_context *ctx, rl_game_cfg config) {
     }
 
     game->app_context = ctx;
-    game->config = config;
 
     // Always reset input_captured so game_apply_input_capture() re-registers
     // raw input with the (possibly new) window after a backend switch or reload.
@@ -112,11 +111,11 @@ void game_render(rl_game *game, f64 dt) {
     mat4 proj = {};
 
     const realm_app_context *ctx = game->app_context;
-    i32 width = ctx ? ctx->window->settings.width : game->config.width;
-    i32 height = ctx ? ctx->window->settings.height : game->config.height;
+    i32 width = ctx->window->settings.width;
+    i32 height = ctx->window->settings.height;
     f32 aspect = (f32)width / (f32)height;
     camera_get_view(&game->camera, view);
-    camera_get_projection(&game->camera, aspect, proj, game->config.renderer_backend);
+    camera_get_projection(&game->camera, aspect, proj, ctx->renderer_backend);
 
     rl_string fps = rl_string_format(&game->frame_arena, "FPS: %d", rl_engine_get_stats().fps);
 

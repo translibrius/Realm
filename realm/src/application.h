@@ -8,15 +8,7 @@
 #include "realm_app_watcher.h"
 #include "realm_app_loader.h"
 
-typedef struct rl_application_config {
-    const char *title;
-    b8 vsync;
-    RENDERER_BACKEND backend;
-
-} rl_application_config;
-
 typedef struct rl_application {
-    rl_application_config config;
     platform_window window;
     void *game_state;
     u64 game_state_size;
