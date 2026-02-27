@@ -4,7 +4,7 @@
 #include "core/event.h"
 #include "core/logger.h"
 #include "memory/memory.h"
-#include "util/clock.h"
+#include "platform/platform.h"
 
 #include "splash_font.h"
 

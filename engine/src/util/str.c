@@ -5,7 +5,6 @@
 
 #include "memory/arena.h"
 #include "memory/containers/dynamic_array.h"
-#include "core/logger.h"
 #include <string.h>
 
 #define FORMAT_STRING_MAX 512

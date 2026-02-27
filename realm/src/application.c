@@ -1,12 +1,9 @@
-
 #include "application.h"
 #include "core/config.h"
-#include "core/event.h"
 #include "core/logger.h"
 #include "engine.h"
 #include "event_handler.h"
 #include "memory/memory.h"
-#include "platform/input.h"
 #include "platform/platform.h"
 #include "profiler/profiler.h"
 #include "renderer/renderer_frontend.h"
