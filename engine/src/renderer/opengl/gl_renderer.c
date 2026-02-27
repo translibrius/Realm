@@ -61,8 +61,13 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
 
         if (mesh->kind == RL_FRAME_MESH_KIND_LIT) {
             opengl_shader_use(&context.default_shader);
-            opengl_shader_set_vec3(&context.default_shader, "material.ambient", mesh->material.ambient);
-            opengl_shader_set_vec3(&context.default_shader, "material.diffuse", mesh->material.diffuse);
+            opengl_shader_set_i32(&context.default_shader, "material.diffuse", 0);
+            glActiveTexture(GL_TEXTURE0);
+            u32 tex_id = context.wood_texture.id;
+            if (mesh->material.diffuse_map == ASSET_ID_TEXTURE_WOOD_CONTAINER2) {
+                tex_id = context.wood_texture2.id;
+            }
+            glBindTexture(GL_TEXTURE_2D, tex_id);
             opengl_shader_set_vec3(&context.default_shader, "material.specular", mesh->material.specular);
             opengl_shader_set_f32(&context.default_shader, "material.shininess", mesh->material.shininess);
             opengl_shader_set_vec3(&context.default_shader, "light.position", light.position);
@@ -126,6 +131,10 @@ b8 opengl_initialize(platform_window *platform_window, b8 vsync) {
 
     // Texture init
     if (!opengl_texture_generate(ASSET_ID_TEXTURE_WOOD_CONTAINER, &context.wood_texture)) {
+        RL_ERROR("opengl_texture_generate() failed");
+        return false;
+    }
+    if (!opengl_texture_generate(ASSET_ID_TEXTURE_WOOD_CONTAINER2, &context.wood_texture2)) {
         RL_ERROR("opengl_texture_generate() failed");
         return false;
     }

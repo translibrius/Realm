@@ -145,8 +145,7 @@ void game_render(rl_game *game, f64 dt) {
     rotating_cube->primitive = RL_FRAME_PRIMITIVE_CUBE;
     rotating_cube->kind = RL_FRAME_MESH_KIND_LIT;
     rotating_cube->material = (rl_material){
-        .ambient  = {1.0f, 0.5f, 0.31f},
-        .diffuse  = {1.0f, 0.5f, 0.31f},
+        .diffuse_map = ASSET_ID_TEXTURE_WOOD_CONTAINER2,
         .specular = {0.5f, 0.5f, 0.5f},
         .shininess = 32.0f,
     };
@@ -160,8 +159,7 @@ void game_render(rl_game *game, f64 dt) {
             floor_tile->primitive = RL_FRAME_PRIMITIVE_CUBE;
             floor_tile->kind = RL_FRAME_MESH_KIND_LIT;
             floor_tile->material = (rl_material){
-                .ambient  = {1.0f, 0.5f, 0.31f},
-                .diffuse  = {1.0f, 0.5f, 0.31f},
+                .diffuse_map = ASSET_ID_TEXTURE_WOOD_CONTAINER2,
                 .specular = {0.5f, 0.5f, 0.5f},
                 .shininess = 32.0f,
             };
@@ -175,8 +173,6 @@ void game_render(rl_game *game, f64 dt) {
     light_cube->primitive = RL_FRAME_PRIMITIVE_CUBE;
     light_cube->kind = RL_FRAME_MESH_KIND_UNLIT;
     light_cube->material = (rl_material){
-        .ambient  = {1.0f, 1.0f, 1.0f},
-        .diffuse  = {1.0f, 1.0f, 1.0f},
         .specular = {0.0f, 0.0f, 0.0f},
         .shininess = 1.0f,
     };
