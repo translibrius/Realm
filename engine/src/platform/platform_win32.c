@@ -399,6 +399,8 @@ b8 platform_create_window(platform_window *window) {
     window->id = id;
     window->handle = hwnd;
 
+    platform_set_window_mode(window, window->settings.window_mode);
+
     return true;
 }
 

@@ -29,7 +29,7 @@
 #endif
 
 #ifndef _DEBUG
-#define VK_CHECK(vkFnc) vkFnc
+#define VK_CHECK_RETURN_FALSE(vkFnc, msg) vkFnc
 #else
 #define VK_CHECK_RETURN_FALSE(vkFnc, msg)                               \
 {                                                                       \

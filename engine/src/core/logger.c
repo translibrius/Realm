@@ -198,7 +198,7 @@ void log_output(const char *fmt, LOG_LEVEL level, const char *func, ...) {
         func);
 
     va_list args;
-    va_start(args, level);
+    va_start(args, func);
     int written = vsnprintf(
         e.text + offset,
         LOG_MAX_LINE - offset - 1,

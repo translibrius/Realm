@@ -40,6 +40,7 @@ void vulkan_resize_framebuffer(i32 w, i32 h) {
 }
 
 b8 vulkan_initialize(platform_window *window, b8 vsync) {
+    context = (VK_Context){0};
     rl_arena_init(&context.arena, MiB(25), MiB(2), MEM_SUBSYSTEM_RENDERER);
 
     context.window = window;
