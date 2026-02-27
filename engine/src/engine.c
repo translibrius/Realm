@@ -30,7 +30,6 @@ static engine_state state;
 rl_engine_config rl_engine_config_default(void) {
     return (rl_engine_config){
         .asset_root = "../../../assets/",
-        .log_level = LOG_INFO,
     };
 }
 
@@ -41,11 +40,6 @@ b8 rl_engine_create(const rl_engine_config *config) {
         if (config->asset_root && config->asset_root[0]) {
             state.config.asset_root = config->asset_root;
         }
-        state.config.log_level = config->log_level;
-    }
-
-    if (state.config.log_level < LOG_INFO || state.config.log_level > LOG_FATAL) {
-        state.config.log_level = LOG_INFO;
     }
 
     state.is_running = true;
@@ -71,9 +65,9 @@ b8 rl_engine_create(const rl_engine_config *config) {
         return false;
     }
 
-    logger_set_level(state.config.log_level);
+    logger_set_level(LOG_TRACE);
     RL_INFO("--------------ENGINE_START--------------");
-    RL_INFO("Engine config: asset_root='%s' log_level=%d", state.config.asset_root, state.config.log_level);
+    RL_INFO("Engine config: asset_root='%s'", state.config.asset_root);
 
     void *config_system = mem_alloc(config_system_size(), MEM_SUBSYSTEM_CONFIG);
     if (!config_system_start(config_system)) {
@@ -81,11 +75,10 @@ b8 rl_engine_create(const rl_engine_config *config) {
         return false;
     }
 
-    // Override log level from persisted config
+    // Apply log level from persisted config
     rl_config *cfg = config_get();
     if (cfg) {
-        state.config.log_level = cfg->log_level;
-        logger_set_level(state.config.log_level);
+        logger_set_level(cfg->log_level);
     }
 
     if (!platform_system_start()) {

@@ -1,6 +1,7 @@
 #include "event_handler.h"
 
 #include "application.h"
+#include "core/config.h"
 #include "engine.h"
 
 #include "core/event.h"
@@ -146,7 +147,7 @@ b8 on_key_press(void *event, void *data) {
 
     if (key->key == KEY_F10 && key->pressed) {
         handler->application->requested_backend =
-            handler->application->config.backend == BACKEND_VULKAN ? BACKEND_OPENGL : BACKEND_VULKAN;
+            config_get()->renderer_backend == BACKEND_VULKAN ? BACKEND_OPENGL : BACKEND_VULKAN;
         handler->application->backend_switch_requested = true;
         RL_INFO("Scheduled renderer backend switch to %d", handler->application->requested_backend);
 

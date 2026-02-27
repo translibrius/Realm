@@ -1,5 +1,6 @@
 #pragma once
 
+#include <asset/asset.h>
 #include "cglm.h"
 #include "defines.h"
 
@@ -30,17 +31,25 @@ typedef enum rl_frame_mesh_kind {
     RL_FRAME_MESH_KIND_UNLIT = 1,
 } rl_frame_mesh_kind;
 
+typedef struct rl_material {
+    ASSET_ID diffuse_map;
+    vec3 specular;
+    f32 shininess;
+} rl_material;
+
 typedef struct rl_frame_mesh {
     rl_frame_primitive primitive;
     rl_frame_mesh_kind kind;
     mat4 model;
-    vec3 color;
+    rl_material material;
     b8 wireframe;
 } rl_frame_mesh;
 
 typedef struct rl_frame_point_light {
     vec3 position;
-    vec3 color;
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
 } rl_frame_point_light;
 
 typedef struct rl_frame_data {

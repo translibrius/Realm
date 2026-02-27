@@ -1,20 +1,12 @@
-
 #include "application.h"
 #include "core/config.h"
-#include "core/event.h"
 #include "core/logger.h"
 #include "engine.h"
 #include "event_handler.h"
 #include "memory/memory.h"
-#include "platform/input.h"
 #include "platform/platform.h"
 #include "profiler/profiler.h"
 #include "renderer/renderer_frontend.h"
-
-static rl_application_config config = {
-    .title = "Realm",
-    .vsync = false,
-    .backend = BACKEND_OPENGL};
 
 static rl_application app;
 
@@ -31,9 +23,7 @@ b8 on_key_press(void *event, void *data);
 b8 create_application() {
     rl_engine_config engine_config = rl_engine_config_default();
     engine_config.asset_root = "../../../assets/";
-    engine_config.log_level = LOG_TRACE;
 
-    app.config = config;
     app.game_state = nullptr;
     app.game_state_size = 0;
     app.focused = true;
@@ -41,30 +31,15 @@ b8 create_application() {
     app.rebuild_requested = false;
     app.reload_requested = false;
     app.backend_switch_requested = false;
-    app.requested_backend = app.config.backend;
+    app.requested_backend = BACKEND_OPENGL;
 
     if (!rl_engine_create(&engine_config)) {
         RL_FATAL("Engine failed to bootstrap");
         return false;
     }
 
-    // Apply persisted config
     rl_config *cfg = config_get();
-    if (cfg) {
-        app.config.backend = cfg->renderer_backend;
-        app.config.vsync = cfg->vsync;
-    }
-
-    platform_window_settings win_settings = {
-        .title = "Realm",
-        .x = cfg ? cfg->window_x : 0,
-        .y = cfg ? cfg->window_y : 0,
-        .width = cfg ? cfg->window_width : 500,
-        .height = cfg ? cfg->window_height : 500,
-        .start_center = !cfg || !cfg->loaded,
-        .window_flags = WINDOW_FLAG_DEFAULT,
-        .window_mode = cfg ? cfg->window_mode : WINDOW_MODE_WINDOWED,
-    };
+    platform_window_settings win_settings = config_to_window_settings(cfg, "Realm");
 
     if (!create_window(&win_settings)) {
         return false;
@@ -74,11 +49,12 @@ b8 create_application() {
 
     app_event_handler_init(&app.event_handler, &app);
 
-    if (!renderer_init(&app.window, app.config.backend, app.config.vsync)) {
-        if (app.config.backend != BACKEND_OPENGL) {
-            RL_WARN("Renderer init failed (backend=%d). Falling back to OpenGL.", app.config.backend);
-            app.config.backend = BACKEND_OPENGL;
-            if (!renderer_init(&app.window, app.config.backend, app.config.vsync)) {
+    if (!renderer_init(&app.window, cfg->renderer_backend, cfg->vsync)) {
+        if (cfg->renderer_backend != BACKEND_OPENGL) {
+            RL_WARN("Renderer init failed (backend=%d). Falling back to OpenGL.", cfg->renderer_backend);
+            cfg->renderer_backend = BACKEND_OPENGL;
+            config_mark_dirty();
+            if (!renderer_init(&app.window, cfg->renderer_backend, cfg->vsync)) {
                 RL_ERROR("failed to initialize renderer");
                 return false;
             }
@@ -190,8 +166,8 @@ b8 create_app_module() {
 
     app.app_context = (realm_app_context){
         .window = &app.window,
-        .vsync = app.config.vsync,
-        .renderer_backend = app.config.backend,
+        .vsync = config_get()->vsync,
+        .renderer_backend = config_get()->renderer_backend,
     };
 
     app.app_module.init(app.game_state, &app.app_context);
@@ -240,11 +216,12 @@ static RENDERER_BACKEND get_next_backend(RENDERER_BACKEND backend) {
 }
 
 static b8 switch_renderer_backend(RENDERER_BACKEND backend) {
-    if (backend == app.config.backend) {
+    rl_config *pcfg = config_get();
+    if (backend == pcfg->renderer_backend) {
         return true;
     }
 
-    const RENDERER_BACKEND previous_backend = app.config.backend;
+    const RENDERER_BACKEND previous_backend = pcfg->renderer_backend;
     const platform_window_settings previous_window_settings = app.window.settings;
 
     RL_INFO("Switching renderer backend: %d -> %d", previous_backend, backend);
@@ -260,7 +237,7 @@ static b8 switch_renderer_backend(RENDERER_BACKEND backend) {
         return false;
     }
 
-    if (!renderer_init(&app.window, backend, app.config.vsync)) {
+    if (!renderer_init(&app.window, backend, pcfg->vsync)) {
         RL_ERROR("Failed to initialize renderer backend %d, attempting rollback", backend);
         app_push_toast(REALM_APP_TOAST_ERROR, "Renderer switch failed, rolling back");
 
@@ -274,14 +251,13 @@ static b8 switch_renderer_backend(RENDERER_BACKEND backend) {
             return false;
         }
 
-        if (!renderer_init(&app.window, previous_backend, app.config.vsync)) {
+        if (!renderer_init(&app.window, previous_backend, pcfg->vsync)) {
             RL_FATAL("Failed to restore previous renderer backend %d", previous_backend);
             app_push_toast(REALM_APP_TOAST_ERROR, "Renderer rollback failed");
             rl_engine_stop();
             return false;
         }
 
-        app.config.backend = previous_backend;
         app.app_context.renderer_backend = previous_backend;
         app.app_context.window = &app.window;
         app.requested_backend = get_next_backend(previous_backend);
@@ -289,17 +265,11 @@ static b8 switch_renderer_backend(RENDERER_BACKEND backend) {
         return false;
     }
 
-    app.config.backend = backend;
+    pcfg->renderer_backend = backend;
     app.app_context.renderer_backend = backend;
     app.app_context.window = &app.window;
     app.reload_requested = true;
-
-    // Persist backend change
-    rl_config *pcfg = config_get();
-    if (pcfg) {
-        pcfg->renderer_backend = backend;
-        config_mark_dirty();
-    }
+    config_mark_dirty();
 
     RL_INFO("Renderer backend switched successfully to %d. App module reload scheduled.", backend);
     if (backend == BACKEND_VULKAN) {

@@ -14,6 +14,29 @@ typedef struct file_system_state {
 // Forward decl
 DWORD access_perms(const FILE_PERM *perms);
 
+b8 platform_file_get_stamp(const char *path, platform_file_stamp *out) {
+    if (!path || !path[0] || !out) {
+        return false;
+    }
+
+    WIN32_FILE_ATTRIBUTE_DATA attrs = {0};
+    if (!GetFileAttributesExA(path, GetFileExInfoStandard, &attrs)) {
+        return false;
+    }
+
+    ULARGE_INTEGER write_time = {0};
+    write_time.LowPart = attrs.ftLastWriteTime.dwLowDateTime;
+    write_time.HighPart = attrs.ftLastWriteTime.dwHighDateTime;
+
+    ULARGE_INTEGER size = {0};
+    size.LowPart = attrs.nFileSizeLow;
+    size.HighPart = attrs.nFileSizeHigh;
+
+    out->write_time_ns = write_time.QuadPart * 100;
+    out->size = size.QuadPart;
+    return true;
+}
+
 b8 platform_file_exists(const char *path) {
     DWORD attrs = GetFileAttributesA(path);
     return (attrs != INVALID_FILE_ATTRIBUTES) && !(attrs & FILE_ATTRIBUTE_DIRECTORY);

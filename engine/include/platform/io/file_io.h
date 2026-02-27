@@ -19,6 +19,13 @@ typedef struct rl_file {
     u64 buf_len;
 } rl_file;
 
+typedef struct platform_file_stamp {
+    u64 write_time_ns;
+    u64 size;
+} platform_file_stamp;
+
+REALM_API b8 platform_file_get_stamp(const char *path, platform_file_stamp *out);
+
 REALM_API b8 platform_file_exists(const char *path);
 REALM_API b8 platform_dir_exists(const char *path);
 REALM_API b8 platform_file_copy(const char *source_path, const char *dest_path, b8 overwrite);

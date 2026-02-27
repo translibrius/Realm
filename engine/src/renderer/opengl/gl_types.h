@@ -46,6 +46,7 @@ typedef struct GL_Context {
     GL_Shader default_shader;
     GL_Shader light_shader;
     GL_Texture wood_texture;
+    GL_Texture wood_texture2;
     GL_Mesh cube_mesh;
 
     // Mat

@@ -14,7 +14,7 @@ static void game_apply_input_capture(rl_game *game);
 static const char *game_toast_type_tag(realm_app_toast_type type);
 static void game_toast_color(realm_app_toast_type type, vec4 out_color);
 
-b8 game_init(rl_game *game, const realm_app_context *ctx, rl_game_cfg config) {
+b8 game_init(rl_game *game, const realm_app_context *ctx) {
     if (!game) {
         return false;
     }
@@ -27,12 +27,12 @@ b8 game_init(rl_game *game, const realm_app_context *ctx, rl_game_cfg config) {
         game->focused = true;
         game->input_captured = false;
         game->scene_angle = 0.0f;
+        game->time_elapsed = 0.0f;
         mem_zero(game->toasts, sizeof(game->toasts));
         camera_init(&game->camera);
     }
 
     game->app_context = ctx;
-    game->config = config;
 
     // Always reset input_captured so game_apply_input_capture() re-registers
     // raw input with the (possibly new) window after a backend switch or reload.
@@ -111,11 +111,11 @@ void game_render(rl_game *game, f64 dt) {
     mat4 proj = {};
 
     const realm_app_context *ctx = game->app_context;
-    i32 width = ctx ? ctx->window->settings.width : game->config.width;
-    i32 height = ctx ? ctx->window->settings.height : game->config.height;
+    i32 width = ctx->window->settings.width;
+    i32 height = ctx->window->settings.height;
     f32 aspect = (f32)width / (f32)height;
     camera_get_view(&game->camera, view);
-    camera_get_projection(&game->camera, aspect, proj, game->config.renderer_backend);
+    camera_get_projection(&game->camera, aspect, proj, ctx->renderer_backend);
 
     rl_string fps = rl_string_format(&game->frame_arena, "FPS: %d", rl_engine_get_stats().fps);
 
@@ -131,7 +131,9 @@ void game_render(rl_game *game, f64 dt) {
     rl_frame_point_light frame_lights[1] = {
         {
             .position = {1.2f, 1.0f, 2.0f},
-            .color = {0.0f, 1.0f, 1.0f},
+            .ambient  = {0.2f, 0.2f, 0.2f},
+            .diffuse  = {0.5f, 0.5f, 0.5f},
+            .specular = {1.0f, 1.0f, 1.0f},
         },
     };
 
@@ -141,9 +143,11 @@ void game_render(rl_game *game, f64 dt) {
     rl_frame_mesh *rotating_cube = &frame_meshes[mesh_index++];
     rotating_cube->primitive = RL_FRAME_PRIMITIVE_CUBE;
     rotating_cube->kind = RL_FRAME_MESH_KIND_LIT;
-    rotating_cube->color[0] = 1.0f;
-    rotating_cube->color[1] = 0.5f;
-    rotating_cube->color[2] = 0.31f;
+    rotating_cube->material = (rl_material){
+        .diffuse_map = ASSET_ID_TEXTURE_WOOD_CONTAINER2,
+        .specular = {0.5f, 0.5f, 0.5f},
+        .shininess = 32.0f,
+    };
     rotating_cube->wireframe = false;
     glm_mat4_identity(rotating_cube->model);
     glm_rotate(rotating_cube->model, glm_rad(game->scene_angle), (vec3){0.5f, 1.0f, 0.0f});
@@ -153,10 +157,12 @@ void game_render(rl_game *game, f64 dt) {
             rl_frame_mesh *floor_tile = &frame_meshes[mesh_index++];
             floor_tile->primitive = RL_FRAME_PRIMITIVE_CUBE;
             floor_tile->kind = RL_FRAME_MESH_KIND_LIT;
-            floor_tile->color[0] = 1.0f;
-            floor_tile->color[1] = 0.5f;
-            floor_tile->color[2] = 0.31f;
-            floor_tile->wireframe = true;
+            floor_tile->material = (rl_material){
+                .diffuse_map = ASSET_ID_TEXTURE_WOOD_CONTAINER2,
+                .specular = {0.5f, 0.5f, 0.5f},
+                .shininess = 32.0f,
+            };
+            floor_tile->wireframe = false;
             glm_mat4_identity(floor_tile->model);
             glm_translate(floor_tile->model, (vec3){(f32)x, -2.0f, (f32)z});
         }
@@ -165,9 +171,11 @@ void game_render(rl_game *game, f64 dt) {
     rl_frame_mesh *light_cube = &frame_meshes[mesh_index++];
     light_cube->primitive = RL_FRAME_PRIMITIVE_CUBE;
     light_cube->kind = RL_FRAME_MESH_KIND_UNLIT;
-    light_cube->color[0] = 1.0f;
-    light_cube->color[1] = 1.0f;
-    light_cube->color[2] = 1.0f;
+    light_cube->material = (rl_material){
+        .specular = {0.0f, 0.0f, 0.0f},
+        .shininess = 1.0f,
+    };
+
     light_cube->wireframe = false;
     glm_mat4_identity(light_cube->model);
     glm_translate(light_cube->model, frame_lights[0].position);

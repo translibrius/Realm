@@ -381,6 +381,19 @@ void config_system_shutdown(void) {
 
 // --- Public API ---
 
+platform_window_settings config_to_window_settings(const rl_config *cfg, const char *title) {
+    return (platform_window_settings){
+        .title = title,
+        .x = cfg->window_x,
+        .y = cfg->window_y,
+        .width = cfg->window_width,
+        .height = cfg->window_height,
+        .start_center = !cfg->loaded,
+        .window_flags = WINDOW_FLAG_DEFAULT,
+        .window_mode = cfg->window_mode,
+    };
+}
+
 rl_config *config_get(void) {
     return state ? &state->config : nullptr;
 }

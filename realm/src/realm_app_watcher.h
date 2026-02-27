@@ -1,6 +1,7 @@
 #pragma once
 
 #include "defines.h"
+#include "platform/dir_watcher.h"
 
 typedef struct realm_app_watcher {
     char module_name[260];
@@ -13,12 +14,7 @@ typedef struct realm_app_watcher {
     i64 next_poll_time;
     b8 native_available;
 
-#if PLATFORM_WINDOWS
-    void *change_handle;
-#elif PLATFORM_LINUX
-    i32 inotify_fd;
-    i32 watch_fd;
-#endif
+    platform_dir_watcher dir_watcher;
 } realm_app_watcher;
 
 b8 realm_app_watcher_start(realm_app_watcher *watcher, const char *module_name);

@@ -15,7 +15,6 @@ typedef struct rl_engine_config {
     // Asset root directory (contains fonts/, shaders/, textures/).
     // Example: "../../../assets/" when launching from build/*/bin.
     const char *asset_root;
-    LOG_LEVEL log_level;
 } rl_engine_config;
 
 REALM_API rl_engine_config rl_engine_config_default(void);

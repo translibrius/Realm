@@ -43,11 +43,14 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
         opengl_set_view_projection(view, projection, position);
     }
 
-    vec3 light_pos = {1.2f, 1.0f, 2.0f};
-    vec3 light_color = {1.0f, 1.0f, 1.0f};
+    rl_frame_point_light light = {
+        .position = {1.2f, 1.0f, 2.0f},
+        .ambient  = {0.2f, 0.2f, 0.2f},
+        .diffuse  = {0.5f, 0.5f, 0.5f},
+        .specular = {1.0f, 1.0f, 1.0f},
+    };
     if (frame_data->point_light_count > 0 && frame_data->point_lights) {
-        glm_vec3_copy(frame_data->point_lights[0].position, light_pos);
-        glm_vec3_copy(frame_data->point_lights[0].color, light_color);
+        light = frame_data->point_lights[0];
     }
 
     for (u32 i = 0; frame_data->meshes && i < frame_data->mesh_count; i++) {
@@ -58,9 +61,19 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
 
         if (mesh->kind == RL_FRAME_MESH_KIND_LIT) {
             opengl_shader_use(&context.default_shader);
-            opengl_shader_set_vec3(&context.default_shader, "objectColor", mesh->color);
-            opengl_shader_set_vec3(&context.default_shader, "lightColor", light_color);
-            opengl_shader_set_vec3(&context.default_shader, "lightPos", light_pos);
+            opengl_shader_set_i32(&context.default_shader, "material.diffuse", 0);
+            glActiveTexture(GL_TEXTURE0);
+            u32 tex_id = context.wood_texture.id;
+            if (mesh->material.diffuse_map == ASSET_ID_TEXTURE_WOOD_CONTAINER2) {
+                tex_id = context.wood_texture2.id;
+            }
+            glBindTexture(GL_TEXTURE_2D, tex_id);
+            opengl_shader_set_vec3(&context.default_shader, "material.specular", mesh->material.specular);
+            opengl_shader_set_f32(&context.default_shader, "material.shininess", mesh->material.shininess);
+            opengl_shader_set_vec3(&context.default_shader, "light.position", light.position);
+            opengl_shader_set_vec3(&context.default_shader, "light.ambient", light.ambient);
+            opengl_shader_set_vec3(&context.default_shader, "light.diffuse", light.diffuse);
+            opengl_shader_set_vec3(&context.default_shader, "light.specular", light.specular);
             opengl_shader_set_vec3(&context.default_shader, "view_pos", context.pos);
             opengl_shader_set_mat4(&context.default_shader, "model", mesh->model);
             opengl_shader_set_mat4(&context.default_shader, "view", context.view);
@@ -74,6 +87,8 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
 
         if (mesh->wireframe) {
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        } else {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         }
 
         gl_mesh_draw(&context.cube_mesh);
@@ -116,6 +131,10 @@ b8 opengl_initialize(platform_window *platform_window, b8 vsync) {
 
     // Texture init
     if (!opengl_texture_generate(ASSET_ID_TEXTURE_WOOD_CONTAINER, &context.wood_texture)) {
+        RL_ERROR("opengl_texture_generate() failed");
+        return false;
+    }
+    if (!opengl_texture_generate(ASSET_ID_TEXTURE_WOOD_CONTAINER2, &context.wood_texture2)) {
         RL_ERROR("opengl_texture_generate() failed");
         return false;
     }
