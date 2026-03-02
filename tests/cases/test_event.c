@@ -32,7 +32,7 @@ static b8 multi_callback(void *event_data, void *user_data) {
     (void)event_data;
     (void)user_data;
     g_multi_counter++;
-    return true;
+    return false;
 }
 
 static i32 g_payload_width;

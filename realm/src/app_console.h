@@ -20,6 +20,9 @@ typedef struct app_console {
     b8 auto_scroll;
 } app_console;
 
+// Called from scroll event — does NOT consume it, just tracks auto-scroll state
+void app_console_on_scroll(app_console *c, f32 delta);
+
 void app_console_init(app_console *c);
 void app_console_shutdown(app_console *c);
 void app_console_toggle(app_console *c);

@@ -16,6 +16,7 @@ b8 on_focus_gained(void *event, void *data);
 b8 on_focus_lost(void *event, void *data);
 b8 on_window_resize(void *event, void *data);
 b8 on_key_press(void *event, void *data);
+b8 on_mouse_scroll(void *event, void *data);
 
 void app_event_handler_init(app_event_handler *handler, rl_application *application) {
     handler->application = application;
@@ -24,6 +25,7 @@ void app_event_handler_init(app_event_handler *handler, rl_application *applicat
     event_register(EVENT_WINDOW_FOCUS_LOST, on_focus_lost, handler);
     event_register(EVENT_WINDOW_RESIZE, on_window_resize, handler);
     event_register(EVENT_KEY_PRESS, on_key_press, handler);
+    event_register(EVENT_MOUSE_SCROLL, on_mouse_scroll, handler);
 }
 
 void app_apply_input_capture(rl_application *application) {
@@ -152,3 +154,16 @@ b8 on_key_press(void *event, void *data) {
 
     return false;
 }
+
+b8 on_mouse_scroll(void *event, void *data) {
+    input_mouse_scroll *scroll = event;
+    app_event_handler *handler = data;
+    if (!scroll || !handler) {
+        return false;
+    }
+    // Notify console of scroll direction for auto-scroll tracking.
+    // Return false so Clay still processes the scroll event.
+    app_console_on_scroll(&handler->application->console, (f32)scroll->z_delta);
+    return false;
+}
+

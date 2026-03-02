@@ -4,8 +4,6 @@
 #include "gui/gui_clay.h"
 #include "platform/platform.h"
 #include "renderer/renderer_frontend.h"
-#include "util/str.h"
-
 #include <string.h>
 
 static void console_log_callback(LOG_LEVEL level, const char *text, u16 len, void *userdata) {
@@ -23,7 +21,6 @@ static void console_log_callback(LOG_LEVEL level, const char *text, u16 len, voi
 
     app_console_line *line = &c->lines[idx];
     u16 copy_len = len;
-    // Strip trailing newline for display
     if (copy_len > 0 && text[copy_len - 1] == '\n') {
         copy_len--;
     }
@@ -34,7 +31,6 @@ static void console_log_callback(LOG_LEVEL level, const char *text, u16 len, voi
     line->text[copy_len] = '\0';
     line->len = copy_len;
     line->level = level;
-
 }
 
 static Clay_Color console_level_color(LOG_LEVEL level) {
@@ -72,6 +68,16 @@ void app_console_toggle(app_console *c) {
     c->visible = !c->visible;
 }
 
+void app_console_on_scroll(app_console *c, f32 delta) {
+    if (!c || !c->visible) {
+        return;
+    }
+    // Scrolling up (positive delta) disables auto-scroll
+    if (delta > 0) {
+        c->auto_scroll = false;
+    }
+}
+
 void app_console_render(app_console *c) {
     if (!c || !c->visible || c->count == 0) {
         return;
@@ -79,53 +85,63 @@ void app_console_render(app_console *c) {
 
     u16 font_jb = gui_font_id(ASSET_ID_FONT_JETBRAINS_MONO_REGULAR);
 
-    // Use static buffers so pointers survive until Clay_EndLayout
+    // Copy lines into static buffers so Clay_String pointers survive until EndLayout
     static char line_bufs[APP_CONSOLE_MAX_LINES][APP_CONSOLE_LINE_MAX];
     static u16 line_lens[APP_CONSOLE_MAX_LINES];
     static Clay_Color line_colors[APP_CONSOLE_MAX_LINES];
 
-    u32 visible_count = 0;
+    u32 line_count = 0;
     for (u32 i = 0; i < c->count; i++) {
         u32 idx = (c->head + i) % APP_CONSOLE_MAX_LINES;
         const app_console_line *line = &c->lines[idx];
         u16 len = line->len;
-        if (len >= APP_CONSOLE_LINE_MAX) {
-            len = APP_CONSOLE_LINE_MAX - 1;
+        if (len >= APP_CONSOLE_LINE_MAX) { len = APP_CONSOLE_LINE_MAX - 1; }
+        memcpy(line_bufs[line_count], line->text, len);
+        line_bufs[line_count][len] = '\0';
+        line_lens[line_count] = len;
+        line_colors[line_count] = console_level_color(line->level);
+        line_count++;
+    }
+
+    // Auto-scroll: pin Clay's scroll position to the bottom
+    Clay_ScrollContainerData scd = Clay_GetScrollContainerData(CLAY_ID("ConsoleScroll"));
+    if (c->auto_scroll && scd.found) {
+        f32 max_scroll = scd.contentDimensions.height - scd.scrollContainerDimensions.height;
+        if (max_scroll > 0) {
+            *scd.scrollPosition = (Clay_Vector2){0, -max_scroll};
         }
-        memcpy(line_bufs[visible_count], line->text, len);
-        line_bufs[visible_count][len] = '\0';
-        line_lens[visible_count] = len;
-        line_colors[visible_count] = console_level_color(line->level);
-        visible_count++;
     }
-
-    // Compute scrollbar geometry from previous frame's scroll data
-    Clay_ScrollContainerData scroll = Clay_GetScrollContainerData(CLAY_ID("ConsoleScroll"));
-    f32 thumb_height = 30;
-    f32 thumb_offset = 0;
+    // Re-enable auto-scroll when user scrolls back to the bottom
+    if (!c->auto_scroll && scd.found) {
+        f32 max_scroll = scd.contentDimensions.height - scd.scrollContainerDimensions.height;
+        if (max_scroll > 0 && (max_scroll + scd.scrollPosition->y) < 2.0f) {
+            c->auto_scroll = true;
+        }
+    }
+    f32 thumb_h_frac = 0;
+    f32 spacer_frac = 0;
     b8 show_scrollbar = false;
-    if (scroll.found && scroll.contentDimensions.height > scroll.scrollContainerDimensions.height) {
+    if (scd.found && scd.contentDimensions.height > scd.scrollContainerDimensions.height) {
         show_scrollbar = true;
-        f32 view_h = scroll.scrollContainerDimensions.height;
-        f32 content_h = scroll.contentDimensions.height;
-        f32 ratio = view_h / content_h;
-        thumb_height = ratio * view_h;
-        if (thumb_height < 20) { thumb_height = 20; }
-        if (thumb_height > view_h) { thumb_height = view_h; }
-        f32 scroll_y = scroll.scrollPosition ? -scroll.scrollPosition->y : 0;
+        f32 content_h = scd.contentDimensions.height;
+        f32 view_h = scd.scrollContainerDimensions.height;
+        thumb_h_frac = view_h / content_h;
+        if (thumb_h_frac < 0.05f) { thumb_h_frac = 0.05f; }
+        if (thumb_h_frac > 1.0f) { thumb_h_frac = 1.0f; }
         f32 max_scroll = content_h - view_h;
-        f32 scroll_ratio = max_scroll > 0 ? scroll_y / max_scroll : 0;
-        thumb_offset = scroll_ratio * (view_h - thumb_height);
+        f32 scroll_frac = max_scroll > 0 ? -scd.scrollPosition->y / max_scroll : 0;
+        if (scroll_frac < 0) { scroll_frac = 0; }
+        if (scroll_frac > 1) { scroll_frac = 1; }
+        spacer_frac = scroll_frac * (1.0f - thumb_h_frac);
     }
 
-    // Responsive width: 700px max, but shrink with 16px margin on each side
+    // Responsive width
     platform_window *win = renderer_get_active_window();
     f32 win_w = win ? (f32)win->settings.width : 700.0f;
     f32 console_w = 700.0f;
     if (win_w - 32.0f < console_w) { console_w = win_w - 32.0f; }
     if (console_w < 200.0f) { console_w = 200.0f; }
 
-    // Outer panel: floating, centered with top margin
     CLAY(CLAY_ID("ConsolePanel"),
          ((Clay_ElementDeclaration){
              .layout = {
@@ -140,13 +156,13 @@ void app_console_render(app_console *c) {
                      .parent = CLAY_ATTACH_POINT_CENTER_TOP,
                  },
                  .zIndex = 100,
-                 .pointerCaptureMode = CLAY_POINTER_CAPTURE_MODE_PASSTHROUGH,
+                 .pointerCaptureMode = CLAY_POINTER_CAPTURE_MODE_CAPTURE,
              },
              .backgroundColor = GUI_RGBA(20, 20, 22, 230),
              .cornerRadius = CLAY_CORNER_RADIUS(6),
              .border = {.color = GUI_RGBA(60, 60, 65, 255), .width = {1, 1, 1, 1, 0}},
          })) {
-        // Header bar
+        // Header
         CLAY(CLAY_ID("ConsoleHeader"),
              ((Clay_ElementDeclaration){
                  .layout = {
@@ -160,7 +176,7 @@ void app_console_render(app_console *c) {
              })) {
             CLAY_TEXT(CLAY_STRING("Console"), GUI_TEXT_CFG_FONT(GUI_RGBA(180, 180, 185, 255), 13, font_jb));
         }
-        // Body: scroll area + scrollbar side by side
+        // Body
         CLAY(CLAY_ID("ConsoleBody"),
              ((Clay_ElementDeclaration){
                  .layout = {
@@ -168,7 +184,7 @@ void app_console_render(app_console *c) {
                      .layoutDirection = CLAY_LEFT_TO_RIGHT,
                  },
              })) {
-            // Scrollable log content
+            // Scroll container — let Clay handle all scroll mechanics
             CLAY(CLAY_ID("ConsoleScroll"),
                  ((Clay_ElementDeclaration){
                      .layout = {
@@ -179,7 +195,7 @@ void app_console_render(app_console *c) {
                      },
                      .clip = {.vertical = true, .childOffset = Clay_GetScrollOffset()},
                  })) {
-                for (u32 i = 0; i < visible_count; i++) {
+                for (u32 i = 0; i < line_count; i++) {
                     Clay_String text = {.length = line_lens[i], .chars = line_bufs[i]};
                     CLAY_TEXT(text, GUI_TEXT_CFG_FONT(line_colors[i], 13, font_jb));
                 }
@@ -195,29 +211,20 @@ void app_console_render(app_console *c) {
                      .backgroundColor = GUI_RGBA(25, 25, 28, 255),
                  })) {
                 if (show_scrollbar) {
-                    // Spacer above thumb
-                    CLAY(CLAY_ID("ConsoleScrollSpacer"),
+                    CLAY(CLAY_ID("ConsoleSbSpacer"),
                          ((Clay_ElementDeclaration){
                              .layout = {.sizing = {.width = CLAY_SIZING_GROW(0),
-                                                   .height = CLAY_SIZING_FIXED(thumb_offset)}},
+                                                   .height = CLAY_SIZING_PERCENT(spacer_frac)}},
                          })) {}
-                    // Thumb
-                    CLAY(CLAY_ID("ConsoleScrollThumb"),
+                    CLAY(CLAY_ID("ConsoleSbThumb"),
                          ((Clay_ElementDeclaration){
                              .layout = {.sizing = {.width = CLAY_SIZING_GROW(0),
-                                                   .height = CLAY_SIZING_FIXED(thumb_height)}},
+                                                   .height = CLAY_SIZING_PERCENT(thumb_h_frac)}},
                              .backgroundColor = GUI_RGBA(80, 80, 90, 180),
                              .cornerRadius = CLAY_CORNER_RADIUS(3),
                          })) {}
                 }
             }
-        }
-    }
-
-    if (c->auto_scroll) {
-        Clay_ScrollContainerData s = Clay_GetScrollContainerData(CLAY_ID("ConsoleScroll"));
-        if (s.found && s.scrollPosition) {
-            s.scrollPosition->y = -1000000.0f;
         }
     }
 }
