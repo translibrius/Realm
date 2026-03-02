@@ -25,15 +25,11 @@ extern "C" {
 
 typedef struct realm_app_context {
     b8 vsync;
+    b8 paused;
+    b8 focused;
     RENDERER_BACKEND renderer_backend;
     platform_window *window;
 } realm_app_context;
-
-typedef enum realm_app_toast_type {
-    REALM_APP_TOAST_INFO = 0,
-    REALM_APP_TOAST_WARNING = 1,
-    REALM_APP_TOAST_ERROR = 2,
-} realm_app_toast_type;
 
 REALM_APP_API u32 realm_app_get_api_version(void);
 REALM_APP_API u64 realm_app_get_state_size(void);
@@ -44,9 +40,6 @@ REALM_APP_API void realm_app_init(void *state, const realm_app_context *ctx);
 REALM_APP_API void realm_app_update(void *state, const realm_app_context *ctx, f64 dt);
 REALM_APP_API void realm_app_render(void *state, const realm_app_context *ctx);
 REALM_APP_API void realm_app_shutdown(void *state, const realm_app_context *ctx);
-REALM_APP_API void realm_app_set_paused(void *state, b8 paused);
-REALM_APP_API void realm_app_set_focused(void *state, b8 focused);
-REALM_APP_API void realm_app_push_toast(void *state, realm_app_toast_type type, const char *message);
 
 #ifdef __cplusplus
 }

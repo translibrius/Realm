@@ -121,6 +121,36 @@ u32 cstr_len(const char *str) {
     return strlen(str);
 }
 
+i32 cstr_format_buf(char *buf, u32 buf_size, const char *fmt, ...) {
+    if (!buf || buf_size == 0) {
+        return 0;
+    }
+
+    va_list args;
+    va_start(args, fmt);
+    int len = vsnprintf(buf, buf_size, fmt, args);
+    va_end(args);
+
+    if (len < 0) len = 0;
+    if ((u32)len >= buf_size) len = (i32)(buf_size - 1);
+    return (i32)len;
+}
+
+void cstr_copy(char *dst, u32 dst_size, const char *src) {
+    if (!dst || dst_size == 0) {
+        return;
+    }
+    if (!src) {
+        dst[0] = '\0';
+        return;
+    }
+
+    u32 src_len = strlen(src);
+    u32 copy_len = src_len < dst_size - 1 ? src_len : dst_size - 1;
+    memcpy(dst, src, copy_len);
+    dst[copy_len] = '\0';
+}
+
 char *cstr_format_va(rl_arena *arena, const char *fmt, va_list args) {
     char *buffer = rl_arena_push(arena, FORMAT_STRING_MAX, 1);
 

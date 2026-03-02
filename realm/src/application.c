@@ -1,27 +1,22 @@
 #include "application.h"
+
+#include "app_renderer.h"
+#include "app_toast.h"
 #include "core/config.h"
 #include "core/logger.h"
 #include "engine.h"
 #include "event_handler.h"
 #include "gui/gui.h"
 #include "memory/memory.h"
-#include "platform/platform.h"
 #include "profiler/profiler.h"
 #include "renderer/renderer_frontend.h"
 
 static rl_application app;
 
-b8 create_window(const platform_window_settings *settings_override);
-b8 create_app_module();
-void destroy_app_module();
-static b8 switch_renderer_backend(RENDERER_BACKEND backend);
-static RENDERER_BACKEND get_next_backend(RENDERER_BACKEND backend);
-static void app_push_toast(realm_app_toast_type type, const char *message);
+static b8 create_app_module(void);
+static void destroy_app_module(void);
 
-b8 on_window_resize(void *event, void *data);
-b8 on_key_press(void *event, void *data);
-
-b8 create_application() {
+b8 create_application(void) {
     rl_engine_config engine_config = rl_engine_config_default();
     engine_config.asset_root = "../../../assets/";
 
@@ -42,12 +37,11 @@ b8 create_application() {
     rl_config *cfg = config_get();
     platform_window_settings win_settings = config_to_window_settings(cfg, "Realm");
 
-    if (!create_window(&win_settings)) {
+    if (!app_window_create(&app.window, &win_settings)) {
         return false;
     }
 
     config_track_window(&app.window);
-
     app_event_handler_init(&app.event_handler, &app);
 
     if (!renderer_init(&app.window, cfg->renderer_backend, cfg->vsync)) {
@@ -76,6 +70,7 @@ b8 create_application() {
         RL_WARN("failed to start app module watcher");
     }
 
+    // Main loop
     f64 dt = 0.0f;
     while (rl_engine_is_running()) {
         RL_PROFILE_FRAME_MARK();
@@ -86,7 +81,7 @@ b8 create_application() {
         if (realm_app_watcher_poll(&app.app_watcher)) {
             app.reload_requested = true;
             RL_INFO("Detected app module file change, scheduling reload");
-            app_push_toast(REALM_APP_TOAST_INFO, "Detected module change");
+            app_toast_push(app.toasts, APP_TOAST_INFO, "Detected module change");
         }
 
         if (app.reload_requested) {
@@ -96,7 +91,7 @@ b8 create_application() {
                 app.rebuild_requested = false;
                 if (!realm_app_module_rebuild()) {
                     RL_ERROR("App module rebuild failed");
-                    app_push_toast(REALM_APP_TOAST_ERROR, "App module rebuild failed");
+                    app_toast_push(app.toasts, APP_TOAST_ERROR, "App module rebuild failed");
                     rl_engine_end_frame();
                     continue;
                 }
@@ -104,19 +99,14 @@ b8 create_application() {
             }
 
             RL_INFO("Reloading app module...");
-            app_push_toast(REALM_APP_TOAST_INFO, "Reloading app module...");
+            app_toast_push(app.toasts, APP_TOAST_INFO, "Reloading app module...");
             if (!realm_app_module_reload(&app.app_module, &app.game_state, &app.game_state_size, &app.app_context)) {
                 RL_ERROR("App module reload failed");
-                app_push_toast(REALM_APP_TOAST_ERROR, "App module reload failed");
+                app_toast_push(app.toasts, APP_TOAST_ERROR, "App module reload failed");
             } else {
-                if (app.app_module.set_focused) {
-                    app.app_module.set_focused(app.game_state, app.focused);
-                }
-                if (app.app_module.set_paused) {
-                    app.app_module.set_paused(app.game_state, app.paused);
-                }
+                app_apply_input_capture(&app);
                 realm_app_watcher_mark_clean(&app.app_watcher);
-                app_push_toast(REALM_APP_TOAST_INFO, "App module reloaded");
+                app_toast_push(app.toasts, APP_TOAST_INFO, "App module reloaded");
             }
         }
 
@@ -125,13 +115,18 @@ b8 create_application() {
             continue;
         }
 
+        app.app_context.paused = app.paused;
+        app.app_context.focused = app.focused;
+
+        app_toast_update(app.toasts, dt);
         app.app_module.update(app.game_state, &app.app_context, dt);
         app.app_module.render(app.game_state, &app.app_context);
+        app_toast_render(app.toasts);
         rl_engine_end_frame();
 
         if (app.backend_switch_requested) {
             app.backend_switch_requested = false;
-            switch_renderer_backend(app.requested_backend);
+            app_renderer_switch_backend(&app, app.requested_backend);
         }
     }
 
@@ -142,9 +137,9 @@ b8 create_application() {
     return true;
 }
 
-// Private
+// App module glue
 
-b8 create_app_module() {
+static b8 create_app_module(void) {
     if (!realm_app_module_load(&app.app_module)) {
         RL_ERROR("failed to load app module");
         return false;
@@ -157,8 +152,6 @@ b8 create_app_module() {
         return false;
     }
 
-    app.game_state = nullptr;
-
     app.game_state = mem_alloc(app.game_state_size, MEM_APPLICATION);
     if (!app.game_state) {
         RL_ERROR("failed to allocate app state");
@@ -170,15 +163,18 @@ b8 create_app_module() {
     app.app_context = (realm_app_context){
         .window = &app.window,
         .vsync = config_get()->vsync,
+        .paused = app.paused,
+        .focused = app.focused,
         .renderer_backend = config_get()->renderer_backend,
     };
 
     app.app_module.init(app.game_state, &app.app_context);
-    app_push_toast(REALM_APP_TOAST_INFO, "App module initialized");
+    app_apply_input_capture(&app);
+    app_toast_push(app.toasts, APP_TOAST_INFO, "App module initialized");
     return true;
 }
 
-void destroy_app_module() {
+static void destroy_app_module(void) {
     if (realm_app_module_is_loaded(&app.app_module)) {
         app.app_module.shutdown(app.game_state, &app.app_context);
     }
@@ -188,106 +184,4 @@ void destroy_app_module() {
     app.game_state = nullptr;
     app.game_state_size = 0;
     realm_app_module_unload(&app.app_module);
-}
-
-b8 create_window(const platform_window_settings *settings_override) {
-    // Window
-    if (settings_override) {
-        app.window.settings = *settings_override;
-    } else {
-        app.window.settings = (platform_window_settings){
-            .title = "Realm",
-            .x = 0,
-            .y = 0,
-            .width = 500,
-            .height = 500,
-            .start_center = true,
-            .window_flags = WINDOW_FLAG_DEFAULT,
-            .window_mode = WINDOW_MODE_WINDOWED};
-    }
-
-    if (!platform_create_window(&app.window)) {
-        RL_ERROR("failed to create main window");
-        return false;
-    }
-
-    return true;
-}
-
-static RENDERER_BACKEND get_next_backend(RENDERER_BACKEND backend) {
-    return backend == BACKEND_VULKAN ? BACKEND_OPENGL : BACKEND_VULKAN;
-}
-
-static b8 switch_renderer_backend(RENDERER_BACKEND backend) {
-    rl_config *pcfg = config_get();
-    if (backend == pcfg->renderer_backend) {
-        return true;
-    }
-
-    const RENDERER_BACKEND previous_backend = pcfg->renderer_backend;
-    const platform_window_settings previous_window_settings = app.window.settings;
-
-    RL_INFO("Switching renderer backend: %d -> %d", previous_backend, backend);
-    app_push_toast(REALM_APP_TOAST_INFO, "Switching renderer backend...");
-
-    renderer_destroy();
-    platform_destroy_window(app.window.id);
-
-    if (!create_window(&previous_window_settings)) {
-        RL_ERROR("Failed to recreate window for renderer switch");
-        app_push_toast(REALM_APP_TOAST_ERROR, "Renderer switch failed: window recreate failed");
-        rl_engine_stop();
-        return false;
-    }
-
-    if (!renderer_init(&app.window, backend, pcfg->vsync)) {
-        RL_ERROR("Failed to initialize renderer backend %d, attempting rollback", backend);
-        app_push_toast(REALM_APP_TOAST_ERROR, "Renderer switch failed, rolling back");
-
-        renderer_destroy();
-        platform_destroy_window(app.window.id);
-
-        if (!create_window(&previous_window_settings)) {
-            RL_FATAL("Failed to recreate window while rolling back renderer backend");
-            app_push_toast(REALM_APP_TOAST_ERROR, "Renderer rollback failed: window recreate failed");
-            rl_engine_stop();
-            return false;
-        }
-
-        if (!renderer_init(&app.window, previous_backend, pcfg->vsync)) {
-            RL_FATAL("Failed to restore previous renderer backend %d", previous_backend);
-            app_push_toast(REALM_APP_TOAST_ERROR, "Renderer rollback failed");
-            rl_engine_stop();
-            return false;
-        }
-
-        app.app_context.renderer_backend = previous_backend;
-        app.app_context.window = &app.window;
-        app.requested_backend = get_next_backend(previous_backend);
-        app_push_toast(REALM_APP_TOAST_WARNING, "Renderer rollback complete");
-        return false;
-    }
-
-    pcfg->renderer_backend = backend;
-    app.app_context.renderer_backend = backend;
-    app.app_context.window = &app.window;
-    app.reload_requested = true;
-    config_mark_dirty();
-    gui_set_layout_dimensions((f32)app.window.settings.width, (f32)app.window.settings.height);
-
-    RL_INFO("Renderer backend switched successfully to %d. App module reload scheduled.", backend);
-    if (backend == BACKEND_VULKAN) {
-        app_push_toast(REALM_APP_TOAST_INFO, "Renderer switched to Vulkan");
-    } else {
-        app_push_toast(REALM_APP_TOAST_INFO, "Renderer switched to OpenGL");
-    }
-    return true;
-}
-
-static void app_push_toast(realm_app_toast_type type, const char *message) {
-    if (!message || !app.game_state || !app.app_module.push_toast) {
-        return;
-    }
-
-    app.app_module.push_toast(app.game_state, type, message);
 }
