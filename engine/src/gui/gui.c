@@ -9,14 +9,20 @@
 #include "core/logger.h"
 #include "memory/memory.h"
 #include "platform/input.h"
+#include "renderer/renderer_frontend.h"
 
 #define GUI_MAX_FONTS 8
+
+typedef struct gui_font_entry {
+    rl_font *font;
+    ASSET_ID asset_id;
+} gui_font_entry;
 
 typedef struct gui_state {
     b8 initialized;
     f32 scroll_y;
 
-    rl_font *fonts[GUI_MAX_FONTS];
+    gui_font_entry fonts[GUI_MAX_FONTS];
     u32 font_count;
 } gui_state;
 
@@ -47,10 +53,10 @@ static Clay_Dimensions measure_text(Clay_StringSlice text, Clay_TextElementConfi
 
     rl_font *font = nullptr;
     if (config->fontId < state.font_count) {
-        font = state.fonts[config->fontId];
+        font = state.fonts[config->fontId].font;
     }
     if (!font && state.font_count > 0) {
-        font = state.fonts[0];
+        font = state.fonts[0].font;
     }
     if (!font) {
         return (Clay_Dimensions){0, 0};
@@ -89,7 +95,9 @@ void init_gui(f32 width, f32 height) {
     for (u32 i = 0; i < assets->count && state.font_count < GUI_MAX_FONTS; i++) {
         rl_asset *asset = &assets->items[i];
         if (asset->type == ASSET_FONT && asset->handle) {
-            state.fonts[state.font_count++] = (rl_font *)asset->handle;
+            state.fonts[state.font_count].font = (rl_font *)asset->handle;
+            state.fonts[state.font_count].asset_id = asset->id;
+            state.font_count++;
         }
     }
 
@@ -122,4 +130,24 @@ void gui_end_frame(void) {
 void gui_set_layout_dimensions(f32 width, f32 height) {
     if (!state.initialized) return;
     Clay_SetLayoutDimensions((Clay_Dimensions){width, height});
+}
+
+u16 gui_font_id(ASSET_ID asset_id) {
+    for (u32 i = 0; i < state.font_count; i++) {
+        if (state.fonts[i].asset_id == asset_id) {
+            return (u16)i;
+        }
+    }
+    return 0;
+}
+
+void gui_layout_begin(f32 dt) {
+    gui_begin_frame(dt);
+    Clay_BeginLayout();
+}
+
+void gui_layout_end(void) {
+    Clay_RenderCommandArray cmds = Clay_EndLayout();
+    renderer_submit_gui_data(cmds.internalArray, cmds.length);
+    gui_end_frame();
 }
