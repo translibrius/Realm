@@ -148,9 +148,7 @@ void game_render(rl_game *game, f64 dt) {
 
     renderer_submit_frame_data(&frame_data);
 
-    // GUI overlay
-    gui_layout_begin((f32)dt);
-
+    // GUI overlay (Clay frame is owned by the host)
     Clay_ElementDeclaration root_decl = {
         .layout = GUI_ROOT_LAYOUT(CLAY_ALIGN_X_RIGHT, CLAY_ALIGN_Y_TOP),
     };
@@ -172,8 +170,6 @@ void game_render(rl_game *game, f64 dt) {
             CLAY_TEXT(GUI_STRING(fps), GUI_TEXT_CFG_FONT(GUI_HEX(0xB4FFB4), 14, font_jb));
         }
     }
-
-    gui_layout_end();
 
     // Reset frame arena
     rl_arena_clear(&game->frame_arena);

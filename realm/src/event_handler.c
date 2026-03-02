@@ -1,7 +1,7 @@
 #include "event_handler.h"
 
+#include "app_console.h"
 #include "application.h"
-#include "app_toast.h"
 #include "core/config.h"
 #include "engine.h"
 
@@ -48,7 +48,7 @@ b8 on_focus_gained(void *event, void *data) {
         handler->application->focused = true;
         handler->application->paused = false;
         app_apply_input_capture(handler->application);
-        app_toast_push(handler->application->toasts, APP_TOAST_INFO, "Window focused");
+        RL_INFO("Window focused");
     }
     return false;
 }
@@ -62,7 +62,7 @@ b8 on_focus_lost(void *event, void *data) {
         handler->application->focused = false;
         handler->application->paused = true;
         app_apply_input_capture(handler->application);
-        app_toast_push(handler->application->toasts, APP_TOAST_WARNING, "Window unfocused - paused");
+        RL_WARN("Window unfocused - paused");
     }
     return false;
 }
@@ -96,29 +96,31 @@ b8 on_key_press(void *event, void *data) {
         RL_DEBUG("Key released: %d", key->key);
     }
 
+    if (key->key == KEY_GRAVE && key->pressed) {
+        app_console_toggle(&handler->application->console);
+    }
+
     if (key->key == KEY_F5 && key->pressed) {
         handler->application->rebuild_requested = true;
         handler->application->reload_requested = true;
-        app_toast_push(handler->application->toasts, APP_TOAST_INFO, "Hot reload requested");
+        RL_INFO("Hot reload requested");
     }
 
     if (key->key == KEY_ENTER && key->pressed) {
         handler->application->paused = !handler->application->paused;
         app_apply_input_capture(handler->application);
-        app_toast_push(handler->application->toasts,
-                       APP_TOAST_INFO,
-                       handler->application->paused ? "Paused" : "Resumed");
+        RL_INFO(handler->application->paused ? "Paused" : "Resumed");
     }
 
     // Stop engine on ESC
     if (key->key == KEY_ESCAPE && key->pressed) {
         if (handler->application->paused) {
-            app_toast_push(handler->application->toasts, APP_TOAST_WARNING, "Stopping application...");
+            RL_WARN("Stopping application...");
             rl_engine_stop();
         } else {
             handler->application->paused = true;
             app_apply_input_capture(handler->application);
-            app_toast_push(handler->application->toasts, APP_TOAST_WARNING, "Paused (ESC again to exit)");
+            RL_WARN("Paused (ESC again to exit)");
         }
     }
 
@@ -132,11 +134,11 @@ b8 on_key_press(void *event, void *data) {
             if (renderer_get_active_window()->settings.window_mode == WINDOW_MODE_WINDOWED) {
                 platform_set_window_mode(renderer_get_active_window(), WINDOW_MODE_BORDERLESS);
                 platform_set_raw_input(renderer_get_active_window(), true);
-                app_toast_push(handler->application->toasts, APP_TOAST_INFO, "Window mode: borderless");
+                RL_INFO("Window mode: borderless");
             } else {
                 platform_set_window_mode(renderer_get_active_window(), WINDOW_MODE_WINDOWED);
                 platform_set_raw_input(renderer_get_active_window(), false);
-                app_toast_push(handler->application->toasts, APP_TOAST_INFO, "Window mode: windowed");
+                RL_INFO("Window mode: windowed");
             }
         }
     }
@@ -146,12 +148,6 @@ b8 on_key_press(void *event, void *data) {
             config_get()->renderer_backend == BACKEND_VULKAN ? BACKEND_OPENGL : BACKEND_VULKAN;
         handler->application->backend_switch_requested = true;
         RL_INFO("Scheduled renderer backend switch to %d", handler->application->requested_backend);
-
-        if (handler->application->requested_backend == BACKEND_VULKAN) {
-            app_toast_push(handler->application->toasts, APP_TOAST_INFO, "Switching renderer to Vulkan...");
-        } else {
-            app_toast_push(handler->application->toasts, APP_TOAST_INFO, "Switching renderer to OpenGL...");
-        }
     }
 
     return false;

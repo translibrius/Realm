@@ -32,6 +32,8 @@ typedef struct logger_state {
     logger_queue queue;
     b8 warned_full; // To warn about queue being full
     LOG_LEVEL min_level;
+    logger_callback_fn callback;
+    void *callback_userdata;
 } logger_state;
 
 static logger_state *state;
@@ -172,6 +174,14 @@ void logger_system_shutdown() {
     state = nullptr;
 }
 
+void logger_set_callback(logger_callback_fn cb, void *userdata) {
+    if (!state) {
+        return;
+    }
+    state->callback = cb;
+    state->callback_userdata = userdata;
+}
+
 void log_output(const char *fmt, LOG_LEVEL level, const char *func, ...) {
     // Fallback
     if (!state) {
@@ -215,6 +225,10 @@ void log_output(const char *fmt, LOG_LEVEL level, const char *func, ...) {
         e.text[e.len++] = '\n';
     }
     e.text[e.len] = 0;
+
+    if (state->callback) {
+        state->callback(level, e.text, e.len, state->callback_userdata);
+    }
 
     // enqueue (copy struct)
 

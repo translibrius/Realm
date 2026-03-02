@@ -1,7 +1,7 @@
 #include "application.h"
 
+#include "app_console.h"
 #include "app_renderer.h"
-#include "app_toast.h"
 #include "core/config.h"
 #include "core/logger.h"
 #include "engine.h"
@@ -60,6 +60,7 @@ b8 create_application(void) {
     }
 
     init_gui((f32)app.window.settings.width, (f32)app.window.settings.height);
+    app_console_init(&app.console);
 
     if (!create_app_module()) {
         RL_ERROR("failed to initialize app module");
@@ -81,7 +82,6 @@ b8 create_application(void) {
         if (realm_app_watcher_poll(&app.app_watcher)) {
             app.reload_requested = true;
             RL_INFO("Detected app module file change, scheduling reload");
-            app_toast_push(app.toasts, APP_TOAST_INFO, "Detected module change");
         }
 
         if (app.reload_requested) {
@@ -91,7 +91,6 @@ b8 create_application(void) {
                 app.rebuild_requested = false;
                 if (!realm_app_module_rebuild()) {
                     RL_ERROR("App module rebuild failed");
-                    app_toast_push(app.toasts, APP_TOAST_ERROR, "App module rebuild failed");
                     rl_engine_end_frame();
                     continue;
                 }
@@ -99,14 +98,12 @@ b8 create_application(void) {
             }
 
             RL_INFO("Reloading app module...");
-            app_toast_push(app.toasts, APP_TOAST_INFO, "Reloading app module...");
             if (!realm_app_module_reload(&app.app_module, &app.game_state, &app.game_state_size, &app.app_context)) {
                 RL_ERROR("App module reload failed");
-                app_toast_push(app.toasts, APP_TOAST_ERROR, "App module reload failed");
             } else {
                 app_apply_input_capture(&app);
                 realm_app_watcher_mark_clean(&app.app_watcher);
-                app_toast_push(app.toasts, APP_TOAST_INFO, "App module reloaded");
+                RL_INFO("App module reloaded");
             }
         }
 
@@ -118,10 +115,11 @@ b8 create_application(void) {
         app.app_context.paused = app.paused;
         app.app_context.focused = app.focused;
 
-        app_toast_update(app.toasts, dt);
         app.app_module.update(app.game_state, &app.app_context, dt);
+        gui_layout_begin((f32)dt);
         app.app_module.render(app.game_state, &app.app_context);
-        app_toast_render(app.toasts);
+        app_console_render(&app.console);
+        gui_layout_end();
         rl_engine_end_frame();
 
         if (app.backend_switch_requested) {
@@ -132,6 +130,7 @@ b8 create_application(void) {
 
     realm_app_watcher_stop(&app.app_watcher);
     destroy_app_module();
+    app_console_shutdown(&app.console);
     rl_engine_destroy();
 
     return true;
@@ -170,7 +169,7 @@ static b8 create_app_module(void) {
 
     app.app_module.init(app.game_state, &app.app_context);
     app_apply_input_capture(&app);
-    app_toast_push(app.toasts, APP_TOAST_INFO, "App module initialized");
+    RL_INFO("App module initialized");
     return true;
 }
 
