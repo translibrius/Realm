@@ -19,6 +19,7 @@ typedef struct app_console {
     b8 visible;
     b8 auto_scroll;
     b8 dragging;
+    b8 close_pressed;
     f32 pos_x;
     f32 pos_y;
 } app_console;

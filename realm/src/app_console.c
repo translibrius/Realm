@@ -55,6 +55,7 @@ void app_console_init(app_console *c) {
     c->visible = false;
     c->auto_scroll = true;
     c->dragging = false;
+    c->close_pressed = false;
     c->pos_x = 0;
     c->pos_y = 16;
     logger_set_callback(console_log_callback, c);
@@ -149,6 +150,19 @@ void app_console_render(app_console *c) {
     if (console_w < 200.0f) { console_w = 200.0f; }
     f32 console_h = win_h * 0.4f;
 
+    // Close button — press on element, release on element to trigger
+    b8 over_close = Clay_PointerOver(CLAY_ID("ConsoleClose"));
+    if (input_mouse_pressed(MOUSE_LEFT) && over_close) {
+        c->close_pressed = true;
+    }
+    if (c->close_pressed && !input_is_mouse_down(MOUSE_LEFT)) {
+        c->close_pressed = false;
+        if (over_close) {
+            c->visible = false;
+            return;
+        }
+    }
+
     // Header drag
     b8 mouse_down = input_is_mouse_down(MOUSE_LEFT);
     if (c->dragging) {
@@ -160,7 +174,7 @@ void app_console_render(app_console *c) {
         } else {
             c->dragging = false;
         }
-    } else if (mouse_down && Clay_PointerOver(CLAY_ID("ConsoleHeader"))) {
+    } else if (mouse_down && !c->close_pressed && Clay_PointerOver(CLAY_ID("ConsoleHeader"))) {
         c->dragging = true;
     }
 
@@ -197,14 +211,40 @@ void app_console_render(app_console *c) {
              ((Clay_ElementDeclaration){
                  .layout = {
                      .sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(28)},
-                     .padding = {.left = 10, .right = 10},
+                     .padding = {.left = 10, .right = 6},
                      .childAlignment = {.x = CLAY_ALIGN_X_LEFT, .y = CLAY_ALIGN_Y_CENTER},
+                     .layoutDirection = CLAY_LEFT_TO_RIGHT,
                  },
                  .backgroundColor = GUI_RGBA(35, 35, 40, 255),
                  .cornerRadius = {6, 6, 0, 0},
                  .border = {.color = GUI_RGBA(60, 60, 65, 255), .width = {0, 0, 0, 1, 0}},
              })) {
             CLAY_TEXT(CLAY_STRING("Console"), GUI_TEXT_CFG_FONT(GUI_RGBA(180, 180, 185, 255), 13, font_jb));
+            // Spacer
+            CLAY(CLAY_ID("ConsoleHeaderSpacer"),
+                 ((Clay_ElementDeclaration){
+                     .layout = {.sizing = {.width = CLAY_SIZING_GROW(0)}},
+                 })) {}
+            // Close button
+            b8 close_hovered = Clay_PointerOver(CLAY_ID("ConsoleClose"));
+            b8 close_active = close_hovered && c->close_pressed;
+            Clay_Color close_bg = close_active  ? GUI_RGBA(200, 40, 40, 255)
+                                : close_hovered ? GUI_RGBA(180, 60, 60, 255)
+                                                : GUI_RGBA(60, 60, 65, 0);
+            Clay_Color close_fg = (close_hovered || close_active)
+                                ? GUI_RGBA(255, 255, 255, 255)
+                                : GUI_RGBA(140, 140, 145, 255);
+            CLAY(CLAY_ID("ConsoleClose"),
+                 ((Clay_ElementDeclaration){
+                     .layout = {
+                         .sizing = {.width = CLAY_SIZING_FIXED(20), .height = CLAY_SIZING_FIXED(20)},
+                         .childAlignment = {.x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER},
+                     },
+                     .backgroundColor = close_bg,
+                     .cornerRadius = CLAY_CORNER_RADIUS(3),
+                 })) {
+                CLAY_TEXT(CLAY_STRING("x"), GUI_TEXT_CFG_FONT(close_fg, 13, font_jb));
+            }
         }
         // Body
         CLAY(CLAY_ID("ConsoleBody"),
