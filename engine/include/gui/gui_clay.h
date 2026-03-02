@@ -1,0 +1,97 @@
+#pragma once
+
+#include "gui/gui.h"
+
+#include "asset/asset.h"
+#include "clay.h"
+#include "defines.h"
+#include "platform/input.h"
+
+// ── Font lookup ─────────────────────────────────────────────────────────────
+// Map an ASSET_ID to the Clay font index. Returns 0 (first font) if not found.
+REALM_API u16 gui_font_id(ASSET_ID asset_id);
+
+// ── String conversion ───────────────────────────────────────────────────────
+// Convert rl_string -> Clay_String (non-owning, same lifetime as the rl_string)
+#define GUI_STRING(rl_str) ((Clay_String){.length = (i32)(rl_str).len, .chars = (rl_str).cstr})
+
+// ── Colors ──────────────────────────────────────────────────────────────────
+#define GUI_RGB(r, g, b)     ((Clay_Color){(f32)(r), (f32)(g), (f32)(b), 255.0f})
+#define GUI_RGBA(r, g, b, a) ((Clay_Color){(f32)(r), (f32)(g), (f32)(b), (f32)(a)})
+
+#define GUI_HEX(hex)                                                                                                   \
+    ((Clay_Color){(f32)(((hex) >> 16) & 0xFF), (f32)(((hex) >> 8) & 0xFF), (f32)((hex) & 0xFF), 255.0f})
+
+#define GUI_HEXA(hex)                                                                                                  \
+    ((Clay_Color){(f32)(((hex) >> 24) & 0xFF), (f32)(((hex) >> 16) & 0xFF), (f32)(((hex) >> 8) & 0xFF),               \
+                  (f32)((hex) & 0xFF)})
+
+#define GUI_WHITE       GUI_RGB(255, 255, 255)
+#define GUI_BLACK       GUI_RGB(0, 0, 0)
+#define GUI_TRANSPARENT ((Clay_Color){0, 0, 0, 0})
+
+// ── Text config shorthands ──────────────────────────────────────────────────
+// Returns Clay_TextElementConfig* stored in Clay's per-frame arena.
+// Uses Clay__StoreTextElementConfig directly to avoid preprocessor comma issues
+// when color/size arguments contain macro expansions with commas.
+#define GUI_TEXT_CFG(color, size)                                                                                       \
+    Clay__StoreTextElementConfig((Clay_TextElementConfig){.textColor = (color), .fontSize = (size), .fontId = 0})
+
+#define GUI_TEXT_CFG_FONT(color, size, font)                                                                            \
+    Clay__StoreTextElementConfig(                                                                                       \
+        (Clay_TextElementConfig){.textColor = (color), .fontSize = (size), .fontId = (font)})
+
+// ── Layout shorthands ───────────────────────────────────────────────────────
+// These produce Clay_LayoutConfig initializer blocks.
+// NOTE: Due to C preprocessor limitations these cannot be used inline inside
+//       CLAY() — use them in variable declarations instead:
+//       Clay_ElementDeclaration decl = { .layout = GUI_VBOX(12, 8) };
+
+#define GUI_VBOX(pad, gap)                                                                                             \
+    {                                                                                                                  \
+        .sizing = {.width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_FIT(0)},                                        \
+        .padding = CLAY_PADDING_ALL(pad), .childGap = (gap), .layoutDirection = CLAY_TOP_TO_BOTTOM,                    \
+    }
+
+#define GUI_HBOX(pad, gap)                                                                                             \
+    {                                                                                                                  \
+        .sizing = {.width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_FIT(0)},                                        \
+        .padding = CLAY_PADDING_ALL(pad), .childGap = (gap), .layoutDirection = CLAY_LEFT_TO_RIGHT,                    \
+    }
+
+#define GUI_ROOT_LAYOUT(align_x, align_y)                                                                              \
+    {                                                                                                                  \
+        .sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0)},                                      \
+        .childAlignment = {.x = (align_x), .y = (align_y)},                                                           \
+    }
+
+// ── Widgets ────────────────────────────────────────────────────────────────
+
+// Button: call after building the Clay element with the given ID.
+// Returns interaction state for that frame. Caller uses hovered/pressed for styling.
+typedef struct gui_button_state {
+    b8 hovered;
+    b8 pressed;  // mouse is down on this element
+    b8 clicked;  // mouse released on this element (the action trigger)
+} gui_button_state;
+
+REALM_API gui_button_state gui_button(Clay_ElementId id);
+
+// Text input: caller-owned state + helper functions for editing and display.
+#define GUI_TEXT_INPUT_MAX 256
+
+typedef struct gui_text_input_state {
+    char buf[GUI_TEXT_INPUT_MAX];
+    u16 len;
+    u16 cursor;
+    f32 cursor_blink;
+} gui_text_input_state;
+
+// Process a key event. Returns true if Enter was pressed (submit).
+REALM_API b8 gui_text_input_handle_key(gui_text_input_state *state, input_key *key);
+
+// Process a char event (insert printable character).
+REALM_API void gui_text_input_handle_char(gui_text_input_state *state, input_char *ch);
+
+// Build display string with blinking caret into out_buf. Returns length written.
+REALM_API u16 gui_text_input_display(gui_text_input_state *state, f32 dt, char *out_buf, u16 out_buf_size);

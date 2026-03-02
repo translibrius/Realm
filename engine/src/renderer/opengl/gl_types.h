@@ -33,6 +33,13 @@ typedef struct GL_TextVertex {
     vec4 color;
 } GL_TextVertex;
 
+typedef struct GL_GuiPipeline {
+    u32 vao;
+    u32 vbo;
+    GL_Shader shader;
+    i32 loc_screen_size;
+} GL_GuiPipeline;
+
 typedef struct GL_Context {
     platform_window *window;
     rl_arena arena;
@@ -41,6 +48,9 @@ typedef struct GL_Context {
     GL_TextPipeline text_pipeline;
     GL_Fonts fonts;
     rl_font *active_font;
+
+    // GUI
+    GL_GuiPipeline gui_pipeline;
 
     // Defaults
     GL_Shader default_shader;

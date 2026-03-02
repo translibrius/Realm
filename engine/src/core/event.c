@@ -1,6 +1,4 @@
 #include "core/event.h"
-
-#include "core/event.h"
 #include "core/logger.h"
 #include "memory/arena.h"
 #include "util/assert.h"
@@ -52,7 +50,9 @@ void event_fire(EVENT_TYPE type, void *event_data) {
             continue;
         }
 
-        event->event_callback(event_data, event->user_data);
+        if (event->event_callback(event_data, event->user_data)) {
+            return; // Event consumed by callback
+        }
     }
 }
 

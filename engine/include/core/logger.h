@@ -25,6 +25,9 @@ REALM_API LOG_LEVEL logger_get_level(void);
 
 REALM_API void log_output(const char *message, LOG_LEVEL level, const char *func, ...);
 
+typedef void (*logger_callback_fn)(LOG_LEVEL level, const char *text, u16 len, void *userdata);
+REALM_API void logger_set_callback(logger_callback_fn cb, void *userdata);
+
 #define RL_INFO(msg, ...) log_output(msg, LOG_INFO, __func__, ##__VA_ARGS__);
 #ifdef _DEBUG
 #define RL_DEBUG(msg, ...) log_output(msg, LOG_DEBUG, __func__, ##__VA_ARGS__);

@@ -1,19 +1,257 @@
 #include "gui/gui.h"
+#include "gui/gui_clay.h"
 
 #define CLAY_IMPLEMENTATION
 #include "clay.h"
+
+#include "asset/asset_internal.h"
+#include "asset/font.h"
+#include "core/event.h"
 #include "core/logger.h"
 #include "memory/memory.h"
+#include "platform/input.h"
+#include "renderer/renderer_frontend.h"
 
-void clay_error_handler(Clay_ErrorData error_data) {
+#include <string.h>
+
+#define GUI_MAX_FONTS 8
+
+typedef struct gui_font_entry {
+    rl_font *font;
+    ASSET_ID asset_id;
+} gui_font_entry;
+
+typedef struct gui_state {
+    b8 initialized;
+    f32 scroll_y;
+
+    gui_font_entry fonts[GUI_MAX_FONTS];
+    u32 font_count;
+} gui_state;
+
+static gui_state state;
+
+static void clay_error_handler(Clay_ErrorData error_data) {
     RL_ERROR("GUI Error (Clay): %s", error_data.errorText.chars);
+}
+
+static b8 on_mouse_scroll(void *event, void *user_data) {
+    (void)user_data;
+    if (!event) return false;
+    input_mouse_scroll *scroll = (input_mouse_scroll *)event;
+    state.scroll_y += (f32)scroll->z_delta;
+    return false;
+}
+
+static const rl_glyph *font_find_glyph(const rl_font *font, u32 codepoint) {
+    for (u32 i = 0; i < font->glyph_count; i++) {
+        if ((u32)font->glyphs[i].codepoint == codepoint)
+            return &font->glyphs[i];
+    }
+    return nullptr;
+}
+
+static Clay_Dimensions measure_text(Clay_StringSlice text, Clay_TextElementConfig *config, void *user_data) {
+    (void)user_data;
+
+    rl_font *font = nullptr;
+    if (config->fontId < state.font_count) {
+        font = state.fonts[config->fontId].font;
+    }
+    if (!font && state.font_count > 0) {
+        font = state.fonts[0].font;
+    }
+    if (!font) {
+        return (Clay_Dimensions){0, 0};
+    }
+
+    f32 size_px = (f32)config->fontSize;
+    f32 width = 0;
+
+    for (i32 i = 0; i < text.length; i++) {
+        u32 cp = (u32)(unsigned char)text.chars[i];
+        const rl_glyph *g = font_find_glyph(font, cp);
+        if (!g) continue;
+        width += g->advance * size_px;
+        if (i < text.length - 1) {
+            width += (f32)config->letterSpacing;
+        }
+    }
+
+    f32 height = (f32)font->line_height * size_px;
+    return (Clay_Dimensions){width, height};
 }
 
 void init_gui(f32 width, f32 height) {
     u64 clay_memory_size = Clay_MinMemorySize();
-    Clay_Arena ui_arena = Clay_CreateArenaWithCapacityAndMemory(clay_memory_size, mem_alloc(clay_memory_size, MEM_SUBSYSTEM_GUI));
+    Clay_Arena ui_arena = Clay_CreateArenaWithCapacityAndMemory(
+        clay_memory_size,
+        mem_alloc(clay_memory_size, MEM_SUBSYSTEM_GUI)
+    );
 
-    Clay_Initialize(ui_arena, (Clay_Dimensions){width, height}, (Clay_ErrorHandler){clay_error_handler, .userData = 0});
+    Clay_Initialize(ui_arena, (Clay_Dimensions){width, height},
+                    (Clay_ErrorHandler){clay_error_handler, .userData = 0});
 
-    RL_INFO("Successfully initialize GUI Subsystem");
+    // Build font table from loaded assets
+    state.font_count = 0;
+    Assets *assets = get_assets();
+    for (u32 i = 0; i < assets->count && state.font_count < GUI_MAX_FONTS; i++) {
+        rl_asset *asset = &assets->items[i];
+        if (asset->type == ASSET_FONT && asset->handle) {
+            state.fonts[state.font_count].font = (rl_font *)asset->handle;
+            state.fonts[state.font_count].asset_id = asset->id;
+            state.font_count++;
+        }
+    }
+
+    Clay_SetMeasureTextFunction(measure_text, nullptr);
+
+    event_register(EVENT_MOUSE_SCROLL, on_mouse_scroll, nullptr);
+
+    state.initialized = true;
+    RL_INFO("GUI subsystem initialized (%u fonts registered)", state.font_count);
+}
+
+void gui_begin_frame(f32 dt) {
+    if (!state.initialized) return;
+
+    vec2 mouse_pos;
+    input_get_mouse_position(mouse_pos);
+
+    Clay_SetPointerState(
+        (Clay_Vector2){mouse_pos[0], mouse_pos[1]},
+        input_is_mouse_down(MOUSE_LEFT)
+    );
+
+    Clay_UpdateScrollContainers(true, (Clay_Vector2){0, state.scroll_y}, dt);
+    state.scroll_y = 0;
+}
+
+void gui_end_frame(void) {
+}
+
+void gui_set_layout_dimensions(f32 width, f32 height) {
+    if (!state.initialized) return;
+    Clay_SetLayoutDimensions((Clay_Dimensions){width, height});
+}
+
+u16 gui_font_id(ASSET_ID asset_id) {
+    for (u32 i = 0; i < state.font_count; i++) {
+        if (state.fonts[i].asset_id == asset_id) {
+            return (u16)i;
+        }
+    }
+    return 0;
+}
+
+void gui_layout_begin(f32 dt) {
+    gui_begin_frame(dt);
+    Clay_BeginLayout();
+}
+
+void gui_layout_end(void) {
+    Clay_RenderCommandArray cmds = Clay_EndLayout();
+    renderer_submit_gui_data(cmds.internalArray, cmds.length);
+    gui_end_frame();
+}
+
+// ── Widgets ────────────────────────────────────────────────────────────────
+
+// Button: only one element can be "pressed" at a time (single mouse button).
+static u32 gui_button_pressed_id;
+
+gui_button_state gui_button(Clay_ElementId id) {
+    gui_button_state result = {0};
+    result.hovered = Clay_PointerOver(id);
+
+    if (input_mouse_pressed(MOUSE_LEFT) && result.hovered) {
+        gui_button_pressed_id = id.id;
+    }
+
+    result.pressed = result.hovered && gui_button_pressed_id == id.id;
+
+    if (gui_button_pressed_id == id.id && !input_is_mouse_down(MOUSE_LEFT)) {
+        gui_button_pressed_id = 0;
+        if (result.hovered) {
+            result.clicked = true;
+        }
+    }
+
+    return result;
+}
+
+// Text input: key event handler. Returns true if Enter was pressed.
+b8 gui_text_input_handle_key(gui_text_input_state *s, input_key *key) {
+    if (!s || !key || !key->pressed) {
+        return false;
+    }
+
+    switch (key->key) {
+    case KEY_BACKSPACE:
+        if (s->cursor > 0) {
+            memmove(&s->buf[s->cursor - 1], &s->buf[s->cursor], s->len - s->cursor);
+            s->cursor--;
+            s->len--;
+            s->buf[s->len] = '\0';
+        }
+        break;
+    case KEY_LEFT:
+        if (s->cursor > 0) { s->cursor--; }
+        break;
+    case KEY_RIGHT:
+        if (s->cursor < s->len) { s->cursor++; }
+        break;
+    case KEY_ENTER:
+        s->cursor_blink = 0;
+        return true;
+    default:
+        break;
+    }
+
+    s->cursor_blink = 0;
+    return false;
+}
+
+// Text input: char event handler. Inserts printable ASCII at cursor.
+void gui_text_input_handle_char(gui_text_input_state *s, input_char *ch) {
+    if (!s || !ch) {
+        return;
+    }
+    if (ch->codepoint < 32 || ch->codepoint > 126) {
+        return;
+    }
+    if (s->len >= GUI_TEXT_INPUT_MAX - 1) {
+        return;
+    }
+
+    memmove(&s->buf[s->cursor + 1], &s->buf[s->cursor], s->len - s->cursor);
+    s->buf[s->cursor] = (char)ch->codepoint;
+    s->cursor++;
+    s->len++;
+    s->buf[s->len] = '\0';
+    s->cursor_blink = 0;
+}
+
+// Text input: build display string with blinking caret.
+u16 gui_text_input_display(gui_text_input_state *s, f32 dt, char *out, u16 out_size) {
+    if (!s || !out || out_size < 2) {
+        return 0;
+    }
+
+    s->cursor_blink += dt;
+    if (s->cursor_blink > 1.0f) { s->cursor_blink -= 1.0f; }
+    b8 show_caret = s->cursor_blink < 0.5f;
+
+    u16 pos = 0;
+    for (u16 i = 0; i < s->len && pos < out_size - 2; i++) {
+        if (i == s->cursor && show_caret && pos < out_size - 2) {
+            out[pos++] = '|';
+        }
+        out[pos++] = s->buf[i];
+    }
+    if (s->cursor == s->len && show_caret && pos < out_size - 1) {
+        out[pos++] = '|';
+    }
+    out[pos] = '\0';
+    return pos;
 }

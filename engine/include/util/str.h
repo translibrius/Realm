@@ -24,6 +24,8 @@ REALM_API rl_string rl_path_sanitize(rl_arena *arena, const char *raw);
 
 // RAW C-String helpers
 REALM_API u32 cstr_len(const char *str);
+REALM_API i32 cstr_format_buf(char *buf, u32 buf_size, const char *fmt, ...);
+REALM_API void cstr_copy(char *dst, u32 dst_size, const char *src);
 REALM_API char *cstr_format(rl_arena *arena, const char *fmt, ...);
 REALM_API char *cstr_format_va(rl_arena *arena, const char *fmt, va_list args);
 REALM_API b8 cstr_ends_with(const char *str, const char *suffix);

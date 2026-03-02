@@ -1,5 +1,6 @@
 #include "renderer/opengl/gl_renderer.h"
 
+#include "gl_gui.h"
 #include "gl_texture.h"
 #include "renderer/opengl/gl_text.h"
 #include "core/logger.h"
@@ -141,6 +142,12 @@ b8 opengl_initialize(platform_window *platform_window, b8 vsync) {
 
     // Text pipeline
     opengl_text_pipeline_init(&context);
+
+    // GUI pipeline
+    if (!opengl_gui_pipeline_init(&context)) {
+        RL_ERROR("opengl_gui_pipeline_init() failed");
+        return false;
+    }
 
     glEnable(GL_DEPTH_TEST);
 

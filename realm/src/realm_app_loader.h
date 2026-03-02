@@ -11,9 +11,6 @@ typedef void (*realm_app_init_fn)(void *state, const realm_app_context *ctx);
 typedef void (*realm_app_update_fn)(void *state, const realm_app_context *ctx, f64 dt);
 typedef void (*realm_app_render_fn)(void *state, const realm_app_context *ctx);
 typedef void (*realm_app_shutdown_fn)(void *state, const realm_app_context *ctx);
-typedef void (*realm_app_set_paused_fn)(void *state, b8 paused);
-typedef void (*realm_app_set_focused_fn)(void *state, b8 focused);
-typedef void (*realm_app_push_toast_fn)(void *state, realm_app_toast_type type, const char *message);
 
 typedef struct realm_app_module {
     platform_lib lib;
@@ -27,9 +24,6 @@ typedef struct realm_app_module {
     realm_app_update_fn update;
     realm_app_render_fn render;
     realm_app_shutdown_fn shutdown;
-    realm_app_set_paused_fn set_paused;
-    realm_app_set_focused_fn set_focused;
-    realm_app_push_toast_fn push_toast;
 } realm_app_module;
 
 b8 realm_app_module_load(realm_app_module *module);

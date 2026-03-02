@@ -288,6 +288,13 @@ b8 platform_pump_messages() {
 
             mem_free(p, sizeof(resize_msg), MEM_SUBSYSTEM_PLATFORM);
             break;
+        case WM_CHAR: {
+            u32 codepoint = (u32)msg.wParam;
+            if (codepoint >= 32) {
+                input_process_char(codepoint);
+            }
+            break;
+        }
         default:
             break;
         }

@@ -116,9 +116,6 @@ b8 realm_app_module_load(realm_app_module *module) {
     strncpy(module->copied_pdb_path, pdb_path, sizeof(module->copied_pdb_path) - 1);
     module->copied_pdb_path[sizeof(module->copied_pdb_path) - 1] = '\0';
 
-    module->set_paused = nullptr;
-    module->set_focused = nullptr;
-    module->push_toast = nullptr;
     module->get_state_version = nullptr;
 
     if (!platform_lib_symbol(&module->lib, "realm_app_get_api_version", (void **)&module->get_api_version)) {
@@ -149,10 +146,6 @@ b8 realm_app_module_load(realm_app_module *module) {
         realm_app_module_unload(module);
         return false;
     }
-
-    platform_lib_symbol(&module->lib, "realm_app_set_paused", (void **)&module->set_paused);
-    platform_lib_symbol(&module->lib, "realm_app_set_focused", (void **)&module->set_focused);
-    platform_lib_symbol(&module->lib, "realm_app_push_toast", (void **)&module->push_toast);
 
     const u32 api_version = module->get_api_version();
     if (api_version != REALM_APP_API_VERSION) {
@@ -298,9 +291,6 @@ void realm_app_module_unload(realm_app_module *module) {
     module->update = nullptr;
     module->render = nullptr;
     module->shutdown = nullptr;
-    module->set_paused = nullptr;
-    module->set_focused = nullptr;
-    module->push_toast = nullptr;
 }
 
 b8 realm_app_module_is_loaded(const realm_app_module *module) {

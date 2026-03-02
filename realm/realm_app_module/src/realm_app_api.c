@@ -24,9 +24,8 @@ void realm_app_init(void *state, const realm_app_context *ctx) {
 }
 
 void realm_app_update(void *state, const realm_app_context *ctx, f64 dt) {
-    (void)ctx;
     rl_game *game = (rl_game *)state;
-    game_update(game, dt);
+    game_update(game, ctx, dt);
 }
 
 void realm_app_render(void *state, const realm_app_context *ctx) {
@@ -39,19 +38,4 @@ void realm_app_shutdown(void *state, const realm_app_context *ctx) {
     (void)ctx;
     rl_game *game = (rl_game *)state;
     game_destroy(game);
-}
-
-void realm_app_set_paused(void *state, b8 paused) {
-    rl_game *game = (rl_game *)state;
-    game_set_paused(game, paused);
-}
-
-void realm_app_set_focused(void *state, b8 focused) {
-    rl_game *game = (rl_game *)state;
-    game_set_focused(game, focused);
-}
-
-void realm_app_push_toast(void *state, realm_app_toast_type type, const char *message) {
-    rl_game *game = (rl_game *)state;
-    game_push_toast(game, type, message);
 }

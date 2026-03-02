@@ -139,6 +139,10 @@ typedef struct input_mouse_move {
     i16 x, y;
 } input_mouse_move;
 
+typedef struct input_char {
+    u32 codepoint;
+} input_char;
+
 typedef struct input_mouse_scroll {
     i16 z_delta;
 } input_mouse_scroll;
@@ -148,6 +152,7 @@ void input_system_init();
 // Perform mapping from keycode to button per platform
 void input_process_key(KEYBOARD_KEY key, b8 is_pressed);
 
+void input_process_char(u32 codepoint);
 void input_process_mouse_button(MOUSE_BUTTON button, b8 is_pressed);
 void input_process_mouse_raw(i32 dx, i32 dy);
 void input_process_mouse_move(i32 position_x, i32 position_y);

@@ -188,5 +188,6 @@ target_include_directories(Engine
 target_include_directories(Engine SYSTEM
         INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/cglm
+        ${CMAKE_CURRENT_SOURCE_DIR}/vendor/clay
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/tracy/public/tracy
 )

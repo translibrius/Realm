@@ -7,6 +7,7 @@
 
 #include "realm_app_watcher.h"
 #include "realm_app_loader.h"
+#include "app_console.h"
 
 typedef struct rl_application {
     platform_window window;
@@ -16,6 +17,7 @@ typedef struct rl_application {
     realm_app_module app_module;
     realm_app_watcher app_watcher;
     app_event_handler event_handler;
+    app_console console;
     b8 paused;
     b8 focused;
     b8 rebuild_requested;
@@ -24,4 +26,4 @@ typedef struct rl_application {
     RENDERER_BACKEND requested_backend;
 } rl_application;
 
-b8 create_application();
+b8 create_application(void);
