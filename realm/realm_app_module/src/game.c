@@ -1,8 +1,10 @@
 #include "../../include/game.h"
 
 #include "asset/asset.h"
+#include "clay.h"
 #include "core/logger.h"
 #include "engine.h"
+#include "gui/gui.h"
 #include "memory/memory.h"
 #include "platform/platform.h"
 #include "renderer/renderer_frontend.h"
@@ -192,15 +194,6 @@ void game_render(rl_game *game, f64 dt) {
     rl_frame_text *frame_texts = rl_arena_push_aligned(&game->frame_arena, sizeof(rl_frame_text) * max_text_count, _Alignof(rl_frame_text), true);
     u32 text_index = 0;
 
-    frame_texts[text_index++] = (rl_frame_text){
-        .text = fps.cstr,
-        .font = game->font_jetbrains,
-        .size_px = 20.0f,
-        .x = 0.0f,
-        .y = 0.0f,
-        .color = {1.0f, 1.0f, 1.0f, 1.0f},
-    };
-
     for (u32 i = 0; i < RL_GAME_MAX_TOASTS; i++) {
         const rl_game_toast *toast = &game->toasts[i];
         if (!toast->active) {
@@ -234,6 +227,40 @@ void game_render(rl_game *game, f64 dt) {
     frame_data.text_count = text_index;
 
     renderer_submit_frame_data(&frame_data);
+
+    // GUI overlay
+    Clay_String fps_clay = {.length = (i32)fps.len, .chars = fps.cstr};
+    gui_begin_frame((f32)dt);
+    Clay_BeginLayout();
+
+    Clay_ElementDeclaration root_decl = {
+        .layout = {
+            .sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0)},
+            .childAlignment = {.x = CLAY_ALIGN_X_RIGHT, .y = CLAY_ALIGN_Y_TOP},
+        },
+    };
+    Clay_ElementDeclaration panel_decl = {
+        .layout = {
+            .sizing = {.width = CLAY_SIZING_FIXED(220), .height = CLAY_SIZING_FIT(0)},
+            .padding = CLAY_PADDING_ALL(12),
+            .childGap = 8,
+            .layoutDirection = CLAY_TOP_TO_BOTTOM,
+        },
+        .backgroundColor = {30, 30, 30, 200},
+    };
+    Clay_TextElementConfig title_cfg = {.textColor = {255, 255, 255, 255}, .fontSize = 18, .fontId = 1};
+    Clay_TextElementConfig fps_cfg = {.textColor = {180, 255, 180, 255}, .fontSize = 14, .fontId = 1};
+
+    CLAY(CLAY_ID("Root"), root_decl) {
+        CLAY(CLAY_ID("DebugPanel"), panel_decl) {
+            CLAY_TEXT(CLAY_STRING("Debug Panel"), &title_cfg);
+            CLAY_TEXT(fps_clay, &fps_cfg);
+        }
+    }
+
+    Clay_RenderCommandArray clay_cmds = Clay_EndLayout();
+    renderer_submit_gui_data(clay_cmds.internalArray, clay_cmds.length);
+    gui_end_frame();
 
     // Reset frame arena
     rl_arena_clear(&game->frame_arena);

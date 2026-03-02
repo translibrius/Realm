@@ -1,6 +1,7 @@
 
 #include "renderer/renderer_frontend.h"
 #include "core/logger.h"
+#include "opengl/gl_gui.h"
 #include "opengl/gl_text.h"
 #include "renderer/opengl/gl_renderer.h"
 #include "renderer/renderer_types.h"
@@ -94,6 +95,12 @@ void renderer_submit_frame_data(rl_frame_data *frame_data) {
     interface.submit_frame_data(frame_data);
 }
 
+void renderer_submit_gui_data(void *commands, i32 command_count) {
+    if (!state.initialized || !interface.submit_gui_data)
+        return;
+    interface.submit_gui_data(commands, command_count);
+}
+
 void prepare_interface(RENDERER_BACKEND backend) {
     switch (backend) {
     case BACKEND_OPENGL:
@@ -109,6 +116,7 @@ void prepare_interface(RENDERER_BACKEND backend) {
         interface.set_active_window = &opengl_set_active_window;
         interface.resize_framebuffer = &opengl_resize_framebuffer;
         interface.submit_frame_data = &opengl_submit_frame_data;
+        interface.submit_gui_data = &opengl_render_gui;
         break;
     case BACKEND_VULKAN:
         interface.initialize = &vulkan_initialize;
@@ -123,5 +131,6 @@ void prepare_interface(RENDERER_BACKEND backend) {
         interface.set_active_window = &vulkan_set_active_window;
         interface.resize_framebuffer = &vulkan_resize_framebuffer;
         interface.submit_frame_data = &vulkan_submit_frame_data;
+        interface.submit_gui_data = nullptr;
     }
 }

@@ -5,6 +5,7 @@
 #include "engine.h"
 
 #include "core/event.h"
+#include "gui/gui.h"
 #include "memory/memory.h"
 #include "platform/input.h"
 #include "renderer/renderer_frontend.h"
@@ -75,6 +76,7 @@ b8 on_window_resize(void *event, void *data) {
         handler->application->window.settings = window->settings;
         if (handler->application->window.id == window->id) {
             renderer_resize_framebuffer(window->settings.width, window->settings.height);
+            gui_set_layout_dimensions((f32)window->settings.width, (f32)window->settings.height);
         }
     }
     // Consume event

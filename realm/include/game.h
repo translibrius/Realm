@@ -7,7 +7,7 @@
 
 typedef struct rl_font rl_font;
 
-#define RL_GAME_STATE_VERSION 2
+#define RL_GAME_STATE_VERSION 3
 #define RL_GAME_MAX_TOASTS 6
 #define RL_GAME_TOAST_TEXT_MAX 96
 

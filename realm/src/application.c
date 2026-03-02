@@ -3,6 +3,7 @@
 #include "core/logger.h"
 #include "engine.h"
 #include "event_handler.h"
+#include "gui/gui.h"
 #include "memory/memory.h"
 #include "platform/platform.h"
 #include "profiler/profiler.h"
@@ -63,6 +64,8 @@ b8 create_application() {
             return false;
         }
     }
+
+    init_gui((f32)app.window.settings.width, (f32)app.window.settings.height);
 
     if (!create_app_module()) {
         RL_ERROR("failed to initialize app module");
@@ -270,6 +273,7 @@ static b8 switch_renderer_backend(RENDERER_BACKEND backend) {
     app.app_context.window = &app.window;
     app.reload_requested = true;
     config_mark_dirty();
+    gui_set_layout_dimensions((f32)app.window.settings.width, (f32)app.window.settings.height);
 
     RL_INFO("Renderer backend switched successfully to %d. App module reload scheduled.", backend);
     if (backend == BACKEND_VULKAN) {

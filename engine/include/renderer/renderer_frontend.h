@@ -24,3 +24,4 @@ REALM_API void renderer_set_active_window(platform_window *window);
 
 REALM_API void renderer_resize_framebuffer(i32 w, i32 h);
 REALM_API void renderer_submit_frame_data(rl_frame_data *frame_data);
+REALM_API void renderer_submit_gui_data(void *commands, i32 command_count);
