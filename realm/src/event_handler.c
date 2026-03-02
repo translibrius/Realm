@@ -99,7 +99,11 @@ b8 on_key_press(void *event, void *data) {
     }
 
     if (key->key == KEY_GRAVE && key->pressed) {
-        app_console_toggle(&handler->application->console);
+        b8 opened = app_console_toggle(&handler->application->console);
+        if (opened && !handler->application->paused) {
+            handler->application->paused = true;
+            app_apply_input_capture(handler->application);
+        }
     }
 
     if (key->key == KEY_F5 && key->pressed) {

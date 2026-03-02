@@ -18,6 +18,9 @@ typedef struct app_console {
     u32 count;
     b8 visible;
     b8 auto_scroll;
+    b8 dragging;
+    f32 pos_x;
+    f32 pos_y;
 } app_console;
 
 // Called from scroll event — does NOT consume it, just tracks auto-scroll state
@@ -25,5 +28,6 @@ void app_console_on_scroll(app_console *c, f32 delta);
 
 void app_console_init(app_console *c);
 void app_console_shutdown(app_console *c);
-void app_console_toggle(app_console *c);
+// Returns true if console was just opened (false if closed).
+b8   app_console_toggle(app_console *c);
 void app_console_render(app_console *c);

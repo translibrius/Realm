@@ -2,6 +2,7 @@
 
 #include "asset/asset.h"
 #include "gui/gui_clay.h"
+#include "platform/input.h"
 #include "platform/platform.h"
 #include "renderer/renderer_frontend.h"
 #include <string.h>
@@ -53,6 +54,9 @@ void app_console_init(app_console *c) {
     c->count = 0;
     c->visible = false;
     c->auto_scroll = true;
+    c->dragging = false;
+    c->pos_x = 0;
+    c->pos_y = 16;
     logger_set_callback(console_log_callback, c);
 }
 
@@ -61,11 +65,12 @@ void app_console_shutdown(app_console *c) {
     logger_set_callback(nullptr, nullptr);
 }
 
-void app_console_toggle(app_console *c) {
+b8 app_console_toggle(app_console *c) {
     if (!c) {
-        return;
+        return false;
     }
     c->visible = !c->visible;
+    return c->visible;
 }
 
 void app_console_on_scroll(app_console *c, f32 delta) {
@@ -138,19 +143,44 @@ void app_console_render(app_console *c) {
     // Responsive width
     platform_window *win = renderer_get_active_window();
     f32 win_w = win ? (f32)win->settings.width : 700.0f;
+    f32 win_h = win ? (f32)win->settings.height : 400.0f;
     f32 console_w = 700.0f;
     if (win_w - 32.0f < console_w) { console_w = win_w - 32.0f; }
     if (console_w < 200.0f) { console_w = 200.0f; }
+    f32 console_h = win_h * 0.4f;
+
+    // Header drag
+    b8 mouse_down = input_is_mouse_down(MOUSE_LEFT);
+    if (c->dragging) {
+        if (mouse_down) {
+            vec2 delta;
+            input_get_mouse_delta(delta);
+            c->pos_x += delta[0];
+            c->pos_y += delta[1];
+        } else {
+            c->dragging = false;
+        }
+    } else if (mouse_down && Clay_PointerOver(CLAY_ID("ConsoleHeader"))) {
+        c->dragging = true;
+    }
+
+    // Clamp so the panel stays fully within the window
+    f32 max_x = (win_w - console_w) * 0.5f;
+    if (max_x < 0) { max_x = 0; }
+    if (c->pos_x < -max_x) { c->pos_x = -max_x; }
+    if (c->pos_x >  max_x) { c->pos_x =  max_x; }
+    if (c->pos_y < 0) { c->pos_y = 0; }
+    if (c->pos_y + console_h > win_h) { c->pos_y = win_h - console_h; }
 
     CLAY(CLAY_ID("ConsolePanel"),
          ((Clay_ElementDeclaration){
              .layout = {
-                 .sizing = {.width = CLAY_SIZING_FIXED(console_w), .height = CLAY_SIZING_PERCENT(0.4f)},
+                 .sizing = {.width = CLAY_SIZING_FIXED(console_w), .height = CLAY_SIZING_FIXED(console_h)},
                  .layoutDirection = CLAY_TOP_TO_BOTTOM,
              },
              .floating = {
                  .attachTo = CLAY_ATTACH_TO_ROOT,
-                 .offset = {0, 16},
+                 .offset = {c->pos_x, c->pos_y},
                  .attachPoints = {
                      .element = CLAY_ATTACH_POINT_CENTER_TOP,
                      .parent = CLAY_ATTACH_POINT_CENTER_TOP,
