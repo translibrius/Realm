@@ -1,4 +1,5 @@
 #include "gui/gui.h"
+#include "gui/gui_clay.h"
 
 #define CLAY_IMPLEMENTATION
 #include "clay.h"
@@ -10,6 +11,8 @@
 #include "memory/memory.h"
 #include "platform/input.h"
 #include "renderer/renderer_frontend.h"
+
+#include <string.h>
 
 #define GUI_MAX_FONTS 8
 
@@ -150,4 +153,105 @@ void gui_layout_end(void) {
     Clay_RenderCommandArray cmds = Clay_EndLayout();
     renderer_submit_gui_data(cmds.internalArray, cmds.length);
     gui_end_frame();
+}
+
+// ── Widgets ────────────────────────────────────────────────────────────────
+
+// Button: only one element can be "pressed" at a time (single mouse button).
+static u32 gui_button_pressed_id;
+
+gui_button_state gui_button(Clay_ElementId id) {
+    gui_button_state result = {0};
+    result.hovered = Clay_PointerOver(id);
+
+    if (input_mouse_pressed(MOUSE_LEFT) && result.hovered) {
+        gui_button_pressed_id = id.id;
+    }
+
+    result.pressed = result.hovered && gui_button_pressed_id == id.id;
+
+    if (gui_button_pressed_id == id.id && !input_is_mouse_down(MOUSE_LEFT)) {
+        gui_button_pressed_id = 0;
+        if (result.hovered) {
+            result.clicked = true;
+        }
+    }
+
+    return result;
+}
+
+// Text input: key event handler. Returns true if Enter was pressed.
+b8 gui_text_input_handle_key(gui_text_input_state *s, input_key *key) {
+    if (!s || !key || !key->pressed) {
+        return false;
+    }
+
+    switch (key->key) {
+    case KEY_BACKSPACE:
+        if (s->cursor > 0) {
+            memmove(&s->buf[s->cursor - 1], &s->buf[s->cursor], s->len - s->cursor);
+            s->cursor--;
+            s->len--;
+            s->buf[s->len] = '\0';
+        }
+        break;
+    case KEY_LEFT:
+        if (s->cursor > 0) { s->cursor--; }
+        break;
+    case KEY_RIGHT:
+        if (s->cursor < s->len) { s->cursor++; }
+        break;
+    case KEY_ENTER:
+        s->cursor_blink = 0;
+        return true;
+    default:
+        break;
+    }
+
+    s->cursor_blink = 0;
+    return false;
+}
+
+// Text input: char event handler. Inserts printable ASCII at cursor.
+void gui_text_input_handle_char(gui_text_input_state *s, input_char *ch) {
+    if (!s || !ch) {
+        return;
+    }
+    if (ch->codepoint < 32 || ch->codepoint > 126) {
+        return;
+    }
+    if (s->len >= GUI_TEXT_INPUT_MAX - 1) {
+        return;
+    }
+
+    memmove(&s->buf[s->cursor + 1], &s->buf[s->cursor], s->len - s->cursor);
+    s->buf[s->cursor] = (char)ch->codepoint;
+    s->cursor++;
+    s->len++;
+    s->buf[s->len] = '\0';
+    s->cursor_blink = 0;
+}
+
+// Text input: build display string with blinking caret.
+u16 gui_text_input_display(gui_text_input_state *s, f32 dt, char *out, u16 out_size) {
+    if (!s || !out || out_size < 2) {
+        return 0;
+    }
+
+    s->cursor_blink += dt;
+    if (s->cursor_blink > 1.0f) { s->cursor_blink -= 1.0f; }
+    b8 show_caret = s->cursor_blink < 0.5f;
+
+    u16 pos = 0;
+    for (u16 i = 0; i < s->len && pos < out_size - 2; i++) {
+        if (i == s->cursor && show_caret && pos < out_size - 2) {
+            out[pos++] = '|';
+        }
+        out[pos++] = s->buf[i];
+    }
+    if (s->cursor == s->len && show_caret && pos < out_size - 1) {
+        out[pos++] = '|';
+    }
+    out[pos] = '\0';
+    return pos;
 }

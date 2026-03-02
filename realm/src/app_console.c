@@ -1,6 +1,7 @@
 #include "app_console.h"
 
 #include "asset/asset.h"
+#include "core/event.h"
 #include "gui/gui_clay.h"
 #include "platform/input.h"
 #include "platform/platform.h"
@@ -46,6 +47,44 @@ static Clay_Color console_level_color(LOG_LEVEL level) {
     }
 }
 
+static b8 console_on_key(void *event, void *user_data) {
+    app_console *c = user_data;
+    input_key *k = event;
+    if (!c || !c->visible || !k || !k->pressed) {
+        return false;
+    }
+
+    // Let tilde pass through so the host can toggle the console
+    if (k->key == KEY_GRAVE) {
+        return false;
+    }
+
+    if (gui_text_input_handle_key(&c->input, k)) {
+        // Enter was pressed — submit command
+        if (c->input.len > 0) {
+            c->input.buf[c->input.len] = '\0';
+            RL_INFO("> %s", c->input.buf);
+            c->input.len = 0;
+            c->input.cursor = 0;
+            c->input.buf[0] = '\0';
+            c->auto_scroll = true;
+        }
+    }
+
+    return true;
+}
+
+static b8 console_on_char(void *event, void *user_data) {
+    app_console *c = user_data;
+    input_char *ch = event;
+    if (!c || !c->visible || !ch) {
+        return false;
+    }
+
+    gui_text_input_handle_char(&c->input, ch);
+    return true;
+}
+
 void app_console_init(app_console *c) {
     if (!c) {
         return;
@@ -55,9 +94,11 @@ void app_console_init(app_console *c) {
     c->visible = false;
     c->auto_scroll = true;
     c->dragging = false;
-    c->close_pressed = false;
     c->pos_x = 0;
     c->pos_y = 16;
+    c->input = (gui_text_input_state){0};
+    event_register(EVENT_KEY_PRESS, console_on_key, c);
+    event_register(EVENT_CHAR_INPUT, console_on_char, c);
     logger_set_callback(console_log_callback, c);
 }
 
@@ -84,8 +125,8 @@ void app_console_on_scroll(app_console *c, f32 delta) {
     }
 }
 
-void app_console_render(app_console *c) {
-    if (!c || !c->visible || c->count == 0) {
+void app_console_render(app_console *c, f32 dt) {
+    if (!c || !c->visible) {
         return;
     }
 
@@ -150,20 +191,14 @@ void app_console_render(app_console *c) {
     if (console_w < 200.0f) { console_w = 200.0f; }
     f32 console_h = win_h * 0.4f;
 
-    // Close button — press on element, release on element to trigger
-    b8 over_close = Clay_PointerOver(CLAY_ID("ConsoleClose"));
-    if (input_mouse_pressed(MOUSE_LEFT) && over_close) {
-        c->close_pressed = true;
-    }
-    if (c->close_pressed && !input_is_mouse_down(MOUSE_LEFT)) {
-        c->close_pressed = false;
-        if (over_close) {
-            c->visible = false;
-            return;
-        }
+    // Close button
+    gui_button_state close_btn = gui_button(CLAY_ID("ConsoleClose"));
+    if (close_btn.clicked) {
+        c->visible = false;
+        return;
     }
 
-    // Header drag
+    // Header drag — don't start drag if close button is being pressed
     b8 mouse_down = input_is_mouse_down(MOUSE_LEFT);
     if (c->dragging) {
         if (mouse_down) {
@@ -174,7 +209,7 @@ void app_console_render(app_console *c) {
         } else {
             c->dragging = false;
         }
-    } else if (mouse_down && !c->close_pressed && Clay_PointerOver(CLAY_ID("ConsoleHeader"))) {
+    } else if (mouse_down && !close_btn.pressed && Clay_PointerOver(CLAY_ID("ConsoleHeader"))) {
         c->dragging = true;
     }
 
@@ -226,12 +261,10 @@ void app_console_render(app_console *c) {
                      .layout = {.sizing = {.width = CLAY_SIZING_GROW(0)}},
                  })) {}
             // Close button
-            b8 close_hovered = Clay_PointerOver(CLAY_ID("ConsoleClose"));
-            b8 close_active = close_hovered && c->close_pressed;
-            Clay_Color close_bg = close_active  ? GUI_RGBA(200, 40, 40, 255)
-                                : close_hovered ? GUI_RGBA(180, 60, 60, 255)
-                                                : GUI_RGBA(60, 60, 65, 0);
-            Clay_Color close_fg = (close_hovered || close_active)
+            Clay_Color close_bg = close_btn.pressed  ? GUI_RGBA(200, 40, 40, 255)
+                                : close_btn.hovered  ? GUI_RGBA(180, 60, 60, 255)
+                                                     : GUI_RGBA(60, 60, 65, 0);
+            Clay_Color close_fg = (close_btn.hovered || close_btn.pressed)
                                 ? GUI_RGBA(255, 255, 255, 255)
                                 : GUI_RGBA(140, 140, 145, 255);
             CLAY(CLAY_ID("ConsoleClose"),
@@ -295,6 +328,27 @@ void app_console_render(app_console *c) {
                          })) {}
                 }
             }
+        }
+        // Input bar
+        static char input_display[GUI_TEXT_INPUT_MAX + 4];
+        input_display[0] = '>';
+        input_display[1] = ' ';
+        u16 input_len = gui_text_input_display(&c->input, dt, &input_display[2], GUI_TEXT_INPUT_MAX);
+        u16 dlen = 2 + input_len;
+
+        CLAY(CLAY_ID("ConsoleInput"),
+             ((Clay_ElementDeclaration){
+                 .layout = {
+                     .sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(28)},
+                     .padding = {.left = 8, .right = 8},
+                     .childAlignment = {.x = CLAY_ALIGN_X_LEFT, .y = CLAY_ALIGN_Y_CENTER},
+                 },
+                 .backgroundColor = GUI_RGBA(15, 15, 17, 255),
+                 .border = {.color = GUI_RGBA(60, 60, 65, 255), .width = {0, 0, 1, 0, 0}},
+                 .cornerRadius = {0, 0, 6, 6},
+             })) {
+            Clay_String input_text = {.length = dlen, .chars = input_display};
+            CLAY_TEXT(input_text, GUI_TEXT_CFG_FONT(GUI_RGBA(200, 200, 205, 255), 13, font_jb));
         }
     }
 }

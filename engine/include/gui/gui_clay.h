@@ -5,6 +5,7 @@
 #include "asset/asset.h"
 #include "clay.h"
 #include "defines.h"
+#include "platform/input.h"
 
 // ── Font lookup ─────────────────────────────────────────────────────────────
 // Map an ASSET_ID to the Clay font index. Returns 0 (first font) if not found.
@@ -63,3 +64,34 @@ REALM_API u16 gui_font_id(ASSET_ID asset_id);
         .sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0)},                                      \
         .childAlignment = {.x = (align_x), .y = (align_y)},                                                           \
     }
+
+// ── Widgets ────────────────────────────────────────────────────────────────
+
+// Button: call after building the Clay element with the given ID.
+// Returns interaction state for that frame. Caller uses hovered/pressed for styling.
+typedef struct gui_button_state {
+    b8 hovered;
+    b8 pressed;  // mouse is down on this element
+    b8 clicked;  // mouse released on this element (the action trigger)
+} gui_button_state;
+
+REALM_API gui_button_state gui_button(Clay_ElementId id);
+
+// Text input: caller-owned state + helper functions for editing and display.
+#define GUI_TEXT_INPUT_MAX 256
+
+typedef struct gui_text_input_state {
+    char buf[GUI_TEXT_INPUT_MAX];
+    u16 len;
+    u16 cursor;
+    f32 cursor_blink;
+} gui_text_input_state;
+
+// Process a key event. Returns true if Enter was pressed (submit).
+REALM_API b8 gui_text_input_handle_key(gui_text_input_state *state, input_key *key);
+
+// Process a char event (insert printable character).
+REALM_API void gui_text_input_handle_char(gui_text_input_state *state, input_char *ch);
+
+// Build display string with blinking caret into out_buf. Returns length written.
+REALM_API u16 gui_text_input_display(gui_text_input_state *state, f32 dt, char *out_buf, u16 out_buf_size);
