@@ -445,6 +445,13 @@ b8 platform_pump_messages() {
             if (key != KEY_MAX_KEYS) {
                 input_process_key(key, pressed);
             }
+            if (pressed) {
+                char buf[8];
+                int len = XLookupString(&event.xkey, buf, sizeof(buf), NULL, NULL);
+                if (len > 0 && (unsigned char)buf[0] >= 32) {
+                    input_process_char((u32)(unsigned char)buf[0]);
+                }
+            }
         } break;
 
         case MotionNotify: {

@@ -42,6 +42,10 @@ void input_process_key(KEYBOARD_KEY key, b8 is_pressed) {
     }
 }
 
+void input_process_char(u32 codepoint) {
+    event_fire(EVENT_CHAR_INPUT, &(input_char){codepoint});
+}
+
 void input_process_mouse_button(MOUSE_BUTTON button, b8 is_pressed) {
     if (state.mouse_now.pressed[button] != is_pressed) {
         state.mouse_now.pressed[button] = is_pressed;

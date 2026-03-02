@@ -440,6 +440,15 @@ b8 platform_pump_messages() {
                 if (key != KEY_MAX_KEYS) {
                     input_process_key(key, pressed);
                 }
+                if (pressed) {
+                    NSString *chars = event.characters;
+                    if (chars.length > 0) {
+                        unichar ch = [chars characterAtIndex:0];
+                        if (ch >= 32) {
+                            input_process_char((u32)ch);
+                        }
+                    }
+                }
             } break;
             case NSEventTypeFlagsChanged: {
                 KEYBOARD_KEY key = mac_map_keycode(event.keyCode);
