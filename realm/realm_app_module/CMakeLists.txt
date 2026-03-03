@@ -18,3 +18,7 @@ if (REALM_WERROR)
 endif ()
 
 target_link_libraries(realm_app PRIVATE Engine)
+
+if (RL_PROFILE)
+    target_compile_options(realm_app PRIVATE -finstrument-functions)
+endif ()

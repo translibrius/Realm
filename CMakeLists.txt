@@ -42,6 +42,7 @@ project(Realm VERSION 0.0.1 DESCRIPTION "3D Engine - Realm" LANGUAGES C CXX)
 
 option(REALM_BUILD_TESTS "Build Realm unit tests" ON)
 option(REALM_WERROR "Treat warnings as errors" OFF)
+option(RL_PROFILE "Enable function-level profiling via -finstrument-functions" OFF)
 include(cmake/RealmCompilerFlags.cmake)
 include(CTest)
 

@@ -15,10 +15,6 @@ if (WIN32)
 endif ()
 add_subdirectory(vendor/msdf-atlas-gen)
 
-# Tracy options
-set(TRACY_ENABLE ON CACHE BOOL "" FORCE)
-set(TRACY_ON_DEMAND OFF CACHE BOOL "" FORCE)
-add_subdirectory(vendor/tracy)
 
 function(rl_silence_third_party_warnings target)
     if (TARGET ${target})
@@ -36,7 +32,6 @@ endfunction()
 rl_silence_third_party_warnings(msdfgen-core)
 rl_silence_third_party_warnings(msdfgen-ext)
 rl_silence_third_party_warnings(msdf-atlas-gen)
-rl_silence_third_party_warnings(TracyClient)
 
 # Vulkan
 find_package(Vulkan REQUIRED)
@@ -101,7 +96,6 @@ target_include_directories(EngineC SYSTEM
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/clay
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/glad
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/msdf-atlas-gen/msdf-atlas-gen
-        ${CMAKE_CURRENT_SOURCE_DIR}/vendor/tracy/public/tracy
         ${Vulkan_INCLUDE_DIRS}
 )
 
@@ -153,7 +147,6 @@ add_library(Engine SHARED
 target_link_libraries(Engine PRIVATE
         Vulkan::Headers
         ${SHADERC_TARGET}
-        Tracy::TracyClient
         msdf-atlas-gen
 )
 
@@ -180,6 +173,13 @@ target_compile_definitions(EngineCPP PRIVATE ENGINE_SHARED ENGINE_BUILD)
 
 target_compile_definitions(Engine INTERFACE ENGINE_SHARED)
 
+# --- Profiling ---
+if (RL_PROFILE)
+    target_compile_options(EngineC PRIVATE -finstrument-functions)
+    target_compile_definitions(EngineC PRIVATE RL_PROFILE_ENABLED=1)
+    target_compile_definitions(Engine INTERFACE RL_PROFILE_ENABLED=1)
+endif ()
+
 # Export include dirs from Engine (so Realm and modules include engine headers)
 target_include_directories(Engine
         INTERFACE
@@ -189,5 +189,4 @@ target_include_directories(Engine SYSTEM
         INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/cglm
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/clay
-        ${CMAKE_CURRENT_SOURCE_DIR}/vendor/tracy/public/tracy
 )

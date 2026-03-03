@@ -1,5 +1,4 @@
 #include "platform/platform.h"
-#include "profiler/profiler.h"
 
 /*
     The service thread owns the real Win32 UI thread affinity.
@@ -137,8 +136,6 @@ HWND create_service_window() {
 // Own service window; route dangerous calls; pump its messages.
 void MessageThreadProc(void *data) {
     (void)data;
-    TracyCSetThreadName("Win32ServiceThread");
-
     // This thread owns the service window
     state.message_thread_id = GetCurrentThreadId();
 
@@ -224,6 +221,7 @@ void platform_system_shutdown() {
     RL_INFO("Platform system shutdown...");
 }
 
+__attribute__((no_instrument_function))
 i64 platform_get_clock_counter() {
     LARGE_INTEGER ticks;
     RL_ASSERT(QueryPerformanceCounter(&ticks));

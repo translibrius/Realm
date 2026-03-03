@@ -414,6 +414,7 @@ void platform_system_shutdown() {
     RL_INFO("Platform system shutdown...");
 }
 
+__attribute__((no_instrument_function))
 i64 platform_get_clock_counter() {
     return (i64)mach_absolute_time();
 }

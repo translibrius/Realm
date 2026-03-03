@@ -72,10 +72,12 @@ b8 create_application(void) {
         RL_WARN("failed to start app module watcher");
     }
 
+    rl_profiler_init();
+
     // Main loop
     f64 dt = 0.0f;
     while (rl_engine_is_running()) {
-        RL_PROFILE_FRAME_MARK();
+        rl_profiler_frame_mark();
         if (!rl_engine_begin_frame(&dt)) {
             continue;
         }
@@ -132,6 +134,7 @@ b8 create_application(void) {
     realm_app_watcher_stop(&app.app_watcher);
     destroy_app_module();
     app_console_shutdown(&app.console);
+    rl_profiler_shutdown();
     rl_engine_destroy();
 
     return true;

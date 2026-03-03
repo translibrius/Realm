@@ -22,7 +22,7 @@ endif ()
 set_target_properties(Realm PROPERTIES LINKER_LANGUAGE CXX)
 
 # Engine last
-target_link_libraries(Realm PRIVATE Engine Tracy::TracyClient)
+target_link_libraries(Realm PRIVATE Engine)
 target_compile_definitions(Realm PRIVATE ENGINE_SHARED)
 target_compile_definitions(Realm PRIVATE REALM_APP_BUILD_DIR="${CMAKE_BINARY_DIR}")
 target_compile_definitions(Realm PRIVATE REALM_APP_BUILD_TOOL="${CMAKE_COMMAND}")
@@ -47,6 +47,10 @@ elseif (UNIX)
             REALM_APP_HOT_FORMAT="librealm_app_hot_%u.so"
             REALM_APP_HAS_PDB=0
     )
+endif ()
+
+if (RL_PROFILE)
+    target_compile_options(Realm PRIVATE -finstrument-functions)
 endif ()
 
 add_subdirectory(realm_app_module)

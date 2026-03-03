@@ -81,6 +81,9 @@ static Clay_Dimensions measure_text(Clay_StringSlice text, Clay_TextElementConfi
 }
 
 void init_gui(f32 width, f32 height) {
+    Clay_SetMaxElementCount(16384);
+    Clay_SetMaxMeasureTextCacheWordCount(32768);
+
     u64 clay_memory_size = Clay_MinMemorySize();
     Clay_Arena ui_arena = Clay_CreateArenaWithCapacityAndMemory(
         clay_memory_size,
