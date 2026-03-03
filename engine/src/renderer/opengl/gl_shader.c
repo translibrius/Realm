@@ -4,6 +4,8 @@
 #include "asset/shader.h"
 #include "glad.h"
 
+#include <string.h>
+
 // Forward decl.
 b8 opengl_compile_vertex_shader(const char *source, i32 *out_id);
 b8 opengl_compile_fragment_shader(const char *source, i32 *out_id);
@@ -44,35 +46,52 @@ void opengl_shader_use(GL_Shader *shader) {
     glUseProgram(shader->program_id);
 }
 
+static i32 shader_get_location(GL_Shader *shader, const char *name) {
+    // Search cache (pointer comparison first, then strcmp fallback)
+    for (u32 i = 0; i < shader->uniform_count; i++) {
+        if (shader->uniforms[i].name == name || strcmp(shader->uniforms[i].name, name) == 0) {
+            return shader->uniforms[i].location;
+        }
+    }
+    // Cache miss — query driver and store
+    i32 loc = glGetUniformLocation(shader->program_id, name);
+    if (shader->uniform_count < GL_SHADER_MAX_UNIFORMS) {
+        shader->uniforms[shader->uniform_count].name = name;
+        shader->uniforms[shader->uniform_count].location = loc;
+        shader->uniform_count++;
+    }
+    return loc;
+}
+
 void opengl_shader_set_bool(GL_Shader *shader, const char *name, b8 value) {
-    glUniform1i(glGetUniformLocation(shader->program_id, name), value);
+    glUniform1i(shader_get_location(shader, name), value);
 }
 
 void opengl_shader_set_i32(GL_Shader *shader, const char *name, i32 value) {
-    glUniform1i(glGetUniformLocation(shader->program_id, name), value);
+    glUniform1i(shader_get_location(shader, name), value);
 }
 
 void opengl_shader_set_f32(GL_Shader *shader, const char *name, f32 value) {
-    glUniform1f(glGetUniformLocation(shader->program_id, name), value);
+    glUniform1f(shader_get_location(shader, name), value);
 }
 
 void opengl_shader_set_vec2(GL_Shader *shader, const char *name, vec2 value) {
-    i32 loc = glGetUniformLocation(shader->program_id, name);
+    i32 loc = shader_get_location(shader, name);
     glUniform2f(loc, value[0], value[1]);
 }
 
 void opengl_shader_set_vec3(GL_Shader *shader, const char *name, vec3 value) {
-    i32 loc = glGetUniformLocation(shader->program_id, name);
+    i32 loc = shader_get_location(shader, name);
     glUniform3f(loc, value[0], value[1], value[2]);
 }
 
 void opengl_shader_set_vec4(GL_Shader *shader, const char *name, vec4 value) {
-    i32 loc = glGetUniformLocation(shader->program_id, name);
+    i32 loc = shader_get_location(shader, name);
     glUniform4f(loc, value[0], value[1], value[2], value[3]);
 }
 
 void opengl_shader_set_mat4(GL_Shader *shader, const char *name, mat4 value) {
-    i32 loc = glGetUniformLocation(shader->program_id, name);
+    i32 loc = shader_get_location(shader, name);
     glUniformMatrix4fv(loc, 1, GL_FALSE, (const GLfloat *)value);
 }
 

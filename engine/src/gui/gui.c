@@ -43,14 +43,6 @@ static b8 on_mouse_scroll(void *event, void *user_data) {
     return false;
 }
 
-static const rl_glyph *font_find_glyph(const rl_font *font, u32 codepoint) {
-    for (u32 i = 0; i < font->glyph_count; i++) {
-        if ((u32)font->glyphs[i].codepoint == codepoint)
-            return &font->glyphs[i];
-    }
-    return nullptr;
-}
-
 static Clay_Dimensions measure_text(Clay_StringSlice text, Clay_TextElementConfig *config, void *user_data) {
     (void)user_data;
 
@@ -70,7 +62,13 @@ static Clay_Dimensions measure_text(Clay_StringSlice text, Clay_TextElementConfi
 
     for (i32 i = 0; i < text.length; i++) {
         u32 cp = (u32)(unsigned char)text.chars[i];
-        const rl_glyph *g = font_find_glyph(font, cp);
+        const rl_glyph *g = (cp < 256) ? font->glyph_map[cp] : nullptr;
+        if (!g) {
+            // Fallback: linear scan for non-ASCII
+            for (u32 j = 0; j < font->glyph_count; j++) {
+                if ((u32)font->glyphs[j].codepoint == cp) { g = &font->glyphs[j]; break; }
+            }
+        }
         if (!g) continue;
         width += g->advance * size_px;
         if (i < text.length - 1) {

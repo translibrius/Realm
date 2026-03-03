@@ -24,6 +24,12 @@ b8 rl_font_load(rl_arena *asset_arena, rl_asset *asset) {
         return false;
     }
 
+    // Build ASCII glyph lookup table
+    for (u32 i = 0; i < font->glyph_count; i++) {
+        u32 cp = (u32)font->glyphs[i].codepoint;
+        if (cp < 256) font->glyph_map[cp] = &font->glyphs[i];
+    }
+
     asset->handle = font;
     arena_scratch_release(scratch);
     return true;
