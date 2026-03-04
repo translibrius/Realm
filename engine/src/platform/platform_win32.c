@@ -293,6 +293,54 @@ b8 platform_pump_messages() {
             }
             break;
         }
+        case WM_KEYDOWN:
+        case WM_SYSKEYDOWN:
+        case WM_KEYUP:
+        case WM_SYSKEYUP: {
+            b8 pressed = (msg.message == WM_KEYDOWN || msg.message == WM_SYSKEYDOWN);
+            u16 vk = (u16)msg.wParam;
+            u32 lparam = (u32)msg.lParam;
+            KEYBOARD_KEY key = map_keycode_to_key(vk, lparam);
+            input_process_key(key, pressed);
+            break;
+        }
+        case WM_LBUTTONDOWN:
+        case WM_MBUTTONDOWN:
+        case WM_RBUTTONDOWN:
+        case WM_LBUTTONUP:
+        case WM_MBUTTONUP:
+        case WM_RBUTTONUP: {
+            b8 pressed = msg.message == WM_LBUTTONDOWN || msg.message == WM_RBUTTONDOWN || msg.message == WM_MBUTTONDOWN;
+            MOUSE_BUTTON mouse_button = MOUSE_MAX_BUTTONS;
+            switch (msg.message) {
+            case WM_LBUTTONDOWN:
+            case WM_LBUTTONUP:
+                mouse_button = MOUSE_LEFT;
+                break;
+            case WM_MBUTTONDOWN:
+            case WM_MBUTTONUP:
+                mouse_button = MOUSE_MIDDLE;
+                break;
+            case WM_RBUTTONDOWN:
+            case WM_RBUTTONUP:
+                mouse_button = MOUSE_RIGHT;
+                break;
+            default:
+                break;
+            }
+            if (mouse_button != MOUSE_MAX_BUTTONS) {
+                input_process_mouse_button(mouse_button, pressed);
+            }
+            break;
+        }
+        case WM_MOUSEWHEEL: {
+            i32 z_delta = GET_WHEEL_DELTA_WPARAM(msg.wParam);
+            if (z_delta != 0) {
+                z_delta = (z_delta < 0) ? -1 : 1;
+                input_process_mouse_scroll(z_delta);
+            }
+            break;
+        }
         default:
             break;
         }
@@ -1212,7 +1260,18 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
     // Pass any relevant messages that main thread might want to handle!
     case WM_DESTROY:
     case WM_SIZE:
-    case WM_CHAR: {
+    case WM_CHAR:
+    case WM_KEYDOWN:
+    case WM_SYSKEYDOWN:
+    case WM_KEYUP:
+    case WM_SYSKEYUP:
+    case WM_LBUTTONDOWN:
+    case WM_MBUTTONDOWN:
+    case WM_RBUTTONDOWN:
+    case WM_LBUTTONUP:
+    case WM_MBUTTONUP:
+    case WM_RBUTTONUP:
+    case WM_MOUSEWHEEL: {
         PostThreadMessageA(state.main_thread_id, Message, WParam, LParam);
         break;
     }
@@ -1246,67 +1305,14 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
         }
     } break;
 
-    // Input
-    case WM_KEYDOWN:
-    case WM_SYSKEYDOWN:
-    case WM_KEYUP:
-    case WM_SYSKEYUP: {
-        b8 pressed = (Message == WM_KEYDOWN || Message == WM_SYSKEYDOWN);
-        u16 vk = (u16)WParam;
-        u32 lparam = (u32)LParam;
-
-        KEYBOARD_KEY key = map_keycode_to_key(vk, lparam);
-        input_process_key(key, pressed);
-        return 0;
-    }
+    // Mouse move is handled directly (continuous state, no edge detection needed)
     case WM_MOUSEMOVE: {
         if (state.raw_mouse_enabled)
             break;
 
-        // Mouse move
         i32 x_position = GET_X_LPARAM(LParam);
         i32 y_position = GET_Y_LPARAM(LParam);
-
-        // Pass over to the input subsystem.
         input_process_mouse_move(x_position, y_position);
-    } break;
-    case WM_MOUSEWHEEL: {
-        i32 z_delta = GET_WHEEL_DELTA_WPARAM(WParam);
-        if (z_delta != 0) {
-            // Flatten the input to an OS-independent (-1, 1)
-            z_delta = (z_delta < 0) ? -1 : 1;
-            input_process_mouse_scroll(z_delta);
-        }
-    } break;
-    case WM_LBUTTONDOWN:
-    case WM_MBUTTONDOWN:
-    case WM_RBUTTONDOWN:
-    case WM_LBUTTONUP:
-    case WM_MBUTTONUP:
-    case WM_RBUTTONUP: {
-        b8 pressed = Message == WM_LBUTTONDOWN || Message == WM_RBUTTONDOWN || Message == WM_MBUTTONDOWN;
-        MOUSE_BUTTON mouse_button = MOUSE_MAX_BUTTONS;
-        switch (Message) {
-        case WM_LBUTTONDOWN:
-        case WM_LBUTTONUP:
-            mouse_button = MOUSE_LEFT;
-            break;
-        case WM_MBUTTONDOWN:
-        case WM_MBUTTONUP:
-            mouse_button = MOUSE_MIDDLE;
-            break;
-        case WM_RBUTTONDOWN:
-        case WM_RBUTTONUP:
-            mouse_button = MOUSE_RIGHT;
-            break;
-        default:
-            break;
-        }
-
-        // Pass over to the input subsystem.
-        if (mouse_button != MOUSE_MAX_BUTTONS) {
-            input_process_mouse_button(mouse_button, pressed);
-        }
     } break;
 
     // Raw mouse input
