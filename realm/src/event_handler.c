@@ -93,6 +93,11 @@ b8 on_key_press(void *event, void *data) {
         return false;
     }
 
+    // Ignore OS key-repeat for host hotkeys — only UI text input cares about repeats
+    if (key->repeat) {
+        return false;
+    }
+
     if (key->pressed) {
         RL_DEBUG("Key press: %d", key->key);
     } else {

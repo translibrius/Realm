@@ -32,7 +32,7 @@ RL_TEST(config_defaults_are_sane) {
     RL_EXPECT_EQ_I32(defaults.window_mode, WINDOW_MODE_WINDOWED);
     RL_EXPECT_EQ_I32(defaults.renderer_backend, BACKEND_OPENGL);
     RL_EXPECT(!defaults.vsync);
-    RL_EXPECT_EQ_I32(defaults.log_level, LOG_INFO);
+    RL_EXPECT_EQ_I32(defaults.log_level, LOG_TRACE);
 }
 
 RL_TEST(config_load_missing_file_uses_defaults) {
@@ -106,7 +106,7 @@ RL_TEST(config_load_partial_keys_uses_defaults_for_missing) {
     // Missing keys should have defaults
     RL_EXPECT_EQ_I32(cfg->window_height, 500);
     RL_EXPECT_EQ_I32(cfg->renderer_backend, BACKEND_OPENGL);
-    RL_EXPECT_EQ_I32(cfg->log_level, LOG_INFO);
+    RL_EXPECT_EQ_I32(cfg->log_level, LOG_TRACE);
 
     config_test_teardown();
 }
@@ -150,7 +150,7 @@ RL_TEST(config_load_unknown_enum_uses_default) {
     RL_EXPECT_EQ_I32(cfg->window_width, 800);
     // Unknown enum strings should fall back to defaults
     RL_EXPECT_EQ_I32(cfg->renderer_backend, BACKEND_OPENGL);
-    RL_EXPECT_EQ_I32(cfg->log_level, LOG_INFO);
+    RL_EXPECT_EQ_I32(cfg->log_level, LOG_TRACE);
 
     config_test_teardown();
 }

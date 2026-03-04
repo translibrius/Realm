@@ -35,11 +35,9 @@ void input_update() {
 }
 
 void input_process_key(KEYBOARD_KEY key, b8 is_pressed) {
-    if (state.keyboard_now.pressed[key] != is_pressed) {
-        state.keyboard_now.pressed[key] = is_pressed;
-
-        event_fire(EVENT_KEY_PRESS, &(input_key){key, is_pressed});
-    }
+    b8 was_pressed = state.keyboard_now.pressed[key];
+    state.keyboard_now.pressed[key] = is_pressed;
+    event_fire(EVENT_KEY_PRESS, &(input_key){key, is_pressed, .repeat = is_pressed && was_pressed});
 }
 
 void input_process_char(u32 codepoint) {

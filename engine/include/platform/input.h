@@ -128,6 +128,7 @@ typedef enum KEYBOARD_KEY {
 typedef struct input_key {
     KEYBOARD_KEY key;
     b8 pressed;
+    b8 repeat;
 } input_key;
 
 typedef struct input_mouse_button {

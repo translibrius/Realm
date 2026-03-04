@@ -450,7 +450,8 @@ b8 platform_pump_messages() {
                         }
                     }
                 }
-            } break;
+                continue; // Don't forward to sendEvent — prevents macOS alert beep on unhandled keys
+            }
             case NSEventTypeFlagsChanged: {
                 KEYBOARD_KEY key = mac_map_keycode(event.keyCode);
                 if (key != KEY_MAX_KEYS) {
