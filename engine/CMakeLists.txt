@@ -167,8 +167,11 @@ elseif (UNIX)
     target_link_libraries(Engine PRIVATE OpenGL::GL)
 endif ()
 
-target_compile_definitions(EngineC PRIVATE ENGINE_SHARED ENGINE_BUILD CLAY_DLL
+target_compile_definitions(EngineC PRIVATE ENGINE_SHARED ENGINE_BUILD
         REALM_VERSION="${PROJECT_VERSION}")
+if (WIN32)
+    target_compile_definitions(EngineC PRIVATE CLAY_DLL)
+endif ()
 target_compile_definitions(EngineCPP PRIVATE ENGINE_SHARED ENGINE_BUILD)
 
 target_compile_definitions(Engine INTERFACE ENGINE_SHARED)
