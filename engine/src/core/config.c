@@ -96,6 +96,8 @@ rl_config config_defaults(void) {
         .renderer_backend = BACKEND_OPENGL,
         .vsync = false,
         .log_level = LOG_TRACE,
+        .fov = 90.0f,
+        .mouse_sensitivity = 0.1f,
     };
 }
 
@@ -226,8 +228,18 @@ static void config_parse_line(const char *line) {
         return;
     }
 
-    // Integer
+    // Float (contains '.')
     char *endptr = nullptr;
+    if (strchr(val, '.')) {
+        f64 float_val = strtod(val, &endptr);
+        if (endptr != val && *endptr == '\0') {
+            if (strcmp(fqk, "camera.fov") == 0)              cfg->fov = (f32)float_val;
+            else if (strcmp(fqk, "camera.sensitivity") == 0) cfg->mouse_sensitivity = (f32)float_val;
+        }
+        return;
+    }
+
+    // Integer
     i64 int_val = strtol(val, &endptr, 10);
     if (endptr != val && *endptr == '\0') {
         if (strcmp(fqk, "window.width") == 0)       cfg->window_width = (i32)int_val;
@@ -304,7 +316,11 @@ b8 config_save(void) {
         "vsync = %s\n"
         "\n"
         "[engine]\n"
-        "log_level = \"%s\"\n",
+        "log_level = \"%s\"\n"
+        "\n"
+        "[camera]\n"
+        "fov = %.1f\n"
+        "sensitivity = %.3f\n",
         cfg->window_width,
         cfg->window_height,
         cfg->window_x,
@@ -312,7 +328,9 @@ b8 config_save(void) {
         enum_to_str(window_mode_names, (i32)cfg->window_mode),
         enum_to_str(backend_names, (i32)cfg->renderer_backend),
         cfg->vsync ? "true" : "false",
-        enum_to_str(log_level_names, (i32)cfg->log_level));
+        enum_to_str(log_level_names, (i32)cfg->log_level),
+        (f64)cfg->fov,
+        (f64)cfg->mouse_sensitivity);
 
     if (len < 0 || len >= (i32)sizeof(buf)) {
         RL_ERROR("Config save: buffer overflow");
@@ -404,6 +422,24 @@ void config_set_vsync(b8 value) {
     state->config.vsync = value;
     config_mark_dirty();
     e_config_changed_payload payload = { .key = "vsync" };
+    event_fire(EVENT_CONFIG_CHANGED, &payload);
+}
+
+void config_set_fov(f32 value) {
+    if (!state) return;
+    if (state->config.fov == value) return;
+    state->config.fov = value;
+    config_mark_dirty();
+    e_config_changed_payload payload = { .key = "fov" };
+    event_fire(EVENT_CONFIG_CHANGED, &payload);
+}
+
+void config_set_mouse_sensitivity(f32 value) {
+    if (!state) return;
+    if (state->config.mouse_sensitivity == value) return;
+    state->config.mouse_sensitivity = value;
+    config_mark_dirty();
+    e_config_changed_payload payload = { .key = "mouse_sensitivity" };
     event_fire(EVENT_CONFIG_CHANGED, &payload);
 }
 

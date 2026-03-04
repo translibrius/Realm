@@ -27,6 +27,9 @@ typedef struct realm_app_context {
     b8 vsync;
     b8 focused;
     RENDERER_BACKEND renderer_backend;
+    PLATFORM_WINDOW_MODE window_mode;
+    f32 fov;
+    f32 mouse_sensitivity;
     platform_window *window;
 } realm_app_context;
 
@@ -38,6 +41,12 @@ typedef struct realm_app_output {
     b8 wants_backend_switch;
     b8 show_debug_panel;
     RENDERER_BACKEND requested_backend;
+    b8 wants_window_mode_change;
+    PLATFORM_WINDOW_MODE window_mode_value;
+    b8 wants_fov_change;
+    f32 fov_value;
+    b8 wants_sensitivity_change;
+    f32 sensitivity_value;
 } realm_app_output;
 
 REALM_APP_API u32 realm_app_get_api_version(void);

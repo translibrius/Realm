@@ -25,7 +25,14 @@ b8 game_init(rl_game *game, const realm_app_context *ctx) {
         game->time_elapsed = 0.0f;
         game->settings_backend_dropdown = (gui_dropdown_state){.selected = -1};
         camera_init(&game->camera);
+        game->settings_window_mode_dropdown = (gui_dropdown_state){.selected = -1};
+        game->settings_fov_slider = (gui_slider_state){0};
+        game->settings_sensitivity_slider = (gui_slider_state){0};
     }
+
+    // Apply persisted config values to camera
+    game->camera.fov = ctx->fov;
+    game->camera.look_speed = ctx->mouse_sensitivity;
 
     game->app_context = ctx;
 
@@ -47,6 +54,10 @@ void game_update(rl_game *game, const realm_app_context *ctx, realm_app_output *
         return;
     }
 
+    // Sync camera with config (handles real-time slider changes)
+    game->camera.fov = ctx->fov;
+    game->camera.look_speed = ctx->mouse_sensitivity;
+
     // Process deferred scene transition
     if (game->pending_scene != game->active_scene) {
         game->active_scene = game->pending_scene;
@@ -55,6 +66,8 @@ void game_update(rl_game *game, const realm_app_context *ctx, realm_app_output *
 
         if (game->active_scene == SCENE_GAME) {
             camera_init(&game->camera);
+            game->camera.fov = ctx->fov;
+            game->camera.look_speed = ctx->mouse_sensitivity;
         }
     }
 

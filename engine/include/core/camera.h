@@ -10,9 +10,12 @@ typedef struct rl_camera {
     vec3 forward;
     vec3 up;
 
-    f32 yaw; // degrees
+    f32 yaw;   // degrees
     f32 pitch; // degrees
-    f32 fov; // degrees
+    f32 fov;   // degrees
+
+    f32 look_speed; // degrees per pixel (default 0.1)
+    f32 move_speed; // units per second (default 5.0)
 } rl_camera;
 
 REALM_API void camera_init(rl_camera *camera);

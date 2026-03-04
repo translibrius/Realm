@@ -53,7 +53,8 @@ gui_button_state gui_button_begin(const gui_button_cfg *cfg) {
     Clay_SizingAxis w_sizing = CLAY_SIZING_FIT(0);
     Clay_SizingAxis h_sizing = CLAY_SIZING_FIT(0);
     if (cfg) {
-        if (cfg->width > 0) w_sizing = CLAY_SIZING_FIXED(cfg->width);
+        if (cfg->grow_width) w_sizing = CLAY_SIZING_GROW(0);
+        else if (cfg->width > 0) w_sizing = CLAY_SIZING_FIXED(cfg->width);
         if (cfg->height > 0) h_sizing = CLAY_SIZING_FIXED(cfg->height);
     }
 

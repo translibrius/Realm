@@ -23,6 +23,9 @@ typedef struct rl_config {
 
     LOG_LEVEL log_level;
 
+    f32 fov;               // degrees (default 90)
+    f32 mouse_sensitivity; // look_speed, degrees per pixel (default 0.1)
+
     b8 loaded; // true if config was loaded from file (not just defaults)
 } rl_config;
 
@@ -36,6 +39,8 @@ REALM_API rl_config config_defaults(void);
 REALM_API platform_window_settings config_to_window_settings(const rl_config *cfg, const char *title);
 REALM_API void config_track_window(platform_window *window);
 REALM_API void config_set_vsync(b8 value);
+REALM_API void config_set_fov(f32 value);
+REALM_API void config_set_mouse_sensitivity(f32 value);
 REALM_API void config_mark_dirty(void);
 REALM_API void config_flush_if_dirty(f64 dt);
 REALM_API b8 config_save(void);

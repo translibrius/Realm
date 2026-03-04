@@ -127,6 +127,7 @@ b8 create_application(void) {
         }
 
         app.app_context.focused = app.focused;
+        app.app_context.window_mode = app.window.settings.window_mode;
 
         realm_app_output module_output = {0};
         app.app_module.update(app.game_state, &app.app_context, &module_output, dt);
@@ -146,6 +147,17 @@ b8 create_application(void) {
         if (module_output.wants_vsync_change) {
             config_set_vsync(module_output.vsync_value);
             app.app_context.vsync = config_get()->vsync;
+        }
+        if (module_output.wants_window_mode_change) {
+            platform_set_window_mode(&app.window, module_output.window_mode_value);
+        }
+        if (module_output.wants_fov_change) {
+            config_set_fov(module_output.fov_value);
+            app.app_context.fov = config_get()->fov;
+        }
+        if (module_output.wants_sensitivity_change) {
+            config_set_mouse_sensitivity(module_output.sensitivity_value);
+            app.app_context.mouse_sensitivity = config_get()->mouse_sensitivity;
         }
         if (module_output.wants_backend_switch) {
             app.backend_switch_requested = true;
@@ -199,6 +211,9 @@ static b8 create_app_module(void) {
         .vsync = config_get()->vsync,
         .focused = app.focused,
         .renderer_backend = config_get()->renderer_backend,
+        .window_mode = config_get()->window_mode,
+        .fov = config_get()->fov,
+        .mouse_sensitivity = config_get()->mouse_sensitivity,
     };
 
     app.app_module.init(app.game_state, &app.app_context);

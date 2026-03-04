@@ -37,6 +37,13 @@ REALM_API void gui_row_end(void);
 REALM_API void gui_col(f32 gap);
 REALM_API void gui_col_end(void);
 
+// Scoped variants — auto-close at end of block (like Clay's CLAY() macro).
+// Usage: GUI_PANEL(&cfg) { children... }
+//        GUI_ROW(8) { children... }
+#define GUI_PANEL(cfg_ptr) for (b8 _gp = (gui_panel_begin(cfg_ptr), true); _gp; _gp = (gui_panel_end(), false))
+#define GUI_ROW(gap_val)   for (b8 _gp = (gui_row(gap_val), true); _gp; _gp = (gui_row_end(), false))
+#define GUI_COL(gap_val)   for (b8 _gp = (gui_col(gap_val), true); _gp; _gp = (gui_col_end(), false))
+
 // Flexible spacer — grows to fill available space.
 REALM_API void gui_spacer(void);
 

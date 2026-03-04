@@ -3,12 +3,13 @@
 #include "core/camera.h"
 #include "defines.h"
 #include "gui/gui_dropdown.h"
+#include "gui/gui_slider.h"
 #include "memory/arena.h"
 #include <realm_app_api.h>
 
 typedef struct rl_font rl_font;
 
-#define RL_GAME_STATE_VERSION 5
+#define RL_GAME_STATE_VERSION 6
 
 typedef enum game_scene {
     SCENE_MAIN_MENU,
@@ -33,6 +34,9 @@ typedef struct rl_game {
 
     // Settings widget state
     gui_dropdown_state settings_backend_dropdown;
+    gui_dropdown_state settings_window_mode_dropdown;
+    gui_slider_state settings_fov_slider;
+    gui_slider_state settings_sensitivity_slider;
 
     // Shared
     rl_arena frame_arena;

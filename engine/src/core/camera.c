@@ -22,6 +22,8 @@ void camera_init(rl_camera *camera) {
     camera->yaw = -90.0f;
     camera->pitch = 0.0f;
     camera->fov = 90.0f;
+    camera->look_speed = 0.1f;
+    camera->move_speed = 5.0f;
 
     camera_update_vectors(camera);
 }
@@ -53,10 +55,7 @@ void camera_get_projection(const rl_camera *camera, f32 aspect, mat4 out_proj, R
 }
 
 void camera_update(rl_camera *camera, f64 dt) {
-    const f32 move_speed = 5.0f; // units / second
-    const f32 look_speed = 0.1f; // degrees per pixel
-
-    f32 velocity = move_speed * (f32)dt;
+    f32 velocity = camera->move_speed * (f32)dt;
 
     // --- Movement (keyboard) ---
     vec3 right;
@@ -90,8 +89,8 @@ void camera_update(rl_camera *camera, f64 dt) {
     vec2 mouse_delta;
     input_get_mouse_delta(mouse_delta);
 
-    camera->yaw += mouse_delta[0] * look_speed;
-    camera->pitch -= mouse_delta[1] * look_speed; // invert Y for natural feel
+    camera->yaw += mouse_delta[0] * camera->look_speed;
+    camera->pitch -= mouse_delta[1] * camera->look_speed; // invert Y for natural feel
 
     // Clamp pitch to avoid flipping
     if (camera->pitch > 89.0f)

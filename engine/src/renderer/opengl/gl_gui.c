@@ -258,6 +258,12 @@ void opengl_render_gui(void *commands, i32 command_count) {
     clip_depth = 0;
     i32 window_height = ctx->window->settings.height;
 
+    // Track last batch type so we flush the opposite batch on transitions.
+    // This preserves Clay's command ordering (backgrounds drawn before their
+    // text, floating elements drawn after elements behind them).
+    enum { GUI_BATCH_NONE, GUI_BATCH_RECT, GUI_BATCH_TEXT };
+    i32 last_batch = GUI_BATCH_NONE;
+
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -268,6 +274,11 @@ void opengl_render_gui(void *commands, i32 command_count) {
 
         switch (cmd->commandType) {
         case CLAY_RENDER_COMMAND_TYPE_RECTANGLE: {
+            if (last_batch == GUI_BATCH_TEXT) {
+                flush_text(ctx, text_verts, &text_vert_count, text_batch_font);
+            }
+            last_batch = GUI_BATCH_RECT;
+
             Clay_RectangleRenderData *rect = &cmd->renderData.rectangle;
             f32 r = rect->backgroundColor.r / 255.0f;
             f32 g = rect->backgroundColor.g / 255.0f;
@@ -278,6 +289,11 @@ void opengl_render_gui(void *commands, i32 command_count) {
         }
 
         case CLAY_RENDER_COMMAND_TYPE_BORDER: {
+            if (last_batch == GUI_BATCH_TEXT) {
+                flush_text(ctx, text_verts, &text_vert_count, text_batch_font);
+            }
+            last_batch = GUI_BATCH_RECT;
+
             Clay_BorderRenderData *border = &cmd->renderData.border;
             f32 r = border->color.r / 255.0f;
             f32 g = border->color.g / 255.0f;
@@ -300,6 +316,11 @@ void opengl_render_gui(void *commands, i32 command_count) {
         }
 
         case CLAY_RENDER_COMMAND_TYPE_TEXT: {
+            if (last_batch == GUI_BATCH_RECT) {
+                flush_rects(ctx, rect_verts, &rect_vert_count);
+            }
+            last_batch = GUI_BATCH_TEXT;
+
             Clay_TextRenderData *text = &cmd->renderData.text;
             if (!text->stringContents.chars || text->stringContents.length <= 0) break;
 
@@ -311,14 +332,12 @@ void opengl_render_gui(void *commands, i32 command_count) {
 
             // Flush text batch if font changed
             if (text_batch_font && text_batch_font != gl_font) {
-                flush_rects(ctx, rect_verts, &rect_vert_count);
                 flush_text(ctx, text_verts, &text_vert_count, text_batch_font);
             }
             text_batch_font = gl_font;
 
             // Flush if buffer is getting full (leave room for ~256 chars)
             if (text_vert_count + 6 * 256 > GUI_MAX_TEXT_VERTS) {
-                flush_rects(ctx, rect_verts, &rect_vert_count);
                 flush_text(ctx, text_verts, &text_vert_count, text_batch_font);
             }
 
@@ -340,16 +359,26 @@ void opengl_render_gui(void *commands, i32 command_count) {
         }
 
         case CLAY_RENDER_COMMAND_TYPE_SCISSOR_START: {
+            flush_rects(ctx, rect_verts, &rect_vert_count);
+            flush_text(ctx, text_verts, &text_vert_count, text_batch_font);
+            last_batch = GUI_BATCH_NONE;
             clip_push(bb.x, bb.y, bb.width, bb.height);
             break;
         }
 
         case CLAY_RENDER_COMMAND_TYPE_SCISSOR_END: {
+            flush_rects(ctx, rect_verts, &rect_vert_count);
+            flush_text(ctx, text_verts, &text_vert_count, text_batch_font);
+            last_batch = GUI_BATCH_NONE;
             clip_pop();
             break;
         }
 
         case CLAY_RENDER_COMMAND_TYPE_IMAGE: {
+            if (last_batch == GUI_BATCH_TEXT) {
+                flush_text(ctx, text_verts, &text_vert_count, text_batch_font);
+            }
+            last_batch = GUI_BATCH_RECT;
             // TODO: implement image rendering (textured quad)
             // For now, render the bounding box as a placeholder rect.
             push_rect(rect_verts, &rect_vert_count, bb.x, bb.y, bb.width, bb.height,

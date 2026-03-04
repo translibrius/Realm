@@ -31,6 +31,13 @@ b8 gui_dropdown(gui_dropdown_state *state, const gui_dropdown_cfg *cfg) {
                               ? cfg->items[state->selected]
                               : "---";
 
+    // Wrapper with explicit ID so the floating list can attach to it
+    Clay_ElementId trigger_eid = CLAY_IDI("GuiDropdown", state->_id);
+    Clay__OpenElementWithId(trigger_eid);
+    Clay__ConfigureOpenElement((Clay_ElementDeclaration){
+        .layout = {.sizing = {.width = CLAY_SIZING_FIT(0)}},
+    });
+
     gui_button_state btn = gui_button_begin(&(gui_button_cfg){
         .color        = bg_color,
         .hover_color  = hover_color,
@@ -42,23 +49,16 @@ b8 gui_dropdown(gui_dropdown_state *state, const gui_dropdown_cfg *cfg) {
     gui_text(display, &(gui_text_cfg){.color = text_color, .size = font_size, .font = font});
     gui_button_end();
 
+    Clay__CloseElement(); // wrapper
+
     if (btn.clicked) {
         state->open = !state->open;
     }
 
     // Floating dropdown list
     if (state->open) {
-        Clay_ElementId trigger_eid = CLAY_IDI("GuiDropdown", state->_id);
         Clay_ElementId list_eid = CLAY_IDI("GuiDropdownList", state->_id);
 
-        // Mark the trigger button for attachment
-        Clay__OpenElementWithId(trigger_eid);
-        Clay__ConfigureOpenElement((Clay_ElementDeclaration){
-            .layout = {.sizing = {.width = CLAY_SIZING_FIXED(0), .height = CLAY_SIZING_FIXED(0)}},
-        });
-        Clay__CloseElement();
-
-        // Floating list below the trigger
         Clay__OpenElementWithId(list_eid);
         Clay__ConfigureOpenElement((Clay_ElementDeclaration){
             .layout = {
@@ -74,6 +74,7 @@ b8 gui_dropdown(gui_dropdown_state *state, const gui_dropdown_cfg *cfg) {
                     .parent = CLAY_ATTACH_POINT_LEFT_BOTTOM,
                 },
                 .zIndex = 200,
+                .pointerCaptureMode = CLAY_POINTER_CAPTURE_MODE_CAPTURE,
             },
             .backgroundColor = bg_color,
             .cornerRadius = CLAY_CORNER_RADIUS(radius),
@@ -86,6 +87,7 @@ b8 gui_dropdown(gui_dropdown_state *state, const gui_dropdown_cfg *cfg) {
                 .hover_color = hover_color,
                 .press_color = hover_color,
                 .padding     = 6,
+                .grow_width  = true,
             });
             gui_text(cfg->items[i], &(gui_text_cfg){.color = text_color, .size = font_size, .font = font});
             gui_button_end();
