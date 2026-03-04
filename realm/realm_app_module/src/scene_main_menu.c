@@ -33,42 +33,32 @@ void scene_main_menu_render(rl_game *game, const realm_app_context *ctx, realm_a
             .width = 300,
             .align_x = CLAY_ALIGN_X_CENTER,
         };
-        gui_panel_begin(&panel_cfg);
 
-        if (game->settings_open) {
-            menu_settings_render(game, ctx, out);
-        } else {
-            gui_text_cfg title_cfg = {.color = GUI_WHITE, .size = 32};
-            gui_text("Realm", &title_cfg);
+        GUI_PANEL(&panel_cfg) {
+            if (game->settings_open) {
+                menu_settings_render(game, ctx, out);
+            } else {
+                // ── Layout ──────────────────────────────────────────
+                gui_text("Realm", &(gui_text_cfg){.color = GUI_WHITE, .size = 32});
 
-            gui_spacer_fixed(16);
+                gui_spacer_fixed(16);
 
-            gui_button_cfg btn_cfg = {
-                .color = GUI_RGB(60, 60, 60),
-                .hover_color = GUI_RGB(80, 80, 80),
-                .press_color = GUI_RGB(50, 50, 50),
-                .padding = 12,
-                .corner_radius = 4,
-                .width = 200,
-            };
-            gui_text_cfg btn_text = {.color = GUI_WHITE, .size = 16};
+                gui_button_cfg btn = {
+                    .color = GUI_RGB(60, 60, 60), .hover_color = GUI_RGB(80, 80, 80),
+                    .press_color = GUI_RGB(50, 50, 50), .padding = 12,
+                    .corner_radius = 4, .width = 200,
+                };
+                gui_text_cfg btn_text = {.color = GUI_WHITE, .size = 16};
 
-            gui_button_state start = gui_text_button("Start", &btn_cfg, &btn_text);
-            if (start.clicked) {
-                game->pending_scene = SCENE_GAME;
-            }
+                b8 start    = gui_text_button("Start",    &btn, &btn_text).clicked;
+                b8 settings = gui_text_button("Settings", &btn, &btn_text).clicked;
+                b8 quit     = gui_text_button("Exit",     &btn, &btn_text).clicked;
 
-            gui_button_state settings = gui_text_button("Settings", &btn_cfg, &btn_text);
-            if (settings.clicked) {
-                game->settings_open = true;
-            }
-
-            gui_button_state quit = gui_text_button("Exit", &btn_cfg, &btn_text);
-            if (quit.clicked) {
-                out->wants_quit = true;
+                // ── Apply changes ───────────────────────────────────
+                if (start)    game->pending_scene = SCENE_GAME;
+                if (settings) game->settings_open = true;
+                if (quit)     out->wants_quit = true;
             }
         }
-
-        gui_panel_end();
     }
 }
