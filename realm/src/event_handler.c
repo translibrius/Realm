@@ -4,6 +4,7 @@
 #include "application.h"
 #include "core/config.h"
 #include "engine.h"
+#include "profiler/profiler.h"
 
 #include "core/event.h"
 #include "gui/gui.h"
@@ -106,6 +107,7 @@ b8 on_key_press(void *event, void *data) {
         }
     }
 
+#if RL_PROFILE_ENABLED
     if (key->key == KEY_F3 && key->pressed) {
 #if defined(PLATFORM_WINDOWS)
         platform_system("start python profiler_view.py");
@@ -114,6 +116,16 @@ b8 on_key_press(void *event, void *data) {
 #endif
         RL_INFO("Launching profiler viewer");
     }
+
+    if (key->key == KEY_F4 && key->pressed) {
+#if defined(PLATFORM_WINDOWS)
+        platform_system("start python profiler_report.py --snapshot --source-root " REALM_SOURCE_ROOT);
+#else
+        platform_system("python3 profiler_report.py --snapshot --source-root " REALM_SOURCE_ROOT " &");
+#endif
+        RL_INFO("Generating profiler snapshot report");
+    }
+#endif
 
     if (key->key == KEY_F5 && key->pressed) {
         handler->application->rebuild_requested = true;

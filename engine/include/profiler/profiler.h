@@ -37,14 +37,16 @@ REALM_API void                    rl_profiler_frame_mark(void);
 REALM_API const rl_profile_frame *rl_profiler_get_frame(void);
 REALM_API void                    rl_profiler_set_enabled(b8 enabled);
 REALM_API b8                      rl_profiler_is_enabled(void);
+REALM_API void                    rl_profiler_write_session_report(const char *path);
 
 #else
 
-#define rl_profiler_init()          ((void)0)
-#define rl_profiler_shutdown()      ((void)0)
-#define rl_profiler_frame_mark()    ((void)0)
-#define rl_profiler_get_frame()     ((const rl_profile_frame *)0)
-#define rl_profiler_set_enabled(e)  ((void)0)
-#define rl_profiler_is_enabled()    ((b8)0)
+#define rl_profiler_init()                  ((void)0)
+#define rl_profiler_shutdown()              ((void)0)
+#define rl_profiler_frame_mark()            ((void)0)
+#define rl_profiler_get_frame()             ((const rl_profile_frame *)0)
+#define rl_profiler_set_enabled(e)          ((void)0)
+#define rl_profiler_is_enabled()            ((b8)0)
+#define rl_profiler_write_session_report(p) ((void)0)
 
 #endif

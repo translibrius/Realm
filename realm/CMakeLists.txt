@@ -51,13 +51,17 @@ endif ()
 
 if (RL_PROFILE)
     target_compile_options(Realm PRIVATE -finstrument-functions)
+    target_compile_definitions(Realm PRIVATE REALM_SOURCE_ROOT="${CMAKE_SOURCE_DIR}")
 
-    # Copy profiler viewer alongside Realm binary
+    # Copy profiler scripts alongside Realm binary
     add_custom_command(TARGET Realm POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_CURRENT_SOURCE_DIR}/../tools/profiler_view.py"
             "$<TARGET_FILE_DIR:Realm>/profiler_view.py"
-        COMMENT "Copying profiler_view.py to output directory"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/../tools/profiler_report.py"
+            "$<TARGET_FILE_DIR:Realm>/profiler_report.py"
+        COMMENT "Copying profiler scripts to output directory"
     )
 endif ()
 

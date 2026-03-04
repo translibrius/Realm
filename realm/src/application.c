@@ -134,6 +134,7 @@ b8 create_application(void) {
     realm_app_watcher_stop(&app.app_watcher);
     destroy_app_module();
     app_console_shutdown(&app.console);
+    rl_profiler_write_session_report("profiler_session.bin");
     rl_profiler_shutdown();
     rl_engine_destroy();
 
