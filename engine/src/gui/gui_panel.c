@@ -1,30 +1,21 @@
 #include "gui/gui_panel.h"
 
-#include <string.h>
-
-// Helper: build Clay_ElementId from a runtime string.
-static Clay_ElementId gui__make_id(const char *id) {
-    Clay_String s = {.length = (i32)strlen(id), .chars = id};
-    return Clay__HashString(s, 0);
+static Clay_SizingAxis resolve_sizing(gui_sizing mode, f32 value) {
+    switch (mode) {
+    case GUI_SIZE_GROW:  return CLAY_SIZING_GROW(0);
+    case GUI_SIZE_FIXED: return CLAY_SIZING_FIXED(value);
+    default: // GUI_SIZE_FIT — auto-promote to FIXED if value > 0
+        return value > 0 ? CLAY_SIZING_FIXED(value) : CLAY_SIZING_FIT(0);
+    }
 }
 
-void gui_panel_begin(const char *id, const gui_panel_cfg *cfg) {
-    Clay_ElementId eid = gui__make_id(id);
-
+void gui_panel_begin(const gui_panel_cfg *cfg) {
     Clay_SizingAxis w_sizing = CLAY_SIZING_FIT(0);
     Clay_SizingAxis h_sizing = CLAY_SIZING_FIT(0);
 
     if (cfg) {
-        if (cfg->grow_width) {
-            w_sizing = CLAY_SIZING_GROW(0);
-        } else if (cfg->width > 0) {
-            w_sizing = CLAY_SIZING_FIXED(cfg->width);
-        }
-        if (cfg->grow_height) {
-            h_sizing = CLAY_SIZING_GROW(0);
-        } else if (cfg->height > 0) {
-            h_sizing = CLAY_SIZING_FIXED(cfg->height);
-        }
+        w_sizing = resolve_sizing(cfg->width_sizing, cfg->width);
+        h_sizing = resolve_sizing(cfg->height_sizing, cfg->height);
     }
 
     Clay_ElementDeclaration decl = {0};
@@ -48,7 +39,7 @@ void gui_panel_begin(const char *id, const gui_panel_cfg *cfg) {
         }
     }
 
-    Clay__OpenElementWithId(eid);
+    Clay__OpenElement();
     Clay__ConfigureOpenElement(decl);
 }
 
@@ -57,17 +48,13 @@ void gui_panel_end(void) {
 }
 
 void gui_spacer(void) {
-    Clay__OpenElement();
-    Clay__ConfigureOpenElement((Clay_ElementDeclaration){
+    CLAY_AUTO_ID({
         .layout = {.sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0)}},
-    });
-    Clay__CloseElement();
+    }) {}
 }
 
 void gui_spacer_fixed(f32 size) {
-    Clay__OpenElement();
-    Clay__ConfigureOpenElement((Clay_ElementDeclaration){
+    CLAY_AUTO_ID({
         .layout = {.sizing = {.width = CLAY_SIZING_FIXED(size), .height = CLAY_SIZING_FIXED(size)}},
-    });
-    Clay__CloseElement();
+    }) {}
 }

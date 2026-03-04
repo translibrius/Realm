@@ -50,7 +50,7 @@ void app_debug_panel_render(app_debug_panel *panel) {
     CLAY(CLAY_ID("DebugRoot"), ((Clay_ElementDeclaration){
         .layout = GUI_ROOT_LAYOUT(CLAY_ALIGN_X_RIGHT, CLAY_ALIGN_Y_TOP),
     })) {
-        gui_panel_begin("DebugPanel", &(gui_panel_cfg){
+        gui_panel_begin(&(gui_panel_cfg){
             .color = GUI_RGBA(30, 30, 30, 200), .padding = 10, .gap = 4, .width = 200,
             .corner_radius = 6,
         });

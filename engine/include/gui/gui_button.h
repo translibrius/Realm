@@ -21,5 +21,5 @@ typedef struct gui_button_cfg {
 
 // Opens a button element. Returns interaction state for this frame.
 // Place children (text, icons) between begin/end.
-REALM_API gui_button_state gui_button_begin(const char *id, const gui_button_cfg *cfg);
+REALM_API gui_button_state gui_button_begin(const gui_button_cfg *cfg);
 REALM_API void gui_button_end(void);

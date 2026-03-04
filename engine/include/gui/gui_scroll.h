@@ -12,10 +12,11 @@ typedef struct gui_scroll_cfg {
 
 typedef struct gui_scroll_state {
     b8 auto_scroll;
+    u32 _id; // 0 = uninitialized, auto-generated on first gui_scroll_begin
 } gui_scroll_state;
 
 // Opens a scrollable container. Place children between begin/end.
-REALM_API void gui_scroll_begin(const char *id, gui_scroll_state *state, const gui_scroll_cfg *cfg);
+REALM_API void gui_scroll_begin(gui_scroll_state *state, const gui_scroll_cfg *cfg);
 
 // Closes the scrollable container, draws scrollbar, manages auto-scroll.
-REALM_API void gui_scroll_end(const char *id, gui_scroll_state *state, const gui_scroll_cfg *cfg);
+REALM_API void gui_scroll_end(void);

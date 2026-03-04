@@ -12,5 +12,5 @@ typedef struct gui_text_cfg {
 // Null-terminated string.
 REALM_API void gui_text(const char *str, const gui_text_cfg *cfg);
 
-// Non-null-terminated string with explicit length.
-REALM_API void gui_text_dynamic(const char *str, u16 len, const gui_text_cfg *cfg);
+// String with explicit length (not required to be null-terminated).
+REALM_API void gui_textn(const char *str, u16 len, const gui_text_cfg *cfg);

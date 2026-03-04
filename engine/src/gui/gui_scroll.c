@@ -1,16 +1,22 @@
 #include "gui/gui_scroll.h"
 
-#include <string.h>
+#include "gui_internal.h"
 
-static Clay_ElementId gui__make_id(const char *id) {
-    Clay_String s = {.length = (i32)strlen(id), .chars = id};
-    return Clay__HashString(s, 0);
-}
+// Stashed by begin(), read by end(). Single-threaded, non-reentrant (same as Clay).
+static Clay_ElementId scroll_eid;
+static gui_scroll_state *scroll_state;
+static const gui_scroll_cfg *scroll_cfg;
 
-void gui_scroll_begin(const char *id, gui_scroll_state *state, const gui_scroll_cfg *cfg) {
-    (void)cfg;
+void gui_scroll_begin(gui_scroll_state *state, const gui_scroll_cfg *cfg) {
+    // Auto-generate a stable ID on first use
+    if (state && state->_id == 0) {
+        state->_id = gui__next_id();
+    }
 
-    Clay_ElementId eid = gui__make_id(id);
+    Clay_ElementId eid = state ? CLAY_IDI("GuiScroll", state->_id) : (Clay_ElementId){0};
+    scroll_eid = eid;
+    scroll_state = state;
+    scroll_cfg = cfg;
 
     // Auto-scroll: pin Clay's scroll position to the bottom before layout
     if (state && state->auto_scroll) {
@@ -43,7 +49,7 @@ void gui_scroll_begin(const char *id, gui_scroll_state *state, const gui_scroll_
         },
     });
 
-    // Scroll content area
+    // Scroll content area — needs explicit ID for Clay_GetScrollContainerData
     Clay__OpenElementWithId(eid);
     Clay__ConfigureOpenElement((Clay_ElementDeclaration){
         .layout = {
@@ -57,17 +63,14 @@ void gui_scroll_begin(const char *id, gui_scroll_state *state, const gui_scroll_
     // Caller places children here, then calls gui_scroll_end()
 }
 
-void gui_scroll_end(const char *id, gui_scroll_state *state, const gui_scroll_cfg *cfg) {
-    (void)state;
-
+void gui_scroll_end(void) {
     // Close the scroll content area
     Clay__CloseElement();
 
     // Scrollbar
-    f32 sb_width = (cfg && cfg->scrollbar_width > 0) ? cfg->scrollbar_width : 8;
+    f32 sb_width = (scroll_cfg && scroll_cfg->scrollbar_width > 0) ? scroll_cfg->scrollbar_width : 8;
 
-    Clay_ElementId eid = gui__make_id(id);
-    Clay_ScrollContainerData scd = Clay_GetScrollContainerData(eid);
+    Clay_ScrollContainerData scd = Clay_GetScrollContainerData(scroll_eid);
 
     b8 show_scrollbar = false;
     f32 thumb_h_frac = 0;
@@ -90,10 +93,10 @@ void gui_scroll_end(const char *id, gui_scroll_state *state, const gui_scroll_cf
     Clay_Color track_color = {25, 25, 28, 255};
     Clay_Color thumb_color = {80, 80, 90, 180};
     f32 thumb_radius = 3;
-    if (cfg) {
-        if (cfg->track_color.a > 0) track_color = cfg->track_color;
-        if (cfg->thumb_color.a > 0) thumb_color = cfg->thumb_color;
-        if (cfg->thumb_radius > 0) thumb_radius = cfg->thumb_radius;
+    if (scroll_cfg) {
+        if (scroll_cfg->track_color.a > 0) track_color = scroll_cfg->track_color;
+        if (scroll_cfg->thumb_color.a > 0) thumb_color = scroll_cfg->thumb_color;
+        if (scroll_cfg->thumb_radius > 0) thumb_radius = scroll_cfg->thumb_radius;
     }
 
     // Scrollbar track
@@ -109,20 +112,16 @@ void gui_scroll_end(const char *id, gui_scroll_state *state, const gui_scroll_cf
 
     if (show_scrollbar) {
         // Spacer above thumb
-        Clay__OpenElement();
-        Clay__ConfigureOpenElement((Clay_ElementDeclaration){
+        CLAY_AUTO_ID({
             .layout = {.sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_PERCENT(spacer_frac)}},
-        });
-        Clay__CloseElement();
+        }) {}
 
         // Thumb
-        Clay__OpenElement();
-        Clay__ConfigureOpenElement((Clay_ElementDeclaration){
+        CLAY_AUTO_ID({
             .layout = {.sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_PERCENT(thumb_h_frac)}},
             .backgroundColor = thumb_color,
             .cornerRadius = CLAY_CORNER_RADIUS(thumb_radius),
-        });
-        Clay__CloseElement();
+        }) {}
     }
 
     // Close scrollbar track
@@ -130,4 +129,9 @@ void gui_scroll_end(const char *id, gui_scroll_state *state, const gui_scroll_cf
 
     // Close outer container
     Clay__CloseElement();
+
+    // Clear stashed state
+    scroll_eid = (Clay_ElementId){0};
+    scroll_state = nullptr;
+    scroll_cfg = nullptr;
 }

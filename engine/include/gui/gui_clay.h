@@ -31,12 +31,8 @@ REALM_API u16 gui_font_id(ASSET_ID asset_id);
 
 // ── Text config shorthands ──────────────────────────────────────────────────
 // Returns Clay_TextElementConfig* stored in Clay's per-frame arena.
-#define GUI_TEXT_CFG(color, size)                                                                                       \
-    Clay__StoreTextElementConfig((Clay_TextElementConfig){.textColor = (color), .fontSize = (size), .fontId = 0})
-
-#define GUI_TEXT_CFG_FONT(color, size, font)                                                                            \
-    Clay__StoreTextElementConfig(                                                                                       \
-        (Clay_TextElementConfig){.textColor = (color), .fontSize = (size), .fontId = (font)})
+#define GUI_TEXT_CFG(color, size)      CLAY_TEXT_CONFIG({.textColor = (color), .fontSize = (size), .fontId = 0})
+#define GUI_TEXT_CFG_FONT(color, size, font) CLAY_TEXT_CONFIG({.textColor = (color), .fontSize = (size), .fontId = (font)})
 
 // ── Layout shorthands ───────────────────────────────────────────────────────
 

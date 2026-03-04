@@ -166,30 +166,27 @@ void app_console_render(app_console *c, f32 dt) {
     if (win_w - 32.0f < cw) cw = win_w - 32.0f;
     if (cw < 200.0f) cw = 200.0f;
 
-    if (!gui_window_begin("Console", &c->window, &(gui_window_cfg){
+    gui_window_result wr = gui_window_begin(&c->window, &(gui_window_cfg){
         .title = "Console", .width = cw, .height = win_h * 0.4f,
         .bg_color = GUI_RGBA(20, 20, 22, 230),
         .header_color = GUI_RGBA(35, 35, 40, 255),
         .border_color = GUI_RGBA(60, 60, 65, 255),
         .corner_radius = 6, .font = font, .font_size = 13,
-    })) return;
+    });
+    if (!wr.visible) return;
+    if (wr.close_clicked) c->window.visible = false;
 
-        gui_scroll_begin("ConsoleScroll", &c->scroll, &(gui_scroll_cfg){
+        gui_scroll_begin(&c->scroll, &(gui_scroll_cfg){
             .scrollbar_width = 8,
             .track_color = GUI_RGBA(25, 25, 28, 255),
             .thumb_color = GUI_RGBA(80, 80, 90, 180),
             .thumb_radius = 3,
         });
             for (u32 i = 0; i < line_count; i++) {
-                gui_text_dynamic(line_ptrs[i], line_lens[i],
+                gui_textn(line_ptrs[i], line_lens[i],
                     &(gui_text_cfg){.color = line_colors[i], .size = 13, .font = font});
             }
-        gui_scroll_end("ConsoleScroll", &c->scroll, &(gui_scroll_cfg){
-            .scrollbar_width = 8,
-            .track_color = GUI_RGBA(25, 25, 28, 255),
-            .thumb_color = GUI_RGBA(80, 80, 90, 180),
-            .thumb_radius = 3,
-        });
+        gui_scroll_end();
 
         // Input bar
         char *input_display = rl_arena_push(arena, GUI_TEXT_INPUT_MAX + 4, false);
@@ -198,12 +195,12 @@ void app_console_render(app_console *c, f32 dt) {
         u16 ilen = gui_text_input_display(&c->input, dt, &input_display[2], GUI_TEXT_INPUT_MAX);
         u16 dlen = 2 + ilen;
 
-        gui_panel_begin("ConsoleInput", &(gui_panel_cfg){
+        gui_panel_begin(&(gui_panel_cfg){
             .color = GUI_RGBA(15, 15, 17, 255),
             .border_color = GUI_RGBA(60, 60, 65, 255), .border_width = 1,
-            .grow_width = true, .height = 28, .padding = 8,
+            .width_sizing = GUI_SIZE_GROW, .height = 28, .padding = 8,
         });
-            gui_text_dynamic(input_display, dlen,
+            gui_textn(input_display, dlen,
                 &(gui_text_cfg){.color = GUI_RGBA(200, 200, 205, 255), .size = 13, .font = font});
         gui_panel_end();
 

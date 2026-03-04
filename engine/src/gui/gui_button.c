@@ -2,42 +2,52 @@
 
 #include "platform/input.h"
 
-#include <string.h>
+// Per-frame sequential counter. Since immediate-mode call order is stable
+// frame-to-frame, button #N this frame is the same as button #N last frame.
+static u32 gui_btn_counter;
+static u32 gui_btn_pressed_idx; // which button index is pressed (0 = none)
 
-static Clay_ElementId gui__make_id(const char *id) {
-    Clay_String s = {.length = (i32)strlen(id), .chars = id};
-    return Clay__HashString(s, 0);
+// Internal — called by gui_layout_begin() in gui.c.
+void gui_button_frame_reset_(void) {
+    gui_btn_counter = 0;
 }
 
-// Only one element can be "pressed" at a time (single mouse button).
-static u32 gui_button_pressed_id;
+gui_button_state gui_button_begin(const gui_button_cfg *cfg) {
+    gui_btn_counter++;
+    u32 my_idx = gui_btn_counter;
 
-gui_button_state gui_button_begin(const char *id, const gui_button_cfg *cfg) {
-    Clay_ElementId eid = gui__make_id(id);
+    Clay__OpenElement();
 
     gui_button_state result = {0};
-    result.hovered = Clay_PointerOver(eid);
+    result.hovered = Clay_Hovered();
 
     if (input_mouse_pressed(MOUSE_LEFT) && result.hovered) {
-        gui_button_pressed_id = eid.id;
+        gui_btn_pressed_idx = my_idx;
     }
 
-    result.pressed = result.hovered && gui_button_pressed_id == eid.id;
+    result.pressed = result.hovered && gui_btn_pressed_idx == my_idx;
 
-    if (gui_button_pressed_id == eid.id && !input_is_mouse_down(MOUSE_LEFT)) {
-        gui_button_pressed_id = 0;
+    if (gui_btn_pressed_idx == my_idx && !input_is_mouse_down(MOUSE_LEFT)) {
+        gui_btn_pressed_idx = 0;
         if (result.hovered) {
             result.clicked = true;
         }
     }
 
-    // Build visual element
-    Clay_Color bg = {0};
+    // Default colors so a zero-init config still produces a visible button
+    Clay_Color color_normal = {50, 50, 55, 255};
+    Clay_Color color_hover  = {65, 65, 70, 255};
+    Clay_Color color_press  = {40, 40, 45, 255};
+
     if (cfg) {
-        bg = result.pressed ? cfg->press_color
-           : result.hovered ? cfg->hover_color
-                            : cfg->color;
+        if (cfg->color.a > 0)       color_normal = cfg->color;
+        if (cfg->hover_color.a > 0) color_hover  = cfg->hover_color;
+        if (cfg->press_color.a > 0) color_press  = cfg->press_color;
     }
+
+    Clay_Color bg = result.pressed ? color_press
+                  : result.hovered ? color_hover
+                                   : color_normal;
 
     Clay_SizingAxis w_sizing = CLAY_SIZING_FIT(0);
     Clay_SizingAxis h_sizing = CLAY_SIZING_FIT(0);
@@ -60,7 +70,6 @@ gui_button_state gui_button_begin(const char *id, const gui_button_cfg *cfg) {
         }
     }
 
-    Clay__OpenElementWithId(eid);
     Clay__ConfigureOpenElement(decl);
 
     return result;

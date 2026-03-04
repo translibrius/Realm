@@ -1,35 +1,24 @@
 #include "gui/gui_window.h"
 
 #include "gui/gui_button.h"
+#include "gui/gui_panel.h"
 #include "gui/gui_text.h"
+#include "gui_internal.h"
 #include "platform/input.h"
 #include "renderer/renderer_frontend.h"
 
-#include <string.h>
+gui_window_result gui_window_begin(gui_window_state *state, const gui_window_cfg *cfg) {
+    gui_window_result result = {0};
 
-static Clay_ElementId gui__make_id(const char *id) {
-    Clay_String s = {.length = (i32)strlen(id), .chars = id};
-    return Clay__HashString(s, 0);
-}
-
-// We need unique sub-IDs for header, close button, etc.
-// Build them by appending suffixes to the base ID.
-static Clay_ElementId gui__make_sub_id(const char *id, const char *suffix) {
-    char buf[128];
-    i32 id_len = (i32)strlen(id);
-    i32 suffix_len = (i32)strlen(suffix);
-    i32 total = id_len + suffix_len;
-    if (total >= 128) total = 127;
-    memcpy(buf, id, id_len);
-    memcpy(buf + id_len, suffix, suffix_len);
-    buf[total] = '\0';
-    Clay_String s = {.length = total, .chars = buf};
-    return Clay__HashString(s, 0);
-}
-
-b8 gui_window_begin(const char *id, gui_window_state *state, const gui_window_cfg *cfg) {
     if (!state || !state->visible || !cfg) {
-        return false;
+        return result;
+    }
+
+    result.visible = true;
+
+    // Auto-generate a stable ID on first use
+    if (state->_id == 0) {
+        state->_id = gui__next_id();
     }
 
     f32 corner_radius = cfg->corner_radius > 0 ? cfg->corner_radius : 6;
@@ -41,30 +30,7 @@ b8 gui_window_begin(const char *id, gui_window_state *state, const gui_window_cf
     f32 win_w = win ? (f32)win->settings.width : 700.0f;
     f32 win_h = win ? (f32)win->settings.height : 400.0f;
 
-    // Close button state (query from previous frame's element)
-    Clay_ElementId close_eid = gui__make_sub_id(id, "Close");
-    gui_button_state close_btn = {0};
-    close_btn.hovered = Clay_PointerOver(close_eid);
-
-    static u32 close_pressed_id;
-    if (input_mouse_pressed(MOUSE_LEFT) && close_btn.hovered) {
-        close_pressed_id = close_eid.id;
-    }
-    close_btn.pressed = close_btn.hovered && close_pressed_id == close_eid.id;
-    if (close_pressed_id == close_eid.id && !input_is_mouse_down(MOUSE_LEFT)) {
-        close_pressed_id = 0;
-        if (close_btn.hovered) {
-            close_btn.clicked = true;
-        }
-    }
-
-    if (close_btn.clicked) {
-        state->visible = false;
-        return false;
-    }
-
-    // Header drag
-    Clay_ElementId header_eid = gui__make_sub_id(id, "Header");
+    // Apply ongoing drag delta (before layout so position is up-to-date)
     b8 mouse_down = input_is_mouse_down(MOUSE_LEFT);
     if (state->dragging) {
         if (mouse_down) {
@@ -75,8 +41,6 @@ b8 gui_window_begin(const char *id, gui_window_state *state, const gui_window_cf
         } else {
             state->dragging = false;
         }
-    } else if (mouse_down && !close_btn.pressed && Clay_PointerOver(header_eid)) {
-        state->dragging = true;
     }
 
     // Clamp to window bounds
@@ -87,8 +51,8 @@ b8 gui_window_begin(const char *id, gui_window_state *state, const gui_window_cf
     if (state->pos_y < 0) state->pos_y = 0;
     if (state->pos_y + cfg->height > win_h) state->pos_y = win_h - cfg->height;
 
-    // === Outer panel (floating) ===
-    Clay_ElementId panel_eid = gui__make_id(id);
+    // === Outer panel (floating) — needs explicit ID for floating attachment ===
+    Clay_ElementId panel_eid = CLAY_IDI("GuiWindow", state->_id);
     Clay__OpenElementWithId(panel_eid);
     Clay__ConfigureOpenElement((Clay_ElementDeclaration){
         .layout = {
@@ -111,7 +75,8 @@ b8 gui_window_begin(const char *id, gui_window_state *state, const gui_window_cf
     });
 
     // === Header ===
-    Clay__OpenElementWithId(header_eid);
+    Clay__OpenElement();
+    b8 header_hovered = Clay_Hovered();
     Clay__ConfigureOpenElement((Clay_ElementDeclaration){
         .layout = {
             .sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(28)},
@@ -134,36 +99,34 @@ b8 gui_window_begin(const char *id, gui_window_state *state, const gui_window_cf
     }
 
     // Spacer between title and close button
-    Clay__OpenElement();
-    Clay__ConfigureOpenElement((Clay_ElementDeclaration){
-        .layout = {.sizing = {.width = CLAY_SIZING_GROW(0)}},
-    });
-    Clay__CloseElement();
+    gui_spacer();
 
     // Close button
-    Clay_Color close_bg = close_btn.pressed  ? (Clay_Color){200, 40, 40, 255}
-                        : close_btn.hovered  ? (Clay_Color){180, 60, 60, 255}
-                                             : (Clay_Color){60, 60, 65, 0};
+    gui_button_state close_btn = gui_button_begin(&(gui_button_cfg){
+        .color       = {60, 60, 65, 0},
+        .hover_color = {180, 60, 60, 255},
+        .press_color = {200, 40, 40, 255},
+        .corner_radius = 3,
+        .width = 20,
+        .height = 20,
+    });
     Clay_Color close_fg = (close_btn.hovered || close_btn.pressed)
                         ? (Clay_Color){255, 255, 255, 255}
                         : (Clay_Color){140, 140, 145, 255};
-
-    Clay__OpenElementWithId(close_eid);
-    Clay__ConfigureOpenElement((Clay_ElementDeclaration){
-        .layout = {
-            .sizing = {.width = CLAY_SIZING_FIXED(20), .height = CLAY_SIZING_FIXED(20)},
-            .childAlignment = {.x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER},
-        },
-        .backgroundColor = close_bg,
-        .cornerRadius = CLAY_CORNER_RADIUS(3),
-    });
     gui_text("x", &(gui_text_cfg){.color = close_fg, .size = font_size, .font = cfg->font});
-    Clay__CloseElement(); // close button
+    gui_button_end();
+
+    result.close_clicked = close_btn.clicked;
 
     Clay__CloseElement(); // header
 
+    // Start drag: header hovered (previous frame) && mouse just pressed && close button not hovered
+    if (!state->dragging && input_mouse_pressed(MOUSE_LEFT) && header_hovered && !close_btn.hovered) {
+        state->dragging = true;
+    }
+
     // Body is left open — caller places children, then calls gui_window_end()
-    return true;
+    return result;
 }
 
 void gui_window_end(void) {

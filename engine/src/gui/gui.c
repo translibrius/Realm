@@ -145,8 +145,12 @@ u16 gui_font_id(ASSET_ID asset_id) {
     return 0;
 }
 
+// Internal — defined in gui_button.c
+void gui_button_frame_reset_(void);
+
 void gui_layout_begin(f32 dt) {
     gui_begin_frame(dt);
+    gui_button_frame_reset_();
     Clay_BeginLayout();
 }
 
