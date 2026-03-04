@@ -7,5 +7,4 @@ compile_commands.json
 CMakeUserPresets.json
 # .claude/
 .vscode/
-.zed/
 .profile_log
