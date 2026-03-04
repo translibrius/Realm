@@ -79,8 +79,8 @@ void input_process_mouse_scroll(i32 delta) {
 }
 
 void input_process_mouse_raw(i32 dx, i32 dy) {
-    state.mouse_now.dx = dx;
-    state.mouse_now.dy = dy;
+    state.mouse_now.dx += dx;
+    state.mouse_now.dy += dy;
 }
 
 b8 input_is_key_down(KEYBOARD_KEY key) {
