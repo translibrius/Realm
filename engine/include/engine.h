@@ -9,6 +9,7 @@ extern "C" {
 
 typedef struct rl_engine_stats {
     u64 fps;
+    f64 frame_time_ms;
 } rl_engine_stats;
 
 typedef struct rl_engine_config {

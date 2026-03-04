@@ -100,6 +100,21 @@ Reports are LLM-friendly markdown with function hotspots, call counts, percentag
 - Style is straight C with explicit structs and function tables. Don't introduce abstraction layers that fight this.
 - Don't change global build flags (warnings, CRT, vcpkg triplets) silently.
 
+## Code structure
+
+Every distinct entity (subsystem, widget, component) should live in its own file pair (`<name>.h` + `<name>.c`) with a clean public API:
+- Lifecycle functions: `<name>_init` / `<name>_shutdown`, or `<name>_create` / `<name>_destroy`, or `<name>_begin` / `<name>_end` — whichever fits the entity.
+- Keep each file focused and slim. Minimize private/static helper functions — if a helper grows complex, it probably belongs in its own file.
+- Prefer small, composable units over monolithic files. The GUI widget system (`engine/include/gui/gui_*.h`) is the reference example: one file per widget, each with a config struct + begin/end or single-call API.
+- When adding a new entity to an existing subsystem, create a new file pair — don't stuff it into an existing file.
+
+## Tests
+
+This is a hobby project — don't aim for corporate-level coverage, but do write tests where they're genuinely useful:
+- **Do test**: core subsystems (memory allocator, arena, events, string utils, config parsing), anything with tricky logic that can break silently, pure functions that are easy to test without mocking.
+- **Don't bother testing**: rendering output, platform-specific window management, GUI layout visuals, things that require complex mocking for little value.
+- When adding or modifying a subsystem with testable logic, check if tests exist and add/update them. If a new file has functions that are easy to unit test, write tests for them.
+
 ## Git
 
 - Never add a `Co-Authored-By` line to commit messages.

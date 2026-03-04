@@ -8,6 +8,7 @@
 #include "realm_app_watcher.h"
 #include "realm_app_loader.h"
 #include "app_console.h"
+#include "app_debug_panel.h"
 
 typedef struct rl_application {
     platform_window window;
@@ -18,6 +19,7 @@ typedef struct rl_application {
     realm_app_watcher app_watcher;
     app_event_handler event_handler;
     app_console console;
+    app_debug_panel debug_panel;
     b8 paused;
     b8 focused;
     b8 rebuild_requested;

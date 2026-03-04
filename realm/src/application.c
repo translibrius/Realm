@@ -61,6 +61,7 @@ b8 create_application(void) {
     init_gui((f32)app.window.settings.width, (f32)app.window.settings.height);
     // Console registers events first so it can consume key/char input when visible
     app_console_init(&app.console);
+    app_debug_panel_init(&app.debug_panel);
     app_event_handler_init(&app.event_handler, &app);
 
     if (!create_app_module()) {
@@ -121,6 +122,7 @@ b8 create_application(void) {
         app.app_module.update(app.game_state, &app.app_context, dt);
         gui_layout_begin((f32)dt);
         app.app_module.render(app.game_state, &app.app_context);
+        app_debug_panel_render(&app.debug_panel);
         app_console_render(&app.console, (f32)dt);
         gui_layout_end();
         rl_engine_end_frame();

@@ -44,6 +44,13 @@ REALM_API void *mem_copy(void *destination, const void *origin, u64 size);
 REALM_API void mem_free(void *block, u64 size, MEM_TYPE type);
 REALM_API void *mem_zero(void *block, u64 size);
 
+typedef struct mem_stats {
+    u64 reserved;      // total virtual address space reserved
+    u64 committed;     // total committed (arena pages touched)
+    u64 live_malloc;   // outstanding malloc/realloc bytes
+} mem_stats;
+
+REALM_API mem_stats mem_get_stats(void);
 REALM_API void mem_debug_usage();
 REALM_API const char *mem_type_to_str(MEM_TYPE type);
 REALM_API void memory_track_arena_reserve(u64 size, MEM_TYPE type);

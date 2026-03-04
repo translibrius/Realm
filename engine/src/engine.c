@@ -159,5 +159,6 @@ void rl_engine_end_frame(void) {
 rl_engine_stats rl_engine_get_stats(void) {
     return (rl_engine_stats){
         .fps = state.fps_display,
+        .frame_time_ms = state.delta_time * 1000.0,
     };
 }

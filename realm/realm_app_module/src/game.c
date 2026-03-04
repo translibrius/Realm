@@ -2,13 +2,8 @@
 
 #include "asset/asset.h"
 #include "core/logger.h"
-#include "engine.h"
-#include "gui/gui_clay.h"
-#include "gui/gui_panel.h"
-#include "gui/gui_text.h"
 #include "memory/memory.h"
 #include "renderer/renderer_frontend.h"
-#include "util/str.h"
 
 b8 game_init(rl_game *game, const realm_app_context *ctx) {
     if (!game) {
@@ -71,8 +66,6 @@ void game_render(rl_game *game, f64 dt) {
     f32 aspect = (f32)width / (f32)height;
     camera_get_view(&game->camera, view);
     camera_get_projection(&game->camera, aspect, proj, ctx->renderer_backend);
-
-    rl_string fps = rl_string_format(&game->frame_arena, "FPS: %d", rl_engine_get_stats().fps);
 
     enum {
         FLOOR_X_MIN = -5,
@@ -149,18 +142,6 @@ void game_render(rl_game *game, f64 dt) {
     frame_data.text_count = 0;
 
     renderer_submit_frame_data(&frame_data);
-
-    // GUI overlay (Clay frame is owned by the host)
-    u16 font_jb = gui_font_id(ASSET_ID_FONT_JETBRAINS_MONO_REGULAR);
-
-    CLAY(CLAY_ID("Root"), ((Clay_ElementDeclaration){.layout = GUI_ROOT_LAYOUT(CLAY_ALIGN_X_RIGHT, CLAY_ALIGN_Y_TOP)})) {
-        gui_panel_begin("DebugPanel", &(gui_panel_cfg){
-            .color = GUI_RGBA(30, 30, 30, 200), .padding = 12, .gap = 8, .width = 220,
-        });
-            gui_text("Debug Panel", &(gui_text_cfg){.color = GUI_WHITE, .size = 18, .font = font_jb});
-            gui_text(fps.cstr, &(gui_text_cfg){.color = GUI_HEX(0xB4FFB4), .size = 14, .font = font_jb});
-        gui_panel_end();
-    }
 
     // Reset frame arena
     rl_arena_clear(&game->frame_arena);
