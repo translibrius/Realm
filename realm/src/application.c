@@ -74,10 +74,22 @@ b8 create_application(void) {
 
     rl_profiler_init();
 
-    // Main loop
+    // Main loop — cursor state is applied from the previous frame's output
+    // so that input_update + pump see the correct mode before the module reads deltas.
     f64 dt = 0.0f;
+    b8 prev_capture = false;
+    realm_app_output prev_output = {0};
     while (rl_engine_is_running()) {
         rl_profiler_frame_mark();
+
+        // Apply cursor state from previous frame's module output, before input_update + pump
+        b8 capture = app.focused && !prev_output.wants_cursor_visible && !app.console.window.visible;
+        if (capture != prev_capture) {
+            platform_set_cursor_mode(app.app_context.window, capture ? CURSOR_MODE_HIDDEN : CURSOR_MODE_NORMAL);
+            platform_set_raw_input(app.app_context.window, capture);
+            prev_capture = capture;
+        }
+
         if (!rl_engine_begin_frame(&dt)) {
             continue;
         }
@@ -144,11 +156,7 @@ b8 create_application(void) {
             app.requested_backend = module_output.requested_backend;
         }
 
-        // Cursor driven by module + focus + console
-        b8 capture = app.focused && !module_output.wants_cursor_visible && !app.console.window.visible;
-        platform_set_cursor_mode(app.app_context.window, capture ? CURSOR_MODE_HIDDEN : CURSOR_MODE_NORMAL);
-        platform_set_raw_input(app.app_context.window, capture);
-
+        prev_output = module_output;
         rl_engine_end_frame();
 
         if (app.backend_switch_requested) {

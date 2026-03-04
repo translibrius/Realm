@@ -865,6 +865,7 @@ void platform_set_cursor_mode(platform_window *window, platform_cursor_mode mode
     }
 
     XFlush(state.display);
+    input_flush_mouse_delta();
     state.cursor_mode = mode;
 }
 

@@ -5,15 +5,6 @@
 #define ASSET_TABLE_TOTAL ASSET_ID_TOTAL
 
 static rl_asset asset_table[ASSET_TABLE_TOTAL] = {
-    [ASSET_ID_FONT_EVIL_EMPIRE] = (rl_asset){
-        .id = ASSET_ID_FONT_EVIL_EMPIRE,
-        .type = ASSET_FONT,
-        .source_path = "fonts/evil_empire.otf",
-        .source_version = 1,
-        .source_hash = 0,
-        .filename = "evil_empire.otf",
-        .handle = nullptr,
-    },
     [ASSET_ID_FONT_JETBRAINS_MONO_REGULAR] = (rl_asset){
         .id = ASSET_ID_FONT_JETBRAINS_MONO_REGULAR,
         .type = ASSET_FONT,

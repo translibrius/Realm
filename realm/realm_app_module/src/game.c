@@ -20,6 +20,7 @@ b8 game_init(rl_game *game, const realm_app_context *ctx) {
         game->pending_scene = SCENE_MAIN_MENU;
         game->pause_menu_open = false;
         game->settings_open = false;
+        game->pause_freezes_sim = true;
         game->scene_angle = 0.0f;
         game->time_elapsed = 0.0f;
         game->settings_backend_dropdown = (gui_dropdown_state){.selected = -1};

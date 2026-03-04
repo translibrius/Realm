@@ -24,6 +24,7 @@ typedef struct rl_game {
     game_scene pending_scene;
     b8 pause_menu_open;
     b8 settings_open;
+    b8 pause_freezes_sim;  // true = freeze simulation while paused (singleplayer)
 
     // Game scene state
     rl_camera camera;

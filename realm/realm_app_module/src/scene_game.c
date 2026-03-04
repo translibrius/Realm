@@ -18,19 +18,27 @@ void scene_game_update(rl_game *game, const realm_app_context *ctx, realm_app_ou
         }
     }
 
+    out->show_debug_panel = true;
+
+    b8 paused = game->pause_menu_open || !ctx->focused;
+
+    if (paused) {
+        out->wants_cursor_visible = true;
+        if (!game->pause_freezes_sim) {
+            game->scene_angle += 100.0f * (f32)dt;
+            if (game->scene_angle > 360.0f) {
+                game->scene_angle -= 360.0f;
+            }
+        }
+        return;
+    }
+
+    out->wants_cursor_visible = false;
     game->scene_angle += 100.0f * (f32)dt;
     if (game->scene_angle > 360.0f) {
         game->scene_angle -= 360.0f;
     }
 
-    out->show_debug_panel = true;
-
-    if (game->pause_menu_open || !ctx->focused) {
-        out->wants_cursor_visible = true;
-        return;
-    }
-
-    out->wants_cursor_visible = false;
     camera_update(&game->camera, dt);
 }
 

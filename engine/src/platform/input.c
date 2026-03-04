@@ -18,6 +18,7 @@ typedef struct input_state {
     mouse_state mouse_prev;
     keyboard_state keyboard_now;
     keyboard_state keyboard_prev;
+    u8 flush_delta_frames; // post-pump flush: discard deltas for N frames after cursor mode change
 } input_state;
 
 static input_state state;
@@ -32,6 +33,15 @@ void input_update() {
 
     state.mouse_now.dx = 0;
     state.mouse_now.dy = 0;
+
+    // Deferred flush: zero prev deltas that were just copied from a tainted frame.
+    // The pump that follows will fill mouse_now with fresh events;
+    // if those are also tainted (warp residue), the counter keeps discarding.
+    if (state.flush_delta_frames > 0) {
+        state.mouse_prev.dx = 0;
+        state.mouse_prev.dy = 0;
+        state.flush_delta_frames--;
+    }
 }
 
 void input_process_key(KEYBOARD_KEY key, b8 is_pressed) {
@@ -110,6 +120,16 @@ void input_get_previous_mouse_position(vec2 pos) {
 void input_get_mouse_delta(vec2 delta_pos) {
     delta_pos[0] = (f32)state.mouse_prev.dx;
     delta_pos[1] = (f32)state.mouse_prev.dy;
+}
+
+void input_flush_mouse_delta(void) {
+    state.mouse_now.dx = 0;
+    state.mouse_now.dy = 0;
+    state.mouse_prev.dx = 0;
+    state.mouse_prev.dy = 0;
+    // Also discard deltas for the next 2 frames — warp events from
+    // cursor mode changes arrive asynchronously after the pump.
+    state.flush_delta_frames = 2;
 }
 
 void input_set_mode(platform_window *window, INPUT_MODE mode) {

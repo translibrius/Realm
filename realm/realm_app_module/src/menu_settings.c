@@ -32,9 +32,7 @@ void menu_settings_render(rl_game *game, const realm_app_context *ctx, realm_app
     gui_text("Renderer", &label_cfg);
     gui_spacer_fixed(4);
 
-    if (game->settings_backend_dropdown.selected < 0) {
-        game->settings_backend_dropdown.selected = (i32)ctx->renderer_backend;
-    }
+    game->settings_backend_dropdown.selected = (i32)ctx->renderer_backend;
 
     gui_dropdown_cfg dd_cfg = {
         .items = backend_items,

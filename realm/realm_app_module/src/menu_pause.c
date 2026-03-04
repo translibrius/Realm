@@ -6,12 +6,33 @@
 #include "gui/gui_widgets.h"
 
 void menu_pause_render(rl_game *game, const realm_app_context *ctx, realm_app_output *out) {
-    // Semi-transparent backdrop
-    CLAY(CLAY_ID("PauseOverlay"), ((Clay_ElementDeclaration){
-        .layout = GUI_ROOT_LAYOUT(CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_CENTER),
-        .backgroundColor = GUI_RGBA(0, 0, 0, 120),
-    })) {
+    // Full-screen dim backdrop
+    CLAY(CLAY_ID("PauseDim"), ((Clay_ElementDeclaration){
+        .layout = {
+            .sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0)},
+        },
+        .backgroundColor = GUI_RGBA(0, 0, 0, 100),
+        .floating = {
+            .attachTo = CLAY_ATTACH_TO_ROOT,
+            .zIndex = 49,
+            .pointerCaptureMode = CLAY_POINTER_CAPTURE_MODE_PASSTHROUGH,
+        },
+    })) {}
 
+    // Centered panel
+    CLAY(CLAY_ID("PauseOverlay"), ((Clay_ElementDeclaration){
+        .layout = {
+            .sizing = {.width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_FIT(0)},
+        },
+        .floating = {
+            .attachTo = CLAY_ATTACH_TO_ROOT,
+            .attachPoints = {
+                .element = CLAY_ATTACH_POINT_CENTER_CENTER,
+                .parent = CLAY_ATTACH_POINT_CENTER_CENTER,
+            },
+            .zIndex = 50,
+        },
+    })) {
         gui_panel_cfg panel_cfg = {
             .color = GUI_RGBA(30, 30, 30, 230),
             .corner_radius = 8,

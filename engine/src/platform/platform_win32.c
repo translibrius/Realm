@@ -1064,6 +1064,7 @@ static void platform_set_cursor_mode_hwnd(HWND hwnd, platform_cursor_mode mode) 
     } break;
     }
 
+    input_flush_mouse_delta();
     state.cursor_mode = mode;
 }
 

@@ -3,6 +3,7 @@
 #include "../vendor/cglm/clipspace/persp_rh_zo.h"
 #include "core/camera.h"
 #include "platform/input.h"
+#include "platform/platform.h"
 #include "renderer/renderer_backend.h"
 
 static void camera_update_vectors(rl_camera *camera) {
@@ -80,7 +81,12 @@ void camera_update(rl_camera *camera, f64 dt) {
     if (input_is_key_down(KEY_L_SHIFT))
         glm_vec3_muladds(camera->up, -velocity, camera->pos);
 
-    // --- Look (mouse) ---
+    // --- Look (mouse) --- only when raw input is active (cursor locked)
+    if (!platform_get_raw_input()) {
+        camera_update_vectors(camera);
+        return;
+    }
+
     vec2 mouse_delta;
     input_get_mouse_delta(mouse_delta);
 

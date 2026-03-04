@@ -67,8 +67,7 @@ b8 opengl_text_pipeline_init(GL_Context *ctx) {
                 RL_WARN("gl_font_create() failed for '%s'", asset->filename);
             }
 
-            // Set *default* font as evil_empire.otf
-            if (strcmp(font->name, "evil_empire.otf") == 0) {
+            if (strcmp(font->name, "JetBrainsMono-Regular.ttf") == 0) {
                 opengl_set_active_font(font);
             }
         }

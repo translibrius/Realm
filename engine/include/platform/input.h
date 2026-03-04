@@ -171,4 +171,8 @@ REALM_API void input_get_mouse_position(vec2 pos);
 REALM_API void input_get_previous_mouse_position(vec2 pos);
 REALM_API void input_get_mouse_delta(vec2 delta_pos);
 
+// Zero mouse deltas in both current and previous frames.
+// Call after cursor warp / mode switch to prevent stale jumps.
+REALM_API void input_flush_mouse_delta(void);
+
 void input_update();
