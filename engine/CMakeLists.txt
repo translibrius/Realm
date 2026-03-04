@@ -171,6 +171,8 @@ target_compile_definitions(EngineC PRIVATE ENGINE_SHARED ENGINE_BUILD
         REALM_VERSION="${PROJECT_VERSION}")
 if (WIN32)
     target_compile_definitions(EngineC PRIVATE CLAY_DLL)
+elseif (UNIX AND NOT APPLE)
+    target_compile_definitions(EngineC PRIVATE _DEFAULT_SOURCE)
 endif ()
 target_compile_definitions(EngineCPP PRIVATE ENGINE_SHARED ENGINE_BUILD)
 
