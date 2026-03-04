@@ -8,8 +8,8 @@ typedef u32 (*realm_app_get_api_version_fn)(void);
 typedef u64 (*realm_app_get_state_size_fn)(void);
 typedef u32 (*realm_app_get_state_version_fn)(void);
 typedef void (*realm_app_init_fn)(void *state, const realm_app_context *ctx);
-typedef void (*realm_app_update_fn)(void *state, const realm_app_context *ctx, f64 dt);
-typedef void (*realm_app_render_fn)(void *state, const realm_app_context *ctx);
+typedef void (*realm_app_update_fn)(void *state, const realm_app_context *ctx, realm_app_output *out, f64 dt);
+typedef void (*realm_app_render_fn)(void *state, const realm_app_context *ctx, realm_app_output *out);
 typedef void (*realm_app_shutdown_fn)(void *state, const realm_app_context *ctx);
 
 typedef struct realm_app_module {

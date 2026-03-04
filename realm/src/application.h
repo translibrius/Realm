@@ -20,7 +20,6 @@ typedef struct rl_application {
     app_event_handler event_handler;
     app_console console;
     app_debug_panel debug_panel;
-    b8 paused;
     b8 focused;
     b8 rebuild_requested;
     b8 reload_requested;

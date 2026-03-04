@@ -23,7 +23,6 @@ b8 create_application(void) {
     app.game_state = nullptr;
     app.game_state_size = 0;
     app.focused = true;
-    app.paused = false;
     app.rebuild_requested = false;
     app.reload_requested = false;
     app.backend_switch_requested = false;
@@ -105,7 +104,6 @@ b8 create_application(void) {
             if (!realm_app_module_reload(&app.app_module, &app.game_state, &app.game_state_size, &app.app_context)) {
                 RL_ERROR("App module reload failed");
             } else {
-                app_apply_input_capture(&app);
                 realm_app_watcher_mark_clean(&app.app_watcher);
                 RL_INFO("App module reloaded");
             }
@@ -116,15 +114,41 @@ b8 create_application(void) {
             continue;
         }
 
-        app.app_context.paused = app.paused;
         app.app_context.focused = app.focused;
 
-        app.app_module.update(app.game_state, &app.app_context, dt);
+        realm_app_output module_output = {0};
+        app.app_module.update(app.game_state, &app.app_context, &module_output, dt);
+
         gui_layout_begin((f32)dt);
-        app.app_module.render(app.game_state, &app.app_context);
-        app_debug_panel_render(&app.debug_panel);
+        app.app_module.render(app.game_state, &app.app_context, &module_output);
+        if (module_output.show_debug_panel) {
+            app_debug_panel_render(&app.debug_panel);
+        }
         app_console_render(&app.console, (f32)dt);
         gui_layout_end();
+
+        // Process module requests
+        if (module_output.wants_quit) {
+            rl_engine_stop();
+        }
+        if (module_output.wants_vsync_change) {
+            rl_config *loop_cfg = config_get();
+            loop_cfg->vsync = module_output.vsync_value;
+            app.app_context.vsync = module_output.vsync_value;
+            config_mark_dirty();
+            app.backend_switch_requested = true;
+            app.requested_backend = loop_cfg->renderer_backend;
+        }
+        if (module_output.wants_backend_switch) {
+            app.backend_switch_requested = true;
+            app.requested_backend = module_output.requested_backend;
+        }
+
+        // Cursor driven by module + focus + console
+        b8 capture = app.focused && !module_output.wants_cursor_visible && !app.console.window.visible;
+        platform_set_cursor_mode(app.app_context.window, capture ? CURSOR_MODE_HIDDEN : CURSOR_MODE_NORMAL);
+        platform_set_raw_input(app.app_context.window, capture);
+
         rl_engine_end_frame();
 
         if (app.backend_switch_requested) {
@@ -169,13 +193,11 @@ static b8 create_app_module(void) {
     app.app_context = (realm_app_context){
         .window = &app.window,
         .vsync = config_get()->vsync,
-        .paused = app.paused,
         .focused = app.focused,
         .renderer_backend = config_get()->renderer_backend,
     };
 
     app.app_module.init(app.game_state, &app.app_context);
-    app_apply_input_capture(&app);
     RL_INFO("App module initialized");
     return true;
 }

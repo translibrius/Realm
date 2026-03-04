@@ -1,6 +1,10 @@
 add_library(realm_app SHARED
         src/realm_app_api.c
         src/game.c
+        src/scene_main_menu.c
+        src/scene_game.c
+        src/menu_pause.c
+        src/menu_settings.c
 )
 
 target_include_directories(realm_app

@@ -46,10 +46,6 @@ b8 app_renderer_switch_backend(rl_application *application, RENDERER_BACKEND bac
     }
 
     rl_config *pcfg = config_get();
-    if (backend == pcfg->renderer_backend) {
-        return true;
-    }
-
     const RENDERER_BACKEND previous_backend = pcfg->renderer_backend;
     const platform_window_settings previous_window_settings = application->window.settings;
 
