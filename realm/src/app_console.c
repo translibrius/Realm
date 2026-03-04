@@ -2,6 +2,7 @@
 
 #include "asset/asset.h"
 #include "core/event.h"
+#include "engine.h"
 #include "gui/gui_clay.h"
 #include "gui/gui_panel.h"
 #include "gui/gui_scroll.h"
@@ -135,24 +136,26 @@ void app_console_render(app_console *c, f32 dt) {
         return;
     }
 
+    rl_arena *arena = rl_engine_get_frame_arena();
     u16 font = gui_font_id(ASSET_ID_FONT_JETBRAINS_MONO_REGULAR);
 
-    // Copy lines into static buffers so Clay_String pointers survive until EndLayout
-    static char line_bufs[APP_CONSOLE_MAX_LINES][APP_CONSOLE_LINE_MAX];
-    static u16 line_lens[APP_CONSOLE_MAX_LINES];
-    static Clay_Color line_colors[APP_CONSOLE_MAX_LINES];
+    // Copy lines into frame arena so Clay_String pointers survive until EndLayout
+    u32 line_count = c->count;
+    char **line_ptrs = rl_arena_push(arena, line_count * sizeof(char *), false);
+    u16 *line_lens = rl_arena_push(arena, line_count * sizeof(u16), false);
+    Clay_Color *line_colors = rl_arena_push(arena, line_count * sizeof(Clay_Color), false);
 
-    u32 line_count = 0;
-    for (u32 i = 0; i < c->count; i++) {
+    for (u32 i = 0; i < line_count; i++) {
         u32 idx = (c->head + i) % APP_CONSOLE_MAX_LINES;
         const app_console_line *line = &c->lines[idx];
         u16 len = line->len;
         if (len >= APP_CONSOLE_LINE_MAX) { len = APP_CONSOLE_LINE_MAX - 1; }
-        memcpy(line_bufs[line_count], line->text, len);
-        line_bufs[line_count][len] = '\0';
-        line_lens[line_count] = len;
-        line_colors[line_count] = console_level_color(line->level);
-        line_count++;
+        char *buf = rl_arena_push(arena, len + 1, false);
+        memcpy(buf, line->text, len);
+        buf[len] = '\0';
+        line_ptrs[i] = buf;
+        line_lens[i] = len;
+        line_colors[i] = console_level_color(line->level);
     }
 
     // Responsive sizing
@@ -178,7 +181,7 @@ void app_console_render(app_console *c, f32 dt) {
             .thumb_radius = 3,
         });
             for (u32 i = 0; i < line_count; i++) {
-                gui_text_dynamic(line_bufs[i], line_lens[i],
+                gui_text_dynamic(line_ptrs[i], line_lens[i],
                     &(gui_text_cfg){.color = line_colors[i], .size = 13, .font = font});
             }
         gui_scroll_end("ConsoleScroll", &c->scroll, &(gui_scroll_cfg){
@@ -189,7 +192,7 @@ void app_console_render(app_console *c, f32 dt) {
         });
 
         // Input bar
-        static char input_display[GUI_TEXT_INPUT_MAX + 4];
+        char *input_display = rl_arena_push(arena, GUI_TEXT_INPUT_MAX + 4, false);
         input_display[0] = '>';
         input_display[1] = ' ';
         u16 ilen = gui_text_input_display(&c->input, dt, &input_display[2], GUI_TEXT_INPUT_MAX);

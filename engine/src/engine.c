@@ -93,7 +93,7 @@ b8 rl_engine_create(const rl_engine_config *config) {
         return false;
     }
 
-    rl_arena_init(&state.frame_arena, KiB(4), KiB(1), MEM_STRING);
+    rl_arena_init(&state.frame_arena, KiB(128), KiB(4), MEM_STRING);
     state.frame_count = 0;
     state.fps_display = 0;
     state.delta_time = 0;
@@ -161,4 +161,8 @@ rl_engine_stats rl_engine_get_stats(void) {
         .fps = state.fps_display,
         .frame_time_ms = state.delta_time * 1000.0,
     };
+}
+
+rl_arena *rl_engine_get_frame_arena(void) {
+    return &state.frame_arena;
 }

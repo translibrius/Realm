@@ -88,7 +88,7 @@ Reports are LLM-friendly markdown with function hotspots, call counts, percentag
 
 **Game module boundary** (`realm/realm_app_module/`): The hot-reloaded game module should only contain game-specific logic — scene, camera, gameplay, and GUI layout. Host-level concerns (toasts, input capture, pause/focus state, window management) belong in the host (`realm/src/`). The module reads shared state through `realm_app_context`; it should never duplicate state the host already owns. When adding new functionality, prefer expanding `realm_app_context` over adding new DLL-exported functions.
 
-**Memory**: use `mem_alloc(size, MEM_TYPE)` / `mem_free` / `mem_zero` — not `malloc`. Use `rl_arena` for frame-local scratch; the engine clears `frame_arena` at the end of every frame (`rl_engine_end_frame`).
+**Memory**: use `mem_alloc(size, MEM_TYPE)` / `mem_free` / `mem_zero` — not `malloc`. Use `rl_arena` for frame-local scratch; the engine clears `frame_arena` at the end of every frame (`rl_engine_end_frame`). For per-frame temporary data (GUI strings, formatted text, scratch buffers), use `rl_engine_get_frame_arena()` or `cstr_format(arena, ...)` — never `static char` buffers. Static buffers are hidden globals that hurt reentrancy and readability; arena bumps are just as fast and get cleaned up automatically.
 
 **Events**: `event_register(EVENT_..., cb, userdata)` / `event_fire(EVENT_..., &payload)`. All cross-subsystem notifications go here.
 
