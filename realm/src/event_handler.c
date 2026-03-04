@@ -106,6 +106,15 @@ b8 on_key_press(void *event, void *data) {
         }
     }
 
+    if (key->key == KEY_F3 && key->pressed) {
+#if defined(PLATFORM_WINDOWS)
+        platform_system("start python profiler_view.py");
+#else
+        platform_system("python3 profiler_view.py &");
+#endif
+        RL_INFO("Launching profiler viewer");
+    }
+
     if (key->key == KEY_F5 && key->pressed) {
         handler->application->rebuild_requested = true;
         handler->application->reload_requested = true;

@@ -51,6 +51,14 @@ endif ()
 
 if (RL_PROFILE)
     target_compile_options(Realm PRIVATE -finstrument-functions)
+
+    # Copy profiler viewer alongside Realm binary
+    add_custom_command(TARGET Realm POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/../tools/profiler_view.py"
+            "$<TARGET_FILE_DIR:Realm>/profiler_view.py"
+        COMMENT "Copying profiler_view.py to output directory"
+    )
 endif ()
 
 add_subdirectory(realm_app_module)
