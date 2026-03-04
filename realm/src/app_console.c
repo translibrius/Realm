@@ -61,14 +61,12 @@ static b8 console_on_key(void *event, void *user_data) {
 
     if (gui_text_input_handle_key(&c->input, k)) {
         // Enter was pressed — submit command
-        if (c->input.len > 0) {
-            c->input.buf[c->input.len] = '\0';
-            RL_INFO("> %s", c->input.buf);
-            c->input.len = 0;
-            c->input.cursor = 0;
-            c->input.buf[0] = '\0';
-            c->auto_scroll = true;
-        }
+        c->input.buf[c->input.len] = '\0';
+        RL_INFO("> %s", c->input.buf);
+        c->input.len = 0;
+        c->input.cursor = 0;
+        c->input.buf[0] = '\0';
+        c->auto_scroll = true;
     }
 
     return true;
@@ -77,7 +75,13 @@ static b8 console_on_key(void *event, void *user_data) {
 static b8 console_on_char(void *event, void *user_data) {
     app_console *c = user_data;
     input_char *ch = event;
+
     if (!c || !c->visible || !ch) {
+        return false;
+    }
+
+    // Skip tilde (96) so tilde doesn't appear in the console input
+    if (ch->codepoint == 96) {
         return false;
     }
 
