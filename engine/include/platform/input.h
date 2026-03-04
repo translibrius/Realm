@@ -128,6 +128,7 @@ typedef enum KEYBOARD_KEY {
 typedef struct input_key {
     KEYBOARD_KEY key;
     b8 pressed;
+    b8 repeat;
 } input_key;
 
 typedef struct input_mouse_button {
@@ -169,5 +170,9 @@ REALM_API b8 input_mouse_released(MOUSE_BUTTON button);
 REALM_API void input_get_mouse_position(vec2 pos);
 REALM_API void input_get_previous_mouse_position(vec2 pos);
 REALM_API void input_get_mouse_delta(vec2 delta_pos);
+
+// Zero mouse deltas in both current and previous frames.
+// Call after cursor warp / mode switch to prevent stale jumps.
+REALM_API void input_flush_mouse_delta(void);
 
 void input_update();

@@ -22,6 +22,7 @@ typedef struct rl_font {
 
     rl_glyph *glyphs;
     u32 glyph_count;
+    const rl_glyph *glyph_map[256]; // ASCII fast path
 
     f32 ascender;
     f32 descender;

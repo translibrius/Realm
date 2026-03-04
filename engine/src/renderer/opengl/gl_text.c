@@ -9,8 +9,7 @@
 
 #include <string.h>
 
-// Helpers
-static const rl_glyph *rl_font_find_glyph(const rl_font *font, u32 codepoint) {
+const rl_glyph *rl_font_find_glyph(const rl_font *font, u32 codepoint) {
     for (u32 i = 0; i < font->glyph_count; i++) {
         if ((u32)font->glyphs[i].codepoint == codepoint)
             return &font->glyphs[i];
@@ -18,7 +17,7 @@ static const rl_glyph *rl_font_find_glyph(const rl_font *font, u32 codepoint) {
     return nullptr;
 }
 
-static GL_Font *find_gl_font(GL_Context *ctx, rl_font *font) {
+GL_Font *gl_find_font(GL_Context *ctx, rl_font *font) {
     for (u32 i = 0; i < ctx->fonts.count; i++) {
         if (ctx->fonts.items[i].font == font)
             return &ctx->fonts.items[i];
@@ -45,7 +44,7 @@ b8 opengl_text_pipeline_init(GL_Context *ctx) {
     // Create vbo & bind
     glGenBuffers(1, &pipeline->vbo);
     glBindBuffer(GL_ARRAY_BUFFER, pipeline->vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(GL_TextVertex) * 6 * MAX_TEXT_GLYPHS, NULL, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GL_TextVertex) * 6 * 4096, NULL, GL_DYNAMIC_DRAW);
 
     // Attributes: pos (vec2), uv (vec2), color (vec4)
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(GL_TextVertex), (void *)0);
@@ -68,8 +67,7 @@ b8 opengl_text_pipeline_init(GL_Context *ctx) {
                 RL_WARN("gl_font_create() failed for '%s'", asset->filename);
             }
 
-            // Set *default* font as evil_empire.otf
-            if (strcmp(font->name, "evil_empire.otf") == 0) {
+            if (strcmp(font->name, "JetBrainsMono-Regular.ttf") == 0) {
                 opengl_set_active_font(font);
             }
         }
@@ -117,7 +115,7 @@ b8 gl_font_create(rl_font *font, GL_Context *ctx) {
 
 void opengl_render_text(const char *text, f32 size_px, f32 x, f32 y, vec4 color) {
     GL_Context *ctx = opengl_get_context();
-    GL_Font *gl_font = find_gl_font(ctx, ctx->active_font);
+    GL_Font *gl_font = gl_find_font(ctx, ctx->active_font);
 
     if (ctx == nullptr || gl_font == nullptr || text == nullptr) {
         return;
@@ -217,7 +215,7 @@ void opengl_render_text_batch(rl_frame_text *texts, u32 text_count) {
         if (!font)
             continue;
 
-        GL_Font *entry_gl_font = find_gl_font(ctx, font);
+        GL_Font *entry_gl_font = gl_find_font(ctx, font);
         if (!entry_gl_font)
             continue;
 

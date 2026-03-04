@@ -388,6 +388,7 @@ void platform_system_shutdown() {
     RL_INFO("Platform system shutdown...");
 }
 
+__attribute__((no_instrument_function))
 i64 platform_get_clock_counter() {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -864,6 +865,7 @@ void platform_set_cursor_mode(platform_window *window, platform_cursor_mode mode
     }
 
     XFlush(state.display);
+    input_flush_mouse_delta();
     state.cursor_mode = mode;
 }
 

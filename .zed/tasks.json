@@ -1,0 +1,23 @@
+[
+  {
+    "label": "Debug",
+    "command": "cmake --build --preset debug --target run_realm_checked",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "Profile",
+    "command": "cmake --build --preset profile --target run_realm_checked",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "Release",
+    "command": "cmake --build --preset release --target run_realm_checked",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  }
+]

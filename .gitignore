@@ -5,6 +5,6 @@ build/
 .vs/
 compile_commands.json
 CMakeUserPresets.json
-.claude/
+# .claude/
 .vscode/
-.zed/
+.profile_log

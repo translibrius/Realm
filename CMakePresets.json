@@ -25,6 +25,15 @@
       }
     },
     {
+      "name": "profile",
+      "displayName": "Profile",
+      "inherits": "debug",
+      "binaryDir": "build/profile",
+      "cacheVariables": {
+        "RL_PROFILE": "ON"
+      }
+    },
+    {
       "name": "ci",
       "displayName": "CI (Debug + Werror)",
       "inherits": "debug",
@@ -41,6 +50,10 @@
       "configurePreset": "debug"
     },
     {
+      "name": "profile",
+      "configurePreset": "profile"
+    },
+    {
       "name": "release",
       "configurePreset": "release"
     },
@@ -53,6 +66,13 @@
     {
       "name": "debug",
       "configurePreset": "debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "profile",
+      "configurePreset": "profile",
       "output": {
         "outputOnFailure": true
       }

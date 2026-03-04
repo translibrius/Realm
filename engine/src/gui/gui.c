@@ -23,6 +23,7 @@ typedef struct gui_font_entry {
 
 typedef struct gui_state {
     b8 initialized;
+    f32 scroll_x;
     f32 scroll_y;
 
     gui_font_entry fonts[GUI_MAX_FONTS];
@@ -41,14 +42,6 @@ static b8 on_mouse_scroll(void *event, void *user_data) {
     input_mouse_scroll *scroll = (input_mouse_scroll *)event;
     state.scroll_y += (f32)scroll->z_delta;
     return false;
-}
-
-static const rl_glyph *font_find_glyph(const rl_font *font, u32 codepoint) {
-    for (u32 i = 0; i < font->glyph_count; i++) {
-        if ((u32)font->glyphs[i].codepoint == codepoint)
-            return &font->glyphs[i];
-    }
-    return nullptr;
 }
 
 static Clay_Dimensions measure_text(Clay_StringSlice text, Clay_TextElementConfig *config, void *user_data) {
@@ -70,7 +63,13 @@ static Clay_Dimensions measure_text(Clay_StringSlice text, Clay_TextElementConfi
 
     for (i32 i = 0; i < text.length; i++) {
         u32 cp = (u32)(unsigned char)text.chars[i];
-        const rl_glyph *g = font_find_glyph(font, cp);
+        const rl_glyph *g = (cp < 256) ? font->glyph_map[cp] : nullptr;
+        if (!g) {
+            // Fallback: linear scan for non-ASCII
+            for (u32 j = 0; j < font->glyph_count; j++) {
+                if ((u32)font->glyphs[j].codepoint == cp) { g = &font->glyphs[j]; break; }
+            }
+        }
         if (!g) continue;
         width += g->advance * size_px;
         if (i < text.length - 1) {
@@ -83,6 +82,9 @@ static Clay_Dimensions measure_text(Clay_StringSlice text, Clay_TextElementConfi
 }
 
 void init_gui(f32 width, f32 height) {
+    Clay_SetMaxElementCount(16384);
+    Clay_SetMaxMeasureTextCacheWordCount(32768);
+
     u64 clay_memory_size = Clay_MinMemorySize();
     Clay_Arena ui_arena = Clay_CreateArenaWithCapacityAndMemory(
         clay_memory_size,
@@ -123,7 +125,8 @@ void gui_begin_frame(f32 dt) {
         input_is_mouse_down(MOUSE_LEFT)
     );
 
-    Clay_UpdateScrollContainers(true, (Clay_Vector2){0, state.scroll_y}, dt);
+    Clay_UpdateScrollContainers(true, (Clay_Vector2){state.scroll_x, state.scroll_y}, dt);
+    state.scroll_x = 0;
     state.scroll_y = 0;
 }
 
@@ -144,8 +147,12 @@ u16 gui_font_id(ASSET_ID asset_id) {
     return 0;
 }
 
+// Internal — defined in gui_button.c
+void gui_button_frame_reset_(void);
+
 void gui_layout_begin(f32 dt) {
     gui_begin_frame(dt);
+    gui_button_frame_reset_();
     Clay_BeginLayout();
 }
 
@@ -155,103 +162,3 @@ void gui_layout_end(void) {
     gui_end_frame();
 }
 
-// ── Widgets ────────────────────────────────────────────────────────────────
-
-// Button: only one element can be "pressed" at a time (single mouse button).
-static u32 gui_button_pressed_id;
-
-gui_button_state gui_button(Clay_ElementId id) {
-    gui_button_state result = {0};
-    result.hovered = Clay_PointerOver(id);
-
-    if (input_mouse_pressed(MOUSE_LEFT) && result.hovered) {
-        gui_button_pressed_id = id.id;
-    }
-
-    result.pressed = result.hovered && gui_button_pressed_id == id.id;
-
-    if (gui_button_pressed_id == id.id && !input_is_mouse_down(MOUSE_LEFT)) {
-        gui_button_pressed_id = 0;
-        if (result.hovered) {
-            result.clicked = true;
-        }
-    }
-
-    return result;
-}
-
-// Text input: key event handler. Returns true if Enter was pressed.
-b8 gui_text_input_handle_key(gui_text_input_state *s, input_key *key) {
-    if (!s || !key || !key->pressed) {
-        return false;
-    }
-
-    switch (key->key) {
-    case KEY_BACKSPACE:
-        if (s->cursor > 0) {
-            memmove(&s->buf[s->cursor - 1], &s->buf[s->cursor], s->len - s->cursor);
-            s->cursor--;
-            s->len--;
-            s->buf[s->len] = '\0';
-        }
-        break;
-    case KEY_LEFT:
-        if (s->cursor > 0) { s->cursor--; }
-        break;
-    case KEY_RIGHT:
-        if (s->cursor < s->len) { s->cursor++; }
-        break;
-    case KEY_ENTER:
-        s->cursor_blink = 0;
-        return true;
-    default:
-        break;
-    }
-
-    s->cursor_blink = 0;
-    return false;
-}
-
-// Text input: char event handler. Inserts printable ASCII at cursor.
-void gui_text_input_handle_char(gui_text_input_state *s, input_char *ch) {
-    if (!s || !ch) {
-        return;
-    }
-    if (ch->codepoint < 32 || ch->codepoint > 126) {
-        return;
-    }
-    if (s->len >= GUI_TEXT_INPUT_MAX - 1) {
-        return;
-    }
-
-    memmove(&s->buf[s->cursor + 1], &s->buf[s->cursor], s->len - s->cursor);
-    s->buf[s->cursor] = (char)ch->codepoint;
-    s->cursor++;
-    s->len++;
-    s->buf[s->len] = '\0';
-    s->cursor_blink = 0;
-}
-
-// Text input: build display string with blinking caret.
-u16 gui_text_input_display(gui_text_input_state *s, f32 dt, char *out, u16 out_size) {
-    if (!s || !out || out_size < 2) {
-        return 0;
-    }
-
-    s->cursor_blink += dt;
-    if (s->cursor_blink > 1.0f) { s->cursor_blink -= 1.0f; }
-    b8 show_caret = s->cursor_blink < 0.5f;
-
-    u16 pos = 0;
-    for (u16 i = 0; i < s->len && pos < out_size - 2; i++) {
-        if (i == s->cursor && show_caret && pos < out_size - 2) {
-            out[pos++] = '|';
-        }
-        out[pos++] = s->buf[i];
-    }
-    if (s->cursor == s->len && show_caret && pos < out_size - 1) {
-        out[pos++] = '|';
-    }
-    out[pos] = '\0';
-    return pos;
-}

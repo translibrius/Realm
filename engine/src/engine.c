@@ -8,7 +8,6 @@
 #include "memory/memory.h"
 #include "platform/input.h"
 #include "platform/platform.h"
-#include "profiler/profiler.h"
 #include "renderer/renderer_frontend.h"
 #include "util/clock.h"
 
@@ -94,7 +93,7 @@ b8 rl_engine_create(const rl_engine_config *config) {
         return false;
     }
 
-    rl_arena_init(&state.frame_arena, KiB(4), KiB(1), MEM_STRING);
+    rl_arena_init(&state.frame_arena, KiB(128), KiB(4), MEM_STRING);
     state.frame_count = 0;
     state.fps_display = 0;
     state.delta_time = 0;
@@ -125,7 +124,6 @@ void rl_engine_stop(void) {
 
 // Returns delta_time
 b8 rl_engine_begin_frame(f64 *out_dt) {
-    RL_PROFILE_ZONE(begin_frame_zone, "rl_engine_begin_frame");
     clock_update(&state.frame_clock);
     state.frame_count++;
     i64 now = state.frame_clock.last;
@@ -141,12 +139,10 @@ b8 rl_engine_begin_frame(f64 *out_dt) {
     }
 
     renderer_begin_frame(state.delta_time);
-    RL_PROFILE_ZONE_END(begin_frame_zone);
     return true;
 }
 
 void rl_engine_end_frame(void) {
-    RL_PROFILE_ZONE(end_frame_zone, "rl_engine_end_frame");
     renderer_end_frame();
     renderer_swap_buffers();
 
@@ -158,11 +154,15 @@ void rl_engine_end_frame(void) {
 
     config_flush_if_dirty(state.delta_time);
     rl_arena_clear(&state.frame_arena);
-    RL_PROFILE_ZONE_END(end_frame_zone);
 }
 
 rl_engine_stats rl_engine_get_stats(void) {
     return (rl_engine_stats){
         .fps = state.fps_display,
+        .frame_time_ms = state.delta_time * 1000.0,
     };
+}
+
+rl_arena *rl_engine_get_frame_arena(void) {
+    return &state.frame_arena;
 }

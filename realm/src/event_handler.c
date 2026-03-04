@@ -4,6 +4,7 @@
 #include "application.h"
 #include "core/config.h"
 #include "engine.h"
+#include "profiler/profiler.h"
 
 #include "core/event.h"
 #include "gui/gui.h"
@@ -28,17 +29,6 @@ void app_event_handler_init(app_event_handler *handler, rl_application *applicat
     event_register(EVENT_MOUSE_SCROLL, on_mouse_scroll, handler);
 }
 
-void app_apply_input_capture(rl_application *application) {
-    if (!application || !application->app_context.window) {
-        return;
-    }
-
-    b8 should_capture = application->focused && !application->paused;
-    platform_set_cursor_mode(application->app_context.window,
-                             should_capture ? CURSOR_MODE_HIDDEN : CURSOR_MODE_NORMAL);
-    platform_set_raw_input(application->app_context.window, should_capture);
-}
-
 // Impl
 
 b8 on_focus_gained(void *event, void *data) {
@@ -48,8 +38,6 @@ b8 on_focus_gained(void *event, void *data) {
     RL_DEBUG("Window id=%d gained focus", window->id);
     if (window->id == handler->application->window.id) {
         handler->application->focused = true;
-        handler->application->paused = false;
-        app_apply_input_capture(handler->application);
         RL_INFO("Window focused");
     }
     return false;
@@ -62,9 +50,7 @@ b8 on_focus_lost(void *event, void *data) {
     RL_DEBUG("Window id=%d lost focus", window->id);
     if (window->id == handler->application->window.id) {
         handler->application->focused = false;
-        handler->application->paused = true;
-        app_apply_input_capture(handler->application);
-        RL_WARN("Window unfocused - paused");
+        RL_INFO("Window unfocused");
     }
     return false;
 }
@@ -92,6 +78,11 @@ b8 on_key_press(void *event, void *data) {
         return false;
     }
 
+    // Ignore OS key-repeat for host hotkeys — only UI text input cares about repeats
+    if (key->repeat) {
+        return false;
+    }
+
     if (key->pressed) {
         RL_DEBUG("Key press: %d", key->key);
     } else {
@@ -99,35 +90,33 @@ b8 on_key_press(void *event, void *data) {
     }
 
     if (key->key == KEY_GRAVE && key->pressed) {
-        b8 opened = app_console_toggle(&handler->application->console);
-        if (opened && !handler->application->paused) {
-            handler->application->paused = true;
-            app_apply_input_capture(handler->application);
-        }
+        app_console_toggle(&handler->application->console);
     }
+
+#if RL_PROFILE_ENABLED
+    if (key->key == KEY_F3 && key->pressed) {
+#if defined(PLATFORM_WINDOWS)
+        platform_system("start python profiler_view.py");
+#else
+        platform_system("python3 profiler_view.py &");
+#endif
+        RL_INFO("Launching profiler viewer");
+    }
+
+    if (key->key == KEY_F4 && key->pressed) {
+#if defined(PLATFORM_WINDOWS)
+        platform_system("start python profiler_report.py --snapshot --source-root " REALM_SOURCE_ROOT);
+#else
+        platform_system("python3 profiler_report.py --snapshot --source-root " REALM_SOURCE_ROOT " &");
+#endif
+        RL_INFO("Generating profiler snapshot report");
+    }
+#endif
 
     if (key->key == KEY_F5 && key->pressed) {
         handler->application->rebuild_requested = true;
         handler->application->reload_requested = true;
         RL_INFO("Hot reload requested");
-    }
-
-    if (key->key == KEY_ENTER && key->pressed) {
-        handler->application->paused = !handler->application->paused;
-        app_apply_input_capture(handler->application);
-        RL_INFO(handler->application->paused ? "Paused" : "Resumed");
-    }
-
-    // Stop engine on ESC
-    if (key->key == KEY_ESCAPE && key->pressed) {
-        if (handler->application->paused) {
-            RL_WARN("Stopping application...");
-            rl_engine_stop();
-        } else {
-            handler->application->paused = true;
-            app_apply_input_capture(handler->application);
-            RL_WARN("Paused (ESC again to exit)");
-        }
     }
 
     // Print mem debug on 'm'
@@ -170,4 +159,3 @@ b8 on_mouse_scroll(void *event, void *data) {
     app_console_on_scroll(&handler->application->console, (f32)scroll->z_delta);
     return false;
 }
-

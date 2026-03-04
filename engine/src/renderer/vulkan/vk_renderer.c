@@ -16,8 +16,6 @@
 #include "vk_texture.h"
 #include "vk_text.h"
 
-#include "profiler/profiler.h"
-
 static VK_Context context;
 
 VK_Context *vulkan_get_context_ptr(void) {
@@ -229,25 +227,20 @@ void update_uniform_buffer(u32 image_index, f64 dt) {
 void vulkan_begin_frame(f64 delta_time) {
     context.frame_acquired = false;
 
-    RL_PROFILE_ZONE(fence_zone, "vkWaitForFences");
     // Wait for previous frame to finish
     vkWaitForFences(context.device, 1, &context.in_flight_fences[context.current_frame], VK_TRUE, UINT64_MAX);
-    RL_PROFILE_ZONE_END(fence_zone);
 
     // Get image from swapchain and pass image_available semaphore
-    RL_PROFILE_ZONE(acquire_zone, "vkAcquireNextImageKHR");
     VkResult result = vkAcquireNextImageKHR(context.device, context.swapchain.handle, UINT64_MAX, context.image_available_semaphores[context.current_frame], VK_NULL_HANDLE, &context.current_image_index);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         vk_swapchain_recreate(&context);
-        RL_PROFILE_ZONE_END(acquire_zone);
         return;
     }
 
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         RL_FATAL("failed to acquire swap chain image");
     }
-    RL_PROFILE_ZONE_END(acquire_zone);
 
     context.frame_acquired = true;
 
@@ -263,12 +256,9 @@ void vulkan_end_frame() {
         return;
 
     // Record command buffer (text vertex data is now ready from submit_frame_data)
-    RL_PROFILE_ZONE(record_zone, "Record Command Buffer");
     vk_command_buffer_record(&context, context.command_buffers[context.current_frame], context.current_image_index);
-    RL_PROFILE_ZONE_END(record_zone);
 
     // Submit
-    RL_PROFILE_ZONE(submit_zone, "vkQueueSubmit");
     VkSemaphore wait_semaphores[] = {context.image_available_semaphores[context.current_frame]};
     VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     VkSemaphore signal_semaphores[] = {context.render_finished_semaphores[context.current_frame]};
@@ -284,10 +274,8 @@ void vulkan_end_frame() {
         .pSignalSemaphores = signal_semaphores};
 
     VK_CHECK(vkQueueSubmit(context.graphics_queue, 1, &submit_info, context.in_flight_fences[context.current_frame]));
-    RL_PROFILE_ZONE_END(submit_zone);
 
     // Present
-    RL_PROFILE_ZONE(present_zone, "vkQueuePresentKHR");
     VkPresentInfoKHR present_info = {
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         .waitSemaphoreCount = 1,
@@ -306,8 +294,6 @@ void vulkan_end_frame() {
     } else if (result != VK_SUCCESS) {
         RL_FATAL("failed to present swap chain image");
     }
-
-    RL_PROFILE_ZONE_END(present_zone);
 
     // advance frame
     context.current_frame = (context.current_frame + 1) % context.max_frames_in_flight;

@@ -95,7 +95,7 @@ rl_config config_defaults(void) {
         .window_mode = WINDOW_MODE_WINDOWED,
         .renderer_backend = BACKEND_OPENGL,
         .vsync = false,
-        .log_level = LOG_INFO,
+        .log_level = LOG_TRACE,
     };
 }
 

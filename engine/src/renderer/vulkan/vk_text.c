@@ -77,7 +77,7 @@ b8 vulkan_text_pipeline_init(VK_Context *ctx) {
 
         da_append(&tp->fonts, vk_font);
 
-        if (strcmp(font->name, "evil_empire.otf") == 0) {
+        if (strcmp(font->name, "JetBrainsMono-Regular.ttf") == 0) {
             tp->active_font = font;
         }
     }

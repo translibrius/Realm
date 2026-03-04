@@ -120,6 +120,14 @@ void memory_track_arena_release(u64 reserve_size, u64 commit_size, MEM_TYPE type
     state->arena_committed[type] -= commit_size;
 }
 
+mem_stats mem_get_stats(void) {
+    return (mem_stats){
+        .reserved = state->reserved,
+        .committed = state->committed,
+        .live_malloc = state->live_malloc,
+    };
+}
+
 void mem_debug_usage() {
     RL_DEBUG("-------------- Memory Usage --------------");
 

@@ -4,10 +4,19 @@
 #include "defines.h"
 #include "cglm.h"
 
+#define GL_SHADER_MAX_UNIFORMS 32
+
+typedef struct GL_UniformEntry {
+    const char *name;
+    i32 location;
+} GL_UniformEntry;
+
 typedef struct GL_Shader {
     i32 program_id;
     i32 vertex_id;
     i32 fragment_id;
+    GL_UniformEntry uniforms[GL_SHADER_MAX_UNIFORMS];
+    u32 uniform_count;
 } GL_Shader;
 
 b8 opengl_shader_setup(ASSET_ID vertex_id, ASSET_ID frag_id, GL_Shader *out_shader);

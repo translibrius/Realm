@@ -33,15 +33,13 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
     }
 
     if (frame_data->camera.valid) {
-        mat4 view = {0};
-        mat4 projection = {0};
-        vec3 position = {0};
+        glm_mat4_copy(frame_data->camera.view, context.view);
+        glm_mat4_copy(frame_data->camera.projection, context.projection);
+        glm_vec3_copy(frame_data->camera.position, context.pos);
+    }
 
-        glm_mat4_copy(frame_data->camera.view, view);
-        glm_mat4_copy(frame_data->camera.projection, projection);
-        glm_vec3_copy(frame_data->camera.position, position);
-
-        opengl_set_view_projection(view, projection, position);
+    if (!frame_data->meshes || frame_data->mesh_count == 0) {
+        goto text_pass;
     }
 
     rl_frame_point_light light = {
@@ -54,51 +52,76 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
         light = frame_data->point_lights[0];
     }
 
-    for (u32 i = 0; frame_data->meshes && i < frame_data->mesh_count; i++) {
+    b8 wireframe_on = false;
+
+    // Bind cube VAO once for all mesh draws
+    glBindVertexArray(context.cube_mesh.vao);
+
+    // --- Lit pass: bind shader + shared uniforms once ---
+    opengl_shader_use(&context.default_shader);
+    opengl_shader_set_mat4(&context.default_shader, "view", context.view);
+    opengl_shader_set_mat4(&context.default_shader, "projection", context.projection);
+    opengl_shader_set_vec3(&context.default_shader, "view_pos", context.pos);
+    opengl_shader_set_i32(&context.default_shader, "material.diffuse", 0);
+    opengl_shader_set_vec3(&context.default_shader, "light.position", light.position);
+    opengl_shader_set_vec3(&context.default_shader, "light.ambient", light.ambient);
+    opengl_shader_set_vec3(&context.default_shader, "light.diffuse", light.diffuse);
+    opengl_shader_set_vec3(&context.default_shader, "light.specular", light.specular);
+    glActiveTexture(GL_TEXTURE0);
+
+    u32 bound_tex = 0;
+
+    for (u32 i = 0; i < frame_data->mesh_count; i++) {
         rl_frame_mesh *mesh = &frame_data->meshes[i];
-        if (mesh->primitive != RL_FRAME_PRIMITIVE_CUBE) {
+        if (mesh->primitive != RL_FRAME_PRIMITIVE_CUBE || mesh->kind != RL_FRAME_MESH_KIND_LIT) {
             continue;
         }
 
-        if (mesh->kind == RL_FRAME_MESH_KIND_LIT) {
-            opengl_shader_use(&context.default_shader);
-            opengl_shader_set_i32(&context.default_shader, "material.diffuse", 0);
-            glActiveTexture(GL_TEXTURE0);
-            u32 tex_id = context.wood_texture.id;
-            if (mesh->material.diffuse_map == ASSET_ID_TEXTURE_WOOD_CONTAINER2) {
-                tex_id = context.wood_texture2.id;
-            }
+        u32 tex_id = mesh->material.diffuse_map == ASSET_ID_TEXTURE_WOOD_CONTAINER2
+            ? context.wood_texture2.id : context.wood_texture.id;
+        if (tex_id != bound_tex) {
             glBindTexture(GL_TEXTURE_2D, tex_id);
-            opengl_shader_set_vec3(&context.default_shader, "material.specular", mesh->material.specular);
-            opengl_shader_set_f32(&context.default_shader, "material.shininess", mesh->material.shininess);
-            opengl_shader_set_vec3(&context.default_shader, "light.position", light.position);
-            opengl_shader_set_vec3(&context.default_shader, "light.ambient", light.ambient);
-            opengl_shader_set_vec3(&context.default_shader, "light.diffuse", light.diffuse);
-            opengl_shader_set_vec3(&context.default_shader, "light.specular", light.specular);
-            opengl_shader_set_vec3(&context.default_shader, "view_pos", context.pos);
-            opengl_shader_set_mat4(&context.default_shader, "model", mesh->model);
-            opengl_shader_set_mat4(&context.default_shader, "view", context.view);
-            opengl_shader_set_mat4(&context.default_shader, "projection", context.projection);
-        } else {
-            opengl_shader_use(&context.light_shader);
-            opengl_shader_set_mat4(&context.light_shader, "model", mesh->model);
-            opengl_shader_set_mat4(&context.light_shader, "view", context.view);
-            opengl_shader_set_mat4(&context.light_shader, "projection", context.projection);
+            bound_tex = tex_id;
         }
 
-        if (mesh->wireframe) {
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        } else {
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        opengl_shader_set_vec3(&context.default_shader, "material.specular", mesh->material.specular);
+        opengl_shader_set_f32(&context.default_shader, "material.shininess", mesh->material.shininess);
+        opengl_shader_set_mat4(&context.default_shader, "model", mesh->model);
+
+        if (mesh->wireframe != wireframe_on) {
+            glPolygonMode(GL_FRONT_AND_BACK, mesh->wireframe ? GL_LINE : GL_FILL);
+            wireframe_on = mesh->wireframe;
         }
 
-        gl_mesh_draw(&context.cube_mesh);
-
-        if (mesh->wireframe) {
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        }
+        glDrawArrays(GL_TRIANGLES, 0, context.cube_mesh.vertex_count);
     }
 
+    // --- Unlit pass: bind shader + shared uniforms once ---
+    opengl_shader_use(&context.light_shader);
+    opengl_shader_set_mat4(&context.light_shader, "view", context.view);
+    opengl_shader_set_mat4(&context.light_shader, "projection", context.projection);
+
+    for (u32 i = 0; i < frame_data->mesh_count; i++) {
+        rl_frame_mesh *mesh = &frame_data->meshes[i];
+        if (mesh->primitive != RL_FRAME_PRIMITIVE_CUBE || mesh->kind != RL_FRAME_MESH_KIND_UNLIT) {
+            continue;
+        }
+
+        opengl_shader_set_mat4(&context.light_shader, "model", mesh->model);
+
+        if (mesh->wireframe != wireframe_on) {
+            glPolygonMode(GL_FRONT_AND_BACK, mesh->wireframe ? GL_LINE : GL_FILL);
+            wireframe_on = mesh->wireframe;
+        }
+
+        glDrawArrays(GL_TRIANGLES, 0, context.cube_mesh.vertex_count);
+    }
+
+    if (wireframe_on) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    }
+
+text_pass:
     if (frame_data->texts && frame_data->text_count > 0) {
         opengl_render_text_batch(frame_data->texts, frame_data->text_count);
     }

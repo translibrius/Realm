@@ -22,7 +22,7 @@ endif ()
 set_target_properties(Realm PROPERTIES LINKER_LANGUAGE CXX)
 
 # Engine last
-target_link_libraries(Realm PRIVATE Engine Tracy::TracyClient)
+target_link_libraries(Realm PRIVATE Engine)
 target_compile_definitions(Realm PRIVATE ENGINE_SHARED)
 target_compile_definitions(Realm PRIVATE REALM_APP_BUILD_DIR="${CMAKE_BINARY_DIR}")
 target_compile_definitions(Realm PRIVATE REALM_APP_BUILD_TOOL="${CMAKE_COMMAND}")
@@ -46,6 +46,22 @@ elseif (UNIX)
             REALM_APP_MODULE_NAME="librealm_app.so"
             REALM_APP_HOT_FORMAT="librealm_app_hot_%u.so"
             REALM_APP_HAS_PDB=0
+    )
+endif ()
+
+if (RL_PROFILE)
+    target_compile_options(Realm PRIVATE -finstrument-functions)
+    target_compile_definitions(Realm PRIVATE REALM_SOURCE_ROOT="${CMAKE_SOURCE_DIR}")
+
+    # Copy profiler scripts alongside Realm binary
+    add_custom_command(TARGET Realm POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/../tools/profiler_view.py"
+            "$<TARGET_FILE_DIR:Realm>/profiler_view.py"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/../tools/profiler_report.py"
+            "$<TARGET_FILE_DIR:Realm>/profiler_report.py"
+        COMMENT "Copying profiler scripts to output directory"
     )
 endif ()
 

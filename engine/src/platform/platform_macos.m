@@ -414,6 +414,7 @@ void platform_system_shutdown() {
     RL_INFO("Platform system shutdown...");
 }
 
+__attribute__((no_instrument_function))
 i64 platform_get_clock_counter() {
     return (i64)mach_absolute_time();
 }
@@ -449,7 +450,8 @@ b8 platform_pump_messages() {
                         }
                     }
                 }
-            } break;
+                continue; // Don't forward to sendEvent — prevents macOS alert beep on unhandled keys
+            }
             case NSEventTypeFlagsChanged: {
                 KEYBOARD_KEY key = mac_map_keycode(event.keyCode);
                 if (key != KEY_MAX_KEYS) {
@@ -906,6 +908,7 @@ void platform_set_cursor_mode(platform_window *window, platform_cursor_mode mode
         platform_center_cursor(window);
     }
 
+    input_flush_mouse_delta();
     state.cursor_mode = mode;
 }
 
