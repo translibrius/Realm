@@ -766,6 +766,20 @@ b8 platform_swap_buffers(platform_window *window) {
     return true;
 }
 
+b8 platform_set_vsync(platform_window *window, b8 vsync) {
+    if (!window || window->id >= MAX_WINDOWS) return false;
+    mac_window *mw = mac_get_window(window->id);
+    if (!mw || !mw->gl) return false;
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    GLint swap = vsync ? 1 : 0;
+    [mw->gl setValues:&swap forParameter:NSOpenGLCPSwapInterval];
+#pragma clang diagnostic pop
+    RL_INFO("VSync %s", vsync ? "enabled" : "disabled");
+    return true;
+}
+
 static NSOpenGLPixelFormat *mac_create_pixel_format() {
     NSOpenGLPixelFormatAttribute attrs[] = {
         NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion3_2Core,
@@ -809,8 +823,6 @@ b8 platform_create_opengl_context(platform_window *window) {
     [mw->gl setView:mw->view];
     [mw->gl makeCurrentContext];
 
-    GLint swap = 0;
-    [mw->gl setValues:&swap forParameter:NSOpenGLCPSwapInterval];
 #pragma clang diagnostic pop
 
     if (gladLoadGL() == 0) {

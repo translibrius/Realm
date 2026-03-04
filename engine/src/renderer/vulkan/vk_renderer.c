@@ -302,6 +302,12 @@ void vulkan_end_frame() {
 void vulkan_swap_buffers() {
 }
 
+void vulkan_set_vsync(b8 vsync) {
+    if (context.swapchain.vsync == vsync) return;
+    context.swapchain.vsync = vsync;
+    context.framebuffer_resized = true;
+}
+
 void vulkan_submit_frame_data(rl_frame_data *frame_data) {
     if (!frame_data) {
         return;

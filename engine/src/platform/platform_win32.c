@@ -9,8 +9,6 @@
 
 #ifdef PLATFORM_WINDOWS
 
-#define VSYNC_ENABLED false
-
 #define WIN32_LEAN_AND_MEAN
 #include "thread.h"
 
@@ -341,6 +339,14 @@ b8 platform_pump_messages() {
             }
             break;
         }
+        case WM_MOUSEMOVE: {
+            if (!state.raw_mouse_enabled) {
+                i32 x_position = GET_X_LPARAM(msg.lParam);
+                i32 y_position = GET_Y_LPARAM(msg.lParam);
+                input_process_mouse_move(x_position, y_position);
+            }
+            break;
+        }
         default:
             break;
         }
@@ -558,13 +564,6 @@ b8 platform_context_make_current(platform_window *window) {
         return false;
     }
 
-    // Set vsync OFF on the thread that will render
-    if (!VSYNC_ENABLED) {
-        if (wglSwapIntervalEXT) {
-            wglSwapIntervalEXT(0);
-        }
-    }
-
     return true;
 }
 
@@ -586,6 +585,17 @@ b8 platform_swap_buffers(platform_window *window) {
         return false;
     }
     return true;
+}
+
+b8 platform_set_vsync(platform_window *window, b8 vsync) {
+    (void)window;
+    if (wglSwapIntervalEXT) {
+        wglSwapIntervalEXT(vsync ? 1 : 0);
+        RL_INFO("VSync %s", vsync ? "enabled" : "disabled");
+        return true;
+    }
+    RL_WARN("wglSwapIntervalEXT not available, cannot set VSync");
+    return false;
 }
 
 void platform_sleep(u32 milliseconds) {
@@ -1026,7 +1036,7 @@ b8 platform_create_opengl_context(platform_window *window) {
             wglMakeCurrent(hdc, nullptr);
             wglDeleteContext(temp_rc);
             wglMakeCurrent(hdc, modern_ctx);
-            wglSwapIntervalEXT(VSYNC_ENABLED ? 1 : 0);
+            wglSwapIntervalEXT(0);
             render_ctx = modern_ctx;
             RL_INFO("Created OpenGL 3.3 core profile context");
         } else {
@@ -1271,7 +1281,8 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
     case WM_LBUTTONUP:
     case WM_MBUTTONUP:
     case WM_RBUTTONUP:
-    case WM_MOUSEWHEEL: {
+    case WM_MOUSEWHEEL:
+    case WM_MOUSEMOVE: {
         PostThreadMessageA(state.main_thread_id, Message, WParam, LParam);
         break;
     }
@@ -1303,16 +1314,6 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
         if (pw) {
             event_fire(EVENT_WINDOW_FOCUS_LOST, pw);
         }
-    } break;
-
-    // Mouse move is handled directly (continuous state, no edge detection needed)
-    case WM_MOUSEMOVE: {
-        if (state.raw_mouse_enabled)
-            break;
-
-        i32 x_position = GET_X_LPARAM(LParam);
-        i32 y_position = GET_Y_LPARAM(LParam);
-        input_process_mouse_move(x_position, y_position);
     } break;
 
     // Raw mouse input

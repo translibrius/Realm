@@ -19,10 +19,22 @@
 
 #if defined(PLATFORM_WINDOWS)
 #include <windows.h>
+#include <dbghelp.h>
+#pragma comment(lib, "dbghelp.lib")
 #endif
 
 // Every function in this file must never be instrumented.
 #define PROF_NOINST __attribute__((no_instrument_function))
+
+// Thread-safe thread ID check (must not be instrumented, so use OS call directly)
+PROF_NOINST
+static u64 profiler_get_thread_id(void) {
+#if defined(PLATFORM_WINDOWS)
+    return (u64)GetCurrentThreadId();
+#else
+    return (u64)pthread_self();
+#endif
+}
 
 #define AGG_MAP_SIZE    4096
 #define NAME_MAP_SIZE   4096
@@ -111,6 +123,7 @@ typedef struct profiler_state {
 
     b8              enabled;
     b8              initialized;
+    u64             main_thread_id;
 } profiler_state;
 
 static profiler_state state;
@@ -150,6 +163,18 @@ static const char *resolve_name(void *fn_addr) {
         u32 len = (u32)strlen(info.dli_sname);
         char *buf = mem_alloc(len + 1, MEM_SUBSYSTEM_PROFILER);
         memcpy(buf, info.dli_sname, len + 1);
+        name = buf;
+    }
+#elif defined(PLATFORM_WINDOWS)
+    char sym_buf[sizeof(SYMBOL_INFO) + MAX_SYM_NAME];
+    SYMBOL_INFO *sym = (SYMBOL_INFO *)sym_buf;
+    sym->SizeOfStruct = sizeof(SYMBOL_INFO);
+    sym->MaxNameLen = MAX_SYM_NAME;
+    DWORD64 displacement = 0;
+    if (SymFromAddr(GetCurrentProcess(), (DWORD64)fn_addr, &displacement, sym)) {
+        u32 len = (u32)sym->NameLen;
+        char *buf = mem_alloc(len + 1, MEM_SUBSYSTEM_PROFILER);
+        memcpy(buf, sym->Name, len + 1);
         name = buf;
     }
 #endif
@@ -348,8 +373,14 @@ void rl_profiler_init(void) {
 #if defined(PLATFORM_MACOS) || defined(PLATFORM_LINUX)
     state.shm_fd = -1;
 #endif
+    state.main_thread_id = profiler_get_thread_id();
     state.enabled = true;
     state.initialized = true;
+
+#if defined(PLATFORM_WINDOWS)
+    SymSetOptions(SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS);
+    SymInitialize(GetCurrentProcess(), NULL, TRUE);
+#endif
 
     shm_create();
     RL_INFO("Profiler initialized (shared memory broadcast active)");
@@ -359,6 +390,9 @@ PROF_NOINST
 void rl_profiler_shutdown(void) {
     if (!state.initialized) return;
     shm_destroy();
+#if defined(PLATFORM_WINDOWS)
+    SymCleanup(GetCurrentProcess());
+#endif
     state.initialized = false;
     RL_INFO("Profiler shut down");
 }
@@ -366,9 +400,10 @@ void rl_profiler_shutdown(void) {
 // --- Instrumentation hooks ---
 
 PROF_NOINST
-void __cyg_profile_func_enter(void *fn, void *caller) {
+REALM_API void __cyg_profile_func_enter(void *fn, void *caller) {
     (void)caller;
     if (!state.enabled || !state.initialized) return;
+    if (profiler_get_thread_id() != state.main_thread_id) return;
     if (state.stack_depth >= MAX_STACK_DEPTH) return;
 
     state.call_stack[state.stack_depth] = (timing_entry){
@@ -379,9 +414,10 @@ void __cyg_profile_func_enter(void *fn, void *caller) {
 }
 
 PROF_NOINST
-void __cyg_profile_func_exit(void *fn, void *caller) {
+REALM_API void __cyg_profile_func_exit(void *fn, void *caller) {
     (void)caller;
     if (!state.enabled || !state.initialized) return;
+    if (profiler_get_thread_id() != state.main_thread_id) return;
     if (state.stack_depth == 0) return;
     if (state.call_stack[state.stack_depth - 1].fn_addr != fn) return;
 

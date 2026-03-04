@@ -398,6 +398,15 @@ rl_config *config_get(void) {
     return state ? &state->config : nullptr;
 }
 
+void config_set_vsync(b8 value) {
+    if (!state) return;
+    if (state->config.vsync == value) return;
+    state->config.vsync = value;
+    config_mark_dirty();
+    e_config_changed_payload payload = { .key = "vsync" };
+    event_fire(EVENT_CONFIG_CHANGED, &payload);
+}
+
 void config_mark_dirty(void) {
     if (state) {
         state->dirty = true;

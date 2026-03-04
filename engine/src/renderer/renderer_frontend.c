@@ -1,6 +1,9 @@
 
 #include "renderer/renderer_frontend.h"
+#include "core/config.h"
+#include "core/event.h"
 #include "core/logger.h"
+#include <string.h>
 #include "opengl/gl_gui.h"
 #include "opengl/gl_text.h"
 #include "renderer/opengl/gl_renderer.h"
@@ -19,6 +22,15 @@ static frontend_state state;
 // Forward decl
 void prepare_interface(RENDERER_BACKEND backend);
 
+static b8 on_config_changed(void *data, void *user_data) {
+    (void)user_data;
+    e_config_changed_payload *p = data;
+    if (strcmp(p->key, "vsync") == 0) {
+        renderer_set_vsync(config_get()->vsync);
+    }
+    return false;
+}
+
 b8 renderer_init(platform_window *window, RENDERER_BACKEND backend, b8 vsync) {
     prepare_interface(backend);
     if (!interface.initialize(window, vsync)) {
@@ -26,6 +38,7 @@ b8 renderer_init(platform_window *window, RENDERER_BACKEND backend, b8 vsync) {
         return false;
     }
 
+    event_register(EVENT_CONFIG_CHANGED, on_config_changed, nullptr);
     state.initialized = true;
     return true;
 }
@@ -33,6 +46,7 @@ b8 renderer_init(platform_window *window, RENDERER_BACKEND backend, b8 vsync) {
 void renderer_destroy() {
     if (!state.initialized)
         return;
+    event_unregister(EVENT_CONFIG_CHANGED, on_config_changed, nullptr);
     interface.shutdown();
     state.initialized = false;
 }
@@ -51,6 +65,12 @@ void renderer_swap_buffers() {
     if (!state.initialized)
         return;
     interface.swap_buffers();
+}
+
+void renderer_set_vsync(b8 vsync) {
+    if (!state.initialized || !interface.set_vsync)
+        return;
+    interface.set_vsync(vsync);
 }
 
 void renderer_render_text(const char *text, f32 size_px, f32 x, f32 y, vec4 color) {
@@ -109,6 +129,7 @@ void prepare_interface(RENDERER_BACKEND backend) {
         interface.begin_frame = &opengl_begin_frame;
         interface.end_frame = &opengl_end_frame;
         interface.swap_buffers = &opengl_swap_buffers;
+        interface.set_vsync = &opengl_set_vsync;
         interface.render_text = &opengl_render_text;
         interface.set_active_font = &opengl_set_active_font;
         interface.set_view_projection = &opengl_set_view_projection;
@@ -124,6 +145,7 @@ void prepare_interface(RENDERER_BACKEND backend) {
         interface.begin_frame = &vulkan_begin_frame;
         interface.end_frame = &vulkan_end_frame;
         interface.swap_buffers = &vulkan_swap_buffers;
+        interface.set_vsync = &vulkan_set_vsync;
         interface.render_text = &vulkan_render_text;         //&vulkan_render_text;
         interface.set_active_font = &vulkan_set_active_font; //&vulkan_set_active_font;
         interface.set_view_projection = &vulkan_set_view_projection;

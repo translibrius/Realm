@@ -144,12 +144,8 @@ b8 create_application(void) {
             rl_engine_stop();
         }
         if (module_output.wants_vsync_change) {
-            rl_config *loop_cfg = config_get();
-            loop_cfg->vsync = module_output.vsync_value;
-            app.app_context.vsync = module_output.vsync_value;
-            config_mark_dirty();
-            app.backend_switch_requested = true;
-            app.requested_backend = loop_cfg->renderer_backend;
+            config_set_vsync(module_output.vsync_value);
+            app.app_context.vsync = config_get()->vsync;
         }
         if (module_output.wants_backend_switch) {
             app.backend_switch_requested = true;

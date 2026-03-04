@@ -11,6 +11,7 @@ void vulkan_destroy();
 void vulkan_begin_frame(f64 delta_time);
 void vulkan_end_frame();
 void vulkan_swap_buffers();
+void vulkan_set_vsync(b8 vsync);
 void vulkan_set_view_projection(mat4 view, mat4 projection, vec3 pos);
 
 platform_window* vulkan_get_active_window();

@@ -736,14 +736,6 @@ b8 platform_create_opengl_context(platform_window *window) {
     glXMakeCurrent(state.display, lw->xwindow, ctx);
     lw->gl = ctx;
 
-    // Disable vsync
-    typedef void (*glXSwapIntervalEXTProc)(Display *, GLXDrawable, int);
-    glXSwapIntervalEXTProc glXSwapIntervalEXT =
-        (glXSwapIntervalEXTProc)glXGetProcAddressARB((const GLubyte *)"glXSwapIntervalEXT");
-    if (glXSwapIntervalEXT) {
-        glXSwapIntervalEXT(state.display, lw->xwindow, 0);
-    }
-
     if (gladLoadGL() == 0) {
         RL_ERROR("Failed to initialize OpenGL via GLAD.");
         glXMakeCurrent(state.display, None, NULL);
@@ -783,6 +775,23 @@ b8 platform_swap_buffers(platform_window *window) {
     }
     glXSwapBuffers(state.display, lw->xwindow);
     return true;
+}
+
+b8 platform_set_vsync(platform_window *window, b8 vsync) {
+    if (!window || window->id >= MAX_WINDOWS) return false;
+    linux_window *lw = linux_get_window(window->id);
+    if (!lw || !lw->gl) return false;
+
+    typedef void (*glXSwapIntervalEXTProc)(Display *, GLXDrawable, int);
+    glXSwapIntervalEXTProc fn =
+        (glXSwapIntervalEXTProc)glXGetProcAddressARB((const GLubyte *)"glXSwapIntervalEXT");
+    if (fn) {
+        fn(state.display, lw->xwindow, vsync ? 1 : 0);
+        RL_INFO("VSync %s", vsync ? "enabled" : "disabled");
+        return true;
+    }
+    RL_WARN("glXSwapIntervalEXT not available, cannot set VSync");
+    return false;
 }
 
 u32 platform_get_required_vulkan_extensions(const char ***names_out, b8 enable_validation) {

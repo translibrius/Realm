@@ -14,6 +14,10 @@ typedef struct e_splash_payload {
     const char *asset_name;
 } e_splash_payload;
 
+typedef struct e_config_changed_payload {
+    const char *key;
+} e_config_changed_payload;
+
 typedef enum EVENT_TYPE {
     EVENT_WINDOW_RESIZE,
     EVENT_WINDOW_FOCUS_GAINED,
@@ -28,6 +32,9 @@ typedef enum EVENT_TYPE {
 
     // Splash
     EVENT_SPLASH_INCREMENT,
+
+    // Config
+    EVENT_CONFIG_CHANGED,
 } EVENT_TYPE;
 
 typedef struct rl_event {

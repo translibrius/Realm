@@ -128,7 +128,6 @@ text_pass:
 }
 
 b8 opengl_initialize(platform_window *platform_window, b8 vsync) {
-    (void)vsync; // vsync is handled at platform surface level
     context.window = platform_window;
 
     da_init(&context.fonts);
@@ -141,6 +140,7 @@ b8 opengl_initialize(platform_window *platform_window, b8 vsync) {
     }
 
     platform_context_make_current(context.window);
+    platform_set_vsync(context.window, vsync);
     opengl_resize_framebuffer(context.window->settings.width, context.window->settings.height);
 
     // Shader init
@@ -196,6 +196,10 @@ void opengl_end_frame() {
 
 void opengl_swap_buffers() {
     platform_swap_buffers(context.window);
+}
+
+void opengl_set_vsync(b8 vsync) {
+    platform_set_vsync(context.window, vsync);
 }
 
 platform_window *opengl_get_active_window() {
