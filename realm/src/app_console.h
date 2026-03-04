@@ -2,7 +2,9 @@
 
 #include "core/logger.h"
 #include "defines.h"
-#include "gui/gui_clay.h"
+#include "gui/gui_scroll.h"
+#include "gui/gui_text_input.h"
+#include "gui/gui_window.h"
 
 #define APP_CONSOLE_MAX_LINES 256
 #define APP_CONSOLE_LINE_MAX  256
@@ -17,11 +19,8 @@ typedef struct app_console {
     app_console_line lines[APP_CONSOLE_MAX_LINES];
     u32 head;
     u32 count;
-    b8 visible;
-    b8 auto_scroll;
-    b8 dragging;
-    f32 pos_x;
-    f32 pos_y;
+    gui_window_state window;
+    gui_scroll_state scroll;
     gui_text_input_state input;
 } app_console;
 

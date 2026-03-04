@@ -4,6 +4,8 @@
 #include "core/logger.h"
 #include "engine.h"
 #include "gui/gui_clay.h"
+#include "gui/gui_panel.h"
+#include "gui/gui_text.h"
 #include "memory/memory.h"
 #include "renderer/renderer_frontend.h"
 #include "util/str.h"
@@ -149,26 +151,15 @@ void game_render(rl_game *game, f64 dt) {
     renderer_submit_frame_data(&frame_data);
 
     // GUI overlay (Clay frame is owned by the host)
-    Clay_ElementDeclaration root_decl = {
-        .layout = GUI_ROOT_LAYOUT(CLAY_ALIGN_X_RIGHT, CLAY_ALIGN_Y_TOP),
-    };
-    Clay_ElementDeclaration panel_decl = {
-        .layout = {
-            .sizing = {.width = CLAY_SIZING_FIXED(220), .height = CLAY_SIZING_FIT(0)},
-            .padding = CLAY_PADDING_ALL(12),
-            .childGap = 8,
-            .layoutDirection = CLAY_TOP_TO_BOTTOM,
-        },
-        .backgroundColor = GUI_RGBA(30, 30, 30, 200),
-    };
-
     u16 font_jb = gui_font_id(ASSET_ID_FONT_JETBRAINS_MONO_REGULAR);
 
-    CLAY(CLAY_ID("Root"), root_decl) {
-        CLAY(CLAY_ID("DebugPanel"), panel_decl) {
-            CLAY_TEXT(CLAY_STRING("Debug Panel"), GUI_TEXT_CFG_FONT(GUI_WHITE, 18, font_jb));
-            CLAY_TEXT(GUI_STRING(fps), GUI_TEXT_CFG_FONT(GUI_HEX(0xB4FFB4), 14, font_jb));
-        }
+    CLAY(CLAY_ID("Root"), ((Clay_ElementDeclaration){.layout = GUI_ROOT_LAYOUT(CLAY_ALIGN_X_RIGHT, CLAY_ALIGN_Y_TOP)})) {
+        gui_panel_begin("DebugPanel", &(gui_panel_cfg){
+            .color = GUI_RGBA(30, 30, 30, 200), .padding = 12, .gap = 8, .width = 220,
+        });
+            gui_text("Debug Panel", &(gui_text_cfg){.color = GUI_WHITE, .size = 18, .font = font_jb});
+            gui_text(fps.cstr, &(gui_text_cfg){.color = GUI_HEX(0xB4FFB4), .size = 14, .font = font_jb});
+        gui_panel_end();
     }
 
     // Reset frame arena

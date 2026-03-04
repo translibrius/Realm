@@ -1,0 +1,22 @@
+#pragma once
+
+#include "defines.h"
+#include "platform/input.h"
+
+#define GUI_TEXT_INPUT_MAX 256
+
+typedef struct gui_text_input_state {
+    char buf[GUI_TEXT_INPUT_MAX];
+    u16 len;
+    u16 cursor;
+    f32 cursor_blink;
+} gui_text_input_state;
+
+// Process a key event. Returns true if Enter was pressed (submit).
+REALM_API b8 gui_text_input_handle_key(gui_text_input_state *state, input_key *key);
+
+// Process a char event (insert printable character).
+REALM_API void gui_text_input_handle_char(gui_text_input_state *state, input_char *ch);
+
+// Build display string with blinking caret into out_buf. Returns length written.
+REALM_API u16 gui_text_input_display(gui_text_input_state *state, f32 dt, char *out_buf, u16 out_buf_size);

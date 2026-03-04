@@ -1,0 +1,25 @@
+#pragma once
+
+#include "clay.h"
+#include "defines.h"
+
+typedef struct gui_button_state {
+    b8 hovered;
+    b8 pressed;  // mouse is down on this element
+    b8 clicked;  // mouse released on this element (the action trigger)
+} gui_button_state;
+
+typedef struct gui_button_cfg {
+    Clay_Color color;       // normal background
+    Clay_Color hover_color; // hovered background
+    Clay_Color press_color; // pressed background
+    f32 padding;
+    f32 corner_radius;
+    f32 width;  // 0 = fit
+    f32 height; // 0 = fit
+} gui_button_cfg;
+
+// Opens a button element. Returns interaction state for this frame.
+// Place children (text, icons) between begin/end.
+REALM_API gui_button_state gui_button_begin(const char *id, const gui_button_cfg *cfg);
+REALM_API void gui_button_end(void);
