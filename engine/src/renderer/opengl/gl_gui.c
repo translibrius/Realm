@@ -349,6 +349,19 @@ void opengl_render_gui(void *commands, i32 command_count) {
             break;
         }
 
+        case CLAY_RENDER_COMMAND_TYPE_IMAGE: {
+            // TODO: implement image rendering (textured quad)
+            // For now, render the bounding box as a placeholder rect.
+            push_rect(rect_verts, &rect_vert_count, bb.x, bb.y, bb.width, bb.height,
+                      0.3f, 0.3f, 0.3f, 1.0f);
+            break;
+        }
+
+        case CLAY_RENDER_COMMAND_TYPE_CUSTOM: {
+            // Custom elements are user-defined; nothing to render by default.
+            break;
+        }
+
         default:
             break;
         }

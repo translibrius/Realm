@@ -23,6 +23,7 @@ typedef struct gui_font_entry {
 
 typedef struct gui_state {
     b8 initialized;
+    f32 scroll_x;
     f32 scroll_y;
 
     gui_font_entry fonts[GUI_MAX_FONTS];
@@ -124,7 +125,8 @@ void gui_begin_frame(f32 dt) {
         input_is_mouse_down(MOUSE_LEFT)
     );
 
-    Clay_UpdateScrollContainers(true, (Clay_Vector2){0, state.scroll_y}, dt);
+    Clay_UpdateScrollContainers(true, (Clay_Vector2){state.scroll_x, state.scroll_y}, dt);
+    state.scroll_x = 0;
     state.scroll_y = 0;
 }
 

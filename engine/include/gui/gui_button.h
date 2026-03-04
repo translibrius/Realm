@@ -2,6 +2,7 @@
 
 #include "clay.h"
 #include "defines.h"
+#include "gui/gui_text.h"
 
 typedef struct gui_button_state {
     b8 hovered;
@@ -23,3 +24,6 @@ typedef struct gui_button_cfg {
 // Place children (text, icons) between begin/end.
 REALM_API gui_button_state gui_button_begin(const gui_button_cfg *cfg);
 REALM_API void gui_button_end(void);
+
+// Single-call text button. Both cfg pointers are optional (NULL = defaults).
+REALM_API gui_button_state gui_text_button(const char *label, const gui_button_cfg *btn_cfg, const gui_text_cfg *text_cfg);

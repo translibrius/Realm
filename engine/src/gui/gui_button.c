@@ -1,5 +1,6 @@
 #include "gui/gui_button.h"
 
+#include "gui/gui_text.h"
 #include "platform/input.h"
 
 // Per-frame sequential counter. Since immediate-mode call order is stable
@@ -77,4 +78,11 @@ gui_button_state gui_button_begin(const gui_button_cfg *cfg) {
 
 void gui_button_end(void) {
     Clay__CloseElement();
+}
+
+gui_button_state gui_text_button(const char *label, const gui_button_cfg *btn_cfg, const gui_text_cfg *text_cfg) {
+    gui_button_state state = gui_button_begin(btn_cfg);
+    gui_text(label, text_cfg);
+    gui_button_end();
+    return state;
 }
