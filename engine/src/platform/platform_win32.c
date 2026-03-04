@@ -478,9 +478,9 @@ void platform_console_write(const char *message, const LOG_LEVEL level) {
 
     OutputDebugStringA(message);
     const u64 length = strlen(message);
-    LPDWORD number_written = nullptr;
+    DWORD number_written = 0;
 
-    WriteConsoleA(console_handle, message, (DWORD)length, number_written, nullptr);
+    WriteConsoleA(console_handle, message, (DWORD)length, &number_written, nullptr);
 
     // Reset text color so that we don't pollute console color in case of
     // crash/stop

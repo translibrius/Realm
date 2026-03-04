@@ -112,6 +112,7 @@ u64 logger_system_size() {
 b8 logger_system_start(void *memory) {
     RL_ASSERT_MSG(!state, "Logger system already started!");
     state = memory;
+    mem_zero(state, sizeof(logger_state));
 
     state->queue.capacity = LOG_QUEUE_SIZE;
     state->queue.head = 0;
