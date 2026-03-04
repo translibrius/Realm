@@ -6,6 +6,7 @@
 #include "gui/gui_clay.h"
 #include "gui/gui_panel.h"
 #include "gui/gui_text.h"
+#include "gui/gui_theme.h"
 #include "memory/memory.h"
 #include "platform/platform.h"
 #include "renderer/renderer_frontend.h"
@@ -43,14 +44,15 @@ void app_debug_panel_render(app_debug_panel *panel) {
     char *commit_str  = cstr_format(arena, "Committed: %.1f MiB", commit_mib);
 
     // ── Layout ──────────────────────────────────────────────────
-    gui_text_cfg val = {.color = GUI_HEX(0xB4FFB4),              .size = 13, .font = font};
-    gui_text_cfg dim = {.color = GUI_RGBA(160, 160, 165, 255),   .size = 13, .font = font};
+    const gui_theme *t = gui_theme_get();
+    gui_text_cfg val = {.color = t->debug_highlight, .size = 13, .font = font};
+    gui_text_cfg dim = {.color = t->text_dim,        .size = 13, .font = font};
 
     CLAY(CLAY_ID("DebugRoot"), ((Clay_ElementDeclaration){
         .layout = GUI_ROOT_LAYOUT(CLAY_ALIGN_X_RIGHT, CLAY_ALIGN_Y_TOP),
     })) {
         gui_panel_cfg panel = {
-            .color = GUI_RGBA(30, 30, 30, 200), .padding = 10, .gap = 4,
+            .color = t->bg, .padding = 10, .gap = 4,
             .width = 200, .corner_radius = 6,
         };
         GUI_PANEL(&panel) {

@@ -2,11 +2,13 @@
 #include "../../include/game.h"
 
 #include "gui/gui_clay.h"
+#include "gui/gui_theme.h"
 #include "gui/gui_widgets.h"
 #include "util/str.h"
 
 static const char *backend_items[] = {"OpenGL", "Vulkan"};
 static const char *window_mode_items[] = {"Windowed", "Borderless", "Fullscreen"};
+static const char *theme_items[] = {"Dark", "Catppuccin"};
 
 void menu_settings_render(rl_game *game, const realm_app_context *ctx, realm_app_output *out) {
     // ── State sync ──────────────────────────────────────────────
@@ -19,15 +21,17 @@ void menu_settings_render(rl_game *game, const realm_app_context *ctx, realm_app
     game->settings_backend_dropdown.selected = (i32)ctx->renderer_backend;
 
     // ── Layout ──────────────────────────────────────────────────
-    gui_text_cfg label = {.color = GUI_RGBA(200, 200, 200, 255), .size = 14};
-    gui_text_cfg val   = {.color = GUI_RGBA(160, 160, 160, 255), .size = 14};
+    const gui_theme *t = gui_theme_get();
+    gui_text_cfg label = {.color = t->text, .size = 14};
+    gui_text_cfg val   = {.color = t->text_dim, .size = 14};
     gui_panel_cfg cell    = {.height = 30, .align_y = CLAY_ALIGN_Y_CENTER};
     gui_panel_cfg cell_h  = {.height = 30, .horizontal = true, .gap = 8, .align_y = CLAY_ALIGN_Y_CENTER};
     gui_panel_cfg col_grow = {.gap = 8, .width_sizing = GUI_SIZE_GROW};
 
-    b8 vsync_chg = false, window_chg = false, fov_chg = false, sens_chg = false, backend_chg = false;
+    b8 vsync_chg = false, window_chg = false, fov_chg = false, sens_chg = false, backend_chg = false,
+       theme_chg = false;
 
-    gui_text("Settings", &(gui_text_cfg){.color = GUI_WHITE, .size = 24});
+    gui_text("Settings", &(gui_text_cfg){.color = t->text, .size = 24});
 
     GUI_ROW(16) {
         GUI_COL(8) {
@@ -36,6 +40,7 @@ void menu_settings_render(rl_game *game, const realm_app_context *ctx, realm_app
             GUI_PANEL(&cell) { gui_text("FOV", &label); }
             GUI_PANEL(&cell) { gui_text("Sensitivity", &label); }
             GUI_PANEL(&cell) { gui_text("Renderer", &label); }
+            GUI_PANEL(&cell) { gui_text("Theme", &label); }
         }
 
         GUI_PANEL(&col_grow) {
@@ -64,14 +69,16 @@ void menu_settings_render(rl_game *game, const realm_app_context *ctx, realm_app
                 backend_chg = gui_dropdown(&game->settings_backend_dropdown,
                     &(gui_dropdown_cfg){.items = backend_items, .item_count = 2, .width = 120});
             }
+
+            GUI_PANEL(&cell) {
+                theme_chg = gui_dropdown(&game->settings_theme_dropdown,
+                    &(gui_dropdown_cfg){.items = theme_items, .item_count = 2, .width = 120});
+            }
         }
     }
 
-    gui_button_cfg back_btn = {
-        .color = GUI_RGB(60, 60, 60), .hover_color = GUI_RGB(80, 80, 80),
-        .press_color = GUI_RGB(50, 50, 50), .padding = 10, .corner_radius = 4, .width = 120,
-    };
-    b8 back = gui_text_button("Back", &back_btn, &(gui_text_cfg){.color = GUI_WHITE, .size = 14}).clicked;
+    gui_button_cfg back_btn = {.padding = 10, .corner_radius = 4, .width = 120};
+    b8 back = gui_text_button("Back", &back_btn, &(gui_text_cfg){.color = t->text, .size = 14}).clicked;
 
     // ── Apply changes ───────────────────────────────────────────
     if (vsync_chg) {
@@ -97,6 +104,10 @@ void menu_settings_render(rl_game *game, const realm_app_context *ctx, realm_app
     if (backend_chg) {
         RENDERER_BACKEND sel = (RENDERER_BACKEND)game->settings_backend_dropdown.selected;
         if (sel != ctx->renderer_backend) { out->wants_backend_switch = true; out->requested_backend = sel; }
+    }
+    if (theme_chg) {
+        i32 sel = game->settings_theme_dropdown.selected;
+        gui_theme_set(sel == 1 ? gui_theme_catppuccin() : gui_theme_dark());
     }
     if (back) {
         game->settings_open = false;

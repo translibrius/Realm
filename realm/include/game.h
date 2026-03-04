@@ -9,7 +9,7 @@
 
 typedef struct rl_font rl_font;
 
-#define RL_GAME_STATE_VERSION 6
+#define RL_GAME_STATE_VERSION 7
 
 typedef enum game_scene {
     SCENE_MAIN_MENU,
@@ -37,6 +37,7 @@ typedef struct rl_game {
     gui_dropdown_state settings_window_mode_dropdown;
     gui_slider_state settings_fov_slider;
     gui_slider_state settings_sensitivity_slider;
+    gui_dropdown_state settings_theme_dropdown;
 
     // Shared
     rl_arena frame_arena;

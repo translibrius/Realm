@@ -1,5 +1,6 @@
 #include "gui/gui_scroll.h"
 
+#include "gui/gui_theme.h"
 #include "gui_internal.h"
 
 // Stashed by begin(), read by end(). Single-threaded, non-reentrant (same as Clay).
@@ -90,8 +91,9 @@ void gui_scroll_end(void) {
         spacer_frac = scroll_frac * (1.0f - thumb_h_frac);
     }
 
-    Clay_Color track_color = {25, 25, 28, 255};
-    Clay_Color thumb_color = {80, 80, 90, 180};
+    const gui_theme *t = gui_theme_get();
+    Clay_Color track_color = t->bg_input;
+    Clay_Color thumb_color = t->control_hover;
     f32 thumb_radius = 3;
     if (scroll_cfg) {
         if (scroll_cfg->track_color.a > 0) track_color = scroll_cfg->track_color;

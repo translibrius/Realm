@@ -1,6 +1,7 @@
 #include "gui/gui_button.h"
 
 #include "gui/gui_text.h"
+#include "gui/gui_theme.h"
 #include "platform/input.h"
 
 // Per-frame sequential counter. Since immediate-mode call order is stable
@@ -35,10 +36,10 @@ gui_button_state gui_button_begin(const gui_button_cfg *cfg) {
         }
     }
 
-    // Default colors so a zero-init config still produces a visible button
-    Clay_Color color_normal = {50, 50, 55, 255};
-    Clay_Color color_hover  = {65, 65, 70, 255};
-    Clay_Color color_press  = {40, 40, 45, 255};
+    const gui_theme *t = gui_theme_get();
+    Clay_Color color_normal = t->control;
+    Clay_Color color_hover  = t->control_hover;
+    Clay_Color color_press  = t->control_press;
 
     if (cfg) {
         if (cfg->color.a > 0)       color_normal = cfg->color;

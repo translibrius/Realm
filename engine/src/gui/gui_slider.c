@@ -1,5 +1,6 @@
 #include "gui/gui_slider.h"
 
+#include "gui/gui_theme.h"
 #include "gui_internal.h"
 #include "platform/input.h"
 
@@ -14,9 +15,10 @@ b8 gui_slider(gui_slider_state *state, const gui_slider_cfg *cfg) {
     f32 height = (cfg && cfg->height > 0) ? cfg->height : 16;
     f32 radius = (cfg && cfg->corner_radius > 0) ? cfg->corner_radius : height * 0.5f;
 
-    Clay_Color track_color = {45, 45, 50, 255};
-    Clay_Color fill_color  = {70, 130, 220, 255};
-    Clay_Color thumb_color = {230, 230, 235, 255};
+    const gui_theme *t = gui_theme_get();
+    Clay_Color track_color = t->control;
+    Clay_Color fill_color  = t->accent;
+    Clay_Color thumb_color = t->control_thumb;
     if (cfg) {
         if (cfg->track_color.a > 0) track_color = cfg->track_color;
         if (cfg->fill_color.a > 0)  fill_color  = cfg->fill_color;

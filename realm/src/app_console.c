@@ -7,6 +7,7 @@
 #include "gui/gui_panel.h"
 #include "gui/gui_scroll.h"
 #include "gui/gui_text.h"
+#include "gui/gui_theme.h"
 #include "gui/gui_window.h"
 #include "platform/input.h"
 #include "platform/platform.h"
@@ -35,14 +36,15 @@ static void console_log_callback(LOG_LEVEL level, const char *text, u16 len, voi
 }
 
 static Clay_Color console_level_color(LOG_LEVEL level) {
+    const gui_theme *t = gui_theme_get();
     switch (level) {
-    case LOG_WARN:  return GUI_RGBA(255, 191, 51, 255);
-    case LOG_ERROR: return GUI_RGBA(255, 89, 89, 255);
-    case LOG_FATAL: return GUI_RGBA(255, 50, 50, 255);
-    case LOG_DEBUG: return GUI_RGBA(160, 160, 160, 255);
-    case LOG_TRACE: return GUI_RGBA(120, 120, 120, 255);
+    case LOG_WARN:  return t->log_warn;
+    case LOG_ERROR: return t->log_error;
+    case LOG_FATAL: return t->log_fatal;
+    case LOG_DEBUG: return t->log_debug;
+    case LOG_TRACE: return t->log_trace;
     case LOG_INFO:
-    default:        return GUI_RGBA(128, 230, 255, 255);
+    default:        return t->log_info;
     }
 }
 
@@ -136,13 +138,14 @@ void app_console_render(app_console *c, f32 dt) {
     if (cw < 200.0f) cw = 200.0f;
 
     // ── Layout ──────────────────────────────────────────────────
+    const gui_theme *t = gui_theme_get();
     gui_text_cfg log_text = {.size = 13, .font = font};
 
     gui_window_result wr = gui_window_begin(&c->window, &(gui_window_cfg){
         .title = "Console", .width = cw, .height = win_h * 0.4f,
-        .bg_color = GUI_RGBA(20, 20, 22, 230),
-        .header_color = GUI_RGBA(35, 35, 40, 255),
-        .border_color = GUI_RGBA(60, 60, 65, 255),
+        .bg_color = t->bg,
+        .header_color = t->bg_secondary,
+        .border_color = t->border,
         .corner_radius = 6, .font = font, .font_size = 13,
     });
     if (!wr.visible) return;
@@ -150,8 +153,6 @@ void app_console_render(app_console *c, f32 dt) {
 
         gui_scroll_begin(&c->scroll, &(gui_scroll_cfg){
             .scrollbar_width = 8,
-            .track_color = GUI_RGBA(25, 25, 28, 255),
-            .thumb_color = GUI_RGBA(80, 80, 90, 180),
             .thumb_radius = 3,
         });
             for (u32 i = 0; i < line_count; i++) {
@@ -166,13 +167,13 @@ void app_console_render(app_console *c, f32 dt) {
         u16 ilen = gui_text_input_display(&c->input, dt, &input_display[2], GUI_TEXT_INPUT_MAX);
 
         gui_panel_cfg input_bar = {
-            .color = GUI_RGBA(15, 15, 17, 255),
-            .border_color = GUI_RGBA(60, 60, 65, 255), .border_width = 1,
+            .color = t->bg_input,
+            .border_color = t->border, .border_width = 1,
             .width_sizing = GUI_SIZE_GROW, .height = 28, .padding = 8,
         };
         GUI_PANEL(&input_bar) {
             gui_textn(input_display, 2 + ilen,
-                &(gui_text_cfg){.color = GUI_RGBA(200, 200, 205, 255), .size = 13, .font = font});
+                &(gui_text_cfg){.color = t->text, .size = 13, .font = font});
         }
 
     gui_window_end();

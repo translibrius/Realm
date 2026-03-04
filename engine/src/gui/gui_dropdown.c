@@ -2,6 +2,7 @@
 
 #include "gui/gui_button.h"
 #include "gui/gui_text.h"
+#include "gui/gui_theme.h"
 #include "gui_internal.h"
 #include "platform/input.h"
 
@@ -17,9 +18,10 @@ b8 gui_dropdown(gui_dropdown_state *state, const gui_dropdown_cfg *cfg) {
     u16 font       = cfg->font;
     u16 font_size  = cfg->font_size > 0   ? cfg->font_size   : 14;
 
-    Clay_Color bg_color    = {50, 50, 55, 255};
-    Clay_Color hover_color = {65, 65, 70, 255};
-    Clay_Color text_color  = {220, 220, 225, 255};
+    const gui_theme *t = gui_theme_get();
+    Clay_Color bg_color    = t->control;
+    Clay_Color hover_color = t->control_hover;
+    Clay_Color text_color  = t->text;
     if (cfg->color.a > 0)      bg_color    = cfg->color;
     if (cfg->hover_color.a > 0) hover_color = cfg->hover_color;
     if (cfg->text_color.a > 0) text_color  = cfg->text_color;
@@ -78,7 +80,7 @@ b8 gui_dropdown(gui_dropdown_state *state, const gui_dropdown_cfg *cfg) {
             },
             .backgroundColor = bg_color,
             .cornerRadius = CLAY_CORNER_RADIUS(radius),
-            .border = {.color = {80, 80, 85, 255}, .width = {1, 1, 1, 1, 0}},
+            .border = {.color = t->border, .width = {1, 1, 1, 1, 0}},
         });
 
         for (i32 i = 0; i < cfg->item_count; i++) {

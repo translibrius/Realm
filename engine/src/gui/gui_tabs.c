@@ -2,6 +2,7 @@
 
 #include "gui/gui_button.h"
 #include "gui/gui_text.h"
+#include "gui/gui_theme.h"
 
 i32 gui_tabs(i32 *selected, const char **labels, i32 count, const gui_tabs_cfg *cfg) {
     if (!selected || !labels || count <= 0) return 0;
@@ -12,10 +13,11 @@ i32 gui_tabs(i32 *selected, const char **labels, i32 count, const gui_tabs_cfg *
     u16 font      = cfg ? cfg->font : 0;
     u16 font_size = (cfg && cfg->font_size > 0)      ? cfg->font_size     : 14;
 
-    Clay_Color inactive_color = {40, 40, 45, 255};
-    Clay_Color active_color   = {60, 60, 65, 255};
-    Clay_Color hover_color    = {55, 55, 60, 255};
-    Clay_Color text_color     = {200, 200, 205, 255};
+    const gui_theme *t = gui_theme_get();
+    Clay_Color inactive_color = t->control;
+    Clay_Color active_color   = t->bg_secondary;
+    Clay_Color hover_color    = t->control_hover;
+    Clay_Color text_color     = t->text;
     if (cfg) {
         if (cfg->color.a > 0)        inactive_color = cfg->color;
         if (cfg->active_color.a > 0) active_color   = cfg->active_color;

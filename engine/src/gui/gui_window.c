@@ -3,6 +3,7 @@
 #include "gui/gui_button.h"
 #include "gui/gui_panel.h"
 #include "gui/gui_text.h"
+#include "gui/gui_theme.h"
 #include "gui_internal.h"
 #include "platform/input.h"
 #include "renderer/renderer_frontend.h"
@@ -21,6 +22,7 @@ gui_window_result gui_window_begin(gui_window_state *state, const gui_window_cfg
         state->_id = gui__next_id();
     }
 
+    const gui_theme *t = gui_theme_get();
     f32 corner_radius = cfg->corner_radius > 0 ? cfg->corner_radius : 6;
     u16 font_size = cfg->font_size > 0 ? cfg->font_size : 13;
     i32 z_index = cfg->z_index > 0 ? cfg->z_index : 100;
@@ -92,7 +94,7 @@ gui_window_result gui_window_begin(gui_window_state *state, const gui_window_cfg
     // Title text
     if (cfg->title) {
         gui_text(cfg->title, &(gui_text_cfg){
-            .color = {180, 180, 185, 255},
+            .color = t->text_dim,
             .size = font_size,
             .font = cfg->font,
         });
@@ -103,16 +105,16 @@ gui_window_result gui_window_begin(gui_window_state *state, const gui_window_cfg
 
     // Close button
     gui_button_state close_btn = gui_button_begin(&(gui_button_cfg){
-        .color       = {60, 60, 65, 0},
-        .hover_color = {180, 60, 60, 255},
-        .press_color = {200, 40, 40, 255},
+        .color       = {0, 0, 0, 0},
+        .hover_color = t->danger,
+        .press_color = t->danger_press,
         .corner_radius = 3,
         .width = 20,
         .height = 20,
     });
     Clay_Color close_fg = (close_btn.hovered || close_btn.pressed)
-                        ? (Clay_Color){255, 255, 255, 255}
-                        : (Clay_Color){140, 140, 145, 255};
+                        ? t->text
+                        : t->text_dim;
     gui_text("x", &(gui_text_cfg){.color = close_fg, .size = font_size, .font = cfg->font});
     gui_button_end();
 
