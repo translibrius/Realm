@@ -10,7 +10,7 @@ typedef struct rl_clock {
     i64 last;
 } rl_clock;
 
-void clock_reset(rl_clock *out_clock);
-void clock_update(rl_clock *clock);
+REALM_API void clock_reset(rl_clock *out_clock);
+REALM_API void clock_update(rl_clock *clock);
 
-f64 clock_elapsed_s(rl_clock *clock);
+REALM_API f64 clock_elapsed_s(rl_clock *clock);

@@ -148,16 +148,16 @@ typedef struct input_mouse_scroll {
     i16 z_delta;
 } input_mouse_scroll;
 
-void input_system_init();
+REALM_API void input_system_init();
 
 // Perform mapping from keycode to button per platform
-void input_process_key(KEYBOARD_KEY key, b8 is_pressed);
+REALM_API void input_process_key(KEYBOARD_KEY key, b8 is_pressed);
 
-void input_process_char(u32 codepoint);
-void input_process_mouse_button(MOUSE_BUTTON button, b8 is_pressed);
-void input_process_mouse_raw(i32 dx, i32 dy);
-void input_process_mouse_move(i32 position_x, i32 position_y);
-void input_process_mouse_scroll(i32 delta); // Flatten the input to an OS-independent (-1, 1)
+REALM_API void input_process_char(u32 codepoint);
+REALM_API void input_process_mouse_button(MOUSE_BUTTON button, b8 is_pressed);
+REALM_API void input_process_mouse_raw(i32 dx, i32 dy);
+REALM_API void input_process_mouse_move(i32 position_x, i32 position_y);
+REALM_API void input_process_mouse_scroll(i32 delta); // Flatten the input to an OS-independent (-1, 1)
 
 REALM_API b8 input_is_key_down(KEYBOARD_KEY key);  // now
 REALM_API b8 input_key_pressed(KEYBOARD_KEY key);  // up -> down
@@ -175,4 +175,4 @@ REALM_API void input_get_mouse_delta(vec2 delta_pos);
 // Call after cursor warp / mode switch to prevent stale jumps.
 REALM_API void input_flush_mouse_delta(void);
 
-void input_update();
+REALM_API void input_update();
