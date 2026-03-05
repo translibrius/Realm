@@ -525,6 +525,8 @@ flame_pan_ns = 0
 flame_dragging = False
 flame_drag_start_x = 0
 flame_drag_start_pan = 0
+flame_view_dirty = False
+flame_selected_idx = None  # index into flame_rects_cache, or None
 
 # --- DearPyGui setup ---
 
@@ -568,6 +570,45 @@ with dpg.theme() as hint_theme:
 with dpg.theme() as self_time_theme:
     with dpg.theme_component(dpg.mvAll):
         dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 180, 100, 255))
+
+with dpg.theme() as name_theme:
+    with dpg.theme_component(dpg.mvAll):
+        dpg.add_theme_color(dpg.mvThemeCol_Text, (220, 220, 230, 255))
+
+with dpg.theme() as dim_theme:
+    with dpg.theme_component(dpg.mvAll):
+        dpg.add_theme_color(dpg.mvThemeCol_Text, (120, 120, 140, 255))
+
+# Heat palette: percentage brackets → color temperature
+HEAT_COLORS = [
+    (100, 100, 120, 255),   # 0: < 1%   — dim gray
+    (80, 180, 80, 255),     # 1: 1-5%   — green
+    (120, 200, 80, 255),    # 2: 5-10%  — yellow-green
+    (200, 200, 60, 255),    # 3: 10-20% — yellow
+    (240, 180, 50, 255),    # 4: 20-30% — gold
+    (255, 140, 40, 255),    # 5: 30-45% — orange
+    (255, 80, 40, 255),     # 6: 45-65% — red-orange
+    (255, 50, 50, 255),     # 7: 65%+   — red
+]
+
+heat_themes = []
+for _hc in HEAT_COLORS:
+    with dpg.theme() as _ht:
+        with dpg.theme_component(dpg.mvAll):
+            dpg.add_theme_color(dpg.mvThemeCol_Text, _hc)
+    heat_themes.append(_ht)
+
+
+def heat_bucket(pct):
+    """Return index 0-7 for the heat palette based on frame percentage."""
+    if pct < 1.0:  return 0
+    if pct < 5.0:  return 1
+    if pct < 10.0: return 2
+    if pct < 20.0: return 3
+    if pct < 30.0: return 4
+    if pct < 45.0: return 5
+    if pct < 65.0: return 6
+    return 7
 
 # --- Main window ---
 
@@ -797,18 +838,28 @@ def rebuild_tree_view(flat_zones, edges, frame_time_ns):
         total_ms = total_ns / 1e6
         self_ms = self_ns / 1e6
 
-        label = f"{name}  {total_ms:.3f} ms ({pct:.1f}%)  self: {self_ms:.3f} ms ({self_pct:.1f}%)  x{edge_call_count}"
-
         sub_children = children_of.get(name, [])
         if sub_children:
+            label = f"{name}  {total_ms:.3f}ms ({pct:.1f}%)  self: {self_ms:.3f}ms ({self_pct:.1f}%)  x{edge_call_count}"
             default_open = depth < 2
             with dpg.tree_node(label=label, parent=parent_tag, default_open=default_open):
                 tag = dpg.last_item()
+                dpg.bind_item_theme(tag, heat_themes[heat_bucket(pct)])
                 for child_edge in sub_children:
                     add_tree_node(child_edge['child'], child_edge['total_ns'],
                                   child_edge['call_count'], depth + 1, tag)
         else:
-            dpg.add_text(label, parent=parent_tag, bullet=True)
+            with dpg.group(horizontal=True, parent=parent_tag):
+                t = dpg.add_text("  \u25b8 ")
+                dpg.bind_item_theme(t, dim_theme)
+                t = dpg.add_text(name)
+                dpg.bind_item_theme(t, name_theme)
+                t = dpg.add_text(f"  {total_ms:.3f}ms ({pct:.1f}%)")
+                dpg.bind_item_theme(t, heat_themes[heat_bucket(pct)])
+                t = dpg.add_text(f"  self: {self_ms:.3f}ms ({self_pct:.1f}%)")
+                dpg.bind_item_theme(t, self_time_theme)
+                t = dpg.add_text(f"  x{edge_call_count}")
+                dpg.bind_item_theme(t, dim_theme)
 
     # Add root entries
     root_edges = children_of.get('', [])
@@ -822,22 +873,31 @@ flame_rects_cache = []
 
 
 def rebuild_flame_chart(flat_zones, edges, frame_time_ns):
-    """Rebuild the flame chart drawlist."""
-    global flame_rects_cache
+    """Rebuild flame chart data cache from tree data, then redraw."""
+    global flame_rects_cache, flame_selected_idx
 
-    dpg.delete_item("flame_canvas", children_only=True)
+    flame_selected_idx = None  # cache invalidated, clear selection
 
     if not edges or frame_time_ns <= 0:
-        dpg.draw_text((10, 20), "No tree data", parent="flame_canvas", size=14,
-                       color=(200, 200, 100, 255))
         flame_rects_cache = []
+        redraw_flame_from_cache()
         return
 
     roots, children_of, node_info = build_call_tree(flat_zones, edges, frame_time_ns)
-    rects = layout_flame_rects(roots, children_of, node_info, frame_time_ns)
-    flame_rects_cache = rects
+    flame_rects_cache = layout_flame_rects(roots, children_of, node_info, frame_time_ns)
+    redraw_flame_from_cache()
 
-    # Resize canvas to fit viewport
+
+def redraw_flame_from_cache():
+    """Redraw flame chart from cached layout data. Fast — called on every zoom/pan."""
+    dpg.delete_item("flame_canvas", children_only=True)
+
+    rects = flame_rects_cache
+    if not rects or current_frame_time_ns <= 0:
+        dpg.draw_text((10, 20), "No tree data", parent="flame_canvas", size=14,
+                       color=(200, 200, 100, 255))
+        return
+
     vp_width = dpg.get_viewport_width() - 40
     canvas_width = max(vp_width, 400)
     max_depth = max((r['depth'] for r in rects), default=0) + 1
@@ -845,34 +905,32 @@ def rebuild_flame_chart(flat_zones, edges, frame_time_ns):
     canvas_height = max(max_depth * row_height + 40, 200)
     dpg.configure_item("flame_canvas", width=canvas_width, height=canvas_height)
 
-    # Draw rectangles
-    total_ns = frame_time_ns
-    ns_per_px = total_ns / (canvas_width - 20) / flame_zoom if flame_zoom > 0 else 1
+    ns_per_px = current_frame_time_ns / (canvas_width - 20) / flame_zoom if flame_zoom > 0 else 1
 
     dpg.set_value("flame_status",
                   f"Flame Chart  |  {len(rects)} blocks  |  zoom: {flame_zoom:.1f}x")
     dpg.configure_item("flame_status", color=(100, 200, 100, 255))
 
-    for rect in rects:
+    for i, rect in enumerate(rects):
         x0 = 10 + (rect['x_start_ns'] - flame_pan_ns) / ns_per_px
         x1 = 10 + (rect['x_end_ns'] - flame_pan_ns) / ns_per_px
         y0 = rect['depth'] * row_height + 5
         y1 = y0 + row_height - 2
 
-        # Clip
         if x1 < 0 or x0 > canvas_width:
             continue
         x0 = max(0, x0)
         x1 = min(canvas_width, x1)
-
         if x1 - x0 < 1:
             continue
 
         color = name_to_color(rect['name'])
+        selected = (i == flame_selected_idx)
+        border = (255, 255, 255, 255) if selected else (40, 40, 50, 255)
+        thickness = 2 if selected else 1
         dpg.draw_rectangle((x0, y0), (x1, y1), parent="flame_canvas",
-                           fill=color, color=(40, 40, 50, 255), thickness=1)
+                           fill=color, color=border, thickness=thickness)
 
-        # Label if wide enough
         width_px = x1 - x0
         if width_px > 40:
             max_chars = int(width_px / 7)
@@ -882,19 +940,58 @@ def rebuild_flame_chart(flat_zones, edges, frame_time_ns):
 
 
 def handle_flame_scroll(sender, value):
-    """Handle mouse wheel for zoom on flame chart."""
-    global flame_zoom
+    """Handle mouse wheel for cursor-centered zoom on flame chart."""
+    global flame_zoom, flame_pan_ns, flame_view_dirty
     if not dpg.is_item_hovered("flame_canvas"):
         return
+    if current_frame_time_ns <= 0:
+        return
+
+    # Compute ns position under cursor before zoom
+    mouse_pos = dpg.get_mouse_pos()
+    canvas_pos = dpg.get_item_pos("flame_canvas")
+    local_x = mouse_pos[0] - canvas_pos[0]
+
+    canvas_width = max(dpg.get_viewport_width() - 40, 400)
+    ns_per_px_old = current_frame_time_ns / (canvas_width - 20) / flame_zoom
+
+    ns_at_cursor = flame_pan_ns + (local_x - 10) * ns_per_px_old
+
+    # Apply zoom
     if value > 0:
         flame_zoom = min(flame_zoom * 1.3, 50.0)
     else:
         flame_zoom = max(flame_zoom / 1.3, 1.0)
 
+    # Adjust pan so cursor position stays fixed
+    ns_per_px_new = current_frame_time_ns / (canvas_width - 20) / flame_zoom
+    flame_pan_ns = int(ns_at_cursor - (local_x - 10) * ns_per_px_new)
+    flame_pan_ns = max(0, flame_pan_ns)
+
+    flame_view_dirty = True
+
+
+def _flame_hit_test(local_x, local_y):
+    """Return index into flame_rects_cache under (local_x, local_y), or None."""
+    if not flame_rects_cache or current_frame_time_ns <= 0:
+        return None
+    canvas_width = max(dpg.get_viewport_width() - 40, 400)
+    ns_per_px = current_frame_time_ns / (canvas_width - 20) / flame_zoom if flame_zoom > 0 else 1
+    row_height = 22
+    for i, rect in enumerate(flame_rects_cache):
+        x0 = 10 + (rect['x_start_ns'] - flame_pan_ns) / ns_per_px
+        x1 = 10 + (rect['x_end_ns'] - flame_pan_ns) / ns_per_px
+        y0 = rect['depth'] * row_height + 5
+        y1 = y0 + row_height - 2
+        if x0 <= local_x <= x1 and y0 <= local_y <= y1:
+            return i
+    return None
+
 
 def handle_flame_drag():
-    """Handle mouse drag for panning on flame chart."""
+    """Handle mouse drag for panning, click for selection, and hover tooltips."""
     global flame_dragging, flame_drag_start_x, flame_drag_start_pan, flame_pan_ns
+    global flame_view_dirty, flame_selected_idx
 
     if not dpg.is_item_hovered("flame_canvas"):
         if flame_dragging:
@@ -902,6 +999,9 @@ def handle_flame_drag():
         return
 
     mouse_pos = dpg.get_mouse_pos()
+    canvas_pos = dpg.get_item_pos("flame_canvas")
+    local_x = mouse_pos[0] - canvas_pos[0]
+    local_y = mouse_pos[1] - canvas_pos[1]
 
     if dpg.is_mouse_button_down(dpg.mvMouseButton_Left):
         if not flame_dragging:
@@ -915,38 +1015,41 @@ def handle_flame_drag():
                 ns_per_px = current_frame_time_ns / (canvas_width - 20) / flame_zoom
                 flame_pan_ns = flame_drag_start_pan - int(dx * ns_per_px)
                 flame_pan_ns = max(0, flame_pan_ns)
+                flame_view_dirty = True
     else:
-        flame_dragging = False
+        if flame_dragging:
+            # Mouse released — check if it was a click (minimal drag)
+            dx = abs(mouse_pos[0] - flame_drag_start_x)
+            if dx < 4:
+                hit = _flame_hit_test(local_x, local_y)
+                old = flame_selected_idx
+                flame_selected_idx = hit if hit != flame_selected_idx else None
+                if flame_selected_idx != old:
+                    flame_view_dirty = True
+            flame_dragging = False
 
-    # Tooltip on hover
-    if flame_rects_cache and not flame_dragging:
-        canvas_width = max(dpg.get_viewport_width() - 40, 400)
-        ns_per_px = current_frame_time_ns / (canvas_width - 20) / flame_zoom if flame_zoom > 0 else 1
-        row_height = 22
-        canvas_pos = dpg.get_item_pos("flame_canvas")
-        local_x = mouse_pos[0] - canvas_pos[0]
-        local_y = mouse_pos[1] - canvas_pos[1]
+    # Tooltip on hover (show for hovered OR selected block)
+    show_idx = None
+    if not flame_dragging:
+        show_idx = _flame_hit_test(local_x, local_y)
+    if show_idx is None:
+        show_idx = flame_selected_idx
 
-        for rect in flame_rects_cache:
-            x0 = 10 + (rect['x_start_ns'] - flame_pan_ns) / ns_per_px
-            x1 = 10 + (rect['x_end_ns'] - flame_pan_ns) / ns_per_px
-            y0 = rect['depth'] * row_height + 5
-            y1 = y0 + row_height - 2
-            if x0 <= local_x <= x1 and y0 <= local_y <= y1:
-                total_ms = rect['total_ns'] / 1e6
-                self_ms = rect['self_ns'] / 1e6
-                pct = (rect['total_ns'] / current_frame_time_ns * 100.0
-                       if current_frame_time_ns > 0 else 0.0)
-                dpg.set_value("flame_tooltip_text",
-                              f"{rect['name']}\n"
-                              f"Total: {total_ms:.3f} ms ({pct:.1f}%)\n"
-                              f"Self:  {self_ms:.3f} ms\n"
-                              f"Calls: {rect['call_count']}")
-                dpg.configure_item("flame_tooltip", show=True,
-                                   pos=(mouse_pos[0] + 15, mouse_pos[1] + 10))
-                return
-
-    dpg.configure_item("flame_tooltip", show=False)
+    if show_idx is not None and 0 <= show_idx < len(flame_rects_cache):
+        rect = flame_rects_cache[show_idx]
+        total_ms = rect['total_ns'] / 1e6
+        self_ms = rect['self_ns'] / 1e6
+        pct = (rect['total_ns'] / current_frame_time_ns * 100.0
+               if current_frame_time_ns > 0 else 0.0)
+        dpg.set_value("flame_tooltip_text",
+                      f"{rect['name']}\n"
+                      f"Total: {total_ms:.3f} ms ({pct:.1f}%)\n"
+                      f"Self:  {self_ms:.3f} ms\n"
+                      f"Calls: {rect['call_count']}")
+        dpg.configure_item("flame_tooltip", show=True,
+                           pos=(mouse_pos[0] + 15, mouse_pos[1] + 10))
+    else:
+        dpg.configure_item("flame_tooltip", show=False)
 
 
 # Register mouse wheel handler
@@ -958,7 +1061,13 @@ with dpg.handler_registry():
 
 def update():
     global connected, tree_connected, last_display_time, pending_data, pending_tree_data
-    global current_edges, current_frame_time_ns
+    global current_edges, current_frame_time_ns, flame_view_dirty
+
+    # Flame chart interaction runs every frame regardless of data/pause state
+    handle_flame_drag()
+    if flame_view_dirty and flame_rects_cache:
+        flame_view_dirty = False
+        redraw_flame_from_cache()
 
     # Read flat data
     data = reader.read()
@@ -1013,9 +1122,6 @@ def update():
     if tree_data is not None:
         smooth_edges(tree_data['edges'], mode, strength)
         pending_tree_data = tree_data
-
-    # Handle flame chart interaction
-    handle_flame_drag()
 
     # Throttled display refresh
     refresh_hz = dpg.get_value("refresh_hz_slider")
