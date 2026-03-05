@@ -7,13 +7,15 @@
 #include <string.h>
 
 #ifdef PLATFORM_WINDOWS
-#define TEST_DIR  "."
-#define TEST_FILE "realm_test_io.txt"
-#define TEST_COPY "realm_test_io_copy.txt"
+#define TEST_DIR       "."
+#define TEST_FILE      "realm_test_io.txt"
+#define TEST_COPY      "realm_test_io_copy.txt"
+#define TEST_NOEXIST   "realm_test_nonexistent_12345"
 #else
-#define TEST_DIR  "/tmp"
-#define TEST_FILE "/tmp/realm_test_io.txt"
-#define TEST_COPY "/tmp/realm_test_io_copy.txt"
+#define TEST_DIR       "/tmp"
+#define TEST_FILE      "/tmp/realm_test_io.txt"
+#define TEST_COPY      "/tmp/realm_test_io_copy.txt"
+#define TEST_NOEXIST   "/tmp/realm_test_nonexistent_12345"
 #endif
 
 static const char *TEST_DATA = "Hello, Realm file I/O!\nLine two.\n";
@@ -51,7 +53,7 @@ RL_TEST(file_io_exists_true_for_file) {
 }
 
 RL_TEST(file_io_exists_false_for_missing) {
-    RL_EXPECT(!platform_file_exists("/tmp/realm_test_nonexistent_12345"));
+    RL_EXPECT(!platform_file_exists(TEST_NOEXIST));
 }
 
 RL_TEST(file_io_exists_false_for_directory) {
@@ -79,7 +81,7 @@ RL_TEST(file_io_delete_removes_file) {
 }
 
 RL_TEST(file_io_delete_nonexistent_returns_true) {
-    RL_EXPECT(platform_file_delete("/tmp/realm_test_nonexistent_12345"));
+    RL_EXPECT(platform_file_delete(TEST_NOEXIST));
 }
 
 RL_TEST(file_io_copy_basic) {
