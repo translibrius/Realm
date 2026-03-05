@@ -38,6 +38,8 @@ typedef struct GL_GuiPipeline {
     u32 vbo;
     GL_Shader shader;
     i32 loc_screen_size;
+    i32 loc_font_atlas;
+    i32 loc_px_range;
 } GL_GuiPipeline;
 
 typedef struct GL_Context {

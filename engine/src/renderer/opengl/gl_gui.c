@@ -12,10 +12,8 @@
 
 #include <string.h>
 
-#define GUI_MAX_RECT_VERTS (6 * 4096)
-#define GUI_MAX_TEXT_VERTS (6 * 4096)
+#define GUI_MAX_VERTS (6 * 8192)
 #define GUI_MAX_CLIP_DEPTH 16
-#define GUI_TEXT_BUF_SIZE 1024
 
 // Software clip rect stack
 typedef struct {
@@ -61,19 +59,21 @@ b8 opengl_gui_pipeline_init(GL_Context *ctx) {
     }
 
     p->loc_screen_size = glGetUniformLocation(p->shader.program_id, "u_screen_size");
+    p->loc_font_atlas = glGetUniformLocation(p->shader.program_id, "u_font_atlas");
+    p->loc_px_range = glGetUniformLocation(p->shader.program_id, "u_px_range");
 
     glGenVertexArrays(1, &p->vao);
     glBindVertexArray(p->vao);
 
     glGenBuffers(1, &p->vbo);
     glBindBuffer(GL_ARRAY_BUFFER, p->vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(GL_TextVertex) * GUI_MAX_RECT_VERTS, NULL, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GL_TextVertex) * GUI_MAX_VERTS, NULL, GL_DYNAMIC_DRAW);
 
     // pos (vec2)
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(GL_TextVertex), (void *)0);
     glEnableVertexAttribArray(0);
 
-    // uv (vec2) — unused for rects but keeps layout consistent
+    // uv (vec2)
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(GL_TextVertex), (void *)(2 * sizeof(f32)));
     glEnableVertexAttribArray(1);
 
@@ -88,7 +88,7 @@ b8 opengl_gui_pipeline_init(GL_Context *ctx) {
 static void push_rect(GL_TextVertex *verts, u32 *count,
                        f32 x, f32 y, f32 w, f32 h,
                        f32 r, f32 g, f32 b, f32 a) {
-    if (*count + 6 > GUI_MAX_RECT_VERTS) return;
+    if (*count + 6 > GUI_MAX_VERTS) return;
 
     f32 x0 = x, y0 = y, x1 = x + w, y1 = y + h;
 
@@ -102,31 +102,16 @@ static void push_rect(GL_TextVertex *verts, u32 *count,
         if (x0 >= x1 || y0 >= y1) return; // Fully clipped
     }
 
+    // UV sentinel {-1,-1} tells the fragment shader to use solid color
     GL_TextVertex *v = &verts[*count];
-    v[0] = (GL_TextVertex){.pos = {x0, y0}, .uv = {0, 0}, .color = {r, g, b, a}};
-    v[1] = (GL_TextVertex){.pos = {x0, y1}, .uv = {0, 1}, .color = {r, g, b, a}};
-    v[2] = (GL_TextVertex){.pos = {x1, y1}, .uv = {1, 1}, .color = {r, g, b, a}};
-    v[3] = (GL_TextVertex){.pos = {x0, y0}, .uv = {0, 0}, .color = {r, g, b, a}};
-    v[4] = (GL_TextVertex){.pos = {x1, y1}, .uv = {1, 1}, .color = {r, g, b, a}};
-    v[5] = (GL_TextVertex){.pos = {x1, y0}, .uv = {1, 0}, .color = {r, g, b, a}};
+    v[0] = (GL_TextVertex){.pos = {x0, y0}, .uv = {-1, -1}, .color = {r, g, b, a}};
+    v[1] = (GL_TextVertex){.pos = {x0, y1}, .uv = {-1, -1}, .color = {r, g, b, a}};
+    v[2] = (GL_TextVertex){.pos = {x1, y1}, .uv = {-1, -1}, .color = {r, g, b, a}};
+    v[3] = (GL_TextVertex){.pos = {x0, y0}, .uv = {-1, -1}, .color = {r, g, b, a}};
+    v[4] = (GL_TextVertex){.pos = {x1, y1}, .uv = {-1, -1}, .color = {r, g, b, a}};
+    v[5] = (GL_TextVertex){.pos = {x1, y0}, .uv = {-1, -1}, .color = {r, g, b, a}};
 
     *count += 6;
-}
-
-static void flush_rects(GL_Context *ctx, GL_TextVertex *verts, u32 *vert_count) {
-    if (*vert_count == 0) return;
-
-    GL_GuiPipeline *p = &ctx->gui_pipeline;
-    opengl_shader_use(&p->shader);
-    glBindVertexArray(p->vao);
-    glBindBuffer(GL_ARRAY_BUFFER, p->vbo);
-
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(GL_TextVertex) * (*vert_count), verts);
-    glUniform2f(p->loc_screen_size, (f32)ctx->window->settings.width, (f32)ctx->window->settings.height);
-
-    glDrawArrays(GL_TRIANGLES, 0, (GLsizei)*vert_count);
-
-    *vert_count = 0;
 }
 
 static rl_font *gui_get_font(u16 font_id) {
@@ -144,44 +129,36 @@ static rl_font *gui_get_font(u16 font_id) {
     return nullptr;
 }
 
-static void flush_text(GL_Context *ctx, GL_TextVertex *verts, u32 *vert_count, GL_Font *gl_font) {
-    if (*vert_count == 0 || !gl_font) return;
+static void gui_flush(GL_Context *ctx, GL_TextVertex *verts, u32 *vert_count, GL_Font *font) {
+    if (*vert_count == 0) return;
 
-    GL_TextPipeline *p = &ctx->text_pipeline;
+    GL_GuiPipeline *p = &ctx->gui_pipeline;
     opengl_shader_use(&p->shader);
     glBindVertexArray(p->vao);
     glBindBuffer(GL_ARRAY_BUFFER, p->vbo);
 
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(GL_TextVertex) * (*vert_count), verts);
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, gl_font->texture_id);
-
-    glUniform1i(p->loc_font_atlas, 0);
     glUniform2f(p->loc_screen_size, (f32)ctx->window->settings.width, (f32)ctx->window->settings.height);
-    glUniform1f(p->loc_px_range, gl_font->font->pixel_range);
+
+    if (font) {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, font->texture_id);
+        glUniform1i(p->loc_font_atlas, 0);
+        glUniform1f(p->loc_px_range, font->font->pixel_range);
+    }
 
     glDrawArrays(GL_TRIANGLES, 0, (GLsizei)*vert_count);
 
     *vert_count = 0;
 }
 
+// Push text glyphs in top-left coordinate space (gui.vert does Y-flip).
+// Baseline y should be: bb.y + font->ascender * fontSize
 static void push_text_glyphs(GL_TextVertex *verts, u32 *vert_count, u32 max_verts,
                               GL_Font *gl_font, rl_font *font,
                               const char *chars, i32 len,
-                              f32 size_px, f32 x, f32 y, vec4 color,
-                              i32 window_height) {
+                              f32 size_px, f32 x, f32 y, vec4 color) {
     gui_clip_rect *clip = clip_current();
-
-    // Convert clip rect to bottom-left origin for text coord space
-    f32 clip_left = 0, clip_right = 1e9f, clip_bottom = -1e9f, clip_top = 1e9f;
-    if (clip) {
-        clip_left   = clip->x0;
-        clip_right  = clip->x1;
-        // Clay top-left Y → GL bottom-left Y
-        clip_bottom = (f32)window_height - clip->y1;
-        clip_top    = (f32)window_height - clip->y0;
-    }
 
     f32 cursor_x = x;
     for (i32 i = 0; i < len; i++) {
@@ -191,18 +168,23 @@ static void push_text_glyphs(GL_TextVertex *verts, u32 *vert_count, u32 max_vert
         const rl_glyph *g = (cp < 256) ? gl_font->glyph_map[cp] : rl_font_find_glyph(font, cp);
         if (!g) continue;
 
+        // Top-left coordinates: Y increases downward.
+        // plane_max_y is the top of the glyph (ascender), plane_min_y is the bottom (descender).
+        // In top-left space, subtract plane values to flip Y.
         f32 gx0 = cursor_x + g->plane_min_x * size_px;
         f32 gx1 = cursor_x + g->plane_max_x * size_px;
-        f32 gy0 = y + g->plane_min_y * size_px;
-        f32 gy1 = y + g->plane_max_y * size_px;
+        f32 gy0 = y - g->plane_max_y * size_px;  // top of glyph (smaller Y = higher on screen)
+        f32 gy1 = y - g->plane_min_y * size_px;  // bottom of glyph
 
         cursor_x += g->advance * size_px;
 
-        // Software clip — skip fully clipped glyphs
-        if (clip && (gx1 <= clip_left || gx0 >= clip_right || gy1 <= clip_bottom || gy0 >= clip_top)) {
+        // Software clip — skip fully clipped glyphs (top-left coords)
+        if (clip && (gx1 <= clip->x0 || gx0 >= clip->x1 || gy1 <= clip->y0 || gy0 >= clip->y1)) {
             continue;
         }
 
+        // UV mapping: gy0 (top) maps to v1 (atlas top), gy1 (bottom) maps to v0 (atlas bottom)
+        // because we flipped the Y axis from bottom-left to top-left
         f32 u0 = g->uv_min_x, v0 = g->uv_min_y;
         f32 u1 = g->uv_max_x, v1 = g->uv_max_y;
 
@@ -210,31 +192,34 @@ static void push_text_glyphs(GL_TextVertex *verts, u32 *vert_count, u32 max_vert
         if (clip) {
             f32 orig_w = gx1 - gx0;
             f32 orig_h = gy1 - gy0;
-            if (gx0 < clip_left && orig_w > 0) {
-                u0 += (u1 - u0) * (clip_left - gx0) / orig_w;
-                gx0 = clip_left;
+            if (gx0 < clip->x0 && orig_w > 0) {
+                u0 += (u1 - u0) * (clip->x0 - gx0) / orig_w;
+                gx0 = clip->x0;
             }
-            if (gx1 > clip_right && orig_w > 0) {
-                u1 -= (u1 - u0) * (gx1 - clip_right) / (gx1 - gx0);
-                gx1 = clip_right;
+            if (gx1 > clip->x1 && orig_w > 0) {
+                u1 -= (u1 - u0) * (gx1 - clip->x1) / (gx1 - gx0);
+                gx1 = clip->x1;
             }
-            if (gy0 < clip_bottom && orig_h > 0) {
-                v0 += (v1 - v0) * (clip_bottom - gy0) / orig_h;
-                gy0 = clip_bottom;
+            // Top clip: gy0 is top of glyph, maps to v1
+            if (gy0 < clip->y0 && orig_h > 0) {
+                v1 -= (v1 - v0) * (clip->y0 - gy0) / orig_h;
+                gy0 = clip->y0;
             }
-            if (gy1 > clip_top && orig_h > 0) {
-                v1 -= (v1 - v0) * (gy1 - clip_top) / (gy1 - gy0);
-                gy1 = clip_top;
+            // Bottom clip: gy1 is bottom of glyph, maps to v0
+            if (gy1 > clip->y1 && orig_h > 0) {
+                v0 += (v1 - v0) * (gy1 - clip->y1) / (gy1 - gy0);
+                gy1 = clip->y1;
             }
         }
 
         GL_TextVertex *v = &verts[*vert_count];
-        v[0] = (GL_TextVertex){.pos = {gx0, gy0}, .uv = {u0, v0}, .color = {color[0], color[1], color[2], color[3]}};
-        v[1] = (GL_TextVertex){.pos = {gx0, gy1}, .uv = {u0, v1}, .color = {color[0], color[1], color[2], color[3]}};
-        v[2] = (GL_TextVertex){.pos = {gx1, gy1}, .uv = {u1, v1}, .color = {color[0], color[1], color[2], color[3]}};
-        v[3] = (GL_TextVertex){.pos = {gx0, gy0}, .uv = {u0, v0}, .color = {color[0], color[1], color[2], color[3]}};
-        v[4] = (GL_TextVertex){.pos = {gx1, gy1}, .uv = {u1, v1}, .color = {color[0], color[1], color[2], color[3]}};
-        v[5] = (GL_TextVertex){.pos = {gx1, gy0}, .uv = {u1, v0}, .color = {color[0], color[1], color[2], color[3]}};
+        // gy0 (top) -> v1, gy1 (bottom) -> v0  (Y-flipped UV mapping)
+        v[0] = (GL_TextVertex){.pos = {gx0, gy0}, .uv = {u0, v1}, .color = {color[0], color[1], color[2], color[3]}};
+        v[1] = (GL_TextVertex){.pos = {gx0, gy1}, .uv = {u0, v0}, .color = {color[0], color[1], color[2], color[3]}};
+        v[2] = (GL_TextVertex){.pos = {gx1, gy1}, .uv = {u1, v0}, .color = {color[0], color[1], color[2], color[3]}};
+        v[3] = (GL_TextVertex){.pos = {gx0, gy0}, .uv = {u0, v1}, .color = {color[0], color[1], color[2], color[3]}};
+        v[4] = (GL_TextVertex){.pos = {gx1, gy1}, .uv = {u1, v0}, .color = {color[0], color[1], color[2], color[3]}};
+        v[5] = (GL_TextVertex){.pos = {gx1, gy0}, .uv = {u1, v1}, .color = {color[0], color[1], color[2], color[3]}};
 
         *vert_count += 6;
     }
@@ -248,21 +233,11 @@ void opengl_render_gui(void *commands, i32 command_count) {
 
     Clay_RenderCommand *cmds = (Clay_RenderCommand *)commands;
 
-    static GL_TextVertex rect_verts[GUI_MAX_RECT_VERTS];
-    u32 rect_vert_count = 0;
-
-    static GL_TextVertex text_verts[GUI_MAX_TEXT_VERTS];
-    u32 text_vert_count = 0;
-    GL_Font *text_batch_font = nullptr;
+    static GL_TextVertex verts[GUI_MAX_VERTS];
+    u32 vert_count = 0;
+    GL_Font *current_font = nullptr;
 
     clip_depth = 0;
-    i32 window_height = ctx->window->settings.height;
-
-    // Track last batch type so we flush the opposite batch on transitions.
-    // This preserves Clay's command ordering (backgrounds drawn before their
-    // text, floating elements drawn after elements behind them).
-    enum { GUI_BATCH_NONE, GUI_BATCH_RECT, GUI_BATCH_TEXT };
-    i32 last_batch = GUI_BATCH_NONE;
 
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
@@ -274,53 +249,34 @@ void opengl_render_gui(void *commands, i32 command_count) {
 
         switch (cmd->commandType) {
         case CLAY_RENDER_COMMAND_TYPE_RECTANGLE: {
-            if (last_batch == GUI_BATCH_TEXT) {
-                flush_text(ctx, text_verts, &text_vert_count, text_batch_font);
-            }
-            last_batch = GUI_BATCH_RECT;
-
             Clay_RectangleRenderData *rect = &cmd->renderData.rectangle;
             f32 r = rect->backgroundColor.r / 255.0f;
             f32 g = rect->backgroundColor.g / 255.0f;
             f32 b = rect->backgroundColor.b / 255.0f;
             f32 a = rect->backgroundColor.a / 255.0f;
-            push_rect(rect_verts, &rect_vert_count, bb.x, bb.y, bb.width, bb.height, r, g, b, a);
+            push_rect(verts, &vert_count, bb.x, bb.y, bb.width, bb.height, r, g, b, a);
             break;
         }
 
         case CLAY_RENDER_COMMAND_TYPE_BORDER: {
-            if (last_batch == GUI_BATCH_TEXT) {
-                flush_text(ctx, text_verts, &text_vert_count, text_batch_font);
-            }
-            last_batch = GUI_BATCH_RECT;
-
             Clay_BorderRenderData *border = &cmd->renderData.border;
             f32 r = border->color.r / 255.0f;
             f32 g = border->color.g / 255.0f;
             f32 b = border->color.b / 255.0f;
             f32 a = border->color.a / 255.0f;
 
-            if (border->width.top > 0) {
-                push_rect(rect_verts, &rect_vert_count, bb.x, bb.y, bb.width, (f32)border->width.top, r, g, b, a);
-            }
-            if (border->width.bottom > 0) {
-                push_rect(rect_verts, &rect_vert_count, bb.x, bb.y + bb.height - (f32)border->width.bottom, bb.width, (f32)border->width.bottom, r, g, b, a);
-            }
-            if (border->width.left > 0) {
-                push_rect(rect_verts, &rect_vert_count, bb.x, bb.y, (f32)border->width.left, bb.height, r, g, b, a);
-            }
-            if (border->width.right > 0) {
-                push_rect(rect_verts, &rect_vert_count, bb.x + bb.width - (f32)border->width.right, bb.y, (f32)border->width.right, bb.height, r, g, b, a);
-            }
+            if (border->width.top > 0)
+                push_rect(verts, &vert_count, bb.x, bb.y, bb.width, (f32)border->width.top, r, g, b, a);
+            if (border->width.bottom > 0)
+                push_rect(verts, &vert_count, bb.x, bb.y + bb.height - (f32)border->width.bottom, bb.width, (f32)border->width.bottom, r, g, b, a);
+            if (border->width.left > 0)
+                push_rect(verts, &vert_count, bb.x, bb.y, (f32)border->width.left, bb.height, r, g, b, a);
+            if (border->width.right > 0)
+                push_rect(verts, &vert_count, bb.x + bb.width - (f32)border->width.right, bb.y, (f32)border->width.right, bb.height, r, g, b, a);
             break;
         }
 
         case CLAY_RENDER_COMMAND_TYPE_TEXT: {
-            if (last_batch == GUI_BATCH_RECT) {
-                flush_rects(ctx, rect_verts, &rect_vert_count);
-            }
-            last_batch = GUI_BATCH_TEXT;
-
             Clay_TextRenderData *text = &cmd->renderData.text;
             if (!text->stringContents.chars || text->stringContents.length <= 0) break;
 
@@ -330,15 +286,15 @@ void opengl_render_gui(void *commands, i32 command_count) {
             GL_Font *gl_font = gl_find_font(ctx, font);
             if (!gl_font) break;
 
-            // Flush text batch if font changed
-            if (text_batch_font && text_batch_font != gl_font) {
-                flush_text(ctx, text_verts, &text_vert_count, text_batch_font);
+            // Flush if font atlas changed (different texture)
+            if (current_font && current_font != gl_font) {
+                gui_flush(ctx, verts, &vert_count, current_font);
             }
-            text_batch_font = gl_font;
+            current_font = gl_font;
 
-            // Flush if buffer is getting full (leave room for ~256 chars)
-            if (text_vert_count + 6 * 256 > GUI_MAX_TEXT_VERTS) {
-                flush_text(ctx, text_verts, &text_vert_count, text_batch_font);
+            // Flush if buffer is getting full
+            if (vert_count + 6 * 256 > GUI_MAX_VERTS) {
+                gui_flush(ctx, verts, &vert_count, current_font);
             }
 
             vec4 color = {
@@ -348,57 +304,41 @@ void opengl_render_gui(void *commands, i32 command_count) {
                 text->textColor.a / 255.0f,
             };
 
-            f32 text_y = (f32)window_height - bb.y - font->ascender * (f32)text->fontSize;
+            // Top-left origin baseline
+            f32 text_y = bb.y + font->ascender * (f32)text->fontSize;
 
-            push_text_glyphs(text_verts, &text_vert_count, GUI_MAX_TEXT_VERTS,
+            push_text_glyphs(verts, &vert_count, GUI_MAX_VERTS,
                              gl_font, font,
                              text->stringContents.chars, text->stringContents.length,
-                             (f32)text->fontSize, bb.x, text_y, color,
-                             window_height);
+                             (f32)text->fontSize, bb.x, text_y, color);
             break;
         }
 
         case CLAY_RENDER_COMMAND_TYPE_SCISSOR_START: {
-            flush_rects(ctx, rect_verts, &rect_vert_count);
-            flush_text(ctx, text_verts, &text_vert_count, text_batch_font);
-            last_batch = GUI_BATCH_NONE;
             clip_push(bb.x, bb.y, bb.width, bb.height);
             break;
         }
 
         case CLAY_RENDER_COMMAND_TYPE_SCISSOR_END: {
-            flush_rects(ctx, rect_verts, &rect_vert_count);
-            flush_text(ctx, text_verts, &text_vert_count, text_batch_font);
-            last_batch = GUI_BATCH_NONE;
             clip_pop();
             break;
         }
 
         case CLAY_RENDER_COMMAND_TYPE_IMAGE: {
-            if (last_batch == GUI_BATCH_TEXT) {
-                flush_text(ctx, text_verts, &text_vert_count, text_batch_font);
-            }
-            last_batch = GUI_BATCH_RECT;
             // TODO: implement image rendering (textured quad)
-            // For now, render the bounding box as a placeholder rect.
-            push_rect(rect_verts, &rect_vert_count, bb.x, bb.y, bb.width, bb.height,
+            push_rect(verts, &vert_count, bb.x, bb.y, bb.width, bb.height,
                       0.3f, 0.3f, 0.3f, 1.0f);
             break;
         }
 
-        case CLAY_RENDER_COMMAND_TYPE_CUSTOM: {
-            // Custom elements are user-defined; nothing to render by default.
-            break;
-        }
-
+        case CLAY_RENDER_COMMAND_TYPE_CUSTOM:
         default:
             break;
         }
     }
 
-    // Final flush — rects first (backgrounds), then text on top
-    flush_rects(ctx, rect_verts, &rect_vert_count);
-    flush_text(ctx, text_verts, &text_vert_count, text_batch_font);
+    // Single flush — all rects and text interleaved in correct z-order
+    gui_flush(ctx, verts, &vert_count, current_font);
 
     glBindVertexArray(0);
     glEnable(GL_DEPTH_TEST);
