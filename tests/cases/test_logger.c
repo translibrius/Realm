@@ -74,6 +74,7 @@ RL_TEST(logger_level_filters_below_threshold) {
 }
 
 void register_logger_tests(void) {
+    rl_test_begin_group("logger");
     RL_REGISTER_TEST(logger_level_get_set);
     RL_REGISTER_TEST(logger_callback_receives_messages);
     RL_REGISTER_TEST(logger_level_filters_below_threshold);

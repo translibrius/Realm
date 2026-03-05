@@ -122,6 +122,7 @@ RL_TEST(file_io_get_stamp_returns_valid) {
 }
 
 void register_file_io_tests(void) {
+    rl_test_begin_group("file_io");
     RL_REGISTER_TEST(file_io_write_and_read_roundtrip);
     RL_REGISTER_TEST(file_io_exists_true_for_file);
     RL_REGISTER_TEST(file_io_exists_false_for_missing);

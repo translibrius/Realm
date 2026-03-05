@@ -269,6 +269,7 @@ RL_TEST(arena_scratch_get_returns_usable_memory) {
 }
 
 void register_arena_tests(void) {
+    rl_test_begin_group("arena");
     RL_REGISTER_TEST(arena_create_returns_valid_pointer);
     RL_REGISTER_TEST(arena_init_sets_fields_correctly);
     RL_REGISTER_TEST(arena_push_returns_aligned_pointer);

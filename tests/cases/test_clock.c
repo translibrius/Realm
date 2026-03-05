@@ -41,6 +41,7 @@ RL_TEST(clock_elapsed_after_sleep) {
 }
 
 void register_clock_tests(void) {
+    rl_test_begin_group("clock");
     RL_REGISTER_TEST(clock_reset_sets_positive_frequency);
     RL_REGISTER_TEST(clock_update_advances_last);
     RL_REGISTER_TEST(clock_elapsed_non_negative);

@@ -2,8 +2,6 @@
 
 #include "core/camera.h"
 
-#include <math.h>
-
 static b8 mat4_is_finite(const mat4 m) {
     for (u32 row = 0; row < 4; row++) {
         for (u32 col = 0; col < 4; col++) {
@@ -19,11 +17,11 @@ RL_TEST(camera_init_sets_expected_defaults) {
     rl_camera camera = {0};
     camera_init(&camera);
 
-    RL_EXPECT_MSG(fabsf(camera.pos[0] - 0.0f) < 0.0001f, "pos.x=%f", camera.pos[0]);
-    RL_EXPECT_MSG(fabsf(camera.pos[1] - 0.0f) < 0.0001f, "pos.y=%f", camera.pos[1]);
-    RL_EXPECT_MSG(fabsf(camera.pos[2] - 3.0f) < 0.0001f, "pos.z=%f", camera.pos[2]);
-    RL_EXPECT_MSG(fabsf(camera.yaw - -90.0f) < 0.0001f, "yaw=%f", camera.yaw);
-    RL_EXPECT_MSG(fabsf(camera.pitch - 0.0f) < 0.0001f, "pitch=%f", camera.pitch);
+    RL_EXPECT_NEAR_F32(camera.pos[0], 0.0f, 0.0001f);
+    RL_EXPECT_NEAR_F32(camera.pos[1], 0.0f, 0.0001f);
+    RL_EXPECT_NEAR_F32(camera.pos[2], 3.0f, 0.0001f);
+    RL_EXPECT_NEAR_F32(camera.yaw, -90.0f, 0.0001f);
+    RL_EXPECT_NEAR_F32(camera.pitch, 0.0f, 0.0001f);
 }
 
 RL_TEST(camera_view_and_projection_produce_finite_matrices) {
@@ -55,6 +53,7 @@ RL_TEST(camera_projection_differs_between_backends) {
 }
 
 void register_camera_tests(void) {
+    rl_test_begin_group("camera");
     RL_REGISTER_TEST(camera_init_sets_expected_defaults);
     RL_REGISTER_TEST(camera_view_and_projection_produce_finite_matrices);
     RL_REGISTER_TEST(camera_projection_differs_between_backends);

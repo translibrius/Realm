@@ -33,6 +33,7 @@ RL_TEST(rand_float01_bounds) {
 }
 
 void register_rand_tests(void) {
+    rl_test_begin_group("rand");
     RL_REGISTER_TEST(rand_int_range_single_value);
     RL_REGISTER_TEST(rand_int_range_bounds);
     RL_REGISTER_TEST(rand_int_range_negative);

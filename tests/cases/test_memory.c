@@ -123,6 +123,7 @@ RL_TEST(memory_type_to_str_returns_valid_strings) {
 }
 
 void register_memory_tests(void) {
+    rl_test_begin_group("memory");
     RL_REGISTER_TEST(memory_alloc_returns_nonnull);
     RL_REGISTER_TEST(memory_alloc_different_types);
     RL_REGISTER_TEST(memory_realloc_preserves_data);

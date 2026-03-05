@@ -158,6 +158,7 @@ RL_TEST(str_replace_all_no_match) {
 }
 
 void register_str_tests(void) {
+    rl_test_begin_group("str");
     RL_REGISTER_TEST(str_cstr_ends_with_handles_basic_cases);
     RL_REGISTER_TEST(str_path_sanitize_normalizes_slashes);
     RL_REGISTER_TEST(str_replace_all_replaces_every_match);

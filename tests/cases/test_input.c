@@ -129,6 +129,7 @@ RL_TEST(input_update_copies_now_to_prev) {
 }
 
 void register_input_tests(void) {
+    rl_test_begin_group("input");
     RL_REGISTER_TEST(input_key_press_and_release_edges);
     RL_REGISTER_TEST(input_mouse_button_edges);
     RL_REGISTER_TEST(input_mouse_move_tracks_position);

@@ -156,6 +156,7 @@ RL_TEST(config_load_unknown_enum_uses_default) {
 }
 
 void register_config_tests(void) {
+    rl_test_begin_group("config");
     RL_REGISTER_TEST(config_defaults_are_sane);
     RL_REGISTER_TEST(config_load_missing_file_uses_defaults);
     RL_REGISTER_TEST(config_save_and_roundtrip);

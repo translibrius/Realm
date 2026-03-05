@@ -90,6 +90,7 @@ RL_TEST(da_free_resets_all_fields) {
 }
 
 void register_dynamic_array_tests(void) {
+    rl_test_begin_group("da");
     RL_REGISTER_TEST(da_init_starts_empty);
     RL_REGISTER_TEST(da_init_with_cap_preallocates);
     RL_REGISTER_TEST(da_append_single_element);

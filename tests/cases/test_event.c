@@ -168,6 +168,7 @@ RL_TEST(event_consumption_stops_propagation) {
 }
 
 void register_event_tests(void) {
+    rl_test_begin_group("event");
     RL_REGISTER_TEST(event_register_and_fire_calls_callback);
     RL_REGISTER_TEST(event_fire_passes_userdata);
     RL_REGISTER_TEST(event_fire_wrong_type_does_not_call);
