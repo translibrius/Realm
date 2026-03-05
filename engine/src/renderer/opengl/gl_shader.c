@@ -138,7 +138,7 @@ b8 opengl_compile_vertex_shader(const char *source, i32 *out_id) {
 
     *out_id = vertex_shader;
 
-    return vertex_shader;
+    return true;
 }
 
 b8 opengl_compile_fragment_shader(const char *source, i32 *out_id) {

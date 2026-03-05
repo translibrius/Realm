@@ -271,4 +271,10 @@ void vk_instance_destroy(VK_Context *context) {
         vkDestroyDebugUtilsMessengerEXT(context->instance, context->debug_messenger, nullptr);
     }
     vkDestroyInstance(context->instance, nullptr);
+#if defined(PLATFORM_MACOS)
+    if (vk_loader_handle) {
+        dlclose(vk_loader_handle);
+        vk_loader_handle = nullptr;
+    }
+#endif
 }

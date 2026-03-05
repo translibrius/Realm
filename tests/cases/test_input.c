@@ -128,6 +128,62 @@ RL_TEST(input_update_copies_now_to_prev) {
     RL_EXPECT_MSG((i32)prev[1] == 84, "prev_y=%d expected=84", (i32)prev[1]);
 }
 
+RL_TEST(input_key_hold_state) {
+    input_system_init();
+    input_update();
+
+    // Press A
+    input_process_key(KEY_A, true);
+    RL_EXPECT(input_key_pressed(KEY_A));
+
+    // Hold across multiple frames — should never re-trigger pressed
+    for (i32 i = 0; i < 5; i++) {
+        input_update();
+        RL_EXPECT(input_is_key_down(KEY_A));
+        RL_EXPECT_MSG(!input_key_pressed(KEY_A),
+                      "key_pressed re-triggered on hold frame %d", i);
+        RL_EXPECT(!input_key_released(KEY_A));
+    }
+}
+
+RL_TEST(input_multiple_keys_simultaneous) {
+    // Use keys not touched by prior tests to avoid stale static state
+    input_system_init();
+    input_update();
+
+    input_process_key(KEY_C, true);
+    input_process_key(KEY_D, true);
+
+    RL_EXPECT(input_is_key_down(KEY_C));
+    RL_EXPECT(input_is_key_down(KEY_D));
+    RL_EXPECT(input_key_pressed(KEY_C));
+    RL_EXPECT(input_key_pressed(KEY_D));
+
+    // Release only C
+    input_update();
+    input_process_key(KEY_C, false);
+
+    RL_EXPECT(!input_is_key_down(KEY_C));
+    RL_EXPECT(input_is_key_down(KEY_D));
+    RL_EXPECT(input_key_released(KEY_C));
+    RL_EXPECT(!input_key_released(KEY_D));
+}
+
+RL_TEST(input_mouse_raw_delta_accumulates) {
+    input_system_init();
+    input_update();
+
+    input_process_mouse_raw(10, 5);
+    input_process_mouse_raw(3, -2);
+
+    input_update();
+
+    vec2 delta;
+    input_get_mouse_delta(delta);
+    RL_EXPECT_MSG((i32)delta[0] == 13, "raw dx=%d expected=13", (i32)delta[0]);
+    RL_EXPECT_MSG((i32)delta[1] == 3,  "raw dy=%d expected=3",  (i32)delta[1]);
+}
+
 void register_input_tests(void) {
     rl_test_begin_group("input");
     RL_REGISTER_TEST(input_key_press_and_release_edges);
@@ -136,4 +192,7 @@ void register_input_tests(void) {
     RL_REGISTER_TEST(input_mouse_delta_accumulates);
     RL_REGISTER_TEST(input_flush_mouse_delta_zeros_state);
     RL_REGISTER_TEST(input_update_copies_now_to_prev);
+    RL_REGISTER_TEST(input_key_hold_state);
+    RL_REGISTER_TEST(input_multiple_keys_simultaneous);
+    RL_REGISTER_TEST(input_mouse_raw_delta_accumulates);
 }

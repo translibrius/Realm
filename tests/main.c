@@ -15,6 +15,10 @@ void register_logger_tests(void);
 void register_file_io_tests(void);
 void register_clock_tests(void);
 void register_rand_tests(void);
+void register_gui_id_tests(void);
+void register_text_input_tests(void);
+void register_asset_tests(void);
+void register_profiler_tests(void);
 
 int main(int argc, const char **argv) {
     if (!rl_test_runtime_init()) {
@@ -34,6 +38,10 @@ int main(int argc, const char **argv) {
     register_file_io_tests();
     register_clock_tests();
     register_rand_tests();
+    register_gui_id_tests();
+    register_text_input_tests();
+    register_asset_tests();
+    register_profiler_tests();
 
     i32 result = rl_test_run_from_args(argc, argv);
 

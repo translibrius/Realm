@@ -14,6 +14,10 @@ add_executable(RealmTests
         cases/test_file_io.c
         cases/test_clock.c
         cases/test_rand.c
+        cases/test_gui_id.c
+        cases/test_text_input.c
+        cases/test_asset.c
+        cases/test_profiler.c
 )
 
 target_include_directories(RealmTests
@@ -21,6 +25,7 @@ target_include_directories(RealmTests
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/harness
         ${CMAKE_CURRENT_SOURCE_DIR}/support
+        ${CMAKE_SOURCE_DIR}/engine/src/gui
 )
 
 target_link_libraries(RealmTests PRIVATE Engine)

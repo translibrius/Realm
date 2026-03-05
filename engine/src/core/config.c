@@ -2,6 +2,7 @@
 
 #include "core/event.h"
 #include "core/logger.h"
+#include "memory/arena.h"
 #include "platform/io/file_io.h"
 
 #include <stdio.h>
@@ -270,8 +271,9 @@ static b8 config_load(void) {
     }
 
     // Parse line by line (work on a mutable copy since buf may not be null-terminated)
+    rl_temp_arena scratch = rl_arena_scratch_get();
     u64 buf_size = file.buf_len + 1;
-    char *text = malloc(buf_size);
+    char *text = rl_arena_push(scratch.arena, buf_size, false);
     memcpy(text, file.buf, file.buf_len);
     text[file.buf_len] = '\0';
 
@@ -287,7 +289,7 @@ static b8 config_load(void) {
         line = next;
     }
 
-    free(text);
+    arena_scratch_release(scratch);
     platform_file_close(&file);
 
     state->config.loaded = true;
