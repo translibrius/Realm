@@ -425,6 +425,37 @@ static void shm_copy_name(char *dst, u32 dst_size, const char *src) {
     }
 }
 
+// --- Vendor noise filter ---
+// Filters out high-frequency trivial vendor functions from the live display
+// so they don't consume broadcast slots. Session reports still include them.
+
+static const char *vendor_prefixes[] = {
+    "Clay__",    // Clay internal helpers (Array_RangeCheck, ElementHasConfig, ...)
+    "Clay_Layout",
+    "Clay_Render",
+    "glm_",      // cglm math (translate, mat4_identity, lookat, ...)
+    "glmm_",     // cglm SIMD helpers (fmadd, ...)
+    "vdupq_",    // ARM NEON intrinsics
+    "veorq_",
+    "vfmaq_",
+    "vcombine_",
+    "vdup_n_",
+};
+
+#define VENDOR_PREFIX_COUNT (sizeof(vendor_prefixes) / sizeof(vendor_prefixes[0]))
+
+PROF_NOINST
+static b8 profiler_is_vendor_noise(const char *name) {
+    for (u32 i = 0; i < VENDOR_PREFIX_COUNT; i++) {
+        const char *prefix = vendor_prefixes[i];
+        const char *n = name;
+        const char *p = prefix;
+        while (*p && *n == *p) { n++; p++; }
+        if (*p == '\0') return true;
+    }
+    return false;
+}
+
 PROF_NOINST
 static void shm_tree_broadcast(u32 num_frames) {
     if (!state.shm_tree_ptr) return;
@@ -445,6 +476,9 @@ static void shm_tree_broadcast(u32 num_frames) {
         i64 avg_per   = avg_calls > 0 ? avg_total / (i64)avg_calls : 0;
 
         if (avg_total < 100) continue;
+
+        // Skip edges involving vendor noise functions
+        if (profiler_is_vendor_noise(child_name)) continue;
 
         shm_copy_name(staging[count].parent_name, SHM_EDGE_NAME_LEN, parent_name);
         shm_copy_name(staging[count].child_name, SHM_EDGE_NAME_LEN, child_name);
@@ -774,6 +808,11 @@ void rl_profiler_frame_mark(void) {
 
         // Skip negligible entries
         if (avg_total_ns < 100) continue;
+
+        // Skip vendor noise (Clay internals, cglm math, NEON intrinsics).
+        // These are high-call-count trivial functions where instrumentation
+        // overhead dominates. They still appear in session reports.
+        if (name && profiler_is_vendor_noise(name)) continue;
 
         state.zone_storage[count] = (rl_profile_zone){
             .name       = name,
