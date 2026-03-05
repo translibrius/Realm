@@ -44,6 +44,15 @@ assert ZONE_SIZE == 64, f"Zone size mismatch: {ZONE_SIZE} != 64"
 
 SHM_TOTAL_SIZE = HEADER_SIZE + MAX_BROADCAST_ZONES * ZONE_SIZE
 
+# Edge data (call tree) appended after flat data in session files
+EDGE_MAGIC = 0x524C5054  # "RLPT"
+MAX_BROADCAST_EDGES = 256
+
+# shm_edge: parent_name(32s) child_name(32s) call_count(u32) pad(4) total_ns(i64) max_ns(i64) avg_ns(i64)
+EDGE_FMT = "<32s32sI4xqqq"
+EDGE_SIZE = struct.calcsize(EDGE_FMT)
+assert EDGE_SIZE == 96, f"Edge size mismatch: {EDGE_SIZE} != 96"
+
 
 def read_shared_memory():
     """Read profiler data from POSIX shared memory. Returns dict or None."""
@@ -97,7 +106,10 @@ def read_binary_file(path):
     try:
         with open(path, "rb") as f:
             data = f.read()
-        return _parse_data(data)
+        result = _parse_data(data)
+        if result is not None:
+            result['edges'] = _parse_edges(data)
+        return result
     except Exception as e:
         print(f"Failed to read session file: {e}", file=sys.stderr)
         return None
@@ -134,7 +146,40 @@ def _parse_data(data):
         'frame_time_ns': frame_time_ns,
         'frame_count': sequence,  # repurposed in session files
         'zones': zones,
+        'edges': [],
     }
+
+
+def _parse_edges(data):
+    """Parse edge data appended after the flat header in session files."""
+    offset = SHM_TOTAL_SIZE
+    if offset + 8 > len(data):
+        return []
+
+    magic, edge_count = struct.unpack_from("<II", data, offset)
+    if magic != EDGE_MAGIC:
+        return []
+
+    offset += 8
+    edge_count = min(edge_count, MAX_BROADCAST_EDGES)
+    edges = []
+    for _ in range(edge_count):
+        if offset + EDGE_SIZE > len(data):
+            break
+        parent_raw, child_raw, call_count, total_ns, max_ns, avg_ns = struct.unpack_from(
+            EDGE_FMT, data, offset)
+        parent = parent_raw.split(b'\x00', 1)[0].decode('utf-8', errors='replace')
+        child = child_raw.split(b'\x00', 1)[0].decode('utf-8', errors='replace')
+        edges.append({
+            'parent': parent,
+            'child': child,
+            'call_count': call_count,
+            'total_ns': total_ns,
+            'max_ns': max_ns,
+            'avg_ns': avg_ns,
+        })
+        offset += EDGE_SIZE
+    return edges
 
 
 # --- Source location finder ---
@@ -255,6 +300,50 @@ def generate_report(data, source_root=None, mode="snapshot"):
                     lines.append(snippet)
                     lines.append("```")
 
+        lines.append("")
+
+    # Call tree section (if edge data available)
+    edges = data.get('edges', [])
+    if edges:
+        lines.append("## Call Tree")
+        lines.append("")
+
+        # Build tree structure
+        from collections import defaultdict
+        children_of = defaultdict(list)
+        for e in edges:
+            children_of[e['parent']].append(e)
+        for parent in children_of:
+            children_of[parent].sort(key=lambda e: e['total_ns'], reverse=True)
+
+        # Build node info for self-time
+        flat_by_name = {z['name']: z for z in zones}
+        node_self_ns = {}
+        for name, z in flat_by_name.items():
+            child_time = sum(e['total_ns'] for e in children_of.get(name, []))
+            node_self_ns[name] = max(0, z['total_ns'] - child_time)
+
+        def format_tree_node(name, edge_total_ns, edge_call_count, depth):
+            total_ms = edge_total_ns / 1e6
+            pct = (edge_total_ns / data['frame_time_ns'] * 100) if data['frame_time_ns'] > 0 else 0
+            self_ns = node_self_ns.get(name, edge_total_ns)
+            self_ms = self_ns / 1e6
+            self_pct = (self_ns / data['frame_time_ns'] * 100) if data['frame_time_ns'] > 0 else 0
+            indent = "  " * depth
+            result = []
+            result.append(f"{indent}- `{name}` — {total_ms:.3f} ms ({pct:.1f}%), "
+                          f"self: {self_ms:.3f} ms ({self_pct:.1f}%), x{edge_call_count}")
+            for child_edge in children_of.get(name, []):
+                if child_edge['total_ns'] / 1e6 >= 0.001:  # skip sub-microsecond
+                    result.extend(format_tree_node(
+                        child_edge['child'], child_edge['total_ns'],
+                        child_edge['call_count'], depth + 1))
+            return result
+
+        root_edges = children_of.get('', [])
+        for edge in root_edges:
+            lines.extend(format_tree_node(edge['child'], edge['total_ns'],
+                                          edge['call_count'], 0))
         lines.append("")
 
     lines.append("---")

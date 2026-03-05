@@ -43,11 +43,17 @@ static u64 profiler_get_thread_id(void) {
 #define MAX_STACK_DEPTH 256
 #define UPDATE_INTERVAL_FRAMES 6  // Update display snapshot every N frames (~10 Hz at 60fps)
 
-// --- Shared memory broadcast layout ---
+// --- Shared memory broadcast layout (flat zones) ---
 #define SHM_NAME            "/realm_profiler"
 #define SHM_NAME_WIN        "realm_profiler"
 #define MAX_BROADCAST_ZONES 64
 #define SHM_ZONE_NAME_LEN   32
+
+// --- Shared memory broadcast layout (call tree edges) ---
+#define SHM_TREE_NAME       "/realm_profiler_tree"
+#define SHM_TREE_NAME_WIN   "realm_profiler_tree"
+#define MAX_BROADCAST_EDGES 256
+#define SHM_EDGE_NAME_LEN   32
 
 typedef struct shm_zone {
     char name[SHM_ZONE_NAME_LEN];
@@ -68,7 +74,39 @@ typedef struct shm_header {
 
 #define SHM_SIZE sizeof(shm_header)
 
+typedef struct shm_edge {
+    char parent_name[SHM_EDGE_NAME_LEN];
+    char child_name[SHM_EDGE_NAME_LEN];
+    u32  call_count;
+    u32  _pad;
+    i64  total_ns;
+    i64  max_ns;
+    i64  avg_ns;
+} shm_edge;
+
+typedef struct shm_tree_header {
+    u32      magic;         // 0x524C5054 = "RLPT"
+    u32      sequence;      // matches flat segment's sequence
+    u32      edge_count;
+    u32      _pad;
+    i64      frame_time_ns;
+    shm_edge edges[MAX_BROADCAST_EDGES];
+} shm_tree_header;
+
+#define SHM_TREE_SIZE sizeof(shm_tree_header)
+
 // --- Internal types ---
+
+#define EDGE_MAP_SIZE 4096
+
+typedef struct edge_entry {
+    void *parent_addr;
+    void *child_addr;
+    u32   call_count;
+    u32   _pad;
+    i64   total_ns;
+    i64   max_ns;
+} edge_entry;
 
 typedef struct agg_entry {
     void *fn_addr;
@@ -107,14 +145,28 @@ typedef struct profiler_state {
     i64             clock_freq;
     i64             accum_frame_ns;  // accumulated frame time over interval
 
+    // Parent-child edge aggregation
+    edge_entry      edge_map[EDGE_MAP_SIZE];          // per-frame
+    edge_entry      edge_accum_map[EDGE_MAP_SIZE];    // multi-frame batch
+    edge_entry      edge_lifetime_map[EDGE_MAP_SIZE]; // session-long
+
     // Lifetime accumulation (never reset — for session report on exit)
     agg_entry       lifetime_map[AGG_MAP_SIZE];
     u32             lifetime_frames;
     i64             lifetime_total_ns;
 
-    // Shared memory
+    // Shared memory (flat zones)
     shm_header     *shm_ptr;
     u32             shm_sequence;
+
+    // Shared memory (call tree edges)
+    shm_tree_header *shm_tree_ptr;
+#if defined(PLATFORM_MACOS) || defined(PLATFORM_LINUX)
+    i32             shm_tree_fd;
+#endif
+#if defined(PLATFORM_WINDOWS)
+    void           *shm_tree_handle;
+#endif
 #if defined(PLATFORM_MACOS) || defined(PLATFORM_LINUX)
     i32             shm_fd;
 #endif
@@ -139,6 +191,12 @@ static u32 hash_ptr(void *ptr) {
 PROF_NOINST
 static u32 hash_ptr_name(void *ptr) {
     return (u32)((u64)ptr * 2654435761ULL) & (NAME_MAP_SIZE - 1);
+}
+
+PROF_NOINST
+static u32 hash_edge(void *parent, void *child) {
+    u64 combined = (u64)parent * 2654435761ULL ^ (u64)child * 2246822519ULL;
+    return (u32)combined & (EDGE_MAP_SIZE - 1);
 }
 
 // --- Name resolution ---
@@ -276,6 +334,147 @@ static void shm_destroy(void) {
 #endif
 }
 
+// --- Shared memory helpers (call tree edges) ---
+
+PROF_NOINST
+static void shm_tree_create(void) {
+#if defined(PLATFORM_MACOS) || defined(PLATFORM_LINUX)
+    shm_unlink(SHM_TREE_NAME);
+
+    state.shm_tree_fd = shm_open(SHM_TREE_NAME, O_CREAT | O_RDWR, 0666);
+    if (state.shm_tree_fd < 0) {
+        RL_WARN("Profiler: failed to create tree shared memory");
+        return;
+    }
+    if (ftruncate(state.shm_tree_fd, (off_t)SHM_TREE_SIZE) != 0) {
+        RL_WARN("Profiler: failed to resize tree shared memory");
+        close(state.shm_tree_fd);
+        shm_unlink(SHM_TREE_NAME);
+        state.shm_tree_fd = -1;
+        return;
+    }
+    state.shm_tree_ptr = (shm_tree_header *)mmap(nullptr, SHM_TREE_SIZE, PROT_READ | PROT_WRITE,
+                                                   MAP_SHARED, state.shm_tree_fd, 0);
+    if (state.shm_tree_ptr == MAP_FAILED) {
+        RL_WARN("Profiler: failed to mmap tree shared memory");
+        close(state.shm_tree_fd);
+        shm_unlink(SHM_TREE_NAME);
+        state.shm_tree_fd = -1;
+        state.shm_tree_ptr = nullptr;
+        return;
+    }
+    memset(state.shm_tree_ptr, 0, SHM_TREE_SIZE);
+    state.shm_tree_ptr->magic = 0x524C5054; // "RLPT"
+#endif
+
+#if defined(PLATFORM_WINDOWS)
+    state.shm_tree_handle = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
+                                                0, (DWORD)SHM_TREE_SIZE, SHM_TREE_NAME_WIN);
+    if (!state.shm_tree_handle) {
+        RL_WARN("Profiler: failed to create tree shared memory");
+        return;
+    }
+    state.shm_tree_ptr = (shm_tree_header *)MapViewOfFile(state.shm_tree_handle, FILE_MAP_ALL_ACCESS,
+                                                            0, 0, SHM_TREE_SIZE);
+    if (!state.shm_tree_ptr) {
+        RL_WARN("Profiler: failed to map tree shared memory");
+        CloseHandle(state.shm_tree_handle);
+        state.shm_tree_handle = NULL;
+        return;
+    }
+    memset(state.shm_tree_ptr, 0, SHM_TREE_SIZE);
+    state.shm_tree_ptr->magic = 0x524C5054; // "RLPT"
+#endif
+}
+
+PROF_NOINST
+static void shm_tree_destroy(void) {
+#if defined(PLATFORM_MACOS) || defined(PLATFORM_LINUX)
+    if (state.shm_tree_ptr && state.shm_tree_ptr != MAP_FAILED) {
+        state.shm_tree_ptr->magic = 0;
+        munmap(state.shm_tree_ptr, SHM_TREE_SIZE);
+    }
+    if (state.shm_tree_fd >= 0) {
+        close(state.shm_tree_fd);
+        shm_unlink(SHM_TREE_NAME);
+    }
+    state.shm_tree_ptr = nullptr;
+    state.shm_tree_fd = -1;
+#endif
+
+#if defined(PLATFORM_WINDOWS)
+    if (state.shm_tree_ptr) {
+        state.shm_tree_ptr->magic = 0;
+        UnmapViewOfFile(state.shm_tree_ptr);
+    }
+    if (state.shm_tree_handle) {
+        CloseHandle(state.shm_tree_handle);
+    }
+    state.shm_tree_ptr = nullptr;
+    state.shm_tree_handle = NULL;
+#endif
+}
+
+PROF_NOINST
+static void shm_copy_name(char *dst, u32 dst_size, const char *src) {
+    memset(dst, 0, dst_size);
+    if (src) {
+        u32 len = (u32)strlen(src);
+        if (len >= dst_size) len = dst_size - 1;
+        memcpy(dst, src, len);
+    }
+}
+
+PROF_NOINST
+static void shm_tree_broadcast(u32 num_frames) {
+    if (!state.shm_tree_ptr) return;
+
+    // Build sorted edge list from edge_accum_map
+    u32 count = 0;
+    shm_edge staging[MAX_BROADCAST_EDGES];
+
+    for (u32 i = 0; i < EDGE_MAP_SIZE && count < MAX_BROADCAST_EDGES; i++) {
+        edge_entry *e = &state.edge_accum_map[i];
+        if (e->child_addr == nullptr) continue;
+
+        const char *parent_name = e->parent_addr ? resolve_name(e->parent_addr) : "";
+        const char *child_name  = resolve_name(e->child_addr);
+
+        i64 avg_total = e->total_ns / (i64)num_frames;
+        u32 avg_calls = (e->call_count + num_frames / 2) / num_frames;
+        i64 avg_per   = avg_calls > 0 ? avg_total / (i64)avg_calls : 0;
+
+        if (avg_total < 100) continue;
+
+        shm_copy_name(staging[count].parent_name, SHM_EDGE_NAME_LEN, parent_name);
+        shm_copy_name(staging[count].child_name, SHM_EDGE_NAME_LEN, child_name);
+        staging[count].call_count = avg_calls;
+        staging[count]._pad       = 0;
+        staging[count].total_ns   = avg_total;
+        staging[count].max_ns     = e->max_ns;
+        staging[count].avg_ns     = avg_per;
+        count++;
+    }
+
+    // Sort edges by total_ns descending
+    for (u32 i = 1; i < count; i++) {
+        shm_edge tmp = staging[i];
+        u32 j = i;
+        while (j > 0 && staging[j - 1].total_ns < tmp.total_ns) {
+            staging[j] = staging[j - 1];
+            j--;
+        }
+        staging[j] = tmp;
+    }
+
+    // Write data first, then sequence
+    state.shm_tree_ptr->frame_time_ns = state.completed_frame.frame_time_ns;
+    state.shm_tree_ptr->edge_count = count;
+    memcpy(state.shm_tree_ptr->edges, staging, count * sizeof(shm_edge));
+
+    state.shm_tree_ptr->sequence = state.shm_sequence;
+}
+
 PROF_NOINST
 static void shm_broadcast(void) {
     if (!state.shm_ptr) return;
@@ -364,6 +563,58 @@ static void lifetime_merge_frame(void) {
     }
 }
 
+// --- Edge accumulation helpers ---
+
+PROF_NOINST
+static void edge_accum_merge_frame(void) {
+    for (u32 i = 0; i < EDGE_MAP_SIZE; i++) {
+        edge_entry *src = &state.edge_map[i];
+        if (src->child_addr == nullptr) continue;
+
+        u32 h = hash_edge(src->parent_addr, src->child_addr);
+        for (u32 probe = 0; probe < EDGE_MAP_SIZE; probe++) {
+            u32 slot = (h + probe) & (EDGE_MAP_SIZE - 1);
+            edge_entry *dst = &state.edge_accum_map[slot];
+
+            if (dst->child_addr == nullptr) {
+                *dst = *src;
+                break;
+            }
+            if (dst->parent_addr == src->parent_addr && dst->child_addr == src->child_addr) {
+                dst->call_count += src->call_count;
+                dst->total_ns  += src->total_ns;
+                if (src->max_ns > dst->max_ns) dst->max_ns = src->max_ns;
+                break;
+            }
+        }
+    }
+}
+
+PROF_NOINST
+static void edge_lifetime_merge_frame(void) {
+    for (u32 i = 0; i < EDGE_MAP_SIZE; i++) {
+        edge_entry *src = &state.edge_map[i];
+        if (src->child_addr == nullptr) continue;
+
+        u32 h = hash_edge(src->parent_addr, src->child_addr);
+        for (u32 probe = 0; probe < EDGE_MAP_SIZE; probe++) {
+            u32 slot = (h + probe) & (EDGE_MAP_SIZE - 1);
+            edge_entry *dst = &state.edge_lifetime_map[slot];
+
+            if (dst->child_addr == nullptr) {
+                *dst = *src;
+                break;
+            }
+            if (dst->parent_addr == src->parent_addr && dst->child_addr == src->child_addr) {
+                dst->call_count += src->call_count;
+                dst->total_ns  += src->total_ns;
+                if (src->max_ns > dst->max_ns) dst->max_ns = src->max_ns;
+                break;
+            }
+        }
+    }
+}
+
 // --- Lifecycle ---
 
 PROF_NOINST
@@ -375,6 +626,9 @@ void rl_profiler_init(void) {
     state.shm_fd = -1;
 #endif
     state.main_thread_id = profiler_get_thread_id();
+#if defined(PLATFORM_MACOS) || defined(PLATFORM_LINUX)
+    state.shm_tree_fd = -1;
+#endif
     state.enabled = true;
     state.initialized = true;
 
@@ -384,12 +638,14 @@ void rl_profiler_init(void) {
 #endif
 
     shm_create();
+    shm_tree_create();
     RL_INFO("Profiler initialized (shared memory broadcast active)");
 }
 
 PROF_NOINST
 void rl_profiler_shutdown(void) {
     if (!state.initialized) return;
+    shm_tree_destroy();
     shm_destroy();
 #if defined(PLATFORM_WINDOWS)
     SymCleanup(GetCurrentProcess());
@@ -427,6 +683,7 @@ REALM_API void __cyg_profile_func_exit(void *fn, void *caller) {
     i64 elapsed = now - state.call_stack[state.stack_depth].enter_time;
     i64 elapsed_ns = (elapsed * 1000000000LL) / state.clock_freq;
 
+    // Flat aggregation (existing)
     u32 hash = hash_ptr(fn);
     for (u32 probe = 0; probe < AGG_MAP_SIZE; probe++) {
         u32 slot = (hash + probe) & (AGG_MAP_SIZE - 1);
@@ -437,12 +694,37 @@ REALM_API void __cyg_profile_func_exit(void *fn, void *caller) {
             e->call_count = 1;
             e->total_ns   = elapsed_ns;
             e->max_ns     = elapsed_ns;
-            return;
+            break;
         }
         if (e->fn_addr == fn) {
             e->call_count++;
             e->total_ns += elapsed_ns;
             if (elapsed_ns > e->max_ns) e->max_ns = elapsed_ns;
+            break;
+        }
+    }
+
+    // Parent-child edge aggregation
+    void *parent_addr = state.stack_depth > 0
+        ? state.call_stack[state.stack_depth - 1].fn_addr : nullptr;
+
+    u32 ehash = hash_edge(parent_addr, fn);
+    for (u32 probe = 0; probe < EDGE_MAP_SIZE; probe++) {
+        u32 slot = (ehash + probe) & (EDGE_MAP_SIZE - 1);
+        edge_entry *ee = &state.edge_map[slot];
+
+        if (ee->child_addr == nullptr) {
+            ee->parent_addr = parent_addr;
+            ee->child_addr  = fn;
+            ee->call_count  = 1;
+            ee->total_ns    = elapsed_ns;
+            ee->max_ns      = elapsed_ns;
+            return;
+        }
+        if (ee->parent_addr == parent_addr && ee->child_addr == fn) {
+            ee->call_count++;
+            ee->total_ns += elapsed_ns;
+            if (elapsed_ns > ee->max_ns) ee->max_ns = elapsed_ns;
             return;
         }
     }
@@ -461,13 +743,16 @@ void rl_profiler_frame_mark(void) {
     // Merge this frame's data into both accumulators
     accum_merge_frame();
     lifetime_merge_frame();
+    edge_accum_merge_frame();
+    edge_lifetime_merge_frame();
     state.accum_frame_ns += frame_ns;
     state.accum_frames++;
     state.lifetime_total_ns += frame_ns;
     state.lifetime_frames++;
 
-    // Clear per-frame raw map
+    // Clear per-frame raw maps
     memset(state.agg_map, 0, sizeof(state.agg_map));
+    memset(state.edge_map, 0, sizeof(state.edge_map));
     state.stack_depth = 0;
 
     // Only update the display snapshot every N frames
@@ -520,9 +805,11 @@ void rl_profiler_frame_mark(void) {
 
     // Broadcast to shared memory for external viewer
     shm_broadcast();
+    shm_tree_broadcast(num_frames);
 
-    // Reset accumulator for next interval
+    // Reset accumulators for next interval
     memset(state.accum_map, 0, sizeof(state.accum_map));
+    memset(state.edge_accum_map, 0, sizeof(state.edge_accum_map));
     state.accum_frames = 0;
     state.accum_frame_ns = 0;
 }
@@ -622,8 +909,55 @@ void rl_profiler_write_session_report(const char *path) {
     }
 
     fwrite(&hdr, sizeof(hdr), 1, f);
+
+    // Append call tree edge data
+    u32 edge_count = 0;
+    shm_edge edges[MAX_BROADCAST_EDGES];
+
+    for (u32 i = 0; i < EDGE_MAP_SIZE && edge_count < MAX_BROADCAST_EDGES; i++) {
+        edge_entry *e = &state.edge_lifetime_map[i];
+        if (e->child_addr == nullptr) continue;
+
+        const char *parent_name = e->parent_addr ? resolve_name(e->parent_addr) : "";
+        const char *child_name  = resolve_name(e->child_addr);
+
+        i64 avg_total = e->total_ns / (i64)num_frames;
+        u32 avg_calls = (e->call_count + num_frames / 2) / num_frames;
+        i64 avg_per   = avg_calls > 0 ? avg_total / (i64)avg_calls : 0;
+
+        if (avg_total < 100) continue;
+
+        shm_copy_name(edges[edge_count].parent_name, SHM_EDGE_NAME_LEN, parent_name);
+        shm_copy_name(edges[edge_count].child_name, SHM_EDGE_NAME_LEN, child_name);
+        edges[edge_count].call_count = avg_calls;
+        edges[edge_count]._pad       = 0;
+        edges[edge_count].total_ns   = avg_total;
+        edges[edge_count].max_ns     = e->max_ns;
+        edges[edge_count].avg_ns     = avg_per;
+        edge_count++;
+    }
+
+    // Sort edges by total_ns descending
+    for (u32 i = 1; i < edge_count; i++) {
+        shm_edge tmp = edges[i];
+        u32 j = i;
+        while (j > 0 && edges[j - 1].total_ns < tmp.total_ns) {
+            edges[j] = edges[j - 1];
+            j--;
+        }
+        edges[j] = tmp;
+    }
+
+    u32 edge_magic = 0x524C5054; // "RLPT"
+    fwrite(&edge_magic, sizeof(u32), 1, f);
+    fwrite(&edge_count, sizeof(u32), 1, f);
+    if (edge_count > 0) {
+        fwrite(edges, sizeof(shm_edge) * edge_count, 1, f);
+    }
+
     fclose(f);
-    RL_INFO("Profiler: session report written to %s (%u frames, %u zones)", path, num_frames, count);
+    RL_INFO("Profiler: session report written to %s (%u frames, %u zones, %u edges)",
+            path, num_frames, count, edge_count);
 }
 
 #endif // RL_PROFILE_ENABLED
