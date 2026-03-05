@@ -18,4 +18,4 @@ loop:
 ## Runtime hotkeys
 
 - **F5** → rebuild + reload app module.
-- **F7** → switch backend (destroys renderer + window, recreates both, then reloads app module).
+- **F10** → switch backend (destroys renderer + window, recreates both, then reloads app module).

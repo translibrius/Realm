@@ -16,22 +16,31 @@ Built as a hobbyist deep dive into engine architecture, renderer design, and the
 - **Dual renderer backend** — OpenGL 3.3 and Vulkan, switchable at runtime with a single keypress
 - **Hot-reload game module** — edit gameplay code, hit F5, and see changes without restarting. State is preserved across reloads when the layout is compatible
 - **Virtual memory arena allocator** — reserve/commit scheme with page-aligned growth, per-frame scratch arenas that auto-clear, and thread-local scratch for async work
+- **Clay-based GUI toolkit** — panels, buttons, text inputs, sliders, checkboxes, dropdowns, tabs, tooltips, and draggable windows with Catppuccin Mocha theming
 - **MTSDF text rendering** — multi-channel signed distance field fonts via msdf-atlas-gen, sharp at any size
 - **Async threaded logger** — lock-free ring buffer with a dedicated writer thread, compile-time level stripping in release
-- **Persistent TOML config** — window size, position, renderer backend, vsync, and log level auto-saved with a 5-second dirty-flag debounce
-- **Tracy profiling** — integrated for frame timing, memory tracking, and zone analysis
-- **Custom test harness** — colored terminal output, substring filtering, fail-fast mode
-- **In-engine toast notifications** — info/warning/error popups surfaced from the game module
+- **Developer console** — `~` to toggle a scrollable log viewer with input bar, fed by logger callbacks
+- **Persistent TOML config** — window size/position, renderer backend, VSync, FOV, mouse sensitivity, and log level auto-saved with a 5-second dirty-flag debounce
+- **Custom function-level profiler** — Clang `-finstrument-functions` with shared-memory broadcast, real-time DearPyGui visualizer, and markdown session reports
+- **Custom test harness** — grouped output, colored terminal (Catppuccin), typed equality and float assertions, skip/fatal/quiet modes, test timing, substring filtering, and fail-fast
 - **Splash screen** — native platform splash (no GL/Vulkan required) while assets load
 
 ## Architecture
 
 ```
 realm/ (host executable)
-  ├── main.c              → bootstraps engine, creates window, enters frame loop
-  ├── realm_app_loader    → loads/reloads the game module DLL at runtime
-  ├── realm_app_watcher   → file watcher that detects rebuilds
-  └── realm_app_module/   → the hot-reloadable game module (shared library)
+  ├── main.c                → bootstraps engine, enters frame loop
+  ├── application.c         → orchestrator: module lifecycle, state allocation
+  ├── event_handler.c       → hotkey dispatch (F3–F11, ~, M)
+  ├── app_console.c         → scrollable log viewer + input bar
+  ├── app_renderer.c        → runtime backend switching
+  ├── app_debug_panel.c     → debug overlay
+  ├── realm_app_loader      → loads/reloads game module DLL/dylib
+  ├── realm_app_watcher     → file watcher for rebuild detection
+  └── realm_app_module/     → hot-reloadable game module
+        ├── scene_main_menu  → start / settings / exit
+        ├── scene_game       → camera, geometry, pause menu
+        └── menu_settings    → FOV, sensitivity, backend, VSync, log level
 
 engine/ (shared library)
   ├── include/            → stable public API (the only headers realm/ may use)
@@ -40,6 +49,8 @@ engine/ (shared library)
       ├── asset/          → static asset registry indexed by enum ID
       ├── core/           → logger, events, camera, config
       ├── memory/         → arena allocator, tracked malloc/free
+      ├── gui/            → Clay integration, widget implementations
+      ├── profiler/       → function-level profiler, shared memory broadcast
       └── platform/       → win32, macOS, linux abstraction
 ```
 
@@ -54,6 +65,8 @@ The renderer is never touched by game code directly. The game fills an `rl_frame
 | Windows  | Primary development platform |
 | macOS    | Complete |
 | Linux    | Complete |
+
+CI runs on all three platforms. The Linux job also builds with AddressSanitizer and UndefinedBehaviorSanitizer.
 
 ## Building
 
@@ -76,10 +89,14 @@ Dependencies (FreeType, shaderc, Vulkan headers) are managed via vcpkg manifest 
 |--------|---------|-------------|
 | `REALM_WERROR` | `OFF` | Treat compiler warnings as errors |
 | `REALM_BUILD_TESTS` | `ON` | Build the unit test executable |
+| `RL_PROFILE` | `OFF` | Enable function-level profiler (`-finstrument-functions`) |
 
 ```bash
 # Enable warnings-as-errors (always on in CI)
 cmake --preset debug -DREALM_WERROR=ON
+
+# Enable profiling
+cmake --preset debug -DRL_PROFILE=ON
 ```
 
 ## Running
@@ -97,6 +114,9 @@ cmake --preset debug -DREALM_WERROR=ON
 | Mouse | Look around |
 | `Enter` | Pause / resume |
 | `Escape` | Pause (press again to quit) |
+| `~` | Toggle developer console |
+| `F3` | Launch profiler visualizer (profile build only) |
+| `F4` | Snapshot profiler report (profile build only) |
 | `F5` | Rebuild and hot-reload game module |
 | `F10` | Switch renderer backend (OpenGL / Vulkan) |
 | `F11` | Toggle borderless / windowed |
@@ -110,10 +130,30 @@ ctest --preset debug
 # Run tests, then launch the app if they pass
 cmake --build --preset debug --target run_realm_checked
 
-# Filter or list tests directly
-./build/debug/bin/RealmTests --list
-./build/debug/bin/RealmTests --filter <pattern>
-./build/debug/bin/RealmTests --fail-fast
+# CLI flags
+./build/debug/bin/RealmTests --list              # list all tests by group
+./build/debug/bin/RealmTests --filter <pattern>   # run matching tests only
+./build/debug/bin/RealmTests --fail-fast          # stop after first failure
+./build/debug/bin/RealmTests --quiet              # suppress passing test output
+```
+
+## Profiling
+
+Build with profiling enabled, then use the in-engine hotkeys or the report scripts:
+
+```bash
+cmake --preset debug -DRL_PROFILE=ON && cmake --build --preset debug
+./build/debug/bin/Realm
+```
+
+- **F3** — opens the real-time DearPyGui visualizer (flat, call tree, and flame chart views)
+- **F4** — writes a markdown snapshot report from live shared memory
+- **On exit** — `profiler_session.bin` is written automatically
+
+Generate a report from the session file:
+
+```bash
+python3 tools/profiler_report.py --session profiler_session.bin --source-root .
 ```
 
 ## Contact
