@@ -6,9 +6,15 @@
 
 #include <string.h>
 
+#ifdef PLATFORM_WINDOWS
+#define TEST_DIR  "."
+#define TEST_FILE "realm_test_io.txt"
+#define TEST_COPY "realm_test_io_copy.txt"
+#else
 #define TEST_DIR  "/tmp"
 #define TEST_FILE "/tmp/realm_test_io.txt"
 #define TEST_COPY "/tmp/realm_test_io_copy.txt"
+#endif
 
 static const char *TEST_DATA = "Hello, Realm file I/O!\nLine two.\n";
 
