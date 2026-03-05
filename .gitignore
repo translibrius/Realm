@@ -8,3 +8,4 @@ CMakeUserPresets.json
 # .claude/
 .vscode/
 .profile_log
+__pycache__/
