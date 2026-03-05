@@ -443,6 +443,16 @@ void config_set_mouse_sensitivity(f32 value) {
     event_fire(EVENT_CONFIG_CHANGED, &payload);
 }
 
+void config_set_log_level(LOG_LEVEL level) {
+    if (!state) return;
+    if (state->config.log_level == level) return;
+    state->config.log_level = level;
+    logger_set_level(level);
+    config_mark_dirty();
+    e_config_changed_payload payload = { .key = "log_level" };
+    event_fire(EVENT_CONFIG_CHANGED, &payload);
+}
+
 void config_mark_dirty(void) {
     if (state) {
         state->dirty = true;

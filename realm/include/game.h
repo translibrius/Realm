@@ -38,6 +38,7 @@ typedef struct rl_game {
     gui_slider_state settings_fov_slider;
     gui_slider_state settings_sensitivity_slider;
     gui_dropdown_state settings_theme_dropdown;
+    gui_dropdown_state settings_log_level_dropdown;
 
     // Shared
     rl_arena frame_arena;

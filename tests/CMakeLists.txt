@@ -9,6 +9,8 @@ add_executable(RealmTests
         cases/test_arena.c
         cases/test_dynamic_array.c
         cases/test_event.c
+        cases/test_input.c
+        cases/test_logger.c
 )
 
 target_include_directories(RealmTests

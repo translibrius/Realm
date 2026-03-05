@@ -1,6 +1,8 @@
 #include "../../include/menu_settings.h"
 #include "../../include/game.h"
 
+#include "core/config.h"
+#include "core/logger.h"
 #include "gui/gui_clay.h"
 #include "gui/gui_theme.h"
 #include "gui/gui_widgets.h"
@@ -9,6 +11,7 @@
 static const char *backend_items[] = {"OpenGL", "Vulkan"};
 static const char *window_mode_items[] = {"Windowed", "Borderless", "Fullscreen"};
 static const char *theme_items[] = {"Dark", "Catppuccin"};
+static const char *log_level_items[] = {"Info", "Debug", "Trace", "Warn", "Error", "Fatal"};
 
 void menu_settings_render(rl_game *game, const realm_app_context *ctx, realm_app_output *out) {
     // ── State sync ──────────────────────────────────────────────
@@ -19,6 +22,7 @@ void menu_settings_render(rl_game *game, const realm_app_context *ctx, realm_app
     if (!game->settings_sensitivity_slider.dragging)
         game->settings_sensitivity_slider.value = ctx->mouse_sensitivity / 0.5f;
     game->settings_backend_dropdown.selected = (i32)ctx->renderer_backend;
+    game->settings_log_level_dropdown.selected = (i32)logger_get_level();
 
     // ── Layout ──────────────────────────────────────────────────
     const gui_theme *t = gui_theme_get();
@@ -29,7 +33,7 @@ void menu_settings_render(rl_game *game, const realm_app_context *ctx, realm_app
     gui_panel_cfg col_grow = {.gap = 8, .width_sizing = GUI_SIZE_GROW};
 
     b8 vsync_chg = false, window_chg = false, fov_chg = false, sens_chg = false, backend_chg = false,
-       theme_chg = false;
+       theme_chg = false, log_level_chg = false;
 
     gui_text("Settings", &(gui_text_cfg){.color = t->text, .size = 24});
 
@@ -41,6 +45,7 @@ void menu_settings_render(rl_game *game, const realm_app_context *ctx, realm_app
             GUI_PANEL(&cell) { gui_text("Sensitivity", &label); }
             GUI_PANEL(&cell) { gui_text("Renderer", &label); }
             GUI_PANEL(&cell) { gui_text("Theme", &label); }
+            GUI_PANEL(&cell) { gui_text("Log Level", &label); }
         }
 
         GUI_PANEL(&col_grow) {
@@ -73,6 +78,11 @@ void menu_settings_render(rl_game *game, const realm_app_context *ctx, realm_app
             GUI_PANEL(&cell) {
                 theme_chg = gui_dropdown(&game->settings_theme_dropdown,
                     &(gui_dropdown_cfg){.items = theme_items, .item_count = 2, .width = 120});
+            }
+
+            GUI_PANEL(&cell) {
+                log_level_chg = gui_dropdown(&game->settings_log_level_dropdown,
+                    &(gui_dropdown_cfg){.items = log_level_items, .item_count = 6, .width = 120});
             }
         }
     }
@@ -108,6 +118,9 @@ void menu_settings_render(rl_game *game, const realm_app_context *ctx, realm_app
     if (theme_chg) {
         i32 sel = game->settings_theme_dropdown.selected;
         gui_theme_set(sel == 1 ? gui_theme_catppuccin() : gui_theme_dark());
+    }
+    if (log_level_chg) {
+        config_set_log_level((LOG_LEVEL)game->settings_log_level_dropdown.selected);
     }
     if (back) {
         game->settings_open = false;
