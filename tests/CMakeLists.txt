@@ -11,6 +11,9 @@ add_executable(RealmTests
         cases/test_event.c
         cases/test_input.c
         cases/test_logger.c
+        cases/test_file_io.c
+        cases/test_clock.c
+        cases/test_rand.c
 )
 
 target_include_directories(RealmTests

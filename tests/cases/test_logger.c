@@ -1,23 +1,9 @@
 #include "../harness/rl_test.h"
+#include "../support/test_runtime.h"
 
 #include "core/logger.h"
-#include "memory/memory.h"
+#include "platform/platform.h"
 #include "util/str.h"
-
-// --- Per-test logger lifecycle ---
-
-static void *g_logger_mem;
-
-static void logger_test_setup(void) {
-    g_logger_mem = mem_alloc(logger_system_size(), MEM_SUBSYSTEM_LOGGER);
-    logger_system_start(g_logger_mem);
-}
-
-static void logger_test_teardown(void) {
-    logger_system_shutdown();
-    mem_free(g_logger_mem, logger_system_size(), MEM_SUBSYSTEM_LOGGER);
-    g_logger_mem = nullptr;
-}
 
 // --- Callback helpers ---
 
@@ -33,52 +19,58 @@ static void test_logger_callback(LOG_LEVEL level, const char *text, u16 len, voi
     g_cb_count++;
 }
 
+// Emit log messages with console suppressed so the async writer thread
+// doesn't interleave with harness output, then drain and restore.
+static void emit_and_drain(LOG_LEVEL level, const char *msg) {
+    rl_test_suppress_console();
+    log_output(msg, level, __func__);
+    // Let the async writer drain into /dev/null
+    platform_sleep(1);
+    rl_test_restore_console();
+}
+
 // --- Tests ---
 
 RL_TEST(logger_level_get_set) {
-    logger_test_setup();
-
     logger_set_level(LOG_WARN);
     RL_EXPECT_EQ_I32((i32)logger_get_level(), (i32)LOG_WARN);
 
     logger_set_level(LOG_ERROR);
     RL_EXPECT_EQ_I32((i32)logger_get_level(), (i32)LOG_ERROR);
 
-    logger_test_teardown();
+    logger_set_level(LOG_FATAL);
 }
 
 RL_TEST(logger_callback_receives_messages) {
-    logger_test_setup();
-
     g_cb_count = 0;
     g_last_cb_text[0] = '\0';
+    logger_set_level(LOG_INFO);
     logger_set_callback(test_logger_callback, nullptr);
 
-    RL_INFO("test message %d", 42);
+    emit_and_drain(LOG_INFO, "test message %d");
 
     RL_EXPECT_MSG(g_cb_count >= 1, "callback should have fired, count=%d", g_cb_count);
     RL_EXPECT_EQ_I32((i32)g_last_cb_level, (i32)LOG_INFO);
 
-    logger_test_teardown();
+    logger_set_level(LOG_FATAL);
+    logger_set_callback(nullptr, nullptr);
 }
 
 RL_TEST(logger_level_filters_below_threshold) {
-    logger_test_setup();
-
     g_cb_count = 0;
     logger_set_callback(test_logger_callback, nullptr);
     logger_set_level(LOG_WARN);
 
     // INFO is below WARN threshold — should be filtered
-    RL_INFO("should not appear");
-
+    emit_and_drain(LOG_INFO, "should not appear");
     RL_EXPECT_EQ_I32(g_cb_count, 0);
 
     // WARN should still go through
-    RL_WARN("should appear");
+    emit_and_drain(LOG_WARN, "should appear");
     RL_EXPECT_MSG(g_cb_count >= 1, "WARN should pass filter, count=%d", g_cb_count);
 
-    logger_test_teardown();
+    logger_set_level(LOG_FATAL);
+    logger_set_callback(nullptr, nullptr);
 }
 
 void register_logger_tests(void) {

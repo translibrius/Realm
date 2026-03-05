@@ -1,5 +1,7 @@
 #include "rl_test.h"
 
+#include "platform/platform.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -216,23 +218,38 @@ i32 rl_test_run_from_args(i32 argc, const char **argv) {
         return 0;
     }
 
+    i64 clock_freq = platform_get_info()->clock_freq;
+
+    // Count matched tests for header
+    u32 matched_count = 0;
+    for (u32 i = 0; i < g_case_count; i++) {
+        if (rl_test_matches_filter(g_cases[i].name, options.filter)) {
+            matched_count++;
+        }
+    }
+
     // Header
     printf("\n");
     printf("  " C_LAVENDER C_BOLD "Realm" C_RESET C_SUBTEXT1 " test suite" C_RESET "\n");
-    printf("  " C_OVERLAY0 "%u test(s) registered" C_RESET "\n", g_case_count);
+    if (options.filter) {
+        printf("  " C_OVERLAY0 "%u of %u test(s) matched '%s'" C_RESET "\n",
+               matched_count, g_case_count, options.filter);
+    } else {
+        printf("  " C_OVERLAY0 "%u test(s) registered" C_RESET "\n", g_case_count);
+    }
     printf("\n");
 
     u32 passed_count = 0;
     u32 failed_count = 0;
-    u32 skipped_count = 0;
 
     g_total_assertions = 0;
     g_total_failures = 0;
 
+    i64 suite_start = platform_get_clock_counter();
+
     for (u32 i = 0; i < g_case_count; i++) {
         rl_test_case test_case = g_cases[i];
         if (!rl_test_matches_filter(test_case.name, options.filter)) {
-            skipped_count++;
             continue;
         }
 
@@ -240,18 +257,30 @@ i32 rl_test_run_from_args(i32 argc, const char **argv) {
         g_current_assertions = 0;
         g_current_failures = 0;
 
+        i64 t0 = platform_get_clock_counter();
         test_case.fn();
+        i64 t1 = platform_get_clock_counter();
+
+        double ms = (double)(t1 - t0) / (double)clock_freq * 1000.0;
 
         if (g_current_failures == 0) {
             passed_count++;
-            printf("  " C_GREEN "o " C_RESET C_TEXT "%s " C_OVERLAY0 "%u checks" C_RESET "\n",
+            printf("  " C_GREEN "o " C_RESET C_TEXT "%s " C_OVERLAY0 "%u checks",
                    g_current_case, g_current_assertions);
+            if (ms >= 0.1) {
+                printf("  %.1fms", ms);
+            }
+            printf(C_RESET "\n");
         } else {
             failed_count++;
-            printf("  " C_RED "x " C_RESET C_TEXT "%s " C_RED "%u failed" C_OVERLAY0 " / %u checks" C_RESET "\n",
+            printf("  " C_RED "x " C_RESET C_TEXT "%s " C_RED "%u failed" C_OVERLAY0 " / %u checks",
                    g_current_case,
                    g_current_failures,
                    g_current_assertions);
+            if (ms >= 0.1) {
+                printf("  %.1fms", ms);
+            }
+            printf(C_RESET "\n");
 
             if (options.fail_fast) {
                 printf("\n  " C_YELLOW "stopped early " C_OVERLAY0 "(--fail-fast)" C_RESET "\n");
@@ -265,6 +294,9 @@ i32 rl_test_run_from_args(i32 argc, const char **argv) {
         return 1;
     }
 
+    i64 suite_end = platform_get_clock_counter();
+    double suite_ms = (double)(suite_end - suite_start) / (double)clock_freq * 1000.0;
+
     // Summary
     printf("\n");
     printf("  " C_OVERLAY0 "---" C_RESET "\n");
@@ -276,11 +308,7 @@ i32 rl_test_run_from_args(i32 argc, const char **argv) {
         printf("  " C_RED C_BOLD "%u of %u tests failed" C_RESET "\n", failed_count, passed_count + failed_count);
     }
 
-    printf("  " C_OVERLAY0 "%u assertions" C_RESET, g_total_assertions);
-    if (skipped_count > 0) {
-        printf(C_OVERLAY0 "  |  %u skipped" C_RESET, skipped_count);
-    }
-    printf("\n\n");
+    printf("  " C_OVERLAY0 "%u assertions  %.0fms" C_RESET "\n\n", g_total_assertions, suite_ms);
 
     return failed_count > 0 ? 1 : 0;
 }
