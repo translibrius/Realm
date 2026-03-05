@@ -51,6 +51,14 @@ void platform_thread_sync_create(rl_thread_sync *out_sync) {
     out_sync->handle = e_handle;
 }
 
+void platform_thread_sync_destroy(rl_thread_sync *sync) {
+    if (!sync || !sync->handle) {
+        return;
+    }
+    CloseHandle(sync->handle);
+    sync->handle = NULL;
+}
+
 void platform_thread_sync_wait(rl_thread_sync *sync) {
     DWORD wait_result = WaitForSingleObject(sync->handle, INFINITE);
 

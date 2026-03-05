@@ -62,6 +62,17 @@ void platform_thread_sync_create(rl_thread_sync *out_sync) {
     out_sync->handle = sync;
 }
 
+void platform_thread_sync_destroy(rl_thread_sync *sync) {
+    linux_thread_sync *s = sync ? sync->handle : NULL;
+    if (!s) {
+        return;
+    }
+    pthread_cond_destroy(&s->cond);
+    pthread_mutex_destroy(&s->mutex);
+    mem_free(s, sizeof(linux_thread_sync), MEM_SUBSYSTEM_PLATFORM);
+    sync->handle = NULL;
+}
+
 void platform_thread_sync_wait(rl_thread_sync *sync) {
     linux_thread_sync *s = sync ? sync->handle : NULL;
     if (!s) {

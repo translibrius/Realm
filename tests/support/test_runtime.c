@@ -12,7 +12,12 @@
 // Subsystems like mem_system_start call RL_INFO before the logger exists,
 // which hits the fallback path and writes directly to stdout/stderr.
 #ifdef _WIN32
-#include <io.h>
+// Clang with -std=c23 (strict) defines __STDC__=1 which causes UCRT io.h
+// to hide _dup/_dup2/_open/_close. Declare them explicitly.
+int _dup(int fd);
+int _dup2(int src, int dst);
+int _open(const char *path, int flags, ...);
+int _close(int fd);
 #include <fcntl.h>
 #define DUP(fd) _dup(fd)
 #define DUP2(src, dst) _dup2(src, dst)

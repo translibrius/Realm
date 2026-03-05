@@ -166,6 +166,7 @@ void logger_system_shutdown() {
     platform_thread_join(&state->writer_thread);
 
     platform_mutex_destroy(&state->queue.mutex);
+    platform_thread_sync_destroy(&state->queue.has_data);
 
     mem_free(
         state->queue.events,

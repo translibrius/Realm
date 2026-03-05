@@ -44,6 +44,7 @@ void platform_thread_join(rl_thread *thread);
 
 // Event / Fence / Condition / Sync ect. many names for this
 void platform_thread_sync_create(rl_thread_sync *out_sync);
+void platform_thread_sync_destroy(rl_thread_sync *sync);
 void platform_thread_sync_wait(rl_thread_sync *sync);
 void platform_thread_sync_signal(rl_thread_sync *sync);
 
