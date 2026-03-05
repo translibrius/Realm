@@ -14,6 +14,7 @@ Requires: pip install dearpygui
 import mmap
 import struct
 import sys
+import time
 import platform as plat
 from collections import deque
 
@@ -153,16 +154,156 @@ class ShmReader:
             self.fd = None
 
 
+# --- Smoothing engine ---
+
+SMOOTHING_RAW = "Raw"
+SMOOTHING_EMA = "EMA"
+SMOOTHING_RUNNING_AVG = "Running Average"
+
+NUMERIC_KEYS = ('total_ns', 'avg_ns', 'max_ns', 'call_count')
+STALE_LIMIT = 30  # Prune entries not seen for this many updates
+
+ema_state = {}       # name → {total_ns, avg_ns, max_ns, call_count} (floats)
+avg_history = {}     # name → {key: deque} for running average
+stale_counter = {}   # name → int, incremented when zone absent
+
+
+def smooth_zones(raw_zones, mode, strength):
+    """Apply smoothing to raw zone data. Returns a new list of smoothed zone dicts."""
+    if mode == SMOOTHING_RAW:
+        return list(raw_zones)
+
+    present = set()
+
+    if mode == SMOOTHING_EMA:
+        alpha = 1.0 - strength  # strength 0.7 → alpha 0.3 (30% new, 70% old)
+        for z in raw_zones:
+            name = z['name']
+            present.add(name)
+            stale_counter[name] = 0
+            if name in ema_state:
+                s = ema_state[name]
+                for k in NUMERIC_KEYS:
+                    s[k] = s[k] * (1.0 - alpha) + float(z[k]) * alpha
+            else:
+                ema_state[name] = {k: float(z[k]) for k in NUMERIC_KEYS}
+
+        # Build output from smoothed state, only for zones in current snapshot
+        result = []
+        for z in raw_zones:
+            s = ema_state[z['name']]
+            result.append({
+                'name': z['name'],
+                'call_count': s['call_count'],
+                'total_ns': s['total_ns'],
+                'avg_ns': s['avg_ns'],
+                'max_ns': s['max_ns'],
+            })
+
+    elif mode == SMOOTHING_RUNNING_AVG:
+        # Map strength to window size: 0.0 → 3, 1.0 → 30
+        window = int(3 + strength * 27)
+        for z in raw_zones:
+            name = z['name']
+            present.add(name)
+            stale_counter[name] = 0
+            if name not in avg_history:
+                avg_history[name] = {k: deque(maxlen=window) for k in NUMERIC_KEYS}
+            else:
+                # Resize deques if window changed
+                for k in NUMERIC_KEYS:
+                    if avg_history[name][k].maxlen != window:
+                        old = list(avg_history[name][k])
+                        avg_history[name][k] = deque(old[-window:], maxlen=window)
+            for k in NUMERIC_KEYS:
+                avg_history[name][k].append(float(z[k]))
+
+        result = []
+        for z in raw_zones:
+            name = z['name']
+            h = avg_history[name]
+            result.append({
+                'name': name,
+                'call_count': sum(h['call_count']) / len(h['call_count']),
+                'total_ns': sum(h['total_ns']) / len(h['total_ns']),
+                'avg_ns': sum(h['avg_ns']) / len(h['avg_ns']),
+                'max_ns': sum(h['max_ns']) / len(h['max_ns']),
+            })
+    else:
+        return list(raw_zones)
+
+    # Prune stale entries
+    for name in list(stale_counter.keys()):
+        if name not in present:
+            stale_counter[name] += 1
+            if stale_counter[name] > STALE_LIMIT:
+                ema_state.pop(name, None)
+                avg_history.pop(name, None)
+                del stale_counter[name]
+
+    return result
+
+
+# --- Rank-stable sort ---
+# Maintains the previous sort order and only swaps adjacent entries when the
+# difference exceeds a percentage threshold.  This prevents functions with
+# similar timings from flickering positions every update.
+
+prev_rank_order = []  # list of function names in last displayed order
+
+
+def rank_stable_sort(zones, key='total_ns', threshold_pct=0.10):
+    """Sort zones but resist swapping neighbours closer than threshold_pct."""
+    global prev_rank_order
+
+    # Build lookup by name
+    by_name = {z['name']: z for z in zones}
+
+    if not prev_rank_order:
+        # First frame — just do a plain descending sort
+        zones.sort(key=lambda z: z[key], reverse=True)
+        prev_rank_order = [z['name'] for z in zones]
+        return zones
+
+    # Start from previous order, appending any new names at the end
+    ordered = []
+    for name in prev_rank_order:
+        if name in by_name:
+            ordered.append(by_name.pop(name))
+    # New functions that weren't in previous order
+    newcomers = sorted(by_name.values(), key=lambda z: z[key], reverse=True)
+    ordered.extend(newcomers)
+
+    # Bubble pass: swap adjacent pairs only if the lower-ranked one is
+    # significantly larger than the higher-ranked one
+    changed = True
+    while changed:
+        changed = False
+        for i in range(len(ordered) - 1):
+            upper = ordered[i][key]
+            lower = ordered[i + 1][key]
+            # lower should swap up only if it exceeds upper by threshold
+            if lower > upper and (upper == 0 or (lower - upper) / upper > threshold_pct):
+                ordered[i], ordered[i + 1] = ordered[i + 1], ordered[i]
+                changed = True
+
+    prev_rank_order = [z['name'] for z in ordered]
+    return ordered
+
+
 # --- Application state ---
 
 FRAME_HISTORY_LEN = 300
-TOP_N_BARS = 15
+DEFAULT_TOP_N = 15
+DEFAULT_REFRESH_HZ = 2.0
 
 frame_times_ms = deque([0.0] * FRAME_HISTORY_LEN, maxlen=FRAME_HISTORY_LEN)
 frame_indices = list(range(FRAME_HISTORY_LEN))
 current_zones = []
 reader = ShmReader()
 connected = False
+last_display_time = 0.0     # monotonic time of last table/bar refresh
+pending_data = None          # latest data waiting for next display tick
 
 
 # --- DearPyGui setup ---
@@ -200,14 +341,78 @@ with dpg.theme() as line_theme:
     with dpg.theme_component(dpg.mvLineSeries):
         dpg.add_theme_color(dpg.mvPlotCol_Line, (100, 180, 255, 255), category=dpg.mvThemeCat_Plots)
 
+# --- Hint text theme (dimmed) ---
+with dpg.theme() as hint_theme:
+    with dpg.theme_component(dpg.mvAll):
+        dpg.add_theme_color(dpg.mvThemeCol_Text, (120, 120, 140, 255))
+
 # --- Main window ---
 
 dpg.create_viewport(title="Realm Profiler", width=1000, height=750, min_width=600, min_height=400)
+
+
+def on_smoothing_mode_changed(sender, value):
+    """Show/hide the strength slider based on mode."""
+    if value == SMOOTHING_RAW:
+        dpg.configure_item("strength_slider", enabled=False)
+        dpg.configure_item("strength_hint", show=False)
+    else:
+        dpg.configure_item("strength_slider", enabled=True)
+        dpg.configure_item("strength_hint", show=True)
+        _update_strength_hint(value, dpg.get_value("strength_slider"))
+
+
+def on_strength_changed(sender, value):
+    mode = dpg.get_value("smoothing_mode")
+    _update_strength_hint(mode, value)
+
+
+def _update_strength_hint(mode, strength):
+    if mode == SMOOTHING_EMA:
+        alpha = 1.0 - strength
+        dpg.set_value("strength_hint", f"  alpha={alpha:.2f}  ({strength:.0%} old + {alpha:.0%} new)")
+    elif mode == SMOOTHING_RUNNING_AVG:
+        window = int(3 + strength * 27)
+        dpg.set_value("strength_hint", f"  window={window} samples (~{window * 0.1:.1f}s)")
+
 
 with dpg.window(tag="main_window"):
     # Status header
     dpg.add_text("Waiting for Realm...", tag="status_text", color=(200, 200, 100, 255))
     dpg.add_separator()
+
+    # Settings panel
+    with dpg.collapsing_header(label="Settings", default_open=False):
+        with dpg.group(horizontal=True):
+            dpg.add_text("Smoothing")
+            dpg.add_combo((SMOOTHING_RAW, SMOOTHING_EMA, SMOOTHING_RUNNING_AVG),
+                          default_value=SMOOTHING_EMA, tag="smoothing_mode", width=160,
+                          callback=on_smoothing_mode_changed)
+
+        with dpg.group(horizontal=True):
+            dpg.add_text("Strength ")
+            dpg.add_slider_float(default_value=0.7, min_value=0.0, max_value=1.0,
+                                 tag="strength_slider", width=200, format="%.2f",
+                                 callback=on_strength_changed)
+            dpg.add_text("  alpha=0.30  (70% old + 30% new)", tag="strength_hint")
+            dpg.bind_item_theme("strength_hint", hint_theme)
+
+        dpg.add_spacer(height=4)
+
+        with dpg.group(horizontal=True):
+            dpg.add_text("Refresh  ")
+            dpg.add_slider_float(default_value=DEFAULT_REFRESH_HZ, min_value=0.5, max_value=10.0,
+                                 tag="refresh_hz_slider", width=200, format="%.1f Hz")
+
+        with dpg.group(horizontal=True):
+            dpg.add_text("Top N    ")
+            dpg.add_slider_int(default_value=DEFAULT_TOP_N, min_value=5, max_value=64,
+                               tag="top_n_slider", width=200, format="%d")
+
+        dpg.add_spacer(height=4)
+
+        with dpg.group(horizontal=True):
+            dpg.add_checkbox(label="Pause Updates", default_value=False, tag="pause_checkbox")
 
     # Frame time plot
     with dpg.collapsing_header(label="Frame Time History", default_open=True):
@@ -278,7 +483,8 @@ def rebuild_table():
         max_us = z['max_ns'] / 1e3
         with dpg.table_row(parent="zone_table"):
             dpg.add_text(z['name'])
-            dpg.add_text(str(z['call_count']))
+            dpg.add_text(f"{z['call_count']:.0f}" if isinstance(z['call_count'], float)
+                         else str(z['call_count']))
             dpg.add_text(f"{total_ms:.3f}")
             dpg.add_text(f"{avg_us:.1f}")
             dpg.add_text(f"{max_us:.1f}")
@@ -286,7 +492,7 @@ def rebuild_table():
 
 def update():
     """Called every frame by DearPyGui."""
-    global connected, current_zones
+    global connected, current_zones, last_display_time, pending_data
 
     data = reader.read()
 
@@ -297,32 +503,62 @@ def update():
         return
 
     connected = True
+
+    # Read settings
+    paused = dpg.get_value("pause_checkbox")
+
+    if paused:
+        dpg.set_value("status_text", "PAUSED")
+        dpg.configure_item("status_text", color=(200, 100, 100, 255))
+        return
+
     frame_ms = data['frame_time_ns'] / 1e6
     fps = 1000.0 / frame_ms if frame_ms > 0 else 0
+    mode = dpg.get_value("smoothing_mode")
+    strength = dpg.get_value("strength_slider")
 
-    # Update status
-    dpg.set_value("status_text", f"Frame: {frame_ms:.2f} ms  |  {fps:.0f} fps  |  {len(data['zones'])} zones")
+    # Always update status line and frame time graph (lightweight)
+    mode_tag = "" if mode == SMOOTHING_RAW else f"  |  {mode}"
+    dpg.set_value("status_text",
+                  f"Frame: {frame_ms:.2f} ms  |  {fps:.0f} fps  |  "
+                  f"{len(data['zones'])} zones{mode_tag}")
     dpg.configure_item("status_text", color=(100, 200, 100, 255))
 
-    # Update frame time history
     frame_times_ms.append(frame_ms)
     dpg.set_value("ft_line", [frame_indices, list(frame_times_ms)])
 
-    # Auto-scale Y axis
     max_ft = max(frame_times_ms) if frame_times_ms else 16.0
     dpg.set_axis_limits("ft_y_axis", 0, max(max_ft * 1.2, 1.0))
 
-    # Update bar chart (top N functions by total_ns)
-    zones = data['zones']
+    # Always feed data into smoothing (keeps EMA/running avg up to date)
+    # but only refresh the table and bar chart at the configured rate
+    smooth_zones(data['zones'], mode, strength)
+    pending_data = data
+
+    refresh_hz = dpg.get_value("refresh_hz_slider")
+    now = time.monotonic()
+    if now - last_display_time < 1.0 / refresh_hz:
+        return
+    last_display_time = now
+
+    # --- Display refresh (throttled) ---
+    top_n = dpg.get_value("top_n_slider")
+
+    # Rebuild smoothed zones from current state for display
+    zones = smooth_zones(pending_data['zones'], mode, strength)
+
+    # Rank-stable sort: resists swapping neighbours with similar values
+    zones = rank_stable_sort(zones)
     current_zones = zones
 
-    top = zones[:TOP_N_BARS]
-    top.reverse()  # Horizontal bars: bottom = biggest
+    # Update bar chart (top N functions)
+    top = zones[:top_n]
+    top_reversed = list(reversed(top))  # Horizontal bars: bottom = biggest
 
-    if top:
-        values = [z['total_ns'] / 1e6 for z in top]
-        positions = list(range(len(top)))
-        labels = [(z['name'][:28] if len(z['name']) > 28 else z['name']) for z in top]
+    if top_reversed:
+        values = [z['total_ns'] / 1e6 for z in top_reversed]
+        positions = list(range(len(top_reversed)))
+        labels = [(z['name'][:28] if len(z['name']) > 28 else z['name']) for z in top_reversed]
 
         dpg.set_value("bar_series", [values, positions])
         dpg.set_axis_ticks("bar_y_axis", tuple(zip(labels, positions)))

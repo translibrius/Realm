@@ -10,6 +10,7 @@
 #include <string.h>
 
 #if defined(PLATFORM_MACOS) || defined(PLATFORM_LINUX)
+#include <pthread.h>
 #include <dlfcn.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
