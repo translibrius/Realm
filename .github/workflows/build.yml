@@ -45,6 +45,7 @@ jobs:
             ~\AppData\Local\vcpkg\archives
           key: vcpkg-win-${{ hashFiles('vcpkg.json') }}
           restore-keys: vcpkg-win-
+          save-always: true
 
       - name: Configure
         run: cmake --preset ci
@@ -74,6 +75,7 @@ jobs:
             ~/.cache/vcpkg/archives
           key: vcpkg-mac-${{ hashFiles('vcpkg.json') }}
           restore-keys: vcpkg-mac-
+          save-always: true
 
       - name: Configure
         run: cmake --preset ci
@@ -110,6 +112,7 @@ jobs:
             ~/.cache/vcpkg/archives
           key: vcpkg-linux-${{ hashFiles('vcpkg.json') }}
           restore-keys: vcpkg-linux-
+          save-always: true
 
       - name: Configure
         run: >
