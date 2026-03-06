@@ -77,59 +77,12 @@ b8 vk_texture_create(VK_Context *ctx, VK_Texture *vk_texture) {
 
     rl_texture *texture = asset->handle;
 
-    // The existing texture needs a vertical flip, so we can't use vk_texture_upload directly.
-    // Stage with flip, then upload manually.
-    VkBuffer staging_buffer = nullptr;
-    VkDeviceMemory staging_buffer_memory = nullptr;
-
-    b8 success = vk_buffer_create(
-        ctx,
-        texture->size,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        &staging_buffer,
-        &staging_buffer_memory);
-
-    if (!success) {
-        RL_ERROR("Failed to create texture staging buffer");
+    if (!vk_texture_upload(ctx, texture->width, texture->height,
+                           VK_FORMAT_R8G8B8A8_UNORM, texture->data, texture->size,
+                           &vk_texture->texture_image, &vk_texture->texture_memory,
+                           &vk_texture->texture_image_view)) {
         return false;
     }
-
-    void *data;
-    vkMapMemory(ctx->device, staging_buffer_memory, 0, texture->size, 0, &data);
-    u8 *dst_bytes = data;
-    u8 *src_bytes = texture->data;
-
-    for (int y = 0; y < texture->height; y++) {
-        // read from the bottom row upward
-        u8 *src_row = src_bytes + (texture->height - 1 - y) * texture->width * texture->channels;
-        u8 *dst_row = dst_bytes + y * texture->width * texture->channels;
-        mem_copy(dst_row, src_row, texture->width * texture->channels);
-    }
-    vkUnmapMemory(ctx->device, staging_buffer_memory);
-
-    success = vk_image_create(
-        ctx,
-        texture->width,
-        texture->height,
-        VK_FORMAT_R8G8B8A8_UNORM,
-        VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        &vk_texture->texture_image, &vk_texture->texture_memory);
-
-    if (!success) {
-        return false;
-    }
-
-    vk_image_transition_layout(ctx, vk_texture->texture_image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    vk_buffer_copy_to_image(ctx, staging_buffer, vk_texture->texture_image, texture->width, texture->height);
-    vk_image_transition_layout(ctx, vk_texture->texture_image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-    vkDestroyBuffer(ctx->device, staging_buffer, nullptr);
-    vkFreeMemory(ctx->device, staging_buffer_memory, nullptr);
-
-    vk_image_view_create(ctx, VK_IMAGE_ASPECT_COLOR_BIT, vk_texture->texture_image, VK_FORMAT_R8G8B8A8_UNORM, &vk_texture->texture_image_view);
 
     return true;
 }
