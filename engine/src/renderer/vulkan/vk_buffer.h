@@ -23,12 +23,6 @@ void vk_buffer_end_single_use(VK_Context *ctx, VkCommandPool cmd_pool, VkCommand
 
 void vk_buffer_copy_to_image(VK_Context *ctx, VkBuffer buffer, VkImage image, u32 w, u32 h);
 
-b8 vk_buffer_create_vertex(VK_Context *context, Vertices *vertices);
-void vk_buffer_destroy_vertex(VK_Context *context);
-
-b8 vk_buffer_create_index(VK_Context *context, Indices *indices);
-void vk_buffer_destroy_index(VK_Context *context);
-
 b8 vk_buffers_create_mapped(VK_Context *ctx, VkDeviceSize size, VkBufferUsageFlags usage, u32 count, VkBuffer *out_bufs, VkDeviceMemory *out_mem, void **out_mapped);
 
 b8 vk_buffers_create_uniform(VK_Context *context);

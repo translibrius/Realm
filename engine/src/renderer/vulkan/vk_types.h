@@ -10,6 +10,7 @@
 #include "memory/containers/dynamic_array.h"
 #include "core/logger.h"
 #include "platform/platform.h"
+#include "renderer/frame_data.h"
 
 #include <shaderc/shaderc.h>
 
@@ -210,13 +211,21 @@ typedef struct VK_Context {
     void **uniform_buffers_mapped;
     VkDescriptorSet *descriptor_sets;
 
-    Vertices vertices;
-    Indices indices;
     VkDescriptorPool descriptor_pool;
-    VkBuffer vertex_buffer;
-    VkBuffer index_buffer;
-    VkDeviceMemory vertex_buffer_memory;
-    VkDeviceMemory index_buffer_memory;
+
+    // Cube mesh (shared geometry for all meshes)
+    VkBuffer cube_vertex_buffer;
+    VkDeviceMemory cube_vertex_memory;
+    u32 cube_vertex_count;
+
+    // Unlit pipeline (light cubes)
+    VkPipeline unlit_pipeline;
+
+    // Frame data (set by submit_frame_data, consumed by command recording)
+    rl_frame_mesh *frame_meshes;
+    u32 frame_mesh_count;
+    rl_frame_point_light frame_light;
+    vec3 camera_pos;
 
     // Textures
     VkSampler texture_sampler;
@@ -228,7 +237,6 @@ typedef struct VK_Context {
     // GUI (Clay)
     VK_GuiPipeline gui_pipeline;
 
-    mat4 model;
     mat4 view;
     mat4 proj;
 

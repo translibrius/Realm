@@ -50,14 +50,6 @@ b8 vk_command_buffers_create(VK_Context *context, VkCommandPool pool) {
 }
 
 b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 image_index) {
-    /*
-    The flags parameter specifies how we're going to use the command buffer. The following values are available:
-
-    VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT: The command buffer will be rerecorded right after executing it once.
-    VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT: This is a secondary command buffer that will be entirely within a single render pass.
-    VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT: The command buffer can be resubmitted while it is also already pending execution.
-    */
-
     VkCommandBufferBeginInfo begin_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         .flags = 0,
@@ -89,9 +81,6 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
 
     vkCmdBeginRenderPass(buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
     {
-        vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->graphics_pipeline.handle);
-
-        // Dynamic viewport
         VkViewport viewport = {
             .x = 0.0f,
             .y = 0.0f,
@@ -102,25 +91,33 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
         };
         vkCmdSetViewport(buffer, 0, 1, &viewport);
 
-        // Dynamic scissor
         VkRect2D scissor = {
             .offset = {0, 0},
             .extent = context->swapchain.chosen_extent
         };
         vkCmdSetScissor(buffer, 0, 1, &scissor);
 
-        // Bind vertex buffer
-        VkBuffer vertex_buffers[] = {context->vertex_buffer};
+        // Shared vertex buffer + descriptors for all 3D meshes
+        VkBuffer vbufs[] = {context->cube_vertex_buffer};
         VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(buffer, 0, 1, vertex_buffers, offsets);
-
-        // Bind index buffer
-        vkCmdBindIndexBuffer(buffer, context->index_buffer, 0, VK_INDEX_TYPE_UINT16);
-
-        // Bind descriptor sets
+        vkCmdBindVertexBuffers(buffer, 0, 1, vbufs, offsets);
         vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->graphics_pipeline.layout, 0, 1, &context->descriptor_sets[context->current_frame], 0, nullptr);
 
-        vkCmdDrawIndexed(buffer, context->indices.count, 1, 0, 0, 0);
+        // --- Lit pass ---
+        vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->graphics_pipeline.handle);
+        for (u32 i = 0; i < context->frame_mesh_count; i++) {
+            if (context->frame_meshes[i].kind != RL_FRAME_MESH_KIND_LIT) continue;
+            vkCmdPushConstants(buffer, context->graphics_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), context->frame_meshes[i].model);
+            vkCmdDraw(buffer, context->cube_vertex_count, 1, 0, 0);
+        }
+
+        // --- Unlit pass ---
+        vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->unlit_pipeline);
+        for (u32 i = 0; i < context->frame_mesh_count; i++) {
+            if (context->frame_meshes[i].kind != RL_FRAME_MESH_KIND_UNLIT) continue;
+            vkCmdPushConstants(buffer, context->graphics_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), context->frame_meshes[i].model);
+            vkCmdDraw(buffer, context->cube_vertex_count, 1, 0, 0);
+        }
 
         // GUI + text overlay (unified pipeline)
         vulkan_gui_record_commands(context, buffer);

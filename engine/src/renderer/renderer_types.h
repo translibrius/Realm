@@ -5,7 +5,6 @@
 #include "renderer/frame_data.h"
 
 #include "asset/font.h"
-#include "memory/containers/dynamic_array.h"
 #include "platform/platform.h"
 
 #include "cglm.h"
@@ -14,19 +13,20 @@
 
 typedef struct vertex {
     vec3 pos;
-    vec3 color;
+    vec3 normal;
     vec2 tex_coord;
 } vertex;
 
-// Uniform Buffer Object
+// Uniform Buffer Object (std140 layout — vec4 alignment)
 typedef struct ubo {
-    mat4 model;
     mat4 view;
     mat4 proj;
+    vec4 light_pos;      // xyz = position, w = unused
+    vec4 light_ambient;  // xyz = ambient,  w = unused
+    vec4 light_diffuse;  // xyz = diffuse,  w = unused
+    vec4 light_specular; // xyz = specular, w = unused
+    vec4 camera_pos;     // xyz = position, w = unused
 } ubo;
-
-DA_DEFINE(Vertices, vertex);
-DA_DEFINE(Indices, u16);
 
 typedef enum SHADER_TYPE {
     SHADER_TYPE_VERTEX,

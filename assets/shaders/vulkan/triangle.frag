@@ -1,12 +1,39 @@
 #version 450
 
-layout (location = 0) in vec3 fragColor;
-layout (location = 1) in vec2 fragTexCoord;
+layout (binding = 0) uniform UniformBufferObject {
+    mat4 view;
+    mat4 proj;
+    vec4 light_pos;
+    vec4 light_ambient;
+    vec4 light_diffuse;
+    vec4 light_specular;
+    vec4 camera_pos;
+} ubo;
+
+layout (location = 0) in vec3 fragNormal;
+layout (location = 1) in vec3 fragPos;
+layout (location = 2) in vec2 fragTexCoord;
 
 layout (location = 0) out vec4 outColor;
 
 layout (binding = 1) uniform sampler2D tex_sampler;
 
 void main() {
-    outColor = vec4(fragColor * texture(tex_sampler, fragTexCoord).rgb, 1.0); //vec4(fragTexCoord, 0.0, 1.0);
+    // Ambient
+    vec3 ambient = ubo.light_ambient.xyz * vec3(texture(tex_sampler, fragTexCoord));
+
+    // Diffuse
+    vec3 norm = normalize(fragNormal);
+    vec3 lightDir = normalize(ubo.light_pos.xyz - fragPos);
+    float diff = max(dot(norm, lightDir), 0.0);
+    vec3 diffuse = ubo.light_diffuse.xyz * diff * vec3(texture(tex_sampler, fragTexCoord));
+
+    // Specular
+    vec3 viewDir = normalize(ubo.camera_pos.xyz - fragPos);
+    vec3 reflectDir = reflect(-lightDir, norm);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
+    vec3 specular = (vec3(0.5) * spec) * ubo.light_specular.xyz;
+
+    vec3 result = ambient + diffuse + specular;
+    outColor = vec4(result, 1.0);
 }

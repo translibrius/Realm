@@ -29,3 +29,6 @@ b8 vk_pipeline_create_graphics(VK_Context *ctx, VK_PipelineConfig *cfg, VkPipeli
 
 b8 vk_pipeline_create(VK_Context *context);
 void vk_pipeline_destroy(VK_Context *context);
+
+b8 vk_unlit_pipeline_create(VK_Context *context);
+void vk_unlit_pipeline_destroy(VK_Context *context);

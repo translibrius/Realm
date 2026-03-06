@@ -1,6 +1,7 @@
 #include "renderer/vulkan/vk_renderer.h"
 
 #include "core/event.h"
+#include "engine.h"
 #include "vk_buffer.h"
 #include "vk_commands.h"
 #include "vk_descriptor.h"
@@ -8,6 +9,7 @@
 #include "vk_frame_buffers.h"
 #include "vk_image.h"
 #include "vk_instance.h"
+#include "vk_mesh.h"
 #include "vk_pipeline.h"
 #include "vk_renderpass.h"
 #include "vk_shader.h"
@@ -39,35 +41,8 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
     rl_arena_init(&context.arena, MiB(25), MiB(2), MEM_SUBSYSTEM_RENDERER);
 
     context.window = window;
-    glm_mat4_identity(context.model);
     glm_mat4_identity(context.view);
     glm_mat4_identity(context.proj);
-
-    // Rec 1
-    da_append(&context.vertices, ((vertex){{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}));
-    da_append(&context.vertices, ((vertex){{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}));
-    da_append(&context.vertices, ((vertex){{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}));
-    da_append(&context.vertices, ((vertex){{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}));
-
-    // Rec 2
-    da_append(&context.vertices, ((vertex){{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}));
-    da_append(&context.vertices, ((vertex){{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}));
-    da_append(&context.vertices, ((vertex){{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}));
-    da_append(&context.vertices, ((vertex){{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}));
-
-    da_append(&context.indices, 0);
-    da_append(&context.indices, 1);
-    da_append(&context.indices, 2);
-    da_append(&context.indices, 2);
-    da_append(&context.indices, 3);
-    da_append(&context.indices, 0);
-
-    da_append(&context.indices, 4);
-    da_append(&context.indices, 5);
-    da_append(&context.indices, 6);
-    da_append(&context.indices, 6);
-    da_append(&context.indices, 7);
-    da_append(&context.indices, 4);
 
     if (!vk_instance_create(&context)) {
         RL_ERROR("failed to create vulkan instance");
@@ -124,6 +99,16 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
         return false;
     }
 
+    if (!vk_mesh_create_cube(&context)) {
+        RL_ERROR("failed to create cube mesh");
+        return false;
+    }
+
+    if (!vk_unlit_pipeline_create(&context)) {
+        RL_ERROR("failed to create unlit pipeline");
+        return false;
+    }
+
     if (!vk_depth_res_create(&context)) {
         RL_ERROR("failed to create depth resources");
         return false;
@@ -141,16 +126,6 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
 
     if (!vk_texture_create_sampler(&context)) {
         RL_ERROR("failed to create texture sampler");
-        return false;
-    }
-
-    if (!vk_buffer_create_vertex(&context, &context.vertices)) {
-        RL_ERROR("failed to create vertex buffer");
-        return false;
-    }
-
-    if (!vk_buffer_create_index(&context, &context.indices)) {
-        RL_ERROR("failed to create index buffer");
         return false;
     }
 
@@ -192,7 +167,6 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
 }
 
 void vulkan_destroy() {
-    // Wait for logical device to finish operations
     vkDeviceWaitIdle(context.device);
 
     vk_gui_pipeline_destroy(&context);
@@ -200,10 +174,10 @@ void vulkan_destroy() {
     vk_sync_destroy_frame(&context);
     vk_descriptor_destroy_pool(&context);
     vk_buffers_destroy_uniform(&context);
-    vk_buffer_destroy_index(&context);
-    vk_buffer_destroy_vertex(&context);
     vk_texture_destroy_sampler(&context);
     vk_texture_destroy(&context, &context.texture_wood);
+    vk_unlit_pipeline_destroy(&context);
+    vk_mesh_destroy_cube(&context);
     vk_sync_destroy_transfer(&context);
     if (context.queue_families.has_transfer) {
         vk_command_pool_destroy(&context, context.transfer_pool);
@@ -225,9 +199,14 @@ void update_uniform_buffer(u32 image_index, f64 dt) {
     (void)dt;
 
     ubo u = {0};
-    glm_mat4_copy(context.model, u.model);
     glm_mat4_copy(context.view, u.view);
     glm_mat4_copy(context.proj, u.proj);
+
+    glm_vec3_copy(context.frame_light.position, u.light_pos);
+    glm_vec3_copy(context.frame_light.ambient,  u.light_ambient);
+    glm_vec3_copy(context.frame_light.diffuse,  u.light_diffuse);
+    glm_vec3_copy(context.frame_light.specular, u.light_specular);
+    glm_vec3_copy(context.camera_pos,           u.camera_pos);
 
     mem_copy(context.uniform_buffers_mapped[image_index], &u, sizeof(ubo));
 }
@@ -322,27 +301,31 @@ void vulkan_submit_frame_data(rl_frame_data *frame_data) {
     }
 
     if (frame_data->camera.valid) {
-        mat4 view = {0};
-        mat4 projection = {0};
-        vec3 position = {0};
-
-        glm_mat4_copy(frame_data->camera.view, view);
-        glm_mat4_copy(frame_data->camera.projection, projection);
-        glm_vec3_copy(frame_data->camera.position, position);
-
-        vulkan_set_view_projection(view, projection, position);
+        vulkan_set_view_projection(frame_data->camera.view, frame_data->camera.projection, frame_data->camera.position);
     }
 
+    // Copy mesh list into frame arena — the source is on the game module's
+    // stack and will be gone by the time vulkan_end_frame records commands.
+    context.frame_mesh_count = frame_data->mesh_count;
     if (frame_data->mesh_count > 0 && frame_data->meshes) {
-        rl_frame_mesh *selected_mesh = &frame_data->meshes[0];
-        for (u32 i = 0; i < frame_data->mesh_count; i++) {
-            if (frame_data->meshes[i].kind == RL_FRAME_MESH_KIND_LIT) {
-                selected_mesh = &frame_data->meshes[i];
-                break;
-            }
-        }
+        rl_arena *fa = rl_engine_get_frame_arena();
+        u64 sz = (u64)frame_data->mesh_count * sizeof(rl_frame_mesh);
+        context.frame_meshes = rl_arena_push(fa, sz, alignof(rl_frame_mesh));
+        mem_copy(context.frame_meshes, frame_data->meshes, sz);
+    } else {
+        context.frame_meshes = nullptr;
+    }
 
-        glm_mat4_copy(selected_mesh->model, context.model);
+    // Store first point light (or sensible default)
+    if (frame_data->point_light_count > 0 && frame_data->point_lights) {
+        context.frame_light = frame_data->point_lights[0];
+    } else {
+        context.frame_light = (rl_frame_point_light){
+            .position = {1.2f, 1.0f, 2.0f},
+            .ambient  = {0.2f, 0.2f, 0.2f},
+            .diffuse  = {0.5f, 0.5f, 0.5f},
+            .specular = {1.0f, 1.0f, 1.0f},
+        };
     }
 
     if (frame_data->text_count > 0 && frame_data->texts) {
@@ -359,11 +342,10 @@ void vulkan_submit_frame_data(rl_frame_data *frame_data) {
 }
 
 void vulkan_set_view_projection(mat4 view, mat4 projection, vec3 pos) {
-    (void)pos;
-
     glm_mat4_copy(view, context.view);
     glm_mat4_copy(projection, context.proj);
     context.proj[1][1] *= -1;
+    glm_vec3_copy(pos, context.camera_pos);
 }
 
 platform_window *vulkan_get_active_window() {

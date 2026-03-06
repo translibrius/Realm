@@ -70,7 +70,7 @@ b8 vk_sampler_create(VK_Context *ctx, VkFilter filter, VkSamplerAddressMode addr
 }
 
 b8 vk_texture_create(VK_Context *ctx, VK_Texture *vk_texture) {
-    rl_asset *asset = get_asset_by_id(ASSET_ID_TEXTURE_FACE);
+    rl_asset *asset = get_asset_by_id(ASSET_ID_TEXTURE_WOOD_CONTAINER2);
     if (!asset) {
         return false;
     }
