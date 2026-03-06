@@ -6,6 +6,8 @@
 #include "renderer/frame_data.h"
 #include "renderer/vulkan/vk_types.h"
 
+VK_Context *vulkan_get_context_ptr(void);
+
 b8 vulkan_initialize(platform_window *window, b8 vsync);
 void vulkan_destroy();
 void vulkan_begin_frame(f64 delta_time);

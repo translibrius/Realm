@@ -14,6 +14,7 @@
 #include "vk_swapchain.h"
 #include "vk_sync.h"
 #include "vk_texture.h"
+#include "vk_text.h"
 #include "vk_util.h"
 #include "vk_depth.h"
 
@@ -176,6 +177,11 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
         return false;
     }
 
+    if (!vk_text_pipeline_init(&context)) {
+        RL_ERROR("failed to create text pipeline");
+        return false;
+    }
+
     return true;
 }
 
@@ -183,6 +189,7 @@ void vulkan_destroy() {
     // Wait for logical device to finish operations
     vkDeviceWaitIdle(context.device);
 
+    vk_text_pipeline_destroy(&context);
     vk_sync_destroy_frame(&context);
     vk_descriptor_destroy_pool(&context);
     vk_buffers_destroy_uniform(&context);
@@ -329,6 +336,18 @@ void vulkan_submit_frame_data(rl_frame_data *frame_data) {
         }
 
         glm_mat4_copy(selected_mesh->model, context.model);
+    }
+
+    if (frame_data->text_count > 0 && frame_data->texts) {
+        for (u32 i = 0; i < frame_data->text_count; i++) {
+            rl_frame_text *entry = &frame_data->texts[i];
+            if (!entry->text) continue;
+
+            if (entry->font) {
+                vulkan_set_active_font(entry->font);
+            }
+            vulkan_render_text(entry->text, entry->size_px, entry->x, entry->y, entry->color);
+        }
     }
 }
 

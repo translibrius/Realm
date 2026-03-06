@@ -3,6 +3,72 @@
 #include "vk_buffer.h"
 #include "vk_image.h"
 
+b8 vk_texture_upload(VK_Context *ctx, u32 w, u32 h, VkFormat format, void *pixels, VkDeviceSize size, VkImage *out_img, VkDeviceMemory *out_mem, VkImageView *out_view) {
+    VkBuffer staging_buffer;
+    VkDeviceMemory staging_memory;
+
+    if (!vk_buffer_create(ctx, size,
+                          VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                          &staging_buffer, &staging_memory)) {
+        RL_ERROR("Failed to create staging buffer for texture upload");
+        return false;
+    }
+
+    void *data;
+    vkMapMemory(ctx->device, staging_memory, 0, size, 0, &data);
+    mem_copy(data, pixels, size);
+    vkUnmapMemory(ctx->device, staging_memory);
+
+    if (!vk_image_create(ctx, w, h, format,
+                         VK_IMAGE_TILING_OPTIMAL,
+                         VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                         out_img, out_mem)) {
+        vk_buffer_destroy(ctx, staging_buffer, staging_memory);
+        return false;
+    }
+
+    vk_image_transition_layout(ctx, *out_img, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    vk_buffer_copy_to_image(ctx, staging_buffer, *out_img, w, h);
+    vk_image_transition_layout(ctx, *out_img, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    vk_buffer_destroy(ctx, staging_buffer, staging_memory);
+
+    if (!vk_image_view_create(ctx, VK_IMAGE_ASPECT_COLOR_BIT, *out_img, format, out_view)) {
+        return false;
+    }
+
+    return true;
+}
+
+b8 vk_sampler_create(VK_Context *ctx, VkFilter filter, VkSamplerAddressMode addr_mode, VkSampler *out) {
+    VkSamplerCreateInfo ci = {
+        .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+        .magFilter = filter,
+        .minFilter = filter,
+        .addressModeU = addr_mode,
+        .addressModeV = addr_mode,
+        .addressModeW = addr_mode,
+        .borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK,
+        .unnormalizedCoordinates = VK_FALSE,
+        .compareEnable = VK_FALSE,
+        .compareOp = VK_COMPARE_OP_ALWAYS,
+        .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+    };
+
+    if (addr_mode == VK_SAMPLER_ADDRESS_MODE_REPEAT && ctx->device_properties.features.samplerAnisotropy) {
+        ci.anisotropyEnable = VK_TRUE;
+        ci.maxAnisotropy = ctx->device_properties.properties.limits.maxSamplerAnisotropy;
+    } else {
+        ci.anisotropyEnable = VK_FALSE;
+        ci.maxAnisotropy = 1.0f;
+    }
+
+    VK_CHECK_RETURN_FALSE(vkCreateSampler(ctx->device, &ci, nullptr, out), "Failed to create sampler");
+    return true;
+}
+
 b8 vk_texture_create(VK_Context *ctx, VK_Texture *vk_texture) {
     rl_asset *asset = get_asset_by_id(ASSET_ID_TEXTURE_FACE);
     if (!asset) {
@@ -11,6 +77,8 @@ b8 vk_texture_create(VK_Context *ctx, VK_Texture *vk_texture) {
 
     rl_texture *texture = asset->handle;
 
+    // The existing texture needs a vertical flip, so we can't use vk_texture_upload directly.
+    // Stage with flip, then upload manually.
     VkBuffer staging_buffer = nullptr;
     VkDeviceMemory staging_buffer_memory = nullptr;
 
@@ -54,7 +122,6 @@ b8 vk_texture_create(VK_Context *ctx, VK_Texture *vk_texture) {
         return false;
     }
 
-    // Transition for copying from staging buffer -> transition to shader ready
     vk_image_transition_layout(ctx, vk_texture->texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     vk_buffer_copy_to_image(ctx, staging_buffer, vk_texture->texture_image, texture->width, texture->height);
     vk_image_transition_layout(ctx, vk_texture->texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -62,7 +129,6 @@ b8 vk_texture_create(VK_Context *ctx, VK_Texture *vk_texture) {
     vkDestroyBuffer(ctx->device, staging_buffer, nullptr);
     vkFreeMemory(ctx->device, staging_buffer_memory, nullptr);
 
-    // Create view
     vk_image_view_create(ctx, VK_IMAGE_ASPECT_COLOR_BIT, vk_texture->texture_image, VK_FORMAT_R8G8B8A8_SRGB, &vk_texture->texture_image_view);
 
     return true;
@@ -75,48 +141,7 @@ void vk_texture_destroy(VK_Context *ctx, VK_Texture *vk_texture) {
 }
 
 b8 vk_texture_create_sampler(VK_Context *ctx) {
-    VkSamplerCreateInfo sampler_create_info = {0};
-    sampler_create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-
-    // Filters for scaling the texels
-    sampler_create_info.magFilter = VK_FILTER_LINEAR; // OR NEAREST for blocky effect
-    sampler_create_info.minFilter = VK_FILTER_LINEAR; // OR NEAREST for blocky effect
-
-    // Reference modes: https://vulkan-tutorial.com/images/texture_addressing.png
-    sampler_create_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    sampler_create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    sampler_create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-
-    // 4x, 8x, 16x etc. anisotropic filtering: https://vulkan-tutorial.com/images/anisotropic_filtering.png
-    if (ctx->device_properties.features.samplerAnisotropy) {
-        sampler_create_info.anisotropyEnable = VK_TRUE;
-        sampler_create_info.maxAnisotropy = ctx->device_properties.properties.limits.maxSamplerAnisotropy;
-    } else {
-        sampler_create_info.anisotropyEnable = VK_FALSE;
-        sampler_create_info.maxAnisotropy = 1.0f;
-    }
-
-    // Color when sampling beyond the image with clamp to border addressing mode
-    sampler_create_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-
-    sampler_create_info.unnormalizedCoordinates = VK_FALSE;
-
-    /*
-     * If a comparison function is enabled, then texels will first be compared to a value,
-     * and the result of that comparison is used in filtering operations.
-     * This is mainly used for percentage-closer filtering on shadow maps.
-     */
-    sampler_create_info.compareEnable = VK_FALSE;
-    sampler_create_info.compareOp = VK_COMPARE_OP_ALWAYS;
-
-    sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    sampler_create_info.mipLodBias = 0.0f;
-    sampler_create_info.minLod = 0.0f;
-    sampler_create_info.maxLod = 0.0f;
-
-    VK_CHECK_RETURN_FALSE(vkCreateSampler(ctx->device, &sampler_create_info, nullptr, &ctx->texture_sampler), "Failed to create texture sampler");
-
-    return true;
+    return vk_sampler_create(ctx, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, &ctx->texture_sampler);
 }
 
 void vk_texture_destroy_sampler(VK_Context *ctx) {

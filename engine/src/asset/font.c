@@ -34,3 +34,11 @@ b8 rl_font_load(rl_arena *asset_arena, rl_asset *asset) {
     arena_scratch_release(scratch);
     return true;
 }
+
+const rl_glyph *rl_font_find_glyph(const rl_font *font, u32 codepoint) {
+    for (u32 i = 0; i < font->glyph_count; i++) {
+        if ((u32)font->glyphs[i].codepoint == codepoint)
+            return &font->glyphs[i];
+    }
+    return nullptr;
+}

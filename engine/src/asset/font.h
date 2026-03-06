@@ -34,3 +34,4 @@ typedef struct rl_font {
 } rl_font;
 
 b8 rl_font_load(rl_arena *asset_arena, rl_asset *asset);
+const rl_glyph *rl_font_find_glyph(const rl_font *font, u32 codepoint);

@@ -1,13 +1,52 @@
 #include "vk_descriptor.h"
 #include "vk_util.h"
 
+// --- Generic helpers ---
+
+b8 vk_descriptor_pool_create(VK_Context *ctx, VkDescriptorPoolSize *sizes, u32 size_count, u32 max_sets, VkDescriptorPool *out) {
+    VkDescriptorPoolCreateInfo ci = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .maxSets = max_sets,
+        .poolSizeCount = size_count,
+        .pPoolSizes = sizes
+    };
+
+    VK_CHECK_RETURN_FALSE(
+        vkCreateDescriptorPool(ctx->device, &ci, nullptr, out),
+        "Failed to create descriptor pool");
+
+    return true;
+}
+
+b8 vk_descriptor_sets_allocate(VK_Context *ctx, VkDescriptorPool pool, VkDescriptorSetLayout layout, u32 count, VkDescriptorSet *out) {
+    VkDescriptorSetLayout *layouts = rl_arena_push(&ctx->arena, sizeof(VkDescriptorSetLayout) * count, alignof(VkDescriptorSetLayout));
+    for (u32 i = 0; i < count; i++) {
+        layouts[i] = layout;
+    }
+
+    VkDescriptorSetAllocateInfo ai = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .descriptorPool = pool,
+        .descriptorSetCount = count,
+        .pSetLayouts = layouts
+    };
+
+    VK_CHECK_RETURN_FALSE(
+        vkAllocateDescriptorSets(ctx->device, &ai, out),
+        "Failed to allocate descriptor sets");
+
+    return true;
+}
+
+// --- Mesh pipeline-specific wrappers ---
+
 b8 vk_descriptor_create_set_layout(VK_Context *context) {
     VkDescriptorSetLayoutBinding ubo_layout_binding = {
         .binding = 0,
         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
         .descriptorCount = 1,
         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-        .pImmutableSamplers = nullptr // Optional
+        .pImmutableSamplers = nullptr
     };
 
     VkDescriptorSetLayoutBinding sampler_layout_binding = {
@@ -39,24 +78,12 @@ void vk_descriptor_destroy_set_layout(VK_Context *context) {
 }
 
 b8 vk_descriptor_create_pool(VK_Context *context) {
-    VkDescriptorPoolSize pool_sizes[2] = {0};
-    pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    pool_sizes[0].descriptorCount = context->max_frames_in_flight;
-    pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    pool_sizes[1].descriptorCount = context->max_frames_in_flight;
-
-    VkDescriptorPoolCreateInfo pool_create_info = {
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-        .maxSets = context->max_frames_in_flight,
-        .poolSizeCount = 2,
-        .pPoolSizes = pool_sizes
+    VkDescriptorPoolSize pool_sizes[2] = {
+        { .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = context->max_frames_in_flight },
+        { .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .descriptorCount = context->max_frames_in_flight },
     };
 
-    VK_CHECK_RETURN_FALSE(
-        vkCreateDescriptorPool(context->device, &pool_create_info, nullptr, &context->descriptor_pool),
-        "Failed to create descriptor pool");
-
-    return true;
+    return vk_descriptor_pool_create(context, pool_sizes, 2, context->max_frames_in_flight, &context->descriptor_pool);
 }
 
 void vk_descriptor_destroy_pool(VK_Context *context) {
@@ -64,23 +91,11 @@ void vk_descriptor_destroy_pool(VK_Context *context) {
 }
 
 b8 vk_descriptor_create_sets(VK_Context *context) {
-    VkDescriptorSetLayout *layouts = rl_arena_push(&context->arena, sizeof(VkDescriptorSetLayout) * context->max_frames_in_flight, true);
-    for (u32 i = 0; i < context->max_frames_in_flight; i++) {
-        layouts[i] = context->graphics_pipeline.descriptor_set_layout;
-    }
-
-    VkDescriptorSetAllocateInfo allocate_info = {
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-        .descriptorPool = context->descriptor_pool,
-        .descriptorSetCount = context->max_frames_in_flight,
-        .pSetLayouts = layouts
-    };
-
     context->descriptor_sets = rl_arena_push(&context->arena, sizeof(VkDescriptorSet) * context->max_frames_in_flight, true);
-    VK_CHECK_RETURN_FALSE(
-        vkAllocateDescriptorSets(context->device, &allocate_info, context->descriptor_sets),
-        "Failed to allocate descriptor sets"
-        );
+
+    if (!vk_descriptor_sets_allocate(context, context->descriptor_pool, context->graphics_pipeline.descriptor_set_layout, context->max_frames_in_flight, context->descriptor_sets)) {
+        return false;
+    }
 
     for (u32 i = 0; i < context->max_frames_in_flight; i++) {
         VkDescriptorBufferInfo buffer_info = {
@@ -102,9 +117,7 @@ b8 vk_descriptor_create_sets(VK_Context *context) {
         descriptor_writes[0].dstArrayElement = 0;
         descriptor_writes[0].descriptorCount = 1;
         descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptor_writes[0].pImageInfo = nullptr; // Optional
         descriptor_writes[0].pBufferInfo = &buffer_info;
-        descriptor_writes[0].pTexelBufferView = nullptr; // Optional
 
         descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         descriptor_writes[1].dstSet = context->descriptor_sets[i];
@@ -113,8 +126,6 @@ b8 vk_descriptor_create_sets(VK_Context *context) {
         descriptor_writes[1].descriptorCount = 1;
         descriptor_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         descriptor_writes[1].pImageInfo = &image_info;
-        descriptor_writes[1].pBufferInfo = &buffer_info;
-        descriptor_writes[1].pTexelBufferView = nullptr; // Optional
 
         vkUpdateDescriptorSets(context->device, 2, descriptor_writes, 0, nullptr);
     }

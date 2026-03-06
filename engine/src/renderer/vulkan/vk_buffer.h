@@ -29,5 +29,7 @@ void vk_buffer_destroy_vertex(VK_Context *context);
 b8 vk_buffer_create_index(VK_Context *context, Indices *indices);
 void vk_buffer_destroy_index(VK_Context *context);
 
+b8 vk_buffers_create_mapped(VK_Context *ctx, VkDeviceSize size, VkBufferUsageFlags usage, u32 count, VkBuffer *out_bufs, VkDeviceMemory *out_mem, void **out_mapped);
+
 b8 vk_buffers_create_uniform(VK_Context *context);
 void vk_buffers_destroy_uniform(VK_Context *context);

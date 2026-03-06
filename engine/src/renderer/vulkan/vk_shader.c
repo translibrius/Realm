@@ -112,6 +112,73 @@ b8 vk_shader_module_compile(VK_Context *context, ASSET_ID asset_id) {
     return true;
 }
 
+b8 vk_shader_compile_to_module(VK_Context *context, ASSET_ID asset_id, VkShaderModule *out_module) {
+    if (!context->shader_compiler.initialized) {
+        RL_ERROR("Shader compiler not initialized before compile!");
+        return false;
+    }
+
+    rl_asset *asset = get_asset_by_id(asset_id);
+    if (!asset) {
+        return false;
+    }
+
+    const char *filename = asset->filename;
+    rl_asset_shader *asset_shader = asset->handle;
+
+    shaderc_shader_kind kind;
+    switch (asset_shader->type) {
+    case SHADER_TYPE_VERTEX:
+        kind = shaderc_glsl_vertex_shader;
+        break;
+    case SHADER_TYPE_FRAGMENT:
+        kind = shaderc_glsl_fragment_shader;
+        break;
+    case SHADER_TYPE_COMPUTE:
+        kind = shaderc_glsl_compute_shader;
+        break;
+    default:
+        RL_ERROR("Unknown shader type for '%s'", filename);
+        return false;
+    }
+
+    shaderc_compilation_result_t result = shaderc_compile_into_spv(
+        context->shader_compiler.compiler,
+        asset_shader->source,
+        cstr_len(asset_shader->source),
+        kind,
+        filename,
+        "main",
+        context->shader_compiler.options);
+
+    if (shaderc_result_get_compilation_status(result) != shaderc_compilation_status_success) {
+        RL_ERROR("Shader compile failed for '%s':\n%s",
+                 filename,
+                 shaderc_result_get_error_message(result));
+        shaderc_result_release(result);
+        return false;
+    }
+
+    size_t code_size = shaderc_result_get_length(result);
+    const uint32_t *code_ptr = (const uint32_t *)shaderc_result_get_bytes(result);
+
+    VkShaderModuleCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+        .codeSize = code_size,
+        .pCode = code_ptr
+    };
+
+    if (vkCreateShaderModule(context->device, &create_info, nullptr, out_module) != VK_SUCCESS) {
+        RL_ERROR("Failed to create VkShaderModule for '%s'", filename);
+        shaderc_result_release(result);
+        return false;
+    }
+
+    shaderc_result_release(result);
+    RL_TRACE("Compiled shader module '%s'", filename);
+    return true;
+}
+
 void vk_shader_modules_destroy(VK_Context *context) {
     for (u32 i = 0; i < context->shaders.count; i++) {
         vkDestroyShaderModule(context->device, context->shaders.items[i].module, nullptr);

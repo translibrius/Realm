@@ -146,8 +146,8 @@ void prepare_interface(RENDERER_BACKEND backend) {
         interface.end_frame = &vulkan_end_frame;
         interface.swap_buffers = &vulkan_swap_buffers;
         interface.set_vsync = &vulkan_set_vsync;
-        interface.render_text = &vulkan_render_text;         //&vulkan_render_text;
-        interface.set_active_font = &vulkan_set_active_font; //&vulkan_set_active_font;
+        interface.render_text = &vulkan_render_text;
+        interface.set_active_font = &vulkan_set_active_font;
         interface.set_view_projection = &vulkan_set_view_projection;
         interface.get_active_window = &vulkan_get_active_window;
         interface.set_active_window = &vulkan_set_active_window;

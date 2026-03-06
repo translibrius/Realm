@@ -7,6 +7,125 @@ b8 create_shader_stages(VK_Context *context);
 VkVertexInputBindingDescription vk_vertex_get_binding_desc();
 void vk_vertex_get_attr_desc(VkVertexInputAttributeDescription *out_attrs);
 
+b8 vk_pipeline_create_graphics(VK_Context *ctx, VK_PipelineConfig *cfg, VkPipeline *out_pipeline, VkPipelineLayout *out_layout) {
+    VkDynamicState dynamic_states[2] = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
+    };
+    VkPipelineDynamicStateCreateInfo dynamic_state_ci = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+        .dynamicStateCount = 2,
+        .pDynamicStates = dynamic_states,
+    };
+
+    VkPipelineVertexInputStateCreateInfo vertex_input_ci = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+        .vertexBindingDescriptionCount = cfg->binding_count,
+        .pVertexBindingDescriptions = cfg->bindings,
+        .vertexAttributeDescriptionCount = cfg->attribute_count,
+        .pVertexAttributeDescriptions = cfg->attributes
+    };
+
+    VkPipelineInputAssemblyStateCreateInfo input_assembly_ci = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+        .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+        .primitiveRestartEnable = VK_FALSE
+    };
+
+    VkPipelineViewportStateCreateInfo viewport_ci = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+        .viewportCount = 1,
+        .scissorCount = 1,
+    };
+
+    VkPipelineRasterizationStateCreateInfo rasterizer_ci = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+        .depthClampEnable = VK_FALSE,
+        .rasterizerDiscardEnable = VK_FALSE,
+        .polygonMode = VK_POLYGON_MODE_FILL,
+        .cullMode = cfg->cull_mode,
+        .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
+        .depthBiasEnable = VK_FALSE,
+        .lineWidth = 1.0f
+    };
+
+    VkPipelineMultisampleStateCreateInfo multisample_ci = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+        .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+        .sampleShadingEnable = VK_FALSE,
+    };
+
+    VkPipelineDepthStencilStateCreateInfo depth_stencil_ci = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+        .depthTestEnable = cfg->depth_test ? VK_TRUE : VK_FALSE,
+        .depthWriteEnable = cfg->depth_write ? VK_TRUE : VK_FALSE,
+        .depthCompareOp = VK_COMPARE_OP_LESS,
+        .depthBoundsTestEnable = VK_FALSE,
+        .stencilTestEnable = VK_FALSE,
+    };
+
+    VkPipelineColorBlendAttachmentState blend_attachment = {
+        .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
+    };
+
+    if (cfg->blend_enable) {
+        blend_attachment.blendEnable = VK_TRUE;
+        blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
+        blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+        blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+    }
+
+    VkPipelineColorBlendStateCreateInfo blend_ci = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+        .logicOpEnable = VK_FALSE,
+        .attachmentCount = 1,
+        .pAttachments = &blend_attachment,
+    };
+
+    VkPipelineLayoutCreateInfo layout_ci = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .setLayoutCount = cfg->set_layout_count,
+        .pSetLayouts = cfg->set_layouts,
+        .pushConstantRangeCount = cfg->push_constant_count,
+        .pPushConstantRanges = cfg->push_constants,
+    };
+
+    if (vkCreatePipelineLayout(ctx->device, &layout_ci, nullptr, out_layout) != VK_SUCCESS) {
+        RL_ERROR("Failed to create pipeline layout");
+        return false;
+    }
+
+    VkGraphicsPipelineCreateInfo pipeline_ci = {
+        .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+        .stageCount = cfg->stage_count,
+        .pStages = cfg->stages,
+        .pVertexInputState = &vertex_input_ci,
+        .pInputAssemblyState = &input_assembly_ci,
+        .pViewportState = &viewport_ci,
+        .pRasterizationState = &rasterizer_ci,
+        .pMultisampleState = &multisample_ci,
+        .pDepthStencilState = &depth_stencil_ci,
+        .pColorBlendState = &blend_ci,
+        .pDynamicState = &dynamic_state_ci,
+        .layout = *out_layout,
+        .renderPass = cfg->render_pass,
+        .subpass = 0,
+        .basePipelineHandle = VK_NULL_HANDLE,
+        .basePipelineIndex = -1
+    };
+
+    if (vkCreateGraphicsPipelines(ctx->device, VK_NULL_HANDLE, 1, &pipeline_ci, nullptr, out_pipeline) != VK_SUCCESS) {
+        RL_ERROR("Failed to create graphics pipeline");
+        vkDestroyPipelineLayout(ctx->device, *out_layout, nullptr);
+        return false;
+    }
+
+    return true;
+}
+
 b8 vk_pipeline_create(VK_Context *context) {
     if (!vk_shader_module_compile(context, ASSET_ID_SHADER_VULKAN_TRIANGLE_VERT)) {
         return false;
@@ -18,154 +137,35 @@ b8 vk_pipeline_create(VK_Context *context) {
 
     create_shader_stages(context);
 
-    // Dynamic state
-    VkDynamicState dynamic_states[2] = {
-        VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_SCISSOR
-    };
-    VkPipelineDynamicStateCreateInfo dynamic_state_create_info = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-        .dynamicStateCount = 2,
-        .pDynamicStates = dynamic_states,
-    };
-
     constexpr u32 attribute_desc_count = 3;
     VkVertexInputBindingDescription binding_description = vk_vertex_get_binding_desc();
     VkVertexInputAttributeDescription *attribute_descriptions = rl_arena_push(&context->arena, sizeof(VkVertexInputAttributeDescription) * attribute_desc_count, true);
     vk_vertex_get_attr_desc(attribute_descriptions);
 
-    // Vertex input
-    VkPipelineVertexInputStateCreateInfo vertex_input_create_info = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        .vertexBindingDescriptionCount = 1,
-        .pVertexBindingDescriptions = &binding_description,
-        .vertexAttributeDescriptionCount = attribute_desc_count,
-        .pVertexAttributeDescriptions = attribute_descriptions
+    VK_PipelineConfig cfg = {
+        .stages = context->graphics_pipeline.shader_stages,
+        .stage_count = context->graphics_pipeline.shader_stage_count,
+        .bindings = &binding_description,
+        .binding_count = 1,
+        .attributes = attribute_descriptions,
+        .attribute_count = attribute_desc_count,
+        .set_layouts = &context->graphics_pipeline.descriptor_set_layout,
+        .set_layout_count = 1,
+        .depth_test = true,
+        .depth_write = true,
+        .cull_mode = VK_CULL_MODE_BACK_BIT,
+        .render_pass = context->graphics_pipeline.render_pass,
     };
 
-    // Input assembly
-    VkPipelineInputAssemblyStateCreateInfo input_assembly_create_info = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-        .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-        .primitiveRestartEnable = VK_FALSE
-    };
+    b8 result = vk_pipeline_create_graphics(context, &cfg, &context->graphics_pipeline.handle, &context->graphics_pipeline.layout);
 
-    VkPipelineViewportStateCreateInfo viewport_state_create_info = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-        .viewportCount = 1,
-        .scissorCount = 1,
-    };
-
-    // Rasterizer
-    VkPipelineRasterizationStateCreateInfo rasterization_state_create_info = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-        // If depthClampEnable is set to VK_TRUE
-        // then fragments that are beyond the near and far planes are clamped to them as opposed to discarding them.
-        .depthClampEnable = VK_FALSE, //
-        .rasterizerDiscardEnable = VK_FALSE, // VK_TRUE disables rasterizer
-        .polygonMode = VK_POLYGON_MODE_FILL, // VK_POLYGON_MODE_LINE (Edges as lines) | VK_POLYGON_MODE_POINT
-        .cullMode = VK_CULL_MODE_BACK_BIT, // Cull back faces
-        .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE, // C-Clockwise order
-        .depthBiasEnable = VK_FALSE, // Can be used for shadow mapping
-        .depthBiasConstantFactor = 0.0f, // Optional
-        .depthBiasClamp = 0.0f, // Optional
-        .depthBiasSlopeFactor = 0.0f, // Optional
-        .lineWidth = 1.0f // Width in fragments (>1.0 requires wideLines GPU feature
-    };
-
-    // Multisampling (one of the ways to perform anti-aliasing)
-    VkPipelineMultisampleStateCreateInfo multisample_state_create_info = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-        .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
-        .sampleShadingEnable = VK_FALSE,
-        .minSampleShading = 1.0f, // Optional
-        .pSampleMask = nullptr, // Optional
-        .alphaToCoverageEnable = VK_FALSE, // Optional
-        .alphaToOneEnable = VK_FALSE // Optional
-    };
-
-    // Depth and stencil
-    VkPipelineDepthStencilStateCreateInfo depth_stencil_create_info = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-        .depthTestEnable = VK_TRUE,
-        .depthWriteEnable = VK_TRUE,
-        .depthCompareOp = VK_COMPARE_OP_LESS,
-        .depthBoundsTestEnable = VK_FALSE,
-        .minDepthBounds = 0.0f, // Optional
-        .maxDepthBounds = 1.0f, // Optional
-        .stencilTestEnable = VK_FALSE,
-        .front = {}, // Optional
-        .back = {}, // Optional
-    };
-
-    // Color blending
-    VkPipelineColorBlendAttachmentState color_blend_attachment_state = {
-        .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
-        .blendEnable = VK_FALSE,
-        .srcColorBlendFactor = VK_BLEND_FACTOR_ONE, // Optional
-        .dstColorBlendFactor = VK_BLEND_FACTOR_ZERO, // Optional
-        .colorBlendOp = VK_BLEND_OP_ADD, // Optional
-        .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE, // Optional
-        .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO, // Optional
-        .alphaBlendOp = VK_BLEND_OP_ADD, // Optional
-    };
-
-    VkPipelineColorBlendStateCreateInfo color_blend_create_info = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-        .logicOpEnable = VK_FALSE,
-        .logicOp = VK_LOGIC_OP_COPY, // Optional
-        .attachmentCount = 1,
-        .pAttachments = &color_blend_attachment_state,
-        .blendConstants[0] = 0.0f, // Optional
-        .blendConstants[1] = 0.0f, // Optional
-        .blendConstants[2] = 0.0f, // Optional
-        .blendConstants[3] = 0.0f, // Optional
-    };
-
-    // Pipeline layout
-    VkPipelineLayoutCreateInfo pipeline_layout_create_info = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 1, // Optional
-        .pSetLayouts = &context->graphics_pipeline.descriptor_set_layout, // Optional
-        .pushConstantRangeCount = 0, // Optional
-        .pPushConstantRanges = nullptr, // Optional
-    };
-
-    if (vkCreatePipelineLayout(context->device, &pipeline_layout_create_info, nullptr, &context->graphics_pipeline.layout) != VK_SUCCESS) {
-        RL_ERROR("Failed to create pipeline layout");
-        vk_shader_modules_destroy(context);
-        return false;
-    }
-
-    VkGraphicsPipelineCreateInfo pipeline_create_info = {
-        .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-        .stageCount = context->graphics_pipeline.shader_stage_count,
-        .pStages = context->graphics_pipeline.shader_stages,
-        .pVertexInputState = &vertex_input_create_info,
-        .pInputAssemblyState = &input_assembly_create_info,
-        .pTessellationState = nullptr, // Optional
-        .pViewportState = &viewport_state_create_info,
-        .pRasterizationState = &rasterization_state_create_info,
-        .pMultisampleState = &multisample_state_create_info,
-        .pDepthStencilState = &depth_stencil_create_info,
-        .pColorBlendState = &color_blend_create_info,
-        .pDynamicState = &dynamic_state_create_info,
-        .layout = context->graphics_pipeline.layout,
-        .renderPass = context->graphics_pipeline.render_pass,
-        .subpass = 0,
-        .basePipelineHandle = VK_NULL_HANDLE, // Optional
-        .basePipelineIndex = -1 // Optional
-    };
-
-    if (VK_SUCCESS != vkCreateGraphicsPipelines(context->device, VK_NULL_HANDLE, 1, &pipeline_create_info, nullptr, &context->graphics_pipeline.handle)) {
-        RL_ERROR("Failed to create graphics pipeline");
-        vk_shader_modules_destroy(context);
-        return false;
-    }
-
-    RL_TRACE("Successfully created pipeline");
     vk_shader_modules_destroy(context);
-    return true;
+
+    if (result) {
+        RL_TRACE("Successfully created pipeline");
+    }
+
+    return result;
 }
 
 void vk_pipeline_destroy(VK_Context *context) {

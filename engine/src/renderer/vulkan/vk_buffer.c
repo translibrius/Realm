@@ -228,39 +228,35 @@ void vk_buffer_destroy_index(VK_Context *context) {
     vk_buffer_destroy(context, context->index_buffer, context->index_buffer_memory);
 }
 
-// ------- UNIFORM_BUF ----------
+// ------- MAPPED_BUFS ----------
 
-b8 vk_buffers_create_uniform(VK_Context *context) {
-    VkDeviceSize buffer_size = sizeof(ubo);
-
-    context->uniform_buffers = rl_arena_push(&context->arena, sizeof(VkBuffer) * context->max_frames_in_flight, true);
-    context->uniform_buffers_memory = rl_arena_push(&context->arena, sizeof(VkDeviceMemory) * context->max_frames_in_flight, true);
-    context->uniform_buffers_mapped = rl_arena_push(&context->arena, sizeof(void *) * context->max_frames_in_flight, true);
-
-    for (u32 i = 0; i < context->max_frames_in_flight; i++) {
-        if (!vk_buffer_create(
-            context,
-            buffer_size,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            &context->uniform_buffers[i],
-            &context->uniform_buffers_memory[i]
-            )) {
-            RL_ERROR("Failed to create uniform buffer");
+b8 vk_buffers_create_mapped(VK_Context *ctx, VkDeviceSize size, VkBufferUsageFlags usage, u32 count, VkBuffer *out_bufs, VkDeviceMemory *out_mem, void **out_mapped) {
+    for (u32 i = 0; i < count; i++) {
+        if (!vk_buffer_create(ctx, size, usage,
+                              VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                              &out_bufs[i], &out_mem[i])) {
+            RL_ERROR("Failed to create mapped buffer %u", i);
             return false;
         }
 
         VK_CHECK_RETURN_FALSE(
-            vkMapMemory(context->device,
-                context->uniform_buffers_memory[i],
-                0,
-                buffer_size,
-                0,
-                &context->uniform_buffers_mapped[i]),
-            "Failed to map uniform buffer memory");
+            vkMapMemory(ctx->device, out_mem[i], 0, size, 0, &out_mapped[i]),
+            "Failed to map buffer memory");
     }
 
     return true;
+}
+
+// ------- UNIFORM_BUF ----------
+
+b8 vk_buffers_create_uniform(VK_Context *context) {
+    context->uniform_buffers = rl_arena_push(&context->arena, sizeof(VkBuffer) * context->max_frames_in_flight, true);
+    context->uniform_buffers_memory = rl_arena_push(&context->arena, sizeof(VkDeviceMemory) * context->max_frames_in_flight, true);
+    context->uniform_buffers_mapped = rl_arena_push(&context->arena, sizeof(void *) * context->max_frames_in_flight, true);
+
+    return vk_buffers_create_mapped(context, sizeof(ubo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                    context->max_frames_in_flight,
+                                    context->uniform_buffers, context->uniform_buffers_memory, context->uniform_buffers_mapped);
 }
 
 void vk_buffers_destroy_uniform(VK_Context *context) {
