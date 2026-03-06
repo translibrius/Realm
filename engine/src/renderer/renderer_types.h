@@ -55,4 +55,5 @@ typedef struct renderer_interface {
     void (*resize_framebuffer)(i32 w, i32 h);
     void (*submit_frame_data)(rl_frame_data *frame_data);
     void (*submit_gui_data)(void *commands, i32 command_count);
+    void (*set_wireframe)(b8 enabled);
 } renderer_interface;

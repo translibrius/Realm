@@ -107,7 +107,8 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
         vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->graphics_pipeline.layout, 0, 1, &context->descriptor_sets[context->current_frame], 0, nullptr);
 
         // --- Lit pass ---
-        vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->graphics_pipeline.handle);
+        VkPipeline lit_pipe = context->debug_wireframe ? context->wireframe_lit_pipeline : context->graphics_pipeline.handle;
+        vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, lit_pipe);
         for (u32 i = 0; i < context->frame_mesh_count; i++) {
             if (context->frame_meshes[i].kind != RL_FRAME_MESH_KIND_LIT) continue;
             vkCmdPushConstants(buffer, context->graphics_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), context->frame_meshes[i].model);
@@ -115,7 +116,8 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
         }
 
         // --- Unlit pass ---
-        vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->unlit_pipeline);
+        VkPipeline unlit_pipe = context->debug_wireframe ? context->wireframe_unlit_pipeline : context->unlit_pipeline;
+        vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, unlit_pipe);
         for (u32 i = 0; i < context->frame_mesh_count; i++) {
             if (context->frame_meshes[i].kind != RL_FRAME_MESH_KIND_UNLIT) continue;
             vkCmdPushConstants(buffer, context->graphics_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), context->frame_meshes[i].model);

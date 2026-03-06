@@ -52,7 +52,10 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
         light = frame_data->point_lights[0];
     }
 
-    b8 wireframe_on = false;
+    b8 wireframe_on = context.debug_wireframe;
+    if (wireframe_on) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    }
 
     // Bind cube VAO once for all mesh draws
     glBindVertexArray(context.cube_mesh.vao);
@@ -88,7 +91,7 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
         opengl_shader_set_f32(&context.default_shader, "material.shininess", mesh->material.shininess);
         opengl_shader_set_mat4(&context.default_shader, "model", mesh->model);
 
-        if (mesh->wireframe != wireframe_on) {
+        if (!context.debug_wireframe && mesh->wireframe != wireframe_on) {
             glPolygonMode(GL_FRONT_AND_BACK, mesh->wireframe ? GL_LINE : GL_FILL);
             wireframe_on = mesh->wireframe;
         }
@@ -109,7 +112,7 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
 
         opengl_shader_set_mat4(&context.light_shader, "model", mesh->model);
 
-        if (mesh->wireframe != wireframe_on) {
+        if (!context.debug_wireframe && mesh->wireframe != wireframe_on) {
             glPolygonMode(GL_FRONT_AND_BACK, mesh->wireframe ? GL_LINE : GL_FILL);
             wireframe_on = mesh->wireframe;
         }
@@ -209,4 +212,8 @@ platform_window *opengl_get_active_window() {
 
 void opengl_set_active_window(platform_window *window) {
     context.window = window;
+}
+
+void opengl_set_wireframe(b8 enabled) {
+    context.debug_wireframe = enabled;
 }

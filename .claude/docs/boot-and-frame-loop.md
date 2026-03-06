@@ -18,4 +18,5 @@ loop:
 ## Runtime hotkeys
 
 - **F5** → rebuild + reload app module.
+- **F9** → toggle debug wireframe rendering.
 - **F10** → switch backend (destroys renderer + window, recreates both, then reloads app module).

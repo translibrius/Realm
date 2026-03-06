@@ -15,6 +15,7 @@
 
 typedef struct frontend_state {
     b8 initialized;
+    b8 wireframe;
 } frontend_state;
 
 static renderer_interface interface;
@@ -41,6 +42,11 @@ b8 renderer_init(platform_window *window, RENDERER_BACKEND backend, b8 vsync) {
 
     event_register(EVENT_CONFIG_CHANGED, on_config_changed, nullptr);
     state.initialized = true;
+
+    if (state.wireframe && interface.set_wireframe) {
+        interface.set_wireframe(true);
+    }
+
     return true;
 }
 
@@ -122,6 +128,16 @@ void renderer_submit_gui_data(void *commands, i32 command_count) {
     interface.submit_gui_data(commands, command_count);
 }
 
+void renderer_toggle_wireframe(void) {
+    if (!state.initialized)
+        return;
+    state.wireframe = !state.wireframe;
+    if (interface.set_wireframe) {
+        interface.set_wireframe(state.wireframe);
+    }
+    RL_INFO("Wireframe mode %s", state.wireframe ? "ON" : "OFF");
+}
+
 void prepare_interface(RENDERER_BACKEND backend) {
     switch (backend) {
     case BACKEND_OPENGL:
@@ -139,6 +155,7 @@ void prepare_interface(RENDERER_BACKEND backend) {
         interface.resize_framebuffer = &opengl_resize_framebuffer;
         interface.submit_frame_data = &opengl_submit_frame_data;
         interface.submit_gui_data = &opengl_render_gui;
+        interface.set_wireframe = &opengl_set_wireframe;
         break;
     case BACKEND_VULKAN:
         interface.initialize = &vulkan_initialize;
@@ -155,5 +172,6 @@ void prepare_interface(RENDERER_BACKEND backend) {
         interface.resize_framebuffer = &vulkan_resize_framebuffer;
         interface.submit_frame_data = &vulkan_submit_frame_data;
         interface.submit_gui_data = &vulkan_render_gui;
+        interface.set_wireframe = &vulkan_set_wireframe;
     }
 }

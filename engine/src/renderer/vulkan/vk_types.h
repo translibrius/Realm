@@ -222,6 +222,12 @@ typedef struct VK_Context {
     // Unlit pipeline (light cubes)
     VkPipeline unlit_pipeline;
 
+    // Debug wireframe pipelines
+    VkPipeline wireframe_lit_pipeline;
+    VkPipeline wireframe_unlit_pipeline;
+    b8 has_wireframe_pipelines;
+    b8 debug_wireframe;
+
     // Frame data (set by submit_frame_data, consumed by command recording)
     rl_frame_mesh *frame_meshes;
     u32 frame_mesh_count;

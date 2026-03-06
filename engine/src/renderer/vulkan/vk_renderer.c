@@ -109,6 +109,11 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
         return false;
     }
 
+    if (!vk_wireframe_pipelines_create(&context)) {
+        RL_ERROR("failed to create wireframe pipelines");
+        return false;
+    }
+
     if (!vk_depth_res_create(&context)) {
         RL_ERROR("failed to create depth resources");
         return false;
@@ -176,6 +181,7 @@ void vulkan_destroy() {
     vk_buffers_destroy_uniform(&context);
     vk_texture_destroy_sampler(&context);
     vk_texture_destroy(&context, &context.texture_wood);
+    vk_wireframe_pipelines_destroy(&context);
     vk_unlit_pipeline_destroy(&context);
     vk_mesh_destroy_cube(&context);
     vk_sync_destroy_transfer(&context);
@@ -355,4 +361,8 @@ platform_window *vulkan_get_active_window() {
 
 void vulkan_set_active_window(platform_window *window) {
     context.window = window;
+}
+
+void vulkan_set_wireframe(b8 enabled) {
+    context.debug_wireframe = enabled && context.has_wireframe_pipelines;
 }

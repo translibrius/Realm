@@ -42,7 +42,7 @@ b8 vk_pipeline_create_graphics(VK_Context *ctx, VK_PipelineConfig *cfg, VkPipeli
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
         .depthClampEnable = VK_FALSE,
         .rasterizerDiscardEnable = VK_FALSE,
-        .polygonMode = VK_POLYGON_MODE_FILL,
+        .polygonMode = cfg->polygon_mode,
         .cullMode = cfg->cull_mode,
         .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
         .depthBiasEnable = VK_FALSE,
@@ -162,6 +162,7 @@ b8 vk_pipeline_create(VK_Context *context) {
         .depth_test = true,
         .depth_write = true,
         .cull_mode = VK_CULL_MODE_BACK_BIT,
+        .polygon_mode = VK_POLYGON_MODE_FILL,
         .render_pass = context->graphics_pipeline.render_pass,
     };
 
@@ -317,6 +318,103 @@ b8 vk_unlit_pipeline_create(VK_Context *context) {
 
 void vk_unlit_pipeline_destroy(VK_Context *context) {
     vkDestroyPipeline(context->device, context->unlit_pipeline, nullptr);
+}
+
+b8 vk_wireframe_pipelines_create(VK_Context *context) {
+    if (!context->device_properties.features.fillModeNonSolid) {
+        RL_WARN("GPU does not support fillModeNonSolid — wireframe debug unavailable");
+        context->has_wireframe_pipelines = false;
+        return true;
+    }
+
+    VkShaderModule lit_vert, lit_frag, unlit_frag;
+
+    if (!vk_shader_compile_to_module(context, ASSET_ID_SHADER_VULKAN_TRIANGLE_VERT, &lit_vert)) return false;
+    if (!vk_shader_compile_to_module(context, ASSET_ID_SHADER_VULKAN_TRIANGLE_FRAG, &lit_frag)) {
+        vkDestroyShaderModule(context->device, lit_vert, nullptr);
+        return false;
+    }
+    if (!vk_shader_compile_to_module(context, ASSET_ID_SHADER_VULKAN_LIGHT_FRAG, &unlit_frag)) {
+        vkDestroyShaderModule(context->device, lit_vert, nullptr);
+        vkDestroyShaderModule(context->device, lit_frag, nullptr);
+        return false;
+    }
+
+    VkVertexInputBindingDescription binding = vk_vertex_get_binding_desc();
+    VkVertexInputAttributeDescription attrs[3];
+    vk_vertex_get_attr_desc(attrs);
+
+    VkPushConstantRange push_range = {
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+        .offset = 0,
+        .size = sizeof(mat4),
+    };
+
+    // --- Wireframe lit pipeline ---
+    VkPipelineShaderStageCreateInfo lit_stages[2] = {
+        {.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = lit_vert, .pName = "main"},
+        {.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = lit_frag, .pName = "main"},
+    };
+
+    VK_PipelineConfig lit_cfg = {
+        .stages = lit_stages,
+        .stage_count = 2,
+        .bindings = &binding,
+        .binding_count = 1,
+        .attributes = attrs,
+        .attribute_count = 3,
+        .set_layouts = &context->graphics_pipeline.descriptor_set_layout,
+        .set_layout_count = 1,
+        .push_constants = &push_range,
+        .push_constant_count = 1,
+        .depth_test = true,
+        .depth_write = true,
+        .cull_mode = VK_CULL_MODE_BACK_BIT,
+        .polygon_mode = VK_POLYGON_MODE_LINE,
+        .render_pass = context->graphics_pipeline.render_pass,
+    };
+
+    VkPipelineLayout unused_layout;
+    if (!vk_pipeline_create_graphics(context, &lit_cfg, &context->wireframe_lit_pipeline, &unused_layout)) {
+        vkDestroyShaderModule(context->device, lit_vert, nullptr);
+        vkDestroyShaderModule(context->device, lit_frag, nullptr);
+        vkDestroyShaderModule(context->device, unlit_frag, nullptr);
+        return false;
+    }
+    vkDestroyPipelineLayout(context->device, unused_layout, nullptr);
+
+    // --- Wireframe unlit pipeline ---
+    VkPipelineShaderStageCreateInfo unlit_stages[2] = {
+        {.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = lit_vert, .pName = "main"},
+        {.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = unlit_frag, .pName = "main"},
+    };
+
+    VK_PipelineConfig unlit_cfg = lit_cfg;
+    unlit_cfg.stages = unlit_stages;
+
+    VkPipelineLayout unused_layout2;
+    if (!vk_pipeline_create_graphics(context, &unlit_cfg, &context->wireframe_unlit_pipeline, &unused_layout2)) {
+        vkDestroyPipeline(context->device, context->wireframe_lit_pipeline, nullptr);
+        vkDestroyShaderModule(context->device, lit_vert, nullptr);
+        vkDestroyShaderModule(context->device, lit_frag, nullptr);
+        vkDestroyShaderModule(context->device, unlit_frag, nullptr);
+        return false;
+    }
+    vkDestroyPipelineLayout(context->device, unused_layout2, nullptr);
+
+    vkDestroyShaderModule(context->device, lit_vert, nullptr);
+    vkDestroyShaderModule(context->device, lit_frag, nullptr);
+    vkDestroyShaderModule(context->device, unlit_frag, nullptr);
+
+    context->has_wireframe_pipelines = true;
+    RL_TRACE("Successfully created wireframe pipelines");
+    return true;
+}
+
+void vk_wireframe_pipelines_destroy(VK_Context *context) {
+    if (!context->has_wireframe_pipelines) return;
+    vkDestroyPipeline(context->device, context->wireframe_lit_pipeline, nullptr);
+    vkDestroyPipeline(context->device, context->wireframe_unlit_pipeline, nullptr);
 }
 
 // Private

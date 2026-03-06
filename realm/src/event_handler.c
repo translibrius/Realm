@@ -138,6 +138,10 @@ b8 on_key_press(void *event, void *data) {
         }
     }
 
+    if (key->key == KEY_F9 && key->pressed) {
+        renderer_toggle_wireframe();
+    }
+
     if (key->key == KEY_F10 && key->pressed) {
         handler->application->requested_backend =
             config_get()->renderer_backend == BACKEND_VULKAN ? BACKEND_OPENGL : BACKEND_VULKAN;

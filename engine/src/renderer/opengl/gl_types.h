@@ -61,6 +61,9 @@ typedef struct GL_Context {
     GL_Texture wood_texture2;
     GL_Mesh cube_mesh;
 
+    // Debug
+    b8 debug_wireframe;
+
     // Mat
     mat4 view;
     mat4 projection;

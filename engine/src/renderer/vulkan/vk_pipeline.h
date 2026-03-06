@@ -21,6 +21,7 @@ typedef struct VK_PipelineConfig {
     b8 depth_write;
     VkCullModeFlags cull_mode;
     b8 blend_enable;
+    VkPolygonMode polygon_mode;
 
     VkRenderPass render_pass;
 } VK_PipelineConfig;
@@ -32,3 +33,6 @@ void vk_pipeline_destroy(VK_Context *context);
 
 b8 vk_unlit_pipeline_create(VK_Context *context);
 void vk_unlit_pipeline_destroy(VK_Context *context);
+
+b8 vk_wireframe_pipelines_create(VK_Context *context);
+void vk_wireframe_pipelines_destroy(VK_Context *context);
