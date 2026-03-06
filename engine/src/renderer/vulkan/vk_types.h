@@ -93,6 +93,7 @@ typedef struct VK_Texture {
     VkImage texture_image;
     VkImageView texture_image_view;
     VkDeviceMemory texture_memory;
+    u32 mip_levels;
 } VK_Texture;
 
 typedef struct VK_TextVertex {

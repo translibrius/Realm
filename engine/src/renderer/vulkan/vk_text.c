@@ -46,7 +46,7 @@ static b8 vk_font_create(rl_font *font, VK_Context *ctx) {
 
     VK_Font vk_font = {0};
 
-    b8 ok = vk_texture_upload(ctx, atlas_w, atlas_h, VK_FORMAT_R8G8B8A8_UNORM,
+    b8 ok = vk_texture_upload(ctx, atlas_w, atlas_h, 1, VK_FORMAT_R8G8B8A8_UNORM,
                               pixels, image_size,
                               &vk_font.atlas_image, &vk_font.atlas_memory, &vk_font.atlas_view);
 
@@ -121,7 +121,7 @@ b8 vk_text_pipeline_init(VK_Context *ctx) {
         "Failed to create text descriptor set layout");
 
     // --- Font sampler via shared helper ---
-    if (!vk_sampler_create(ctx, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, &tp->font_sampler)) {
+    if (!vk_sampler_create(ctx, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 0.0f, &tp->font_sampler)) {
         return false;
     }
 
