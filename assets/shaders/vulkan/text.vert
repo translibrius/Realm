@@ -15,7 +15,7 @@ layout (push_constant) uniform PushConstants {
 void main() {
     vec2 ndc;
     ndc.x = (in_pos.x / pc.screen_size.x) * 2.0 - 1.0;
-    ndc.y = 1.0 - (in_pos.y / pc.screen_size.y) * 2.0; // Flip Y: Vulkan NDC Y is top-down
+    ndc.y = (in_pos.y / pc.screen_size.y) * 2.0 - 1.0;
 
     gl_Position = vec4(ndc, 0.0, 1.0);
     frag_uv = in_uv;
