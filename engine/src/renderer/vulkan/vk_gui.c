@@ -11,7 +11,6 @@
 #include "vk_shader.h"
 #include "vk_text.h"
 
-#define GUI_MAX_VERTS (6 * 8192)
 #define GUI_MAX_CLIP_DEPTH 16
 
 // ---------------------------------------------------------------------------
@@ -58,7 +57,7 @@ static gui_clip_rect *clip_current(void) {
 static void push_rect(VK_TextVertex *verts, u32 *count,
                        f32 x, f32 y, f32 w, f32 h,
                        f32 r, f32 g, f32 b, f32 a) {
-    if (*count + 6 > GUI_MAX_VERTS) return;
+    if (*count + 6 > VK_GUI_MAX_VERTS) return;
 
     f32 x0 = x, y0 = y, x1 = x + w, y1 = y + h;
 
@@ -259,7 +258,7 @@ b8 vk_gui_pipeline_init(VK_Context *ctx) {
     }
 
     // --- Per-frame vertex buffers ---
-    VkDeviceSize vb_size = sizeof(VK_TextVertex) * GUI_MAX_VERTS;
+    VkDeviceSize vb_size = sizeof(VK_TextVertex) * VK_GUI_MAX_VERTS;
 
     gp->vertex_buffers = rl_arena_push(&ctx->arena, sizeof(VkBuffer) * ctx->max_frames_in_flight, alignof(VkBuffer));
     gp->vertex_buffer_memory = rl_arena_push(&ctx->arena, sizeof(VkDeviceMemory) * ctx->max_frames_in_flight, alignof(VkDeviceMemory));
@@ -298,6 +297,28 @@ void vk_gui_pipeline_destroy(VK_Context *ctx) {
 }
 
 // ---------------------------------------------------------------------------
+// Public helpers — let vk_text.c write into the GUI vertex buffer
+// ---------------------------------------------------------------------------
+
+VK_TextVertex *vk_gui_pipeline_get_write_ptr(VK_Context *ctx, u32 *out_remaining) {
+    VK_GuiPipeline *gp = &ctx->gui_pipeline;
+    if (gp->vertex_count >= VK_GUI_MAX_VERTS) {
+        *out_remaining = 0;
+        return nullptr;
+    }
+    *out_remaining = VK_GUI_MAX_VERTS - gp->vertex_count;
+    VK_TextVertex *base = gp->vertex_buffer_mapped[ctx->current_frame];
+    return &base[gp->vertex_count];
+}
+
+void vk_gui_pipeline_commit_verts(VK_Context *ctx, VK_Font *font, u32 count) {
+    if (count == 0) return;
+    VK_GuiPipeline *gp = &ctx->gui_pipeline;
+    gui_segment_flush(gp, font, gp->vertex_count, count);
+    gp->vertex_count += count;
+}
+
+// ---------------------------------------------------------------------------
 // Render (called from renderer_submit_gui_data — fills vertex buffer)
 // ---------------------------------------------------------------------------
 
@@ -311,11 +332,10 @@ void vulkan_render_gui(void *commands, i32 command_count) {
     Clay_RenderCommand *cmds = (Clay_RenderCommand *)commands;
 
     VK_TextVertex *verts = gp->vertex_buffer_mapped[ctx->current_frame];
-    u32 vert_count = 0;
+    u32 vert_count = gp->vertex_count;       // continue from where text left off
     VK_Font *current_font = nullptr;
-    u32 segment_start = 0;
+    u32 segment_start = vert_count;
 
-    gp->segment_count = 0;
     clip_depth = 0;
 
     for (i32 i = 0; i < command_count; i++) {
@@ -377,7 +397,7 @@ void vulkan_render_gui(void *commands, i32 command_count) {
 
             f32 text_y = bb.y + font->ascender * (f32)text->fontSize;
 
-            push_text_glyphs(verts, &vert_count, GUI_MAX_VERTS,
+            push_text_glyphs(verts, &vert_count, VK_GUI_MAX_VERTS,
                              vk_font, font,
                              text->stringContents.chars, text->stringContents.length,
                              (f32)text->fontSize, bb.x, text_y, color);

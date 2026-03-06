@@ -4,12 +4,9 @@
 #include "asset/font.h"
 #include "core/logger.h"
 #include "memory/arena.h"
-#include "renderer/renderer_types.h"
-#include "vk_buffer.h"
 #include "vk_descriptor.h"
-#include "vk_pipeline.h"
+#include "vk_gui.h"
 #include "vk_renderer.h"
-#include "vk_shader.h"
 #include "vk_texture.h"
 #include "vk_util.h"
 
@@ -105,18 +102,6 @@ static b8 vk_font_create(rl_font *font, VK_Context *ctx) {
 b8 vk_text_pipeline_init(VK_Context *ctx) {
     VK_TextPipeline *tp = &ctx->text_pipeline;
 
-    // --- Compile shaders ---
-    VkShaderModule vert_module, frag_module;
-    if (!vk_shader_compile_to_module(ctx, ASSET_ID_SHADER_VULKAN_TEXT_VERT, &vert_module)) {
-        RL_ERROR("Failed to compile Vulkan text vertex shader");
-        return false;
-    }
-    if (!vk_shader_compile_to_module(ctx, ASSET_ID_SHADER_VULKAN_TEXT_FRAG, &frag_module)) {
-        vkDestroyShaderModule(ctx->device, vert_module, nullptr);
-        RL_ERROR("Failed to compile Vulkan text fragment shader");
-        return false;
-    }
-
     // --- Descriptor set layout: 1 combined image sampler at binding 0 ---
     VkDescriptorSetLayoutBinding sampler_binding = {
         .binding = 0,
@@ -135,86 +120,8 @@ b8 vk_text_pipeline_init(VK_Context *ctx) {
         vkCreateDescriptorSetLayout(ctx->device, &ds_layout_ci, nullptr, &tp->descriptor_set_layout),
         "Failed to create text descriptor set layout");
 
-    // --- Push constant range: vec2 screen_size + float px_range = 12 bytes ---
-    VkPushConstantRange push_range = {
-        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-        .offset = 0,
-        .size = 12
-    };
-
-    // --- Shader stages ---
-    VkPipelineShaderStageCreateInfo stages[2] = {
-        {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-            .stage = VK_SHADER_STAGE_VERTEX_BIT,
-            .module = vert_module,
-            .pName = "main"
-        },
-        {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-            .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-            .module = frag_module,
-            .pName = "main"
-        }
-    };
-
-    // --- Vertex input: VK_TextVertex (pos vec2, uv vec2, color vec4) ---
-    VkVertexInputBindingDescription binding_desc = {
-        .binding = 0,
-        .stride = sizeof(VK_TextVertex),
-        .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
-    };
-
-    VkVertexInputAttributeDescription attr_descs[3] = {
-        { .location = 0, .binding = 0, .format = VK_FORMAT_R32G32_SFLOAT,       .offset = offsetof(VK_TextVertex, pos) },
-        { .location = 1, .binding = 0, .format = VK_FORMAT_R32G32_SFLOAT,       .offset = offsetof(VK_TextVertex, uv) },
-        { .location = 2, .binding = 0, .format = VK_FORMAT_R32G32B32A32_SFLOAT, .offset = offsetof(VK_TextVertex, color) },
-    };
-
-    // --- Pipeline via shared helper ---
-    VK_PipelineConfig cfg = {
-        .stages = stages,
-        .stage_count = 2,
-        .bindings = &binding_desc,
-        .binding_count = 1,
-        .attributes = attr_descs,
-        .attribute_count = 3,
-        .set_layouts = &tp->descriptor_set_layout,
-        .set_layout_count = 1,
-        .push_constants = &push_range,
-        .push_constant_count = 1,
-        .depth_test = false,
-        .depth_write = false,
-        .cull_mode = VK_CULL_MODE_NONE,
-        .blend_enable = true,
-        .render_pass = ctx->graphics_pipeline.render_pass,
-    };
-
-    b8 ok = vk_pipeline_create_graphics(ctx, &cfg, &tp->handle, &tp->layout);
-
-    vkDestroyShaderModule(ctx->device, vert_module, nullptr);
-    vkDestroyShaderModule(ctx->device, frag_module, nullptr);
-
-    if (!ok) {
-        RL_ERROR("Failed to create text graphics pipeline");
-        return false;
-    }
-
     // --- Font sampler via shared helper ---
     if (!vk_sampler_create(ctx, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, &tp->font_sampler)) {
-        return false;
-    }
-
-    // --- Per-frame vertex buffers via shared helper ---
-    VkDeviceSize vb_size = sizeof(VK_TextVertex) * 6 * MAX_TEXT_GLYPHS;
-
-    tp->vertex_buffers = rl_arena_push(&ctx->arena, sizeof(VkBuffer) * ctx->max_frames_in_flight, alignof(VkBuffer));
-    tp->vertex_buffer_memory = rl_arena_push(&ctx->arena, sizeof(VkDeviceMemory) * ctx->max_frames_in_flight, alignof(VkDeviceMemory));
-    tp->vertex_buffer_mapped = rl_arena_push(&ctx->arena, sizeof(void *) * ctx->max_frames_in_flight, alignof(void *));
-
-    if (!vk_buffers_create_mapped(ctx, vb_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                  ctx->max_frames_in_flight,
-                                  tp->vertex_buffers, tp->vertex_buffer_memory, tp->vertex_buffer_mapped)) {
         return false;
     }
 
@@ -247,10 +154,7 @@ b8 vk_text_pipeline_init(VK_Context *ctx) {
         }
     }
 
-    tp->vertex_count = 0;
-    tp->batch_font = nullptr;
-
-    RL_DEBUG("Vulkan text pipeline initialized");
+    RL_DEBUG("Vulkan font manager initialized");
     return true;
 }
 
@@ -268,22 +172,8 @@ void vk_text_pipeline_destroy(VK_Context *ctx) {
         vkFreeMemory(ctx->device, f->atlas_memory, nullptr);
     }
 
-    if (tp->vertex_buffers) {
-        for (u32 i = 0; i < ctx->max_frames_in_flight; i++) {
-            vk_buffer_destroy(ctx, tp->vertex_buffers[i], tp->vertex_buffer_memory[i]);
-        }
-    }
-
     if (tp->font_sampler) {
         vkDestroySampler(ctx->device, tp->font_sampler, nullptr);
-    }
-
-    if (tp->handle) {
-        vkDestroyPipeline(ctx->device, tp->handle, nullptr);
-    }
-
-    if (tp->layout) {
-        vkDestroyPipelineLayout(ctx->device, tp->layout, nullptr);
     }
 
     if (tp->descriptor_set_layout) {
@@ -303,9 +193,12 @@ void vulkan_render_text(const char *text, f32 size_px, f32 x, f32 y, vec4 color)
         return;
 
     rl_font *font = vk_font->font;
-    VK_TextVertex *verts = tp->vertex_buffer_mapped[ctx->current_frame];
-    u32 vert_count = tp->vertex_count;
 
+    u32 remaining = 0;
+    VK_TextVertex *verts = vk_gui_pipeline_get_write_ptr(ctx, &remaining);
+    if (!verts || remaining < 6) return;
+
+    u32 vert_count = 0;
     f32 cursor_x = x;
     f32 cursor_y = y;
 
@@ -316,7 +209,7 @@ void vulkan_render_text(const char *text, f32 size_px, f32 x, f32 y, vec4 color)
             continue;
         }
 
-        if (vert_count + 6 > 6 * MAX_TEXT_GLYPHS)
+        if (vert_count + 6 > remaining)
             break;
 
         u32 cp = *c;
@@ -329,11 +222,8 @@ void vulkan_render_text(const char *text, f32 size_px, f32 x, f32 y, vec4 color)
         f32 y0 = cursor_y + g->plane_min_y * size_px;
         f32 y1 = cursor_y + g->plane_max_y * size_px;
 
-        f32 u0 = g->uv_min_x;
-        f32 v0 = g->uv_min_y;
-        f32 u1 = g->uv_max_x;
-        f32 v1 = g->uv_max_y;
-
+        f32 u0 = g->uv_min_x, v0 = g->uv_min_y;
+        f32 u1 = g->uv_max_x, v1 = g->uv_max_y;
         f32 r = color[0], g_ = color[1], b = color[2], a = color[3];
 
         verts[vert_count + 0] = (VK_TextVertex){.pos = {x0, y0}, .uv = {u0, v0}, .color = {r, g_, b, a}};
@@ -347,67 +237,12 @@ void vulkan_render_text(const char *text, f32 size_px, f32 x, f32 y, vec4 color)
         cursor_x += g->advance * size_px;
     }
 
-    tp->vertex_count = vert_count;
-    tp->batch_font = vk_font;
+    if (vert_count > 0) {
+        vk_gui_pipeline_commit_verts(ctx, vk_font, vert_count);
+    }
 }
 
 void vulkan_set_active_font(rl_font *font) {
     VK_Context *ctx = vulkan_get_context_ptr();
     ctx->text_pipeline.active_font = font;
-}
-
-void vulkan_text_record_commands(VK_Context *ctx, VkCommandBuffer cmd) {
-    VK_TextPipeline *tp = &ctx->text_pipeline;
-
-    if (tp->vertex_count == 0 || !tp->batch_font)
-        return;
-
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, tp->handle);
-
-    VkViewport viewport = {
-        .x = 0.0f,
-        .y = 0.0f,
-        .width = (f32)ctx->swapchain.chosen_extent.width,
-        .height = (f32)ctx->swapchain.chosen_extent.height,
-        .minDepth = 0.0f,
-        .maxDepth = 1.0f
-    };
-    vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-    VkRect2D scissor = {
-        .offset = {0, 0},
-        .extent = ctx->swapchain.chosen_extent
-    };
-    vkCmdSetScissor(cmd, 0, 1, &scissor);
-
-    // Push constants: screen_size (vec2) + px_range (float)
-    struct {
-        f32 screen_w;
-        f32 screen_h;
-        f32 px_range;
-    } push = {
-        .screen_w = (f32)ctx->swapchain.chosen_extent.width,
-        .screen_h = (f32)ctx->swapchain.chosen_extent.height,
-        .px_range = tp->batch_font->font->pixel_range
-    };
-    vkCmdPushConstants(cmd, tp->layout,
-                       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                       0, sizeof(push), &push);
-
-    // Bind font atlas descriptor
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            tp->layout, 0, 1,
-                            &tp->batch_font->descriptor_sets[ctx->current_frame],
-                            0, nullptr);
-
-    // Bind vertex buffer
-    VkBuffer buffers[] = {tp->vertex_buffers[ctx->current_frame]};
-    VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(cmd, 0, 1, buffers, offsets);
-
-    vkCmdDraw(cmd, tp->vertex_count, 1, 0, 0);
-
-    // Reset for next frame
-    tp->vertex_count = 0;
-    tp->batch_font = nullptr;
 }

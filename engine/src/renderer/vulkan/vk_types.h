@@ -112,18 +112,11 @@ typedef struct VK_Font {
 DA_DEFINE(VK_Fonts, VK_Font);
 
 typedef struct VK_TextPipeline {
-    VkPipeline handle;
-    VkPipelineLayout layout;
     VkDescriptorSetLayout descriptor_set_layout;
     VkDescriptorPool descriptor_pool;
     VkSampler font_sampler;
-    VkBuffer *vertex_buffers;
-    VkDeviceMemory *vertex_buffer_memory;
-    void **vertex_buffer_mapped;
-    u32 vertex_count;
     VK_Fonts fonts;
     rl_font *active_font;
-    VK_Font *batch_font; // font used in the current batch (for descriptor binding)
 } VK_TextPipeline;
 
 // Flush segment: records a sub-range of vertices that share a descriptor set (font).

@@ -1,6 +1,5 @@
 #include "vk_commands.h"
 #include "vk_gui.h"
-#include "vk_text.h"
 #include "vk_util.h"
 
 b8 vk_command_pool_create(VK_Context *context, VkCommandPool *out_pool, u32 family_index) {
@@ -122,11 +121,8 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
 
         vkCmdDrawIndexed(buffer, context->indices.count, 1, 0, 0, 0);
 
-        // GUI (Clay) overlay — between geometry and text
+        // GUI + text overlay (unified pipeline)
         vulkan_gui_record_commands(context, buffer);
-
-        // Text overlay (after geometry + GUI, before end render pass)
-        vulkan_text_record_commands(context, buffer);
     }
     vkCmdEndRenderPass(buffer);
 
