@@ -1,7 +1,11 @@
 #include "renderer/vulkan/vk_swapchain.h"
 
+#include "renderer/vulkan/vk_types.h"
 #include "vk_frame_buffers.h"
 #include "vk_image.h"
+#include "vk_util.h"
+#include "vk_depth.h"
+#include <vulkan/vulkan_core.h>
 
 void log_capabilities(VkSurfaceCapabilitiesKHR *caps);
 void log_surface_formats(const VkSurfaceFormat2KHR *formats, u32 count);
@@ -174,6 +178,8 @@ b8 vk_swapchain_create(VK_Context *context, b8 vsync, b8 from_recreate, VkSwapch
 
 void vk_swapchain_destroy(VK_Context *context) {
     destroy_image_views(context);
+    vkDestroyImage(context->device, context->depth_image, nullptr);
+    vkFreeMemory(context->device, context->depth_image_memory, nullptr);
     if (context->swapchain.handle != VK_NULL_HANDLE) {
         vkDestroySwapchainKHR(context->device, context->swapchain.handle, nullptr);
         context->swapchain.handle = VK_NULL_HANDLE;
@@ -206,6 +212,11 @@ b8 vk_swapchain_recreate(VK_Context *context) {
     // Now that new swapchain is live, destroy old one
     vkDestroySwapchainKHR(context->device, old_swapchain, nullptr);
 
+    if (!vk_depth_res_create(context)) {
+        RL_ERROR("Failed to recreate swapchain: depth resource could not be created");
+        return false;
+    }
+
     if (!vk_framebuffers_create(context)) {
         RL_ERROR("Failed to recreate swapchain: framebuffers could not be created");
         return false;
@@ -222,6 +233,7 @@ void create_image_views(VK_Context *context) {
     for (u32 i = 0; i < context->swapchain.image_count; i++) {
         vk_image_view_create(
             context,
+            VK_IMAGE_ASPECT_COLOR_BIT,
             context->swapchain.images[i],
             context->swapchain.chosen_format.surfaceFormat.format,
             &context->swapchain.image_views[i]);

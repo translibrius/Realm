@@ -1,4 +1,5 @@
 #include "vk_descriptor.h"
+#include "vk_util.h"
 
 b8 vk_descriptor_create_set_layout(VK_Context *context) {
     VkDescriptorSetLayoutBinding ubo_layout_binding = {

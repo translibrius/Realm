@@ -3,6 +3,7 @@
 #include "core/logger.h"
 #include "platform/platform.h"
 #include "util/assert.h"
+#include "vk_util.h"
 
 #include <string.h>
 

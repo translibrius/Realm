@@ -7,5 +7,6 @@ compile_commands.json
 CMakeUserPresets.json
 # .claude/
 .vscode/
+.zed/debug.json
 .profile_log
 __pycache__/

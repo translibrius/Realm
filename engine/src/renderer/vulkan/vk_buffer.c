@@ -1,4 +1,5 @@
 #include "vk_buffer.h"
+#include "vk_util.h"
 
 u32 find_memory_type(VK_Context *context, u32 type_filter, VkMemoryPropertyFlags properties) {
     VkPhysicalDeviceMemoryProperties mem_properties;

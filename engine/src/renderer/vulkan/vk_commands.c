@@ -1,5 +1,6 @@
 #include "vk_commands.h"
 #include "vk_text.h"
+#include "vk_util.h"
 
 b8 vk_command_pool_create(VK_Context *context, VkCommandPool *out_pool, u32 family_index) {
 
@@ -68,7 +69,10 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
         return false;
     }
 
-    VkClearValue clear_color = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+    VkClearValue clear_values[2] = {
+        (VkClearValue) {.color = {0.0f, 0.0f, 0.0f, 1.0f}},
+        (VkClearValue) {.depthStencil = {1.0f, 0.0f}}
+    };
 
     VkRenderPassBeginInfo render_pass_begin_info = {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -78,8 +82,8 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
             .offset = {0, 0},
             .extent = context->swapchain.chosen_extent
         },
-        .clearValueCount = 1,
-        .pClearValues = &clear_color
+        .clearValueCount = 2,
+        .pClearValues = clear_values
     };
 
     vkCmdBeginRenderPass(buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);

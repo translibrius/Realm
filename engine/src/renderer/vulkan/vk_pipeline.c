@@ -1,6 +1,7 @@
 #include "vk_pipeline.h"
 
 #include "vk_shader.h"
+#include <vulkan/vulkan_core.h>
 
 b8 create_shader_stages(VK_Context *context);
 VkVertexInputBindingDescription vk_vertex_get_binding_desc();
@@ -83,7 +84,19 @@ b8 vk_pipeline_create(VK_Context *context) {
         .alphaToOneEnable = VK_FALSE // Optional
     };
 
-    // TODO: Depth and stencil testing (VkPipelineDepthStencilStateCreateInfo)
+    // Depth and stencil
+    VkPipelineDepthStencilStateCreateInfo depth_stencil_create_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+        .depthTestEnable = VK_TRUE,
+        .depthWriteEnable = VK_TRUE,
+        .depthCompareOp = VK_COMPARE_OP_LESS,
+        .depthBoundsTestEnable = VK_FALSE,
+        .minDepthBounds = 0.0f, // Optional
+        .maxDepthBounds = 1.0f, // Optional
+        .stencilTestEnable = VK_FALSE,
+        .front = {}, // Optional
+        .back = {}, // Optional
+    };
 
     // Color blending
     VkPipelineColorBlendAttachmentState color_blend_attachment_state = {
@@ -134,7 +147,7 @@ b8 vk_pipeline_create(VK_Context *context) {
         .pViewportState = &viewport_state_create_info,
         .pRasterizationState = &rasterization_state_create_info,
         .pMultisampleState = &multisample_state_create_info,
-        .pDepthStencilState = nullptr, // Optional
+        .pDepthStencilState = &depth_stencil_create_info,
         .pColorBlendState = &color_blend_create_info,
         .pDynamicState = &dynamic_state_create_info,
         .layout = context->graphics_pipeline.layout,

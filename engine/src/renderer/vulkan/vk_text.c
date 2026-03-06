@@ -321,7 +321,7 @@ static b8 vk_text_create_font_atlas(VK_Context *ctx, rl_font *font, VK_Font *out
     vk_buffer_destroy(ctx, staging_buffer, staging_memory);
 
     // Create image view
-    if (!vk_image_view_create(ctx, out_font->atlas_image, fmt, &out_font->atlas_view)) {
+    if (!vk_image_view_create(ctx, VK_IMAGE_ASPECT_COLOR_BIT, out_font->atlas_image, fmt, &out_font->atlas_view)) {
         return false;
     }
 

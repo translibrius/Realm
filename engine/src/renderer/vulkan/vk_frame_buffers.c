@@ -5,12 +5,16 @@ b8 vk_framebuffers_create(VK_Context *context) {
     context->swapchain.frame_buffers = rl_arena_push(&context->arena, sizeof(VkFramebuffer) * context->swapchain.frame_buffers_count, true);
 
     for (u32 i = 0; i < context->swapchain.image_count; i++) {
+        VkImageView attachements[2] = {
+            context->swapchain.image_views[i],
+            context->depth_image_view
+        };
 
         VkFramebufferCreateInfo framebuffer_create_info = {
             .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
             .renderPass = context->graphics_pipeline.render_pass,
-            .attachmentCount = 1,
-            .pAttachments = &context->swapchain.image_views[i],
+            .attachmentCount = 2,
+            .pAttachments = attachements,
             .width = context->swapchain.chosen_extent.width,
             .height = context->swapchain.chosen_extent.height,
             .layers = 1

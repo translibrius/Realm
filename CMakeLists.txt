@@ -78,6 +78,14 @@ add_custom_target(copy_compile_commands ALL
         COMMENT "Updating compile_commands.json in project root"
 )
 
+# Generate .zed/debug.json with platform-correct executable suffix
+set(EXE_SUFFIX "${CMAKE_EXECUTABLE_SUFFIX}")
+configure_file(
+        ${CMAKE_SOURCE_DIR}/.zed/debug.json.in
+        ${CMAKE_SOURCE_DIR}/.zed/debug.json
+        @ONLY
+)
+
 # Add subprojects
 add_subdirectory(engine)
 add_subdirectory(realm)

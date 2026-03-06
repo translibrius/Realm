@@ -27,6 +27,7 @@
 #import <dlfcn.h>
 
 #include "renderer/vulkan/vk_types.h"
+#include "renderer/vulkan/vk_util.h"
 #include "glad.h"
 
 typedef struct mac_window {

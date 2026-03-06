@@ -1,5 +1,5 @@
 #include "vk_texture.h"
-
+#include "vk_util.h"
 #include "vk_buffer.h"
 #include "vk_image.h"
 
@@ -63,7 +63,7 @@ b8 vk_texture_create(VK_Context *ctx, VK_Texture *vk_texture) {
     vkFreeMemory(ctx->device, staging_buffer_memory, nullptr);
 
     // Create view
-    vk_image_view_create(ctx, vk_texture->texture_image, VK_FORMAT_R8G8B8A8_SRGB, &vk_texture->texture_image_view);
+    vk_image_view_create(ctx, VK_IMAGE_ASPECT_COLOR_BIT, vk_texture->texture_image, VK_FORMAT_R8G8B8A8_SRGB, &vk_texture->texture_image_view);
 
     return true;
 }

@@ -15,6 +15,8 @@
 #include "vk_sync.h"
 #include "vk_texture.h"
 #include "vk_text.h"
+#include "vk_util.h"
+#include "vk_depth.h"
 
 static VK_Context context;
 
@@ -23,12 +25,6 @@ VK_Context *vulkan_get_context_ptr(void) {
 }
 
 void vulkan_resize_framebuffer(i32 w, i32 h) {
-    /*
-    RL_DEBUG("Window #%d resized | POS: %d;%d | Size: %dx%d",
-             window->id,
-             window->settings.x, window->settings.y,
-             window->settings.width, window->settings.height); */
-
     // Don't trigger swapchain recreation on minimize
     if (w <= 0 || h <= 0) {
         return;
@@ -110,11 +106,6 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
         return false;
     }
 
-    if (!vk_framebuffers_create(&context)) {
-        RL_ERROR("failed to create framebuffers");
-        return false;
-    }
-
     if (!vk_command_pool_create(&context, &context.graphics_pool, context.queue_families.graphics_index)) {
         RL_ERROR("failed to create command pool");
         return false;
@@ -129,6 +120,16 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
 
     if (!vk_sync_create_transfer(&context)) {
         RL_ERROR("failed to create transfer sync objects");
+        return false;
+    }
+
+    if (!vk_depth_res_create(&context)) {
+        RL_ERROR("failed to create depth resources");
+        return false;
+    }
+
+    if (!vk_framebuffers_create(&context)) {
+        RL_ERROR("failed to create framebuffers");
         return false;
     }
 
