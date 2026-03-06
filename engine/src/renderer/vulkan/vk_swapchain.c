@@ -178,6 +178,7 @@ b8 vk_swapchain_create(VK_Context *context, b8 vsync, b8 from_recreate, VkSwapch
 
 void vk_swapchain_destroy(VK_Context *context) {
     destroy_image_views(context);
+    vkDestroyImageView(context->device, context->depth_image_view, nullptr);
     vkDestroyImage(context->device, context->depth_image, nullptr);
     vkFreeMemory(context->device, context->depth_image_memory, nullptr);
     if (context->swapchain.handle != VK_NULL_HANDLE) {
@@ -211,6 +212,11 @@ b8 vk_swapchain_recreate(VK_Context *context) {
 
     // Now that new swapchain is live, destroy old one
     vkDestroySwapchainKHR(context->device, old_swapchain, nullptr);
+
+    // Destroy old depth resources before recreating at new size
+    vkDestroyImageView(context->device, context->depth_image_view, nullptr);
+    vkDestroyImage(context->device, context->depth_image, nullptr);
+    vkFreeMemory(context->device, context->depth_image_memory, nullptr);
 
     if (!vk_depth_res_create(context)) {
         RL_ERROR("Failed to recreate swapchain: depth resource could not be created");
