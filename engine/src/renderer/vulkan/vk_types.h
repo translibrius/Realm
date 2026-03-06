@@ -126,6 +126,27 @@ typedef struct VK_TextPipeline {
     VK_Font *batch_font; // font used in the current batch (for descriptor binding)
 } VK_TextPipeline;
 
+// Flush segment: records a sub-range of vertices that share a descriptor set (font).
+typedef struct VK_GuiSegment {
+    u32 start_vertex;
+    u32 vertex_count;
+    VK_Font *font;
+} VK_GuiSegment;
+
+#define GUI_MAX_SEGMENTS 128
+
+typedef struct VK_GuiPipeline {
+    VkPipeline handle;
+    VkPipelineLayout layout;
+    VkBuffer *vertex_buffers;
+    VkDeviceMemory *vertex_buffer_memory;
+    void **vertex_buffer_mapped;
+    u32 vertex_count;
+    VK_Font *current_font;
+    VK_GuiSegment segments[GUI_MAX_SEGMENTS];
+    u32 segment_count;
+} VK_GuiPipeline;
+
 typedef struct VK_Shader {
     rl_asset_shader *asset;
     VkShaderModule module;
@@ -210,6 +231,9 @@ typedef struct VK_Context {
 
     // Text
     VK_TextPipeline text_pipeline;
+
+    // GUI (Clay)
+    VK_GuiPipeline gui_pipeline;
 
     mat4 model;
     mat4 view;

@@ -11,6 +11,7 @@
 
 #include "vulkan/vk_renderer.h"
 #include "vulkan/vk_text.h"
+#include "vulkan/vk_gui.h"
 
 typedef struct frontend_state {
     b8 initialized;
@@ -153,6 +154,6 @@ void prepare_interface(RENDERER_BACKEND backend) {
         interface.set_active_window = &vulkan_set_active_window;
         interface.resize_framebuffer = &vulkan_resize_framebuffer;
         interface.submit_frame_data = &vulkan_submit_frame_data;
-        interface.submit_gui_data = nullptr;
+        interface.submit_gui_data = &vulkan_render_gui;
     }
 }

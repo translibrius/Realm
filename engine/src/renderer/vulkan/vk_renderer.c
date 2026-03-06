@@ -15,6 +15,7 @@
 #include "vk_sync.h"
 #include "vk_texture.h"
 #include "vk_text.h"
+#include "vk_gui.h"
 #include "vk_util.h"
 #include "vk_depth.h"
 
@@ -182,6 +183,11 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
         return false;
     }
 
+    if (!vk_gui_pipeline_init(&context)) {
+        RL_ERROR("failed to create GUI pipeline");
+        return false;
+    }
+
     return true;
 }
 
@@ -189,6 +195,7 @@ void vulkan_destroy() {
     // Wait for logical device to finish operations
     vkDeviceWaitIdle(context.device);
 
+    vk_gui_pipeline_destroy(&context);
     vk_text_pipeline_destroy(&context);
     vk_sync_destroy_frame(&context);
     vk_descriptor_destroy_pool(&context);

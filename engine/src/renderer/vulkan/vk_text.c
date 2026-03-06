@@ -15,7 +15,7 @@
 
 #include <string.h>
 
-static VK_Font *vk_find_font(VK_Context *ctx, rl_font *font) {
+VK_Font *vk_find_font(VK_Context *ctx, rl_font *font) {
     for (u32 i = 0; i < ctx->text_pipeline.fonts.count; i++) {
         if (ctx->text_pipeline.fonts.items[i].font == font)
             return &ctx->text_pipeline.fonts.items[i];
