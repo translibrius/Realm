@@ -24,7 +24,6 @@ b8 vk_depth_res_create(VK_Context* ctx) {
     return true;
 }
 
-// Helper
 VkFormat find_depth_format(VK_Context *ctx) {
     VkFormat candidates[3] = {
         VK_FORMAT_D32_SFLOAT,
