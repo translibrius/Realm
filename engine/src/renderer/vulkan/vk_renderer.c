@@ -212,6 +212,7 @@ void update_uniform_buffer(u32 image_index, f64 dt) {
 }
 
 void vulkan_begin_frame(f64 delta_time) {
+    (void)delta_time;
     context.frame_acquired = false;
 
     // Wait for previous frame to finish
@@ -231,8 +232,6 @@ void vulkan_begin_frame(f64 delta_time) {
 
     context.frame_acquired = true;
 
-    update_uniform_buffer(context.current_image_index, delta_time);
-
     // Reset fence and command buffer — recording deferred to end_frame
     vkResetFences(context.device, 1, &context.in_flight_fences[context.current_frame]);
     vkResetCommandBuffer(context.command_buffers[context.current_frame], 0);
@@ -241,6 +240,9 @@ void vulkan_begin_frame(f64 delta_time) {
 void vulkan_end_frame() {
     if (!context.frame_acquired)
         return;
+
+    // Update UBO after submit_frame_data has set light/camera for this frame
+    update_uniform_buffer(context.current_image_index, 0);
 
     // Record command buffer (text vertex data is now ready from submit_frame_data)
     vk_command_buffer_record(&context, context.command_buffers[context.current_frame], context.current_image_index);
@@ -344,7 +346,6 @@ void vulkan_submit_frame_data(rl_frame_data *frame_data) {
 void vulkan_set_view_projection(mat4 view, mat4 projection, vec3 pos) {
     glm_mat4_copy(view, context.view);
     glm_mat4_copy(projection, context.proj);
-    context.proj[1][1] *= -1;
     glm_vec3_copy(pos, context.camera_pos);
 }
 

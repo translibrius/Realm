@@ -112,7 +112,7 @@ b8 vk_texture_create(VK_Context *ctx, VK_Texture *vk_texture) {
         ctx,
         texture->width,
         texture->height,
-        VK_FORMAT_R8G8B8A8_SRGB,
+        VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
@@ -122,14 +122,14 @@ b8 vk_texture_create(VK_Context *ctx, VK_Texture *vk_texture) {
         return false;
     }
 
-    vk_image_transition_layout(ctx, vk_texture->texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    vk_image_transition_layout(ctx, vk_texture->texture_image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     vk_buffer_copy_to_image(ctx, staging_buffer, vk_texture->texture_image, texture->width, texture->height);
-    vk_image_transition_layout(ctx, vk_texture->texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    vk_image_transition_layout(ctx, vk_texture->texture_image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     vkDestroyBuffer(ctx->device, staging_buffer, nullptr);
     vkFreeMemory(ctx->device, staging_buffer_memory, nullptr);
 
-    vk_image_view_create(ctx, VK_IMAGE_ASPECT_COLOR_BIT, vk_texture->texture_image, VK_FORMAT_R8G8B8A8_SRGB, &vk_texture->texture_image_view);
+    vk_image_view_create(ctx, VK_IMAGE_ASPECT_COLOR_BIT, vk_texture->texture_image, VK_FORMAT_R8G8B8A8_UNORM, &vk_texture->texture_image_view);
 
     return true;
 }

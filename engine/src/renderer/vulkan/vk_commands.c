@@ -81,11 +81,14 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
 
     vkCmdBeginRenderPass(buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
     {
+        // Negative height flips Y to match OpenGL conventions without
+        // affecting winding order (unlike proj[1][1] *= -1).
+        f32 vp_h = (f32)context->swapchain.chosen_extent.height;
         VkViewport viewport = {
             .x = 0.0f,
-            .y = 0.0f,
+            .y = vp_h,
             .width = (f32)context->swapchain.chosen_extent.width,
-            .height = (f32)context->swapchain.chosen_extent.height,
+            .height = -vp_h,
             .minDepth = 0.0f,
             .maxDepth = 1.0f
         };

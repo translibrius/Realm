@@ -173,6 +173,7 @@ b8 opengl_initialize(platform_window *platform_window, b8 vsync) {
     }
 
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
 
     context.cube_mesh = gl_mesh_create_cube();
 
