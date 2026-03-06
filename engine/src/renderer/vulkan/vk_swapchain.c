@@ -116,13 +116,13 @@ b8 vk_swapchain_create(VK_Context *context, b8 vsync, b8 from_recreate, VkSwapch
         max_image_count = context->swapchain.capabilities2.surfaceCapabilities.maxImageCount;
     }
 
-    context->max_frames_in_flight = RL_CLAMP(preferred_image_count, min_image_count, max_image_count);
+    u32 requested_image_count = RL_CLAMP(preferred_image_count, min_image_count, max_image_count);
 
     VkSwapchainCreateInfoKHR create_info = {
         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
         .pNext = nullptr,
         .surface = context->surface,
-        .minImageCount = context->max_frames_in_flight,
+        .minImageCount = requested_image_count,
         .imageFormat = context->swapchain.chosen_format.surfaceFormat.format,
         .imageColorSpace = context->swapchain.chosen_format.surfaceFormat.colorSpace,
         .imageExtent = context->swapchain.chosen_extent,
@@ -159,13 +159,12 @@ b8 vk_swapchain_create(VK_Context *context, b8 vsync, b8 from_recreate, VkSwapch
     // Retrieve swapchain images
     context->swapchain.image_count = 0;
     vkGetSwapchainImagesKHR(context->device, context->swapchain.handle, &context->swapchain.image_count, nullptr);
-    if (context->swapchain.image_count < context->max_frames_in_flight) {
-        RL_ERROR("wrong swapchain setup");
+    if (context->swapchain.image_count == 0) {
+        RL_ERROR("Swapchain returned zero images");
         return false;
     }
-    context->max_frames_in_flight = context->swapchain.image_count;
 
-    context->swapchain.images = mem_alloc(sizeof(VkImage) * context->max_frames_in_flight, MEM_SUBSYSTEM_RENDERER);
+    context->swapchain.images = mem_alloc(sizeof(VkImage) * context->swapchain.image_count, MEM_SUBSYSTEM_RENDERER);
     vkGetSwapchainImagesKHR(context->device, context->swapchain.handle, &context->swapchain.image_count, context->swapchain.images);
 
     create_image_views(context);
@@ -263,13 +262,12 @@ void destroy_image_views(VK_Context *context) {
 
     if (context->swapchain.images) {
         mem_free(context->swapchain.images,
-                 sizeof(VkImage) * context->max_frames_in_flight,
+                 sizeof(VkImage) * context->swapchain.image_count,
                  MEM_SUBSYSTEM_RENDERER);
         context->swapchain.images = nullptr;
     }
 
     context->swapchain.image_count = 0;
-    context->max_frames_in_flight = 0;
 }
 
 VkExtent2D vk_swapchain_choose_extent(VK_Context *context) {

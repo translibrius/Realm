@@ -285,13 +285,13 @@ b8 vk_device_init(VK_Context *context) {
     u32 physical_device_count = 0;
     vkEnumeratePhysicalDevices(context->instance, &physical_device_count, nullptr);
 
-    RL_TRACE("Vulkan physical devices found: %lu", physical_device_count);
-    if (physical_device_count <= 0) {
+    RL_TRACE("Vulkan physical devices found: %u", physical_device_count);
+    if (physical_device_count == 0) {
         RL_ERROR("Vulkan failed to find a supported GPU");
         return false;
     }
 
-    VkPhysicalDevice *physical_devices = rl_arena_push(scratch.arena, sizeof(VkPhysicalDevice) * physical_device_count, MEM_SUBSYSTEM_RENDERER);
+    VkPhysicalDevice *physical_devices = rl_arena_push(scratch.arena, sizeof(VkPhysicalDevice) * physical_device_count, true);
     vkEnumeratePhysicalDevices(context->instance, &physical_device_count, physical_devices);
 
     VkCandidate best = {0};
@@ -357,11 +357,11 @@ b8 vk_device_init(VK_Context *context) {
         }
 
         vk_swapchain_fetch_support(context, physical_devices[i]);
-        if (context->swapchain.format_count < 0) {
+        if (context->swapchain.format_count == 0) {
             RL_TRACE("    Skipped: no swapchain formats found");
             continue;
         }
-        if (context->swapchain.present_mode_count < 0) {
+        if (context->swapchain.present_mode_count == 0) {
             RL_TRACE("    Skipped: no swapchain presentation modes found");
             continue;
         }
@@ -469,6 +469,7 @@ b8 vk_device_init(VK_Context *context) {
         .properties = best.props.properties,
         .features = best.feats.features
     };
+    vkGetPhysicalDeviceMemoryProperties(context->physical_device, &context->device_properties.memory_properties);
 
     RL_INFO("Successfully created vulkan device");
 
@@ -477,6 +478,5 @@ b8 vk_device_init(VK_Context *context) {
 }
 
 void vk_device_destroy(VK_Context *context) {
-    (void)context;
     vkDestroyDevice(context->device, nullptr);
 }

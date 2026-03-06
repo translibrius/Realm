@@ -15,8 +15,8 @@
 #include <shaderc/shaderc.h>
 
 #ifndef _DEBUG
-#define VK_CHECK(vkFnc) vkFnc
-#define VK_CHECK_RETURN_FALSE(vkFnc, msg) vkFnc
+#define VK_CHECK(vkFnc) do { VkResult _r = (vkFnc); if (_r != VK_SUCCESS) RL_ERROR("VK: %s", string_VkResult(_r)); } while(0)
+#define VK_CHECK_RETURN_FALSE(vkFnc, msg) do { VkResult _r = (vkFnc); if (_r != VK_SUCCESS) { RL_ERROR("%s VkResult=%s", msg, string_VkResult(_r)); return false; } } while(0)
 #else
 #define VK_CHECK(vkFnc)                                                 \
 {                                                                       \
@@ -87,6 +87,7 @@ typedef struct VK_Swapchain {
 typedef struct VK_DeviceProperties {
     VkPhysicalDeviceProperties properties;
     VkPhysicalDeviceFeatures features;
+    VkPhysicalDeviceMemoryProperties memory_properties;
 } VK_DeviceProperties;
 
 typedef struct VK_Texture {

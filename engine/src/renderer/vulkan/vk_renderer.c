@@ -40,6 +40,7 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
     context = (VK_Context){0};
     rl_arena_init(&context.arena, MiB(25), MiB(2), MEM_SUBSYSTEM_RENDERER);
 
+    context.max_frames_in_flight = 2;
     context.window = window;
     glm_mat4_identity(context.view);
     glm_mat4_identity(context.proj);
@@ -51,6 +52,7 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
 
     if (!platform_create_vulkan_surface(&context)) {
         RL_ERROR("failed to create vulkan surface");
+        return false;
     }
 
     if (!vk_device_init(&context)) {
@@ -171,7 +173,7 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
     return true;
 }
 
-void vulkan_destroy() {
+void vulkan_destroy(void) {
     vkDeviceWaitIdle(context.device);
 
     vk_gui_pipeline_destroy(&context);
@@ -229,6 +231,7 @@ void vulkan_begin_frame(f64 delta_time) {
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         vk_swapchain_recreate(&context);
+        context.current_frame = 0;
         return;
     }
 
@@ -243,12 +246,12 @@ void vulkan_begin_frame(f64 delta_time) {
     vkResetCommandBuffer(context.command_buffers[context.current_frame], 0);
 }
 
-void vulkan_end_frame() {
+void vulkan_end_frame(void) {
     if (!context.frame_acquired)
         return;
 
     // Update UBO after submit_frame_data has set light/camera for this frame
-    update_uniform_buffer(context.current_image_index, 0);
+    update_uniform_buffer(context.current_frame, 0);
 
     // Record command buffer (text vertex data is now ready from submit_frame_data)
     vk_command_buffer_record(&context, context.command_buffers[context.current_frame], context.current_image_index);
@@ -286,6 +289,8 @@ void vulkan_end_frame() {
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || context.framebuffer_resized) {
         context.framebuffer_resized = false;
         vk_swapchain_recreate(&context);
+        context.current_frame = 0;
+        return;
     } else if (result != VK_SUCCESS) {
         RL_FATAL("failed to present swap chain image");
     }
@@ -294,7 +299,7 @@ void vulkan_end_frame() {
     context.current_frame = (context.current_frame + 1) % context.max_frames_in_flight;
 }
 
-void vulkan_swap_buffers() {
+void vulkan_swap_buffers(void) {
 }
 
 void vulkan_set_vsync(b8 vsync) {
@@ -355,7 +360,7 @@ void vulkan_set_view_projection(mat4 view, mat4 projection, vec3 pos) {
     glm_vec3_copy(pos, context.camera_pos);
 }
 
-platform_window *vulkan_get_active_window() {
+platform_window *vulkan_get_active_window(void) {
     return context.window;
 }
 

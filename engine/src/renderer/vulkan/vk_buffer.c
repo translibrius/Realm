@@ -2,11 +2,10 @@
 #include "vk_util.h"
 
 u32 find_memory_type(VK_Context *context, u32 type_filter, VkMemoryPropertyFlags properties) {
-    VkPhysicalDeviceMemoryProperties mem_properties;
-    vkGetPhysicalDeviceMemoryProperties(context->physical_device, &mem_properties);
+    const VkPhysicalDeviceMemoryProperties *mem_properties = &context->device_properties.memory_properties;
 
-    for (u32 i = 0; i < mem_properties.memoryTypeCount; i++) {
-        if ((type_filter & (1 << i)) && (mem_properties.memoryTypes[i].propertyFlags & properties) == properties) {
+    for (u32 i = 0; i < mem_properties->memoryTypeCount; i++) {
+        if ((type_filter & (1 << i)) && (mem_properties->memoryTypes[i].propertyFlags & properties) == properties) {
             return i;
         }
     }
@@ -89,8 +88,8 @@ VkCommandBuffer vk_buffer_begin_single_use(VK_Context *ctx, VkCommandPool cmd_po
     alloc_info.commandPool = cmd_pool;
     alloc_info.commandBufferCount = 1;
 
-    VkCommandBuffer cmd_buffer;
-    vkAllocateCommandBuffers(ctx->device, &alloc_info, &cmd_buffer);
+    VkCommandBuffer cmd_buffer = VK_NULL_HANDLE;
+    VK_CHECK(vkAllocateCommandBuffers(ctx->device, &alloc_info, &cmd_buffer));
 
     VkCommandBufferBeginInfo begin_info = {0};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -109,7 +108,7 @@ void vk_buffer_end_single_use(VK_Context *ctx, VkCommandPool cmd_pool, VkCommand
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &cmd_buffer;
 
-    vkQueueSubmit(q, 1, &submitInfo, VK_NULL_HANDLE);
+    VK_CHECK(vkQueueSubmit(q, 1, &submitInfo, VK_NULL_HANDLE));
     vkQueueWaitIdle(q);
 
     vkFreeCommandBuffers(ctx->device, cmd_pool, 1, &cmd_buffer);
