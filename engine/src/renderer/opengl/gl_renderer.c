@@ -187,7 +187,7 @@ void opengl_destroy() {
 void opengl_begin_frame(f64 delta_time) {
     (void)delta_time;
 
-    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+    glClearColor(RL_CLEAR_COLOR_R, RL_CLEAR_COLOR_G, RL_CLEAR_COLOR_B, RL_CLEAR_COLOR_A);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 

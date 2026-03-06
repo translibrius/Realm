@@ -394,16 +394,16 @@ i32 score_format(VkSurfaceFormatKHR *f) {
         s -= 50;
 
     switch (f->format) {
-    case VK_FORMAT_B8G8R8A8_SRGB:
+    case VK_FORMAT_B8G8R8A8_UNORM:
         s += 400;
         break;
-    case VK_FORMAT_R8G8B8A8_SRGB:
+    case VK_FORMAT_R8G8B8A8_UNORM:
         s += 350;
         break;
-    case VK_FORMAT_B8G8R8A8_UNORM:
+    case VK_FORMAT_B8G8R8A8_SRGB:
         s += 200;
         break;
-    case VK_FORMAT_R8G8B8A8_UNORM:
+    case VK_FORMAT_R8G8B8A8_SRGB:
         s += 150;
         break;
     // 8-bit BGRA/RGBA with some unusual space

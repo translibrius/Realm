@@ -1,6 +1,7 @@
 #include "vk_commands.h"
 #include "vk_gui.h"
 #include "vk_util.h"
+#include "renderer/renderer_backend.h"
 
 b8 vk_command_pool_create(VK_Context *context, VkCommandPool *out_pool, u32 family_index) {
 
@@ -70,7 +71,7 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
     }
 
     VkClearValue clear_values[2] = {
-        (VkClearValue) {.color = {0.0f, 0.0f, 0.0f, 1.0f}},
+        (VkClearValue) {.color = {RL_CLEAR_COLOR_R, RL_CLEAR_COLOR_G, RL_CLEAR_COLOR_B, RL_CLEAR_COLOR_A}},
         (VkClearValue) {.depthStencil = {1.0f, 0.0f}}
     };
 
