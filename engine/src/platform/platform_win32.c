@@ -24,6 +24,7 @@
 #include "memory/memory.h"
 #include "platform/input.h"
 #include "renderer/vulkan/vk_types.h"
+#include "renderer/vulkan/vk_util.h"
 #include "util/assert.h"
 
 #define CREATE_DANGEROUS_WINDOW (WM_USER + 0x1337)

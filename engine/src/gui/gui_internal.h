@@ -8,4 +8,4 @@
 
 // Auto-ID generator for widgets that need a stable Clay_ElementId across frames
 // (scroll containers, floating windows). Defined in gui_id.c.
-u32 gui__next_id(void);
+REALM_API u32 gui__next_id(void);

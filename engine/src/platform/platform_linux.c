@@ -35,6 +35,7 @@
 #include <GL/glx.h>
 
 #include "renderer/vulkan/vk_types.h"
+#include "renderer/vulkan/vk_util.h"
 
 typedef struct linux_window {
     Window xwindow;
