@@ -206,7 +206,8 @@ typedef struct VK_Context {
     u32 max_frames_in_flight;
     VkCommandBuffer *command_buffers;
     VkSemaphore *image_available_semaphores;
-    VkSemaphore *render_finished_semaphores;
+    VkSemaphore *render_finished_semaphores; // Per swapchain image (not per frame-in-flight)
+    u32 render_finished_semaphore_count;
     VkFence *in_flight_fences;
     VkBuffer *uniform_buffers;
     VkDeviceMemory *uniform_buffers_memory;

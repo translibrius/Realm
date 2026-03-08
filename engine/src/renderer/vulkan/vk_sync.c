@@ -2,8 +2,14 @@
 
 b8 vk_sync_create_frame(VK_Context *context) {
     context->image_available_semaphores = rl_arena_push(&context->arena, sizeof(VkSemaphore) * context->max_frames_in_flight, true);
-    context->render_finished_semaphores = rl_arena_push(&context->arena, sizeof(VkSemaphore) * context->max_frames_in_flight, true);
     context->in_flight_fences = rl_arena_push(&context->arena, sizeof(VkFence) * context->max_frames_in_flight, true);
+
+    // Render-finished semaphores are per swapchain image, not per frame-in-flight.
+    // The presentation engine holds onto the semaphore until the image is re-acquired,
+    // so indexing by frame-in-flight can cause reuse before the semaphore is released.
+    u32 image_count = context->swapchain.image_count;
+    context->render_finished_semaphore_count = image_count;
+    context->render_finished_semaphores = rl_arena_push(&context->arena, sizeof(VkSemaphore) * image_count, true);
 
     VkSemaphoreCreateInfo semaphore_create = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
@@ -21,15 +27,17 @@ b8 vk_sync_create_frame(VK_Context *context) {
             return false;
         }
 
-        result = vkCreateSemaphore(context->device, &semaphore_create, nullptr, &context->render_finished_semaphores[i]);
-        if (result != VK_SUCCESS) {
-            RL_ERROR("Failed to create semaphore");
-            return false;
-        }
-
         result = vkCreateFence(context->device, &fence_create, nullptr, &context->in_flight_fences[i]);
         if (result != VK_SUCCESS) {
             RL_ERROR("Failed to create fence");
+            return false;
+        }
+    }
+
+    for (u32 i = 0; i < image_count; i++) {
+        VkResult result = vkCreateSemaphore(context->device, &semaphore_create, nullptr, &context->render_finished_semaphores[i]);
+        if (result != VK_SUCCESS) {
+            RL_ERROR("Failed to create semaphore");
             return false;
         }
     }
@@ -40,8 +48,10 @@ b8 vk_sync_create_frame(VK_Context *context) {
 void vk_sync_destroy_frame(VK_Context *context) {
     for (u32 i = 0; i < context->max_frames_in_flight; i++) {
         vkDestroySemaphore(context->device, context->image_available_semaphores[i], nullptr);
-        vkDestroySemaphore(context->device, context->render_finished_semaphores[i], nullptr);
         vkDestroyFence(context->device, context->in_flight_fences[i], nullptr);
+    }
+    for (u32 i = 0; i < context->render_finished_semaphore_count; i++) {
+        vkDestroySemaphore(context->device, context->render_finished_semaphores[i], nullptr);
     }
 }
 

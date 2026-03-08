@@ -259,7 +259,7 @@ void vulkan_end_frame(void) {
     // Submit
     VkSemaphore wait_semaphores[] = {context.image_available_semaphores[context.current_frame]};
     VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    VkSemaphore signal_semaphores[] = {context.render_finished_semaphores[context.current_frame]};
+    VkSemaphore signal_semaphores[] = {context.render_finished_semaphores[context.current_image_index]};
 
     VkSubmitInfo submit_info = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
