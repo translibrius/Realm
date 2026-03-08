@@ -33,6 +33,8 @@ void vk_shader_destroy_compiler(VK_Context *context) {
     shaderc_compile_options_release(context->shader_compiler.options);
     shaderc_compiler_release(context->shader_compiler.compiler);
 
+    da_free(&context->shaders);
+
     context->shader_compiler.compiler = nullptr;
     context->shader_compiler.options = nullptr;
     context->shader_compiler.initialized = false;
@@ -96,15 +98,14 @@ b8 vk_shader_module_compile(VK_Context *context, ASSET_ID asset_id) {
         .pCode = codePtr
     };
 
-    VK_Shader *vk_shader = rl_arena_push(&context->arena, sizeof(VK_Shader), true);
-    vk_shader->asset = asset_shader;
-    if (vkCreateShaderModule(context->device, &createInfo, nullptr, &vk_shader->module) != VK_SUCCESS) {
+    VK_Shader vk_shader = {.asset = asset_shader};
+    if (vkCreateShaderModule(context->device, &createInfo, nullptr, &vk_shader.module) != VK_SUCCESS) {
         RL_ERROR("Failed to create VkShaderModule for '%s'", filename);
         shaderc_result_release(result);
         return false;
     }
 
-    da_append(&context->shaders, *vk_shader);
+    da_append(&context->shaders, vk_shader);
 
     shaderc_result_release(result);
 

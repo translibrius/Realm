@@ -1,204 +1,112 @@
-# Vulkan Backend Architecture Review
+# Vulkan Backend Review — Open Items
 
-## Overall Assessment
-
-The backend is in genuinely solid shape for a personal engine. The file decomposition is excellent — each concern has its own file pair, the naming is consistent, and the `VK_Context` acts as a clean single-state root. The `renderer_interface` vtable pattern is well-done and the game module never touches Vulkan types. You've done the hard parts right.
-
-What follows is organized by severity: correctness issues first, then architectural debt, then the "good path to the future" items.
+Reviewed against codebase as of 2026-03-08. All previously fixed items (1a, 1b, 1d–1i, 1j–1n, 1p–1r, 3h) have been removed.
 
 ---
 
-## 1. Correctness / Safety Issues
+## 1. Correctness / Safety
 
-### ~~1a. `max_frames_in_flight` changes on swapchain recreation — per-frame arrays don't~~ FIXED
+### 1c. Single-use command submit uses `vkQueueWaitIdle` [M, defer]
 
-### ~~1b. `VK_CHECK` / `VK_CHECK_RETURN_FALSE` are no-ops in release~~ FIXED
+`vk_buffer.c` — `vk_buffer_end_single_use` stalls the entire queue. `transfer_fence` exists in `VK_Context` (created in `vk_sync.c`) but is never used. Fine during init, blocks runtime streaming. **Defer until runtime texture/mesh streaming is needed.**
 
-### 1c. Single-use command buffer submission has no fence — relies on `vkQueueWaitIdle`
+### 1o. No format feature check before mipmap blit [S]
 
-`vk_buffer.c` — `vk_buffer_end_single_use` calls `vkQueueWaitIdle` which stalls the entire queue. During init this is fine, but if you ever use this at runtime (e.g. streaming texture uploads), it will be a hard stall. You created `transfer_fence` but never use it.
+`vk_texture_upload` uses `vkCmdBlitImage` with `VK_FILTER_LINEAR` without checking `VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT`. Could fail on some formats/drivers.
+**Fix**: call `vkGetPhysicalDeviceFormatProperties`, fall back to non-mipmapped or nearest filter.
 
-### ~~1d. `find_memory_type` calls `vkGetPhysicalDeviceMemoryProperties` every time~~ FIXED
+### 1s. Arena accumulation on swapchain resize [S, low risk]
 
-### ~~1e. Missing `return false` after surface creation failure~~ FIXED
-
-### ~~1f. `vk_depth_res_create` — unchecked return values~~ FIXED
-
-### ~~1g. `vk_buffer_begin_single_use` — unchecked `vkAllocateCommandBuffers`~~ FIXED
-
-### ~~1h. `vk_device.c` — unsigned < 0 comparisons (dead branches)~~ FIXED
-
-### ~~1i. `vk_device.c:294` — wrong third argument to `rl_arena_push`~~ FIXED
-
-### 1j. Resource leaks on partial creation failure
-
-In both `vk_buffer_create` and `vk_texture_upload`: if `vkAllocateMemory` fails after `vkCreateBuffer`/`vkCreateImage` succeeds, the already-created buffer/image is **not destroyed** — resource leak on the error path.
-
-### ~~1k. `vk_buffer_end_single_use` — unchecked `vkQueueSubmit`~~ FIXED
-
-### ~~1l. `vk_device.c:288` — format string mismatch~~ FIXED
-
-### ~~1m. `vk_renderer.h` — `()` instead of `(void)` in declarations~~ FIXED
-
-### ~~1n. `vk_device.c:479-482` — misleading `(void)context`~~ FIXED
-
-### 1o. No blit format feature check before mipmap generation
-
-`vk_texture_upload` generates mipmaps via `vkCmdBlitImage` with `VK_FILTER_LINEAR`, but never checks if the format supports `VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT`. Could fail silently on some formats/drivers.
-
-### 1p. Redundant depth layout transition in `vk_depth_res_create`
-
-The explicit `vk_image_transition_layout` call (which submits a single-use command buffer) transitions the depth image to `DEPTH_STENCIL_ATTACHMENT_OPTIMAL`. But the render pass already handles this transition via `initialLayout = UNDEFINED` → `finalLayout = DEPTH_STENCIL_ATTACHMENT_OPTIMAL`. This is a wasted GPU submit at init time.
-
-### 1q. `vk_shader_module_compile` — wasted arena allocation
-
-Line 99 does `rl_arena_push(&context->arena, sizeof(VK_Shader), ...)` to create a `VK_Shader` on the arena, then line 107 does `da_append(&context->shaders, *vk_shader)` which copies it into the DA's heap storage. The arena allocation is never referenced again — wasted arena space.
-
-### 1r. `vk_descriptor_sets_allocate` — uses permanent arena for temporary data
-
-The temporary `layouts` array (one `VkDescriptorSetLayout` per set) is allocated from `context->arena` instead of a scratch arena. This accumulates permanently. Should use `ARENA_SCRATCH_START`/`RELEASE`.
-
-### 1s. Arena accumulation on swapchain resize
-
-Each swapchain recreation `rl_arena_push`es new framebuffer/image-view arrays without reclaiming old ones (arenas don't support individual frees). Over many resizes this accumulates. With a 25 MiB arena and small allocations this is unlikely to be a practical problem, but worth noting.
+Each swapchain recreation pushes new framebuffer/image-view arrays without reclaiming old ones. With a 25 MiB arena and small allocations, unlikely to be practical. **Low priority** — would need arena reset or sub-arena for swapchain resources to properly fix.
 
 ---
 
-## 2. Feature Parity Gaps (VK behind GL)
+## 2. Feature Parity (VK behind GL)
 
-These are the spots where the Vulkan backend silently ignores data the game is submitting:
+| Feature | GL behavior | VK behavior | Fix approach |
+|---------|------------|-------------|--------------|
+| `material.specular` | Per-mesh uniform | Hardcoded `vec3(0.5)` in `triangle.frag` | Expand push constants: `mat4 + vec4` (pack specular.xyz + shininess in w) |
+| `material.shininess` | Per-mesh uniform | Hardcoded `32.0` in `triangle.frag` | Same push constant expansion |
+| `material.diffuse_map` | Selects between 2 textures per-mesh | Always `texture_wood` | Per-material descriptor sets (font segment pattern exists) |
+| Per-mesh wireframe | `glPolygonMode` per draw call | Only global `debug_wireframe` toggle | Read `rl_frame_mesh.wireframe` in `vk_commands.c` and bind wireframe pipeline per-mesh |
+| Multiple point lights | Uses first only | Uses first only | Same gap in both — expand UBO + shader loop |
 
-| Feature | GL | VK | Impact |
-|---------|----|----|--------|
-| `material.diffuse_map` (texture selection) | 2 textures, selects per-mesh | Always `texture_wood` | Every mesh gets same texture |
-| `material.specular` | Per-mesh uniform | Hardcoded `vec3(0.5)` in shader | No specular variation |
-| `material.shininess` | Per-mesh uniform | Hardcoded `32.0` in shader | No shininess variation |
-| Per-mesh wireframe | `glPolygonMode` per draw | Ignored | Only global wireframe works |
-| Multiple point lights | Uses first only (both) | Uses first only (both) | Same — but worth noting |
-
-The material gap is the biggest one. The VK shader (`triangle.frag`) hardcodes specular/shininess. To fix: expand push constants from `mat4` (64 bytes) to `mat4 + vec4` (80 bytes, pack specular.xyz + shininess into the w), and add it to the shader. That's a small change.
-
-For texture selection, you'll need either a texture array + push constant index, or bindless textures, or per-material descriptor sets. The latter is what your text pipeline already does (per-font descriptor set with segment batching) — the pattern exists in your codebase.
+**Material push constants** is the highest-impact parity fix (~1-2 hours, touches `vk_commands.c` + `triangle.frag`).
 
 ---
 
-## 3. Architectural Debt / Tutorial Leftovers
+## 3. Architectural Debt
 
-### 3a. One `VkDeviceMemory` per buffer/image — no allocator
+### 3a. One `VkDeviceMemory` per resource — no sub-allocator [L, blocking for model loading]
 
-Every `vk_buffer_create` and `vk_texture_upload` does its own `vkAllocateMemory`. Vulkan has a hard limit on allocations (~4096 on most drivers). With 100 textures + 100 buffers + per-frame resources you'll hit it.
+Every `vk_buffer_create` and `vk_texture_upload` calls `vkAllocateMemory` individually. Vulkan drivers limit allocations to ~4096. With model loading adding many buffers/textures, this will hit the limit.
+**Fix**: implement a bump sub-allocator per memory type, or integrate VMA. **Must be done before or alongside model/mesh loading.**
 
-**Future path**: Implement a simple sub-allocator (bump allocator per memory type is fine for now, or integrate VMA). This doesn't block you today but will block you when you add more assets.
+### 3b. Hardcoded single cube geometry [L, blocking for model loading]
 
-### 3b. Hardcoded single cube geometry
+`VK_Context` has `cube_vertex_buffer`/`cube_vertex_count`. `rl_frame_primitive` only has `RL_FRAME_PRIMITIVE_CUBE`. Path forward:
+- Add a mesh registry (handle → VkBuffer + count)
+- `rl_frame_mesh` carries a mesh handle instead of primitive enum
+- Command recording looks up buffer by handle
 
-`VK_Context` has `cube_vertex_buffer`/`cube_vertex_count` and command recording always draws from it. `rl_frame_primitive` has only `RL_FRAME_PRIMITIVE_CUBE`. This is obviously temporary, but the path forward is:
-- Add a mesh registry (handle -> VkBuffer+count)
-- `rl_frame_mesh` carries a mesh handle instead of a primitive enum
-- Command recording looks up the buffer by handle
+### 3c. Unlit pipeline duplicates creation + dead code [S]
 
-### 3c. Pipeline proliferation
+`vk_unlit_pipeline_create` manually builds all pipeline state instead of using `vk_pipeline_create_graphics` with `VK_PipelineConfig` (which the lit and wireframe pipelines already use). Also has dead `layout_ci` code (`(void)layout_ci`).
+**Fix**: refactor to use `VK_PipelineConfig` like the other pipelines, remove dead code.
 
-You have 6 pipeline objects: lit, unlit, wireframe-lit, wireframe-unlit, text, GUI. Each is created with slightly different boilerplate. `vk_unlit_pipeline_create` manually duplicates the entire pipeline creation instead of using `vk_pipeline_create_graphics` with a config (which you already have!). The wireframe function *does* use the config, showing the pattern works. The unlit function should too.
+### 3d. Render pass coupled to `VK_Pipeline` struct [M]
 
-Also, `vk_unlit_pipeline_create` creates a `layout_ci` struct (lines 275-281) that it never uses — it's dead code (`(void)layout_ci` on line 303).
+`VK_Pipeline` stores `render_pass`, `descriptor_set_layout`, `pipeline_layout`, AND the pipeline handle. Render pass and descriptor set layout are shared by all pipelines, forcing `context->graphics_pipeline.render_pass` references everywhere.
+**Fix**: move `render_pass` and the 3D descriptor set layout onto `VK_Context` directly. `VK_Pipeline` becomes just `handle + layout`.
 
-### 3d. The `VK_Pipeline` struct on `VK_Context` conflates "main 3D pipeline" with "render pass owner"
+### 3e. Shaders named `triangle.*` instead of `default.*` [S]
 
-`context->graphics_pipeline` stores the render pass, the descriptor set layout, the pipeline layout, AND the pipeline handle. The render pass is shared by all pipelines, and the descriptor set layout is used by unlit and wireframe pipelines too. This coupling means you reach through `context->graphics_pipeline.render_pass` and `context->graphics_pipeline.layout` from everywhere.
+VK 3D shaders are `triangle.vert`/`triangle.frag` (tutorial leftover). GL equivalents are `default.vert`/`default.frag`. Rename + update `ASSET_ID` enum references.
 
-**Cleaner**: Pull render pass and the 3D descriptor set layout out of `VK_Pipeline` and onto `VK_Context` directly. The `VK_Pipeline` struct then just holds `handle + layout`.
+### 3f. Default light values duplicated [S]
 
-### 3e. Shader naming: `triangle.vert/frag` vs `default.vert/frag`
+Fallback light `{1.2, 1.0, 2.0}` with ambient/diffuse/specular values copy-pasted in both `gl_renderer.c` and `vk_renderer.c`.
+**Fix**: define once in `frame_data.h` or a shared helper.
 
-The VK 3D shaders are named "triangle" (tutorial leftover), the GL ones are named "default". Same purpose, confusing asymmetry.
+### 3g. `vk_util.h` — ~650 lines of `static inline` switches [S]
 
-### 3f. Default light values duplicated
+`string_VkResult()` (~100 lines) and `string_VkFormat()` (~535 lines) are `static inline` in a header. Every includer gets its own copy.
+**Fix**: move to `vk_util.c`, keep declarations in header.
 
-The fallback light `{1.2, 1.0, 2.0}` is copy-pasted in both `gl_renderer.c` and `vk_renderer.c`. Should live in one place (e.g. a `frame_data_defaults()` helper or a constant in `frame_data.h`).
+### 3i. Duplicated shader compile functions [M]
 
-### 3g. `vk_util.h` — large functions in a header
-
-`string_VkResult()` and `string_VkFormat()` are ~650 lines of switch statements defined as `static inline` in a header. Every `.c` file that includes it gets its own copy compiled, bloating the binary. Should be moved to a `.c` file.
-
-### 3h. Dynamic array leaks
-
-Both `context->shaders` (shader DA) and `tp->fonts` (font DA) are initialized with `da_init_with_cap` which heap-allocates, but neither is freed with `da_free` during shutdown.
-
-### 3i. Shader compilation code duplication
-
-`vk_shader_module_compile` and `vk_shader_compile_to_module` are 90% identical. The first stores in the DA, the second returns directly. Should share a common core.
+`vk_shader_module_compile` and `vk_shader_compile_to_module` (`vk_shader.c`) are ~90% identical. First stores result in DA, second returns directly.
+**Fix**: extract shared core, have both call it.
 
 ---
 
-## 4. Things That Are Good (Keep Doing These)
+## 4. Recommended Work Order
 
-- **File decomposition**: Each Vulkan concern has its own `.c/.h` — instance, device, swapchain, pipeline, texture, commands, etc. This is exactly right and makes adding features surgical.
-- **`VK_PipelineConfig` struct**: The generic pipeline builder takes a config and produces a pipeline. This is the right abstraction — all future pipelines should go through it.
-- **Negative-height viewport for Y-flip**: Clean solution, avoids the `proj[1][1] *= -1` hack that breaks winding order.
-- **GUI segment batching**: The `VK_GuiSegment` system that batches vertices by font descriptor set is well-designed. It minimizes descriptor set switches during GUI rendering.
-- **Text pipeline writing into GUI vertex buffer**: Smart shared buffer approach — avoids a separate draw pass for text.
-- **Arena-based allocation for Vulkan metadata**: Using `ctx->arena` for descriptor set arrays, command buffers, etc. avoids scattered heap allocations.
-- **Swapchain format scoring**: Nice touch scoring formats by preference instead of just picking the first match.
-- **Texture upload with mip generation**: The blit-chain mipmap generation with proper layout transitions is correct and well-structured.
-- **Frame arena for mesh list copy**: Correctly identifies that game-stack data won't survive to command recording time.
-- **Swapchain recreation**: Proper old-swapchain handoff, depth recreation, framebuffer rebuild. Handles `VK_ERROR_OUT_OF_DATE_KHR` and `VK_SUBOPTIMAL_KHR` correctly.
-- **Wireframe capability check**: Guards wireframe pipeline creation behind `fillModeNonSolid` feature query.
-- **Transfer queue preference**: Device selection prefers a dedicated transfer queue family, with correct fallback to graphics queue.
+Quick wins first, then parity, then structural work needed for model loading:
 
----
+1. **Quick cleanup** [~30 min]: 3e, 3f — remaining small mechanical fixes
+2. **Material parity** [~1-2 hours]: push constant expansion + shader update (biggest visual improvement)
+3. **Unlit pipeline cleanup** [~30 min]: 3c — use `VK_PipelineConfig`, remove dead code
+4. **Extract render pass** [~1-2 hours]: 3d — decouple before adding more pipelines
+5. **Memory sub-allocator** [~4+ hours]: 3a — required before model loading
+6. **Mesh registry + model loading** [~4+ hours]: 3b — the big feature unlock
+7. **Remaining cleanup**: 3g, 3i, 1o, per-mesh wireframe, multi-texture support
 
-## 5. Recommended Priority Path
-
-If developing this further, this would be the recommended order:
-
-1. ~~**Fix `max_frames_in_flight` pinning**~~ DONE
-2. ~~**Fix missing `return false` after surface creation failure**~~ DONE
-3. ~~**Enable VK_CHECK in release**~~ DONE
-4. **Add material push constants** (specular + shininess parity — 1-2 hours, touches shader + commands)
-5. **Rename `triangle.*` shaders to `default.*`** (housekeeping — 5 min)
-6. **Extract render pass from `VK_Pipeline`** (cleanup — makes adding pipelines cleaner)
-7. **Multi-texture support** via per-material descriptor sets following the font segment pattern you already have
-8. **Mesh registry** replacing the hardcoded cube
-9. **Sub-allocator** when you start loading more assets
-10. **Move `vk_util.h` large functions to `.c`** (binary size cleanup)
+Items 1c (fence-based submit) and 1s (arena accumulation) can defer indefinitely — only matter for runtime streaming and extreme resize spam respectively.
 
 ---
 
-## 6. Shader Analysis
+## 5. Shader Reference
 
-### Shader Files
-
-| Backend | File | Purpose |
-|---------|------|---------|
-| VK | `triangle.vert` + `triangle.frag` | 3D lit scene (Blinn-Phong) |
+| Backend | Files | Purpose |
+|---------|-------|---------|
+| VK | `triangle.vert` + `triangle.frag` | 3D lit (Blinn-Phong) — specular/shininess hardcoded |
 | VK | `triangle.vert` + `light.frag` | 3D unlit (light source cubes) |
-| VK | `text.vert` + `text.frag` | MSDF text rendering |
+| VK | `text.vert` + `text.frag` | MSDF text |
 | VK | `gui.vert` + `gui.frag` | GUI rects + MSDF text (dual-mode) |
-| GL | `default.vert` + `default.frag` | 3D lit scene (Blinn-Phong) |
+| GL | `default.vert` + `default.frag` | 3D lit (Blinn-Phong) — reads material uniforms |
 | GL | `default.vert` + `light.frag` | 3D unlit |
 | GL | `text.vert` + `text.frag` | MSDF text |
 | GL | `gui.vert` + `gui.frag` | GUI rects + MSDF text |
 
-### Key Shader Differences (GL vs VK)
-
-| Aspect | OpenGL | Vulkan |
-|--------|--------|--------|
-| Material specular | `material.specular` uniform | Hardcoded `vec3(0.5)` |
-| Material shininess | `material.shininess` uniform | Hardcoded `32.0` |
-| Uniform delivery | Individual `glUniform*` calls | UBO (binding 0) + push constants |
-| Light data | `Light` struct (vec3 fields) | UBO fields (vec4, xyz used) |
-| GUI Y-flip | In vertex shader (GL bottom-left origin) | Not needed (VK top-left origin) |
-
-### Shader Compilation
-
-- **GL**: Runtime GLSL compilation via `glCreateShader`/`glCompileShader`/`glLinkProgram`
-- **VK**: Runtime GLSL-to-SPIR-V via shaderc, then `vkCreateShaderModule`. No precompiled `.spv` files.
-
----
-
-## 7. Summary
-
-The architecture is sound. The vtable-based backend abstraction works, the file structure is clean, the frame data contract is well-designed, and the deferred command recording model is correct. The main remaining issue is the VK backend not consuming material data that the GL backend already supports. The tutorial DNA shows mostly in naming ("triangle" shaders) and the single-allocation-per-resource pattern, both of which are straightforward to evolve. You have a good foundation to build on.
-
-**Fixed so far** (1a, 1b, 1d, 1e, 1f, 1g, 1h, 1i, 1k, 1l, 1m, 1n): Pinned `max_frames_in_flight` to 2 (decoupled from swapchain image count), VK_CHECK release error logging, cached memory properties, missing return false, unchecked return values in depth/buffer code, unsigned comparison bugs, format string mismatch, `(void)` parameter declarations, misleading void cast, arena_push semantic fix.
+Key difference: VK uses UBO (binding 0) + push constants for uniforms; GL uses individual `glUniform*` calls. VK compiles GLSL→SPIR-V at runtime via shaderc.

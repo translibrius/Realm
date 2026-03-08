@@ -179,6 +179,8 @@ void vk_text_pipeline_destroy(VK_Context *ctx) {
     if (tp->descriptor_set_layout) {
         vkDestroyDescriptorSetLayout(ctx->device, tp->descriptor_set_layout, nullptr);
     }
+
+    da_free(&tp->fonts);
 }
 
 void vulkan_render_text(const char *text, f32 size_px, f32 x, f32 y, vec4 color) {

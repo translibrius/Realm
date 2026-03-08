@@ -53,7 +53,12 @@ b8 vk_texture_upload(VK_Context *ctx, u32 w, u32 h, u32 mip_levels, VkFormat for
         .memoryTypeIndex = find_memory_type(ctx, mem_reqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
     };
 
-    VK_CHECK_RETURN_FALSE(vkAllocateMemory(ctx->device, &alloc_info, nullptr, out_mem), "Failed to allocate texture image memory");
+    if (vkAllocateMemory(ctx->device, &alloc_info, nullptr, out_mem) != VK_SUCCESS) {
+        RL_ERROR("Failed to allocate texture image memory");
+        vkDestroyImage(ctx->device, *out_img, nullptr);
+        *out_img = VK_NULL_HANDLE;
+        return false;
+    }
     vkBindImageMemory(ctx->device, *out_img, *out_mem, 0);
 
     // Single command buffer for staging copy + mip chain generation
@@ -162,7 +167,14 @@ b8 vk_texture_upload(VK_Context *ctx, u32 w, u32 h, u32 mip_levels, VkFormat for
             .layerCount = 1,
         },
     };
-    VK_CHECK_RETURN_FALSE(vkCreateImageView(ctx->device, &view_ci, nullptr, out_view), "Failed to create texture image view");
+    if (vkCreateImageView(ctx->device, &view_ci, nullptr, out_view) != VK_SUCCESS) {
+        RL_ERROR("Failed to create texture image view");
+        vkDestroyImage(ctx->device, *out_img, nullptr);
+        vkFreeMemory(ctx->device, *out_mem, nullptr);
+        *out_img = VK_NULL_HANDLE;
+        *out_mem = VK_NULL_HANDLE;
+        return false;
+    }
 
     return true;
 }

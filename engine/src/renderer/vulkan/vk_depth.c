@@ -26,7 +26,7 @@ b8 vk_depth_res_create(VK_Context* ctx) {
         return false;
     }
 
-    vk_image_transition_layout(ctx, ctx->depth_image, depth_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    // Render pass handles UNDEFINED → DEPTH_STENCIL_ATTACHMENT_OPTIMAL automatically
     return true;
 }
 

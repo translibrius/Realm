@@ -55,6 +55,8 @@ b8 vk_buffer_create(VK_Context *context, VkDeviceSize size, VkBufferUsageFlags u
     result = vkAllocateMemory(context->device, &allocate_info, nullptr, memory);
     if (result != VK_SUCCESS) {
         RL_ERROR("failed to allocate buffer memory");
+        vkDestroyBuffer(context->device, *buffer, nullptr);
+        *buffer = VK_NULL_HANDLE;
         return false;
     }
 

@@ -1,5 +1,6 @@
 #include "vk_descriptor.h"
 #include "vk_util.h"
+#include "memory/arena.h"
 
 // --- Generic helpers ---
 
@@ -19,7 +20,9 @@ b8 vk_descriptor_pool_create(VK_Context *ctx, VkDescriptorPoolSize *sizes, u32 s
 }
 
 b8 vk_descriptor_sets_allocate(VK_Context *ctx, VkDescriptorPool pool, VkDescriptorSetLayout layout, u32 count, VkDescriptorSet *out) {
-    VkDescriptorSetLayout *layouts = rl_arena_push(&ctx->arena, sizeof(VkDescriptorSetLayout) * count, alignof(VkDescriptorSetLayout));
+    ARENA_SCRATCH_START();
+
+    VkDescriptorSetLayout *layouts = rl_arena_push(scratch.arena, sizeof(VkDescriptorSetLayout) * count, alignof(VkDescriptorSetLayout));
     for (u32 i = 0; i < count; i++) {
         layouts[i] = layout;
     }
@@ -31,9 +34,13 @@ b8 vk_descriptor_sets_allocate(VK_Context *ctx, VkDescriptorPool pool, VkDescrip
         .pSetLayouts = layouts
     };
 
-    VK_CHECK_RETURN_FALSE(
-        vkAllocateDescriptorSets(ctx->device, &ai, out),
-        "Failed to allocate descriptor sets");
+    VkResult result = vkAllocateDescriptorSets(ctx->device, &ai, out);
+    ARENA_SCRATCH_RELEASE();
+
+    if (result != VK_SUCCESS) {
+        RL_ERROR("Failed to allocate descriptor sets: %s", string_VkResult(result));
+        return false;
+    }
 
     return true;
 }
