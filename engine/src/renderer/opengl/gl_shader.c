@@ -1,5 +1,6 @@
 #include "renderer/opengl/gl_shader.h"
 
+#include "asset/asset.h"
 #include "gl_renderer.h"
 #include "asset/shader.h"
 #include "glad.h"
@@ -12,15 +13,15 @@ b8 opengl_compile_fragment_shader(const char *source, i32 *out_id);
 b8 opengl_create_shader_program(i32 vertex_id, i32 fragment_id, i32 *out_prog_id);
 
 // TODO: Add cache of compiled shaders to reuse
-b8 opengl_shader_setup(ASSET_ID vertex_id, ASSET_ID frag_id, GL_Shader *out_shader) {
-    rl_asset *vertex_asset = get_asset_by_id(vertex_id);
-    rl_asset *fragment_asset = get_asset_by_id(frag_id);
+b8 opengl_shader_setup(u32 vertex_asset_id, u32 frag_asset_id, GL_Shader *out_shader) {
+    rl_asset *vertex_asset = asset_get(vertex_asset_id);
+    rl_asset *fragment_asset = asset_get(frag_asset_id);
     if (!vertex_asset || !fragment_asset) {
         return false;
     }
 
-    rl_asset_shader *default_vert = vertex_asset->handle;
-    rl_asset_shader *default_frag = fragment_asset->handle;
+    rl_asset_shader *default_vert = vertex_asset->data;
+    rl_asset_shader *default_frag = fragment_asset->data;
 
     i32 vert_shader_id, frag_shader_id, program_id;
     if (!opengl_compile_vertex_shader(default_vert->source, &vert_shader_id)) {

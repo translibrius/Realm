@@ -1,5 +1,6 @@
 #include "renderer/opengl/gl_renderer.h"
 
+#include "asset/asset.h"
 #include "gl_gui.h"
 #include "gl_texture.h"
 #include "renderer/opengl/gl_text.h"
@@ -12,6 +13,30 @@
 #include "core/camera.h"
 
 static GL_Context context;
+
+static GL_Texture *gl_find_texture(u32 asset_id) {
+    for (u32 i = 0; i < context.texture_count; i++) {
+        if (context.textures[i].asset_id == asset_id) {
+            return &context.textures[i].texture;
+        }
+    }
+    return nullptr;
+}
+
+static b8 gl_load_texture(u32 asset_id) {
+    if (context.texture_count >= 64) {
+        RL_ERROR("GL texture table full");
+        return false;
+    }
+    GL_Texture tex = {0};
+    if (!opengl_texture_generate(asset_id, &tex)) {
+        return false;
+    }
+    context.textures[context.texture_count].asset_id = asset_id;
+    context.textures[context.texture_count].texture = tex;
+    context.texture_count++;
+    return true;
+}
 
 GL_Context *opengl_get_context(void) {
     return &context;
@@ -80,9 +105,9 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
             continue;
         }
 
-        u32 tex_id = mesh->material.diffuse_map == ASSET_ID_TEXTURE_WOOD_CONTAINER2
-            ? context.wood_texture2.id : context.wood_texture.id;
-        if (tex_id != bound_tex) {
+        GL_Texture *tex = gl_find_texture(mesh->material.diffuse_map);
+        u32 tex_id = tex ? tex->id : 0;
+        if (tex_id && tex_id != bound_tex) {
             glBindTexture(GL_TEXTURE_2D, tex_id);
             bound_tex = tex_id;
         }
@@ -147,22 +172,22 @@ b8 opengl_initialize(platform_window *platform_window, b8 vsync) {
     opengl_resize_framebuffer(context.window->settings.width, context.window->settings.height);
 
     // Shader init
-    if (!opengl_shader_setup(ASSET_ID_SHADER_DEFAULT_VERT, ASSET_ID_SHADER_DEFAULT_FRAG, &context.default_shader)) {
+    if (!opengl_shader_setup(asset_find(RL_ASSET_SHADER_GL_DEFAULT_VERT), asset_find(RL_ASSET_SHADER_GL_DEFAULT_FRAG), &context.default_shader)) {
         RL_ERROR("opengl_shader_setup() failed");
         return false;
     }
-    if (!opengl_shader_setup(ASSET_ID_SHADER_DEFAULT_VERT, ASSET_ID_SHADER_LIGHT_FRAG, &context.light_shader)) {
+    if (!opengl_shader_setup(asset_find(RL_ASSET_SHADER_GL_DEFAULT_VERT), asset_find(RL_ASSET_SHADER_GL_LIGHT_FRAG), &context.light_shader)) {
         RL_ERROR("opengl_shader_setup() failed");
         return false;
     }
 
-    // Texture init
-    if (!opengl_texture_generate(ASSET_ID_TEXTURE_WOOD_CONTAINER, &context.wood_texture)) {
-        RL_ERROR("opengl_texture_generate() failed");
+    // Texture init — load all texture assets into the GL lookup table
+    if (!gl_load_texture(asset_find(RL_ASSET_TEXTURE_WOOD_CONTAINER))) {
+        RL_ERROR("gl_load_texture() failed");
         return false;
     }
-    if (!opengl_texture_generate(ASSET_ID_TEXTURE_WOOD_CONTAINER2, &context.wood_texture2)) {
-        RL_ERROR("opengl_texture_generate() failed");
+    if (!gl_load_texture(asset_find(RL_ASSET_TEXTURE_WOOD_CONTAINER2))) {
+        RL_ERROR("gl_load_texture() failed");
         return false;
     }
 

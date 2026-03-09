@@ -26,7 +26,7 @@ enum {
 typedef struct asset_system {
     rl_arena asset_arena;
     Assets assets;
-    i32 asset_index_by_id[ASSET_ID_TOTAL];
+    u32 next_id; // starts at 1; 0 = invalid
 
     char asset_root[ASSET_ROOT_PATH_MAX];
     char fonts_dir[ASSET_DIR_PATH_MAX];
@@ -114,6 +114,25 @@ static void asset_set_root(const char *asset_root) {
     snprintf(state->textures_dir, sizeof(state->textures_dir), "%stextures/", state->asset_root);
 }
 
+static b8 asset_load_data(rl_asset *asset) {
+    b8 success = false;
+    switch (asset->type) {
+    case ASSET_FONT:
+        success = rl_font_load(&state->asset_arena, asset);
+        break;
+    case ASSET_SHADER:
+        success = load_shader(&state->asset_arena, asset);
+        break;
+    case ASSET_TEXTURE:
+        success = load_texture(&state->asset_arena, asset);
+        break;
+    case ASSET_MESH:
+        RL_ERROR("Mesh loading not yet implemented for '%s'", asset->filename);
+        break;
+    }
+    return success;
+}
+
 u32 get_asset_count() {
     return state->assets.count;
 }
@@ -130,10 +149,7 @@ b8 asset_system_start(void *system, const char *asset_root) {
     state = system;
     rl_arena_init(&state->asset_arena, MiB(200), MiB(5), MEM_SUBSYSTEM_ASSET);
     da_init(&state->assets);
-
-    for (u32 i = 0; i < ASSET_ID_TOTAL; i++) {
-        state->asset_index_by_id[i] = -1;
-    }
+    state->next_id = 1;
 
     asset_set_root(asset_root);
 
@@ -155,9 +171,10 @@ b8 asset_system_load_all() {
     }
 
     RL_DEBUG("Loading assets...");
-    for (u32 i = 0; i < ASSET_TABLE_TOTAL; i++) {
-        b8 success = asset_system_load(&asset_table[i]);
-        if (!success) {
+    for (u32 i = 0; i < ASSET_TABLE_COUNT; i++) {
+        asset_table_entry *entry = &asset_table[i];
+        u32 id = asset_load(entry->type, entry->source_path);
+        if (id == 0) {
             if (splash_active) {
                 splash_hide();
             }
@@ -176,55 +193,58 @@ b8 asset_system_load_all() {
     return true;
 }
 
-b8 asset_system_load(rl_asset *asset) {
-    if (!asset || !asset->filename || !asset->source_path) {
-        RL_ERROR("Asset table contains invalid entry");
-        return false;
+u32 asset_load(ASSET_TYPE type, const char *source_path) {
+    if (!state) {
+        RL_ERROR("Asset system is not initialized");
+        return 0;
     }
 
-    if (!asset->source_path[0]) {
-        RL_ERROR("Asset '%s' has empty source path", asset->filename);
-        return false;
+    if (!source_path || !source_path[0]) {
+        RL_ERROR("asset_load called with empty source_path");
+        return 0;
     }
 
-    if (asset->source_version == 0) {
-        RL_ERROR("Asset '%s' has invalid source version=0", asset->filename);
-        return false;
+    // Dedup: return existing if already loaded
+    u32 existing = asset_find(source_path);
+    if (existing != 0) {
+        return existing;
     }
 
-    if (asset->id >= ASSET_ID_TOTAL) {
-        RL_ERROR("Asset '%s' has out-of-range id=%d", asset->filename, asset->id);
-        return false;
+    // Extract filename from path
+    const char *filename = source_path;
+    for (const char *p = source_path; *p; p++) {
+        if (*p == '/' || *p == '\\') {
+            filename = p + 1;
+        }
     }
 
-    if (state->asset_index_by_id[asset->id] >= 0) {
-        RL_ERROR("Duplicate asset id=%d for '%s'", asset->id, asset->filename);
-        return false;
+    u32 id = state->next_id++;
+
+    rl_asset asset = {
+        .id = id,
+        .type = type,
+        .source_path = source_path,
+        .source_version = 1,
+        .source_hash = 0,
+        .filename = filename,
+        .data = nullptr,
+    };
+
+    if (!asset_compute_source_hash(&asset)) {
+        RL_ERROR("Failed to compute source hash for '%s'", source_path);
+        return 0;
     }
 
-    if (!asset_compute_source_hash(asset)) {
-        RL_ERROR("Failed to compute source hash for '%s'", asset->source_path);
-        return false;
+    if (!asset_load_data(&asset)) {
+        RL_ERROR("Failed to load asset '%s'", source_path);
+        return 0;
     }
 
-    b8 success = false;
-    switch (asset->type) {
-    case ASSET_FONT:
-        success = rl_font_load(&state->asset_arena, asset);
-        break;
-    case ASSET_SHADER:
-        success = load_shader(&state->asset_arena, asset);
-        break;
-    case ASSET_TEXTURE:
-        success = load_texture(&state->asset_arena, asset);
-    }
-
-    RL_TRACE("  '%s' = %s", asset->filename, success ? "OK!" : "Failed");
-    da_append(&state->assets, *asset);
-    state->asset_index_by_id[asset->id] = (i32)(state->assets.count - 1);
-    e_splash_payload splash_payload = {.asset_name = asset->filename};
+    RL_TRACE("  '%s' = OK! (id=%u)", asset.filename, id);
+    da_append(&state->assets, asset);
+    e_splash_payload splash_payload = {.asset_name = asset.filename};
     event_fire(EVENT_SPLASH_INCREMENT, &splash_payload);
-    return success;
+    return id;
 }
 
 const char *get_asset_root(void) {
@@ -235,24 +255,31 @@ const char *get_asset_root(void) {
     return state->asset_root;
 }
 
-rl_asset *get_asset_by_id(ASSET_ID id) {
+rl_asset *asset_get(u32 id) {
     if (!state) {
         RL_ERROR("Asset system is not initialized");
         return nullptr;
     }
 
-    if (id >= ASSET_ID_TOTAL) {
-        RL_ERROR("get_asset_by_id() called with invalid id=%d", id);
+    if (id == 0 || id > state->assets.count) {
         return nullptr;
     }
 
-    i32 index = state->asset_index_by_id[id];
-    if (index < 0 || (u64)index >= state->assets.count) {
-        RL_ERROR("Asset id=%d has not been loaded", id);
-        return nullptr;
+    return &state->assets.items[id - 1];
+}
+
+u32 asset_find(const char *source_path) {
+    if (!state || !source_path) {
+        return 0;
     }
 
-    return &state->assets.items[index];
+    for (u64 i = 0; i < state->assets.count; i++) {
+        if (strcmp(state->assets.items[i].source_path, source_path) == 0) {
+            return state->assets.items[i].id;
+        }
+    }
+
+    return 0;
 }
 
 const char *get_assets_dir(ASSET_TYPE asset_type) {

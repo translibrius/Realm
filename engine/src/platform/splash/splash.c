@@ -193,7 +193,7 @@ void splash_update() {
     splash_fill_rect(bar_x, bar_y, bar_w, bar_h, surface0);
 
     // Bar fill
-    u32 progress_w = (bar_w * state.progress_step) / ASSET_TABLE_TOTAL;
+    u32 progress_w = (bar_w * state.progress_step) / ASSET_TABLE_COUNT;
     if (progress_w > 0) {
         splash_fill_rect(bar_x, bar_y, progress_w, bar_h, green);
     }
@@ -210,7 +210,7 @@ void splash_update() {
 
     // --- Counter: "[N/Total]" right-aligned on same line ---
     char counter[32];
-    snprintf(counter, sizeof(counter), "%u/%u", state.progress_step, (u32)ASSET_TABLE_TOTAL);
+    snprintf(counter, sizeof(counter), "%u/%u", state.progress_step, (u32)ASSET_TABLE_COUNT);
     u32 counter_w = splash_text_width(counter);
     u32 counter_x = SPLASH_WIDTH - margin - counter_w;
     splash_draw_text(counter_x, status_y, counter, overlay0);
@@ -238,7 +238,7 @@ void splash_run(void *data) {
         return;
     }
 
-    while (state.progress_step < ASSET_TABLE_TOTAL) {
+    while (state.progress_step < ASSET_TABLE_COUNT) {
         splash_update();
     }
 

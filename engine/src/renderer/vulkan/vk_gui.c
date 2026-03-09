@@ -1,5 +1,6 @@
 #include "vk_gui.h"
 
+#include "asset/asset.h"
 #include "asset/asset_internal.h"
 #include "asset/font.h"
 #include "clay.h"
@@ -149,9 +150,9 @@ static rl_font *gui_get_font(u16 font_id) {
     u32 font_index = 0;
     for (u32 i = 0; i < assets->count; i++) {
         rl_asset *asset = &assets->items[i];
-        if (asset->type == ASSET_FONT && asset->handle) {
+        if (asset->type == ASSET_FONT && asset->data) {
             if (font_index == font_id) {
-                return (rl_font *)asset->handle;
+                return (rl_font *)asset->data;
             }
             font_index++;
         }
@@ -184,11 +185,11 @@ b8 vk_gui_pipeline_init(VK_Context *ctx) {
 
     // --- Compile shaders ---
     VkShaderModule vert_module, frag_module;
-    if (!vk_shader_compile_to_module(ctx, ASSET_ID_SHADER_VULKAN_GUI_VERT, &vert_module)) {
+    if (!vk_shader_compile_to_module(ctx, asset_find(RL_ASSET_SHADER_VK_GUI_VERT), &vert_module)) {
         RL_ERROR("Failed to compile Vulkan GUI vertex shader");
         return false;
     }
-    if (!vk_shader_compile_to_module(ctx, ASSET_ID_SHADER_VULKAN_GUI_FRAG, &frag_module)) {
+    if (!vk_shader_compile_to_module(ctx, asset_find(RL_ASSET_SHADER_VK_GUI_FRAG), &frag_module)) {
         vkDestroyShaderModule(ctx->device, vert_module, nullptr);
         RL_ERROR("Failed to compile Vulkan GUI fragment shader");
         return false;

@@ -6,35 +6,34 @@ typedef enum ASSET_TYPE {
     ASSET_FONT,
     ASSET_SHADER,
     ASSET_TEXTURE,
+    ASSET_MESH,
 } ASSET_TYPE;
 
-typedef enum ASSET_ID {
-    ASSET_ID_FONT_JETBRAINS_MONO_REGULAR,
+// Well-known built-in asset paths (used with asset_find)
+#define RL_ASSET_FONT_JETBRAINS_MONO      "fonts/JetBrainsMono-Regular.ttf"
 
-    ASSET_ID_SHADER_DEFAULT_VERT,
-    ASSET_ID_SHADER_TEXT_VERT,
-    ASSET_ID_SHADER_DEFAULT_FRAG,
-    ASSET_ID_SHADER_TEXT_FRAG,
-    ASSET_ID_SHADER_LIGHT_FRAG,
-    ASSET_ID_SHADER_VULKAN_TRIANGLE_FRAG,
-    ASSET_ID_SHADER_VULKAN_TRIANGLE_VERT,
-    ASSET_ID_SHADER_VULKAN_TEXT_VERT,
-    ASSET_ID_SHADER_VULKAN_TEXT_FRAG,
-    ASSET_ID_SHADER_GUI_VERT,
-    ASSET_ID_SHADER_GUI_FRAG,
-    ASSET_ID_SHADER_VULKAN_GUI_VERT,
-    ASSET_ID_SHADER_VULKAN_GUI_FRAG,
-    ASSET_ID_SHADER_VULKAN_LIGHT_FRAG,
+#define RL_ASSET_SHADER_GL_DEFAULT_VERT   "shaders/opengl/default.vert"
+#define RL_ASSET_SHADER_GL_DEFAULT_FRAG   "shaders/opengl/default.frag"
+#define RL_ASSET_SHADER_GL_TEXT_VERT      "shaders/opengl/text.vert"
+#define RL_ASSET_SHADER_GL_TEXT_FRAG      "shaders/opengl/text.frag"
+#define RL_ASSET_SHADER_GL_LIGHT_FRAG     "shaders/opengl/light.frag"
+#define RL_ASSET_SHADER_GL_GUI_VERT       "shaders/opengl/gui.vert"
+#define RL_ASSET_SHADER_GL_GUI_FRAG       "shaders/opengl/gui.frag"
 
-    ASSET_ID_TEXTURE_WOOD_CONTAINER,
-    ASSET_ID_TEXTURE_WOOD_CONTAINER2,
-    ASSET_ID_TEXTURE_FACE,
+#define RL_ASSET_SHADER_VK_TRIANGLE_VERT  "shaders/vulkan/triangle.vert"
+#define RL_ASSET_SHADER_VK_TRIANGLE_FRAG  "shaders/vulkan/triangle.frag"
+#define RL_ASSET_SHADER_VK_TEXT_VERT      "shaders/vulkan/text.vert"
+#define RL_ASSET_SHADER_VK_TEXT_FRAG      "shaders/vulkan/text.frag"
+#define RL_ASSET_SHADER_VK_GUI_VERT       "shaders/vulkan/gui.vert"
+#define RL_ASSET_SHADER_VK_GUI_FRAG       "shaders/vulkan/gui.frag"
+#define RL_ASSET_SHADER_VK_LIGHT_FRAG     "shaders/vulkan/light.frag"
 
-    ASSET_ID_TOTAL,
-} ASSET_ID;
+#define RL_ASSET_TEXTURE_WOOD_CONTAINER   "textures/wood_container.jpg"
+#define RL_ASSET_TEXTURE_WOOD_CONTAINER2  "textures/wood_container2.jpg"
+#define RL_ASSET_TEXTURE_FACE             "textures/face.jpg"
 
 typedef struct rl_asset {
-    ASSET_ID id;
+    u32 id;
     ASSET_TYPE type;
     // Canonical root-relative path (e.g. "shaders/default.vert").
     const char *source_path;
@@ -42,9 +41,17 @@ typedef struct rl_asset {
     u64 source_hash;
 
     const char *filename;
-    void *handle;
+    void *data;
 } rl_asset;
 
 REALM_API const char *get_asset_root(void);
 REALM_API const char *get_assets_dir(ASSET_TYPE asset_type);
-REALM_API rl_asset *get_asset_by_id(ASSET_ID id);
+
+// O(1) lookup by asset id. Returns nullptr if id is 0 or out of range.
+REALM_API rl_asset *asset_get(u32 id);
+
+// Lookup by source_path. Returns 0 if not found.
+REALM_API u32 asset_find(const char *source_path);
+
+// Load a new asset at runtime. Returns its id (or existing id if already loaded).
+REALM_API u32 asset_load(ASSET_TYPE type, const char *source_path);

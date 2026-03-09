@@ -30,7 +30,7 @@ b8 rl_font_load(rl_arena *asset_arena, rl_asset *asset) {
         if (cp < 256) font->glyph_map[cp] = &font->glyphs[i];
     }
 
-    asset->handle = font;
+    asset->data = font;
     arena_scratch_release(scratch);
     return true;
 }

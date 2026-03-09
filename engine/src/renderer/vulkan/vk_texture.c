@@ -1,4 +1,5 @@
 #include "vk_texture.h"
+#include "asset/asset.h"
 #include "vk_util.h"
 #include "vk_buffer.h"
 #include "vk_image.h"
@@ -208,13 +209,13 @@ b8 vk_sampler_create(VK_Context *ctx, VkFilter filter, VkSamplerAddressMode addr
     return true;
 }
 
-b8 vk_texture_create(VK_Context *ctx, VK_Texture *vk_texture) {
-    rl_asset *asset = get_asset_by_id(ASSET_ID_TEXTURE_WOOD_CONTAINER2);
+b8 vk_texture_create(VK_Context *ctx, u32 asset_id, VK_Texture *vk_texture) {
+    rl_asset *asset = asset_get(asset_id);
     if (!asset) {
         return false;
     }
 
-    rl_texture *texture = asset->handle;
+    rl_texture *texture = asset->data;
     u32 mip_levels = calc_mip_levels(texture->width, texture->height);
 
     if (!vk_texture_upload(ctx, texture->width, texture->height, mip_levels,
@@ -235,7 +236,9 @@ void vk_texture_destroy(VK_Context *ctx, VK_Texture *vk_texture) {
 }
 
 b8 vk_texture_create_sampler(VK_Context *ctx) {
-    f32 max_lod = (f32)(ctx->texture_wood.mip_levels - 1);
+    // Use the first loaded texture's mip levels for the sampler (they're all similar)
+    u32 mip_levels = ctx->texture_count > 0 ? ctx->textures[0].texture.mip_levels : 1;
+    f32 max_lod = (f32)(mip_levels > 0 ? mip_levels - 1 : 0);
     return vk_sampler_create(ctx, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, max_lod, &ctx->texture_sampler);
 }
 

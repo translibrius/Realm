@@ -1,5 +1,6 @@
 #include "gl_gui.h"
 
+#include "asset/asset.h"
 #include "asset/asset_internal.h"
 #include "asset/font.h"
 #include "clay.h"
@@ -53,7 +54,7 @@ static gui_clip_rect *clip_current(void) {
 b8 opengl_gui_pipeline_init(GL_Context *ctx) {
     GL_GuiPipeline *p = &ctx->gui_pipeline;
 
-    if (!opengl_shader_setup(ASSET_ID_SHADER_GUI_VERT, ASSET_ID_SHADER_GUI_FRAG, &p->shader)) {
+    if (!opengl_shader_setup(asset_find(RL_ASSET_SHADER_GL_GUI_VERT), asset_find(RL_ASSET_SHADER_GL_GUI_FRAG), &p->shader)) {
         RL_ERROR("Failed to compile GUI shader");
         return false;
     }
@@ -119,9 +120,9 @@ static rl_font *gui_get_font(u16 font_id) {
     u32 font_index = 0;
     for (u32 i = 0; i < assets->count; i++) {
         rl_asset *asset = &assets->items[i];
-        if (asset->type == ASSET_FONT && asset->handle) {
+        if (asset->type == ASSET_FONT && asset->data) {
             if (font_index == font_id) {
-                return (rl_font *)asset->handle;
+                return (rl_font *)asset->data;
             }
             font_index++;
         }

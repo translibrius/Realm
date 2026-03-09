@@ -77,7 +77,7 @@ void scene_game_render(rl_game *game, const realm_app_context *ctx, realm_app_ou
     rotating_cube->primitive = RL_FRAME_PRIMITIVE_CUBE;
     rotating_cube->kind = RL_FRAME_MESH_KIND_LIT;
     rotating_cube->material = (rl_material){
-        .diffuse_map = ASSET_ID_TEXTURE_WOOD_CONTAINER2,
+        .diffuse_map = asset_find(RL_ASSET_TEXTURE_WOOD_CONTAINER2),
         .specular = {0.5f, 0.5f, 0.5f},
         .shininess = 32.0f,
     };
@@ -91,7 +91,7 @@ void scene_game_render(rl_game *game, const realm_app_context *ctx, realm_app_ou
             floor_tile->primitive = RL_FRAME_PRIMITIVE_CUBE;
             floor_tile->kind = RL_FRAME_MESH_KIND_LIT;
             floor_tile->material = (rl_material){
-                .diffuse_map = ASSET_ID_TEXTURE_WOOD_CONTAINER2,
+                .diffuse_map = asset_find(RL_ASSET_TEXTURE_WOOD_CONTAINER2),
                 .specular = {0.5f, 0.5f, 0.5f},
                 .shininess = 32.0f,
             };

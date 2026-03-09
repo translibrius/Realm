@@ -21,7 +21,7 @@ void app_debug_panel_render(app_debug_panel *panel) {
     if (!panel || !panel->visible) return;
 
     rl_arena *arena = rl_engine_get_frame_arena();
-    u16 font = gui_font_id(ASSET_ID_FONT_JETBRAINS_MONO_REGULAR);
+    u16 font = gui_font_id(asset_find(RL_ASSET_FONT_JETBRAINS_MONO));
     rl_engine_stats stats = rl_engine_get_stats();
     mem_stats mem = mem_get_stats();
     rl_config *cfg = config_get();

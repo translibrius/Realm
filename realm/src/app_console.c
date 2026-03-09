@@ -108,7 +108,7 @@ void app_console_render(app_console *c, f32 dt) {
     if (!c || !c->window.visible) return;
 
     rl_arena *arena = rl_engine_get_frame_arena();
-    u16 font = gui_font_id(ASSET_ID_FONT_JETBRAINS_MONO_REGULAR);
+    u16 font = gui_font_id(asset_find(RL_ASSET_FONT_JETBRAINS_MONO));
 
     // ── Prepare log lines (arena copies for Clay_String lifetime) ──
     u32 line_count = c->count;

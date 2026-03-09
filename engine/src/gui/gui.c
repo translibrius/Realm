@@ -18,7 +18,7 @@
 
 typedef struct gui_font_entry {
     rl_font *font;
-    ASSET_ID asset_id;
+    u32 asset_id;
 } gui_font_entry;
 
 typedef struct gui_state {
@@ -99,8 +99,8 @@ void init_gui(f32 width, f32 height) {
     Assets *assets = get_assets();
     for (u32 i = 0; i < assets->count && state.font_count < GUI_MAX_FONTS; i++) {
         rl_asset *asset = &assets->items[i];
-        if (asset->type == ASSET_FONT && asset->handle) {
-            state.fonts[state.font_count].font = (rl_font *)asset->handle;
+        if (asset->type == ASSET_FONT && asset->data) {
+            state.fonts[state.font_count].font = (rl_font *)asset->data;
             state.fonts[state.font_count].asset_id = asset->id;
             state.font_count++;
         }
@@ -138,7 +138,7 @@ void gui_set_layout_dimensions(f32 width, f32 height) {
     Clay_SetLayoutDimensions((Clay_Dimensions){width, height});
 }
 
-u16 gui_font_id(ASSET_ID asset_id) {
+u16 gui_font_id(u32 asset_id) {
     for (u32 i = 0; i < state.font_count; i++) {
         if (state.fonts[i].asset_id == asset_id) {
             return (u16)i;

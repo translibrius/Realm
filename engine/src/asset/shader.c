@@ -42,7 +42,7 @@ b8 load_shader(rl_arena *arena, rl_asset *asset) {
         return false;
     }
 
-    asset->handle = shader;
+    asset->data = shader;
 
     platform_file_close(&shader_file);
 

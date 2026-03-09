@@ -4,13 +4,13 @@
 #include "asset/texture.h"
 #include "glad.h"
 
-b8 opengl_texture_generate(ASSET_ID asset_id, GL_Texture *out_texture) {
-    rl_asset *asset = get_asset_by_id(asset_id);
+b8 opengl_texture_generate(u32 asset_id, GL_Texture *out_texture) {
+    rl_asset *asset = asset_get(asset_id);
     if (!asset) {
         return false;
     }
 
-    rl_texture *texture = asset->handle;
+    rl_texture *texture = asset->data;
 
     u32 texture_id;
     glGenTextures(1, &texture_id);
@@ -27,10 +27,6 @@ b8 opengl_texture_generate(ASSET_ID asset_id, GL_Texture *out_texture) {
     glGenerateMipmap(GL_TEXTURE_2D);
 
     out_texture->id = texture_id;
-
-    // NOTE: Potentially free the asset, since its already generated a gl texture
-    // But we might want to keep the texture asset loaded in case we want to generate the texture again ?
-    // However, currently asset system uses arena allocator, so i can't free specific assets :/
 
     return true;
 }

@@ -1,5 +1,6 @@
 #include "renderer/opengl/gl_text.h"
 
+#include "asset/asset.h"
 #include "asset/asset_internal.h"
 #include "asset/font.h"
 #include "core/logger.h"
@@ -19,7 +20,7 @@ GL_Font *gl_find_font(GL_Context *ctx, rl_font *font) {
 
 b8 opengl_text_pipeline_init(GL_Context *ctx) {
     GL_TextPipeline *pipeline = &ctx->text_pipeline;
-    if (!opengl_shader_setup(ASSET_ID_SHADER_TEXT_VERT, ASSET_ID_SHADER_TEXT_FRAG, &pipeline->shader)) {
+    if (!opengl_shader_setup(asset_find(RL_ASSET_SHADER_GL_TEXT_VERT), asset_find(RL_ASSET_SHADER_GL_TEXT_FRAG), &pipeline->shader)) {
         RL_ERROR("opengl_shader_setup() failed");
         return false;
     }
@@ -53,7 +54,7 @@ b8 opengl_text_pipeline_init(GL_Context *ctx) {
     for (u32 i = 0; i < assets->count; i++) {
         rl_asset *asset = &assets->items[i];
         if (asset->type == ASSET_FONT) {
-            rl_font *font = (rl_font *)asset->handle;
+            rl_font *font = (rl_font *)asset->data;
             RL_DEBUG("loading gl font %s", font->name);
             if (!gl_font_create(font, ctx)) {
                 RL_WARN("gl_font_create() failed for '%s'", asset->filename);

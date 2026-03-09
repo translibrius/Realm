@@ -2,13 +2,12 @@
 
 #include "gui/gui.h"
 
-#include "asset/asset.h"
 #include "clay.h"
 #include "defines.h"
 
 // ── Font lookup ─────────────────────────────────────────────────────────────
-// Map an ASSET_ID to the Clay font index. Returns 0 (first font) if not found.
-REALM_API u16 gui_font_id(ASSET_ID asset_id);
+// Map an asset id to the Clay font index. Returns 0 (first font) if not found.
+REALM_API u16 gui_font_id(u32 asset_id);
 
 // ── String conversion ───────────────────────────────────────────────────────
 // Convert rl_string -> Clay_String (non-owning, same lifetime as the rl_string)

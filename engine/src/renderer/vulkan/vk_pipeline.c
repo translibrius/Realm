@@ -1,5 +1,6 @@
 #include "vk_pipeline.h"
 
+#include "asset/asset.h"
 #include "vk_shader.h"
 #include <vulkan/vulkan_core.h>
 
@@ -127,11 +128,11 @@ b8 vk_pipeline_create_graphics(VK_Context *ctx, VK_PipelineConfig *cfg, VkPipeli
 }
 
 b8 vk_pipeline_create(VK_Context *context) {
-    if (!vk_shader_module_compile(context, ASSET_ID_SHADER_VULKAN_TRIANGLE_VERT)) {
+    if (!vk_shader_module_compile(context, asset_find(RL_ASSET_SHADER_VK_TRIANGLE_VERT))) {
         return false;
     }
 
-    if (!vk_shader_module_compile(context, ASSET_ID_SHADER_VULKAN_TRIANGLE_FRAG)) {
+    if (!vk_shader_module_compile(context, asset_find(RL_ASSET_SHADER_VK_TRIANGLE_FRAG))) {
         return false;
     }
 
@@ -185,10 +186,10 @@ void vk_pipeline_destroy(VK_Context *context) {
 b8 vk_unlit_pipeline_create(VK_Context *context) {
     VkShaderModule vert_module, frag_module;
 
-    if (!vk_shader_compile_to_module(context, ASSET_ID_SHADER_VULKAN_TRIANGLE_VERT, &vert_module)) {
+    if (!vk_shader_compile_to_module(context, asset_find(RL_ASSET_SHADER_VK_TRIANGLE_VERT), &vert_module)) {
         return false;
     }
-    if (!vk_shader_compile_to_module(context, ASSET_ID_SHADER_VULKAN_LIGHT_FRAG, &frag_module)) {
+    if (!vk_shader_compile_to_module(context, asset_find(RL_ASSET_SHADER_VK_LIGHT_FRAG), &frag_module)) {
         vkDestroyShaderModule(context->device, vert_module, nullptr);
         return false;
     }
@@ -329,12 +330,12 @@ b8 vk_wireframe_pipelines_create(VK_Context *context) {
 
     VkShaderModule lit_vert, lit_frag, unlit_frag;
 
-    if (!vk_shader_compile_to_module(context, ASSET_ID_SHADER_VULKAN_TRIANGLE_VERT, &lit_vert)) return false;
-    if (!vk_shader_compile_to_module(context, ASSET_ID_SHADER_VULKAN_TRIANGLE_FRAG, &lit_frag)) {
+    if (!vk_shader_compile_to_module(context, asset_find(RL_ASSET_SHADER_VK_TRIANGLE_VERT), &lit_vert)) return false;
+    if (!vk_shader_compile_to_module(context, asset_find(RL_ASSET_SHADER_VK_TRIANGLE_FRAG), &lit_frag)) {
         vkDestroyShaderModule(context->device, lit_vert, nullptr);
         return false;
     }
-    if (!vk_shader_compile_to_module(context, ASSET_ID_SHADER_VULKAN_LIGHT_FRAG, &unlit_frag)) {
+    if (!vk_shader_compile_to_module(context, asset_find(RL_ASSET_SHADER_VK_LIGHT_FRAG), &unlit_frag)) {
         vkDestroyShaderModule(context->device, lit_vert, nullptr);
         vkDestroyShaderModule(context->device, lit_frag, nullptr);
         return false;

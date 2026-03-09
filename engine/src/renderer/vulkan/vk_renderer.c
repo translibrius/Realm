@@ -1,5 +1,6 @@
 #include "renderer/vulkan/vk_renderer.h"
 
+#include "asset/asset.h"
 #include "core/event.h"
 #include "engine.h"
 #include "vk_buffer.h"
@@ -126,10 +127,18 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
         return false;
     }
 
-    if (!vk_texture_create(&context, &context.texture_wood)) {
+    // Load texture assets into lookup table
+    u32 wood_tex_id = asset_find(RL_ASSET_TEXTURE_WOOD_CONTAINER2);
+    if (wood_tex_id == 0 || context.texture_count >= 64) {
+        RL_ERROR("failed to find wood texture asset");
+        return false;
+    }
+    if (!vk_texture_create(&context, wood_tex_id, &context.textures[0].texture)) {
         RL_ERROR("failed to create wood texture");
         return false;
     }
+    context.textures[0].asset_id = wood_tex_id;
+    context.texture_count = 1;
 
     if (!vk_texture_create_sampler(&context)) {
         RL_ERROR("failed to create texture sampler");
@@ -182,7 +191,9 @@ void vulkan_destroy(void) {
     vk_descriptor_destroy_pool(&context);
     vk_buffers_destroy_uniform(&context);
     vk_texture_destroy_sampler(&context);
-    vk_texture_destroy(&context, &context.texture_wood);
+    for (u32 i = 0; i < context.texture_count; i++) {
+        vk_texture_destroy(&context, &context.textures[i].texture);
+    }
     vk_wireframe_pipelines_destroy(&context);
     vk_unlit_pipeline_destroy(&context);
     vk_mesh_destroy_cube(&context);

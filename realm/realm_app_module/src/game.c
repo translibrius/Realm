@@ -38,8 +38,9 @@ b8 game_init(rl_game *game, const realm_app_context *ctx) {
 
     rl_arena_init(&game->frame_arena, KiB(4024), KiB(1024), MEM_ARENA);
 
-    rl_asset *asset = get_asset_by_id(ASSET_ID_FONT_JETBRAINS_MONO_REGULAR);
-    game->font_jetbrains = asset ? asset->handle : nullptr;
+    u32 font_id = asset_find(RL_ASSET_FONT_JETBRAINS_MONO);
+    rl_asset *asset = asset_get(font_id);
+    game->font_jetbrains = asset ? asset->data : nullptr;
     if (!game->font_jetbrains) {
         const char *filename = asset ? asset->filename : "<null>";
         RL_ERROR("Failed to load font '%s'", filename);

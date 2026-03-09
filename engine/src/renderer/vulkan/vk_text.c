@@ -142,7 +142,7 @@ b8 vk_text_pipeline_init(VK_Context *ctx) {
     for (u32 i = 0; i < assets->count; i++) {
         rl_asset *asset = &assets->items[i];
         if (asset->type == ASSET_FONT) {
-            rl_font *font = (rl_font *)asset->handle;
+            rl_font *font = (rl_font *)asset->data;
             RL_DEBUG("loading vk font %s", font->name);
             if (!vk_font_create(font, ctx)) {
                 RL_WARN("vk_font_create() failed for '%s'", asset->filename);

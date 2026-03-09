@@ -57,9 +57,12 @@ typedef struct GL_Context {
     // Defaults
     GL_Shader default_shader;
     GL_Shader light_shader;
-    GL_Texture wood_texture;
-    GL_Texture wood_texture2;
     GL_Mesh cube_mesh;
+
+    // Texture lookup (asset_id -> GL_Texture)
+    enum { GL_MAX_TEXTURES = 64 };
+    struct { u32 asset_id; GL_Texture texture; } textures[64];
+    u32 texture_count;
 
     // Debug
     b8 debug_wireframe;

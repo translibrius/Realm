@@ -33,7 +33,7 @@ b8 load_texture(rl_arena *asset_arena, rl_asset *asset) {
     texture->data = rl_arena_push(asset_arena, size, 1);
     mem_copy(texture->data, data, size);
 
-    asset->handle = texture;
+    asset->data = texture;
 
     stbi_image_free(data);
     arena_scratch_release(scratch);

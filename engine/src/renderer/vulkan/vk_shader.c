@@ -1,5 +1,6 @@
 #include "renderer/vulkan/vk_shader.h"
 
+#include "asset/asset.h"
 #include "asset/shader.h"
 
 #include <shaderc/shaderc.h>
@@ -42,19 +43,19 @@ void vk_shader_destroy_compiler(VK_Context *context) {
     RL_DEBUG("Shader compiler destroyed");
 }
 
-b8 vk_shader_module_compile(VK_Context *context, ASSET_ID asset_id) {
+b8 vk_shader_module_compile(VK_Context *context, u32 asset_id) {
     if (!context->shader_compiler.initialized) {
         RL_ERROR("Shader compiler not initialized before compile!");
         return false;
     }
 
-    rl_asset *asset = get_asset_by_id(asset_id);
+    rl_asset *asset = asset_get(asset_id);
     if (!asset) {
         return false;
     }
 
     const char *filename = asset->filename;
-    rl_asset_shader *asset_shader = asset->handle;
+    rl_asset_shader *asset_shader = asset->data;
 
     shaderc_shader_kind kind;
     switch (asset_shader->type) {
@@ -113,19 +114,19 @@ b8 vk_shader_module_compile(VK_Context *context, ASSET_ID asset_id) {
     return true;
 }
 
-b8 vk_shader_compile_to_module(VK_Context *context, ASSET_ID asset_id, VkShaderModule *out_module) {
+b8 vk_shader_compile_to_module(VK_Context *context, u32 asset_id, VkShaderModule *out_module) {
     if (!context->shader_compiler.initialized) {
         RL_ERROR("Shader compiler not initialized before compile!");
         return false;
     }
 
-    rl_asset *asset = get_asset_by_id(asset_id);
+    rl_asset *asset = asset_get(asset_id);
     if (!asset) {
         return false;
     }
 
     const char *filename = asset->filename;
-    rl_asset_shader *asset_shader = asset->handle;
+    rl_asset_shader *asset_shader = asset->data;
 
     shaderc_shader_kind kind;
     switch (asset_shader->type) {

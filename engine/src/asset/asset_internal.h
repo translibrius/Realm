@@ -10,7 +10,6 @@ b8 asset_system_start(void *system, const char *asset_root);
 void asset_system_shutdown();
 
 b8 asset_system_load_all();
-b8 asset_system_load(rl_asset *asset);
 
 Assets *get_assets();
 

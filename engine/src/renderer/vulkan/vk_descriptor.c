@@ -113,7 +113,7 @@ b8 vk_descriptor_create_sets(VK_Context *context) {
 
         VkDescriptorImageInfo image_info = {
             .sampler = context->texture_sampler,
-            .imageView = context->texture_wood.texture_image_view,
+            .imageView = context->texture_count > 0 ? context->textures[0].texture.texture_image_view : VK_NULL_HANDLE,
             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         };
 
