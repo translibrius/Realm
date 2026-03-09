@@ -1,5 +1,6 @@
 #pragma once
 
+#include "asset/asset.h"
 #include "gui/gui.h"
 
 #include "clay.h"
@@ -7,7 +8,7 @@
 
 // ── Font lookup ─────────────────────────────────────────────────────────────
 // Map an asset id to the Clay font index. Returns 0 (first font) if not found.
-REALM_API u16 gui_font_id(u32 asset_id);
+REALM_API u16 gui_font_id(asset_id id);
 
 // ── String conversion ───────────────────────────────────────────────────────
 // Convert rl_string -> Clay_String (non-owning, same lifetime as the rl_string)

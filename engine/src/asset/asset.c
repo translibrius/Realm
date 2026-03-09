@@ -26,7 +26,7 @@ enum {
 typedef struct asset_system {
     rl_arena asset_arena;
     Assets assets;
-    u32 next_id; // starts at 1; 0 = invalid
+    asset_id next_id; // starts at 1; 0 = invalid
 
     char asset_root[ASSET_ROOT_PATH_MAX];
     char fonts_dir[ASSET_DIR_PATH_MAX];
@@ -173,7 +173,7 @@ b8 asset_system_load_all() {
     RL_DEBUG("Loading assets...");
     for (u32 i = 0; i < ASSET_TABLE_COUNT; i++) {
         asset_table_entry *entry = &asset_table[i];
-        u32 id = asset_load(entry->type, entry->source_path);
+        asset_id id = asset_load(entry->type, entry->source_path);
         if (id == 0) {
             if (splash_active) {
                 splash_hide();
@@ -193,7 +193,7 @@ b8 asset_system_load_all() {
     return true;
 }
 
-u32 asset_load(ASSET_TYPE type, const char *source_path) {
+asset_id asset_load(ASSET_TYPE type, const char *source_path) {
     if (!state) {
         RL_ERROR("Asset system is not initialized");
         return 0;
@@ -205,7 +205,7 @@ u32 asset_load(ASSET_TYPE type, const char *source_path) {
     }
 
     // Dedup: return existing if already loaded
-    u32 existing = asset_find(source_path);
+    asset_id existing = asset_find(source_path);
     if (existing != 0) {
         return existing;
     }
@@ -218,7 +218,7 @@ u32 asset_load(ASSET_TYPE type, const char *source_path) {
         }
     }
 
-    u32 id = state->next_id++;
+    asset_id id = state->next_id++;
 
     rl_asset asset = {
         .id = id,
@@ -255,7 +255,7 @@ const char *get_asset_root(void) {
     return state->asset_root;
 }
 
-rl_asset *asset_get(u32 id) {
+rl_asset *asset_get(asset_id id) {
     if (!state) {
         RL_ERROR("Asset system is not initialized");
         return nullptr;
@@ -268,7 +268,7 @@ rl_asset *asset_get(u32 id) {
     return &state->assets.items[id - 1];
 }
 
-u32 asset_find(const char *source_path) {
+asset_id asset_find(const char *source_path) {
     if (!state || !source_path) {
         return 0;
     }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "asset/asset.h"
 #include "cglm.h"
 #include "defines.h"
 
@@ -31,7 +32,7 @@ typedef enum rl_frame_mesh_kind {
 } rl_frame_mesh_kind;
 
 typedef struct rl_material {
-    u32 diffuse_map;
+    asset_id diffuse_map;
     vec3 specular;
     f32 shininess;
 } rl_material;

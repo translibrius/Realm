@@ -43,13 +43,13 @@ void vk_shader_destroy_compiler(VK_Context *context) {
     RL_DEBUG("Shader compiler destroyed");
 }
 
-b8 vk_shader_module_compile(VK_Context *context, u32 asset_id) {
+b8 vk_shader_module_compile(VK_Context *context, asset_id id) {
     if (!context->shader_compiler.initialized) {
         RL_ERROR("Shader compiler not initialized before compile!");
         return false;
     }
 
-    rl_asset *asset = asset_get(asset_id);
+    rl_asset *asset = asset_get(id);
     if (!asset) {
         return false;
     }
@@ -114,13 +114,13 @@ b8 vk_shader_module_compile(VK_Context *context, u32 asset_id) {
     return true;
 }
 
-b8 vk_shader_compile_to_module(VK_Context *context, u32 asset_id, VkShaderModule *out_module) {
+b8 vk_shader_compile_to_module(VK_Context *context, asset_id id, VkShaderModule *out_module) {
     if (!context->shader_compiler.initialized) {
         RL_ERROR("Shader compiler not initialized before compile!");
         return false;
     }
 
-    rl_asset *asset = asset_get(asset_id);
+    rl_asset *asset = asset_get(id);
     if (!asset) {
         return false;
     }

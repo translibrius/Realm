@@ -128,7 +128,7 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
     }
 
     // Load texture assets into lookup table
-    u32 wood_tex_id = asset_find(RL_ASSET_TEXTURE_WOOD_CONTAINER2);
+    asset_id wood_tex_id = asset_find(RL_ASSET_TEXTURE_WOOD_CONTAINER2);
     if (wood_tex_id == 0 || context.texture_count >= 64) {
         RL_ERROR("failed to find wood texture asset");
         return false;

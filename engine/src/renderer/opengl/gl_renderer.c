@@ -14,25 +14,25 @@
 
 static GL_Context context;
 
-static GL_Texture *gl_find_texture(u32 asset_id) {
+static GL_Texture *gl_find_texture(asset_id id) {
     for (u32 i = 0; i < context.texture_count; i++) {
-        if (context.textures[i].asset_id == asset_id) {
+        if (context.textures[i].asset_id == id) {
             return &context.textures[i].texture;
         }
     }
     return nullptr;
 }
 
-static b8 gl_load_texture(u32 asset_id) {
+static b8 gl_load_texture(asset_id id) {
     if (context.texture_count >= 64) {
         RL_ERROR("GL texture table full");
         return false;
     }
     GL_Texture tex = {0};
-    if (!opengl_texture_generate(asset_id, &tex)) {
+    if (!opengl_texture_generate(id, &tex)) {
         return false;
     }
-    context.textures[context.texture_count].asset_id = asset_id;
+    context.textures[context.texture_count].asset_id = id;
     context.textures[context.texture_count].texture = tex;
     context.texture_count++;
     return true;

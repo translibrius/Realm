@@ -209,8 +209,8 @@ b8 vk_sampler_create(VK_Context *ctx, VkFilter filter, VkSamplerAddressMode addr
     return true;
 }
 
-b8 vk_texture_create(VK_Context *ctx, u32 asset_id, VK_Texture *vk_texture) {
-    rl_asset *asset = asset_get(asset_id);
+b8 vk_texture_create(VK_Context *ctx, asset_id id, VK_Texture *vk_texture) {
+    rl_asset *asset = asset_get(id);
     if (!asset) {
         return false;
     }

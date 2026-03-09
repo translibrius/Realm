@@ -2,6 +2,9 @@
 
 #include "defines.h"
 
+// Opaque handle to a loaded asset. 0 = invalid / not found.
+typedef u32 asset_id;
+
 typedef enum ASSET_TYPE {
     ASSET_FONT,
     ASSET_SHADER,
@@ -33,7 +36,7 @@ typedef enum ASSET_TYPE {
 #define RL_ASSET_TEXTURE_FACE             "textures/face.jpg"
 
 typedef struct rl_asset {
-    u32 id;
+    asset_id id;
     ASSET_TYPE type;
     // Canonical root-relative path (e.g. "shaders/default.vert").
     const char *source_path;
@@ -48,10 +51,10 @@ REALM_API const char *get_asset_root(void);
 REALM_API const char *get_assets_dir(ASSET_TYPE asset_type);
 
 // O(1) lookup by asset id. Returns nullptr if id is 0 or out of range.
-REALM_API rl_asset *asset_get(u32 id);
+REALM_API rl_asset *asset_get(asset_id id);
 
 // Lookup by source_path. Returns 0 if not found.
-REALM_API u32 asset_find(const char *source_path);
+REALM_API asset_id asset_find(const char *source_path);
 
 // Load a new asset at runtime. Returns its id (or existing id if already loaded).
-REALM_API u32 asset_load(ASSET_TYPE type, const char *source_path);
+REALM_API asset_id asset_load(ASSET_TYPE type, const char *source_path);

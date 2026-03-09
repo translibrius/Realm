@@ -6,6 +6,6 @@
 b8 vk_shader_init_compiler(VK_Context *context);
 void vk_shader_destroy_compiler(VK_Context *context);
 
-b8 vk_shader_module_compile(VK_Context *context, u32 asset_id);
-b8 vk_shader_compile_to_module(VK_Context *context, u32 asset_id, VkShaderModule *out_module);
+b8 vk_shader_module_compile(VK_Context *context, asset_id id);
+b8 vk_shader_compile_to_module(VK_Context *context, asset_id id, VkShaderModule *out_module);
 void vk_shader_modules_destroy(VK_Context *context);

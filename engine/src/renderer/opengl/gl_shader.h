@@ -1,5 +1,6 @@
 #pragma once
 
+#include "asset/asset.h"
 #include "defines.h"
 #include "cglm.h"
 
@@ -18,7 +19,7 @@ typedef struct GL_Shader {
     u32 uniform_count;
 } GL_Shader;
 
-b8 opengl_shader_setup(u32 vertex_asset_id, u32 frag_asset_id, GL_Shader *out_shader);
+b8 opengl_shader_setup(asset_id vertex_id, asset_id frag_id, GL_Shader *out_shader);
 void opengl_shader_use(GL_Shader *shader);
 
 void opengl_shader_set_bool(GL_Shader *shader, const char *name, b8 value);

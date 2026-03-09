@@ -239,7 +239,7 @@ typedef struct VK_Context {
     // Textures
     VkSampler texture_sampler;
     enum { VK_MAX_TEXTURES = 64 };
-    struct { u32 asset_id; VK_Texture texture; } textures[64];
+    struct { asset_id asset_id; VK_Texture texture; } textures[64];
     u32 texture_count;
 
     // Text

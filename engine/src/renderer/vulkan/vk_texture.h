@@ -7,7 +7,7 @@ b8 vk_texture_upload(VK_Context *ctx, u32 w, u32 h, u32 mip_levels, VkFormat for
 
 b8 vk_sampler_create(VK_Context *ctx, VkFilter filter, VkSamplerAddressMode addr_mode, f32 max_lod, VkSampler *out);
 
-b8 vk_texture_create(VK_Context *ctx, u32 asset_id, VK_Texture *vk_texture);
+b8 vk_texture_create(VK_Context *ctx, asset_id id, VK_Texture *vk_texture);
 void vk_texture_destroy(VK_Context *ctx, VK_Texture *vk_texture);
 
 b8 vk_texture_create_sampler(VK_Context *ctx);

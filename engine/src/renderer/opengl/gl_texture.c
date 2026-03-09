@@ -4,8 +4,8 @@
 #include "asset/texture.h"
 #include "glad.h"
 
-b8 opengl_texture_generate(u32 asset_id, GL_Texture *out_texture) {
-    rl_asset *asset = asset_get(asset_id);
+b8 opengl_texture_generate(asset_id id, GL_Texture *out_texture) {
+    rl_asset *asset = asset_get(id);
     if (!asset) {
         return false;
     }
