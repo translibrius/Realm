@@ -304,6 +304,13 @@ void opengl_destroy() {
     for (u32 i = 0; i < context.mesh_cache_count; i++) {
         gl_mesh_destroy(&context.mesh_cache[i].mesh);
     }
+    context.mesh_cache_count = 0;
+
+    for (u32 i = 0; i < context.texture_count; i++) {
+        glDeleteTextures(1, &context.textures[i].texture.id);
+    }
+    context.texture_count = 0;
+
     gl_mesh_destroy(&context.cube_mesh);
     rl_arena_deinit(&context.arena);
 }
