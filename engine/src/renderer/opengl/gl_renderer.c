@@ -135,6 +135,7 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
     b8 wireframe_on = context.debug_wireframe;
     if (wireframe_on) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glDisable(GL_CULL_FACE);
     }
 
     // --- Lit pass: bind shader + shared uniforms once ---
@@ -193,6 +194,7 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
 
         if (!context.debug_wireframe && fm->wireframe != wireframe_on) {
             glPolygonMode(GL_FRONT_AND_BACK, fm->wireframe ? GL_LINE : GL_FILL);
+            if (fm->wireframe) glDisable(GL_CULL_FACE); else glEnable(GL_CULL_FACE);
             wireframe_on = fm->wireframe;
         }
 
@@ -227,6 +229,7 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
 
         if (!context.debug_wireframe && fm->wireframe != wireframe_on) {
             glPolygonMode(GL_FRONT_AND_BACK, fm->wireframe ? GL_LINE : GL_FILL);
+            if (fm->wireframe) glDisable(GL_CULL_FACE); else glEnable(GL_CULL_FACE);
             wireframe_on = fm->wireframe;
         }
 
@@ -235,6 +238,7 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
 
     if (wireframe_on) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        glEnable(GL_CULL_FACE);
     }
 
 text_pass:
