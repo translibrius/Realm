@@ -4,6 +4,7 @@
 #include "asset/asset_table.h"
 
 #include "asset/font.h"
+#include "asset/mesh.h"
 #include "asset/shader.h"
 #include "asset/texture.h"
 #include "core/event.h"
@@ -32,6 +33,7 @@ typedef struct asset_system {
     char fonts_dir[ASSET_DIR_PATH_MAX];
     char shaders_dir[ASSET_DIR_PATH_MAX];
     char textures_dir[ASSET_DIR_PATH_MAX];
+    char models_dir[ASSET_DIR_PATH_MAX];
 } asset_system;
 
 static asset_system *state;
@@ -112,6 +114,7 @@ static void asset_set_root(const char *asset_root) {
     snprintf(state->fonts_dir, sizeof(state->fonts_dir), "%sfonts/", state->asset_root);
     snprintf(state->shaders_dir, sizeof(state->shaders_dir), "%sshaders/", state->asset_root);
     snprintf(state->textures_dir, sizeof(state->textures_dir), "%stextures/", state->asset_root);
+    snprintf(state->models_dir, sizeof(state->models_dir), "%smodels/", state->asset_root);
 }
 
 static b8 asset_load_data(rl_asset *asset) {
@@ -127,7 +130,7 @@ static b8 asset_load_data(rl_asset *asset) {
         success = load_texture(&state->asset_arena, asset);
         break;
     case ASSET_MESH:
-        RL_ERROR("Mesh loading not yet implemented for '%s'", asset->filename);
+        success = load_mesh(&state->asset_arena, asset);
         break;
     }
     return success;
@@ -235,13 +238,22 @@ asset_id asset_load(ASSET_TYPE type, const char *source_path) {
         return 0;
     }
 
+    // Reserve slot before loading data — load_mesh may recursively call
+    // asset_load (e.g. for textures), so the slot must exist at the correct
+    // index (id-1) before any child assets are appended.
+    da_append(&state->assets, asset);
+
     if (!asset_load_data(&asset)) {
         RL_ERROR("Failed to load asset '%s'", source_path);
+        // Remove the reserved slot
+        state->assets.count--;
         return 0;
     }
 
+    // Write back the fully loaded asset (data pointer filled in by loader)
+    state->assets.items[id - 1] = asset;
+
     RL_TRACE("  '%s' = OK! (id=%u)", asset.filename, id);
-    da_append(&state->assets, asset);
     e_splash_payload splash_payload = {.asset_name = asset.filename};
     event_fire(EVENT_SPLASH_INCREMENT, &splash_payload);
     return id;
@@ -294,6 +306,8 @@ const char *get_assets_dir(ASSET_TYPE asset_type) {
         return state->shaders_dir;
     case ASSET_TEXTURE:
         return state->textures_dir;
+    case ASSET_MESH:
+        return state->models_dir;
     default:
         break;
     }

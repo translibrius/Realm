@@ -43,6 +43,7 @@ typedef struct rl_frame_mesh {
     mat4 model;
     rl_material material;
     b8 wireframe;
+    asset_id mesh_asset; // 0 = use primitive (cube), non-zero = loaded mesh
 } rl_frame_mesh;
 
 typedef struct rl_frame_point_light {

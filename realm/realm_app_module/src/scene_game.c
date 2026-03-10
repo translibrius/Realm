@@ -58,7 +58,7 @@ void scene_game_render(rl_game *game, const realm_app_context *ctx, realm_app_ou
         FLOOR_Z_MIN = -5,
         FLOOR_Z_MAX = 5,
         FLOOR_TILE_COUNT = (FLOOR_X_MAX - FLOOR_X_MIN + 1) * (FLOOR_Z_MAX - FLOOR_Z_MIN + 1),
-        SCENE_MESH_COUNT = 2 + FLOOR_TILE_COUNT,
+        SCENE_MESH_COUNT = 3 + FLOOR_TILE_COUNT,
     };
 
     rl_frame_point_light frame_lights[1] = {
@@ -100,6 +100,17 @@ void scene_game_render(rl_game *game, const realm_app_context *ctx, realm_app_ou
             glm_translate(floor_tile->model, (vec3){(f32)x, -2.0f, (f32)z});
         }
     }
+
+    rl_frame_mesh *lion = &frame_meshes[mesh_index++];
+    lion->mesh_asset = asset_find(RL_ASSET_MESH_LION_HEAD);
+    lion->kind = RL_FRAME_MESH_KIND_LIT;
+    lion->material = (rl_material){
+        .specular = {0.5f, 0.5f, 0.5f},
+        .shininess = 32.0f,
+    };
+    glm_mat4_identity(lion->model);
+    glm_translate(lion->model, (vec3){3.0f, 0.0f, 0.0f});
+    glm_scale(lion->model, (vec3){5.0f, 5.0f, 5.0f});
 
     rl_frame_mesh *light_cube = &frame_meshes[mesh_index++];
     light_cube->primitive = RL_FRAME_PRIMITIVE_CUBE;

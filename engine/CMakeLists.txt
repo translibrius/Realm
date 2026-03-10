@@ -95,6 +95,7 @@ target_include_directories(EngineC SYSTEM
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/yyjson
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/clay
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/glad
+        ${CMAKE_CURRENT_SOURCE_DIR}/vendor/cgltf
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/msdf-atlas-gen/msdf-atlas-gen
         ${Vulkan_INCLUDE_DIRS}
 )

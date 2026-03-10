@@ -1,6 +1,7 @@
 #include "renderer/opengl/gl_renderer.h"
 
 #include "asset/asset.h"
+#include "asset/mesh.h"
 #include "gl_gui.h"
 #include "gl_texture.h"
 #include "renderer/opengl/gl_text.h"
@@ -36,6 +37,60 @@ static b8 gl_load_texture(asset_id id) {
     context.textures[context.texture_count].texture = tex;
     context.texture_count++;
     return true;
+}
+
+static GL_Mesh *gl_find_mesh(asset_id id) {
+    for (u32 i = 0; i < context.mesh_cache_count; i++) {
+        if (context.mesh_cache[i].asset_id == id) {
+            return &context.mesh_cache[i].mesh;
+        }
+    }
+    return nullptr;
+}
+
+static GL_Mesh *gl_ensure_mesh(asset_id id) {
+    GL_Mesh *existing = gl_find_mesh(id);
+    if (existing) {
+        return existing;
+    }
+
+    rl_asset *asset = asset_get(id);
+    if (!asset || asset->type != ASSET_MESH || !asset->data) {
+        RL_ERROR("gl_ensure_mesh: invalid mesh asset %u", id);
+        return nullptr;
+    }
+
+    if (context.mesh_cache_count >= 64) {
+        RL_ERROR("GL mesh cache full");
+        return nullptr;
+    }
+
+    rl_mesh *mesh = (rl_mesh *)asset->data;
+    if (mesh->primitive_count == 0) {
+        RL_ERROR("gl_ensure_mesh: mesh has no primitives");
+        return nullptr;
+    }
+
+    rl_mesh_primitive *prim = &mesh->primitives[0];
+    GL_Mesh gl_mesh = gl_mesh_create_from_primitive(
+        prim->vertices, prim->vertex_count,
+        prim->indices, prim->index_count
+    );
+
+    // Ensure the mesh's diffuse texture is uploaded to GL
+    if (mesh->material_count > 0 && prim->material_index < mesh->material_count) {
+        asset_id tex_id = mesh->materials[prim->material_index].base_color_texture;
+        if (tex_id && !gl_find_texture(tex_id)) {
+            gl_load_texture(tex_id);
+        }
+    }
+
+    u32 idx = context.mesh_cache_count++;
+    context.mesh_cache[idx].asset_id = id;
+    context.mesh_cache[idx].mesh = gl_mesh;
+
+    RL_DEBUG("Uploaded mesh asset %u to GPU (verts=%u, indices=%u)", id, prim->vertex_count, prim->index_count);
+    return &context.mesh_cache[idx].mesh;
 }
 
 GL_Context *opengl_get_context(void) {
@@ -82,9 +137,6 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     }
 
-    // Bind cube VAO once for all mesh draws
-    glBindVertexArray(context.cube_mesh.vao);
-
     // --- Lit pass: bind shader + shared uniforms once ---
     opengl_shader_use(&context.default_shader);
     opengl_shader_set_mat4(&context.default_shader, "view", context.view);
@@ -98,30 +150,53 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
     glActiveTexture(GL_TEXTURE0);
 
     u32 bound_tex = 0;
+    u32 bound_vao = 0;
 
     for (u32 i = 0; i < frame_data->mesh_count; i++) {
-        rl_frame_mesh *mesh = &frame_data->meshes[i];
-        if (mesh->primitive != RL_FRAME_PRIMITIVE_CUBE || mesh->kind != RL_FRAME_MESH_KIND_LIT) {
+        rl_frame_mesh *fm = &frame_data->meshes[i];
+        if (fm->kind != RL_FRAME_MESH_KIND_LIT) {
             continue;
         }
 
-        GL_Texture *tex = gl_find_texture(mesh->material.diffuse_map);
+        GL_Mesh *draw_mesh = &context.cube_mesh;
+        asset_id diffuse_id = fm->material.diffuse_map;
+
+        if (fm->mesh_asset) {
+            draw_mesh = gl_ensure_mesh(fm->mesh_asset);
+            if (!draw_mesh) continue;
+
+            // Fall back to the mesh's own texture if game didn't set one
+            if (!diffuse_id) {
+                rl_asset *mesh_asset = asset_get(fm->mesh_asset);
+                rl_mesh *m = (rl_mesh *)mesh_asset->data;
+                if (m->material_count > 0) {
+                    diffuse_id = m->materials[0].base_color_texture;
+                }
+            }
+        }
+
+        if (draw_mesh->vao != bound_vao) {
+            glBindVertexArray(draw_mesh->vao);
+            bound_vao = draw_mesh->vao;
+        }
+
+        GL_Texture *tex = diffuse_id ? gl_find_texture(diffuse_id) : nullptr;
         u32 tex_id = tex ? tex->id : 0;
         if (tex_id && tex_id != bound_tex) {
             glBindTexture(GL_TEXTURE_2D, tex_id);
             bound_tex = tex_id;
         }
 
-        opengl_shader_set_vec3(&context.default_shader, "material.specular", mesh->material.specular);
-        opengl_shader_set_f32(&context.default_shader, "material.shininess", mesh->material.shininess);
-        opengl_shader_set_mat4(&context.default_shader, "model", mesh->model);
+        opengl_shader_set_vec3(&context.default_shader, "material.specular", fm->material.specular);
+        opengl_shader_set_f32(&context.default_shader, "material.shininess", fm->material.shininess);
+        opengl_shader_set_mat4(&context.default_shader, "model", fm->model);
 
-        if (!context.debug_wireframe && mesh->wireframe != wireframe_on) {
-            glPolygonMode(GL_FRONT_AND_BACK, mesh->wireframe ? GL_LINE : GL_FILL);
-            wireframe_on = mesh->wireframe;
+        if (!context.debug_wireframe && fm->wireframe != wireframe_on) {
+            glPolygonMode(GL_FRONT_AND_BACK, fm->wireframe ? GL_LINE : GL_FILL);
+            wireframe_on = fm->wireframe;
         }
 
-        glDrawArrays(GL_TRIANGLES, 0, context.cube_mesh.vertex_count);
+        gl_mesh_draw(draw_mesh);
     }
 
     // --- Unlit pass: bind shader + shared uniforms once ---
@@ -129,20 +204,33 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
     opengl_shader_set_mat4(&context.light_shader, "view", context.view);
     opengl_shader_set_mat4(&context.light_shader, "projection", context.projection);
 
+    bound_vao = 0;
+
     for (u32 i = 0; i < frame_data->mesh_count; i++) {
-        rl_frame_mesh *mesh = &frame_data->meshes[i];
-        if (mesh->primitive != RL_FRAME_PRIMITIVE_CUBE || mesh->kind != RL_FRAME_MESH_KIND_UNLIT) {
+        rl_frame_mesh *fm = &frame_data->meshes[i];
+        if (fm->kind != RL_FRAME_MESH_KIND_UNLIT) {
             continue;
         }
 
-        opengl_shader_set_mat4(&context.light_shader, "model", mesh->model);
-
-        if (!context.debug_wireframe && mesh->wireframe != wireframe_on) {
-            glPolygonMode(GL_FRONT_AND_BACK, mesh->wireframe ? GL_LINE : GL_FILL);
-            wireframe_on = mesh->wireframe;
+        GL_Mesh *draw_mesh = &context.cube_mesh;
+        if (fm->mesh_asset) {
+            draw_mesh = gl_ensure_mesh(fm->mesh_asset);
+            if (!draw_mesh) continue;
         }
 
-        glDrawArrays(GL_TRIANGLES, 0, context.cube_mesh.vertex_count);
+        if (draw_mesh->vao != bound_vao) {
+            glBindVertexArray(draw_mesh->vao);
+            bound_vao = draw_mesh->vao;
+        }
+
+        opengl_shader_set_mat4(&context.light_shader, "model", fm->model);
+
+        if (!context.debug_wireframe && fm->wireframe != wireframe_on) {
+            glPolygonMode(GL_FRONT_AND_BACK, fm->wireframe ? GL_LINE : GL_FILL);
+            wireframe_on = fm->wireframe;
+        }
+
+        gl_mesh_draw(draw_mesh);
     }
 
     if (wireframe_on) {
@@ -209,6 +297,9 @@ b8 opengl_initialize(platform_window *platform_window, b8 vsync) {
 }
 
 void opengl_destroy() {
+    for (u32 i = 0; i < context.mesh_cache_count; i++) {
+        gl_mesh_destroy(&context.mesh_cache[i].mesh);
+    }
     gl_mesh_destroy(&context.cube_mesh);
     rl_arena_deinit(&context.arena);
 }

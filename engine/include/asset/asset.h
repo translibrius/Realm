@@ -35,6 +35,8 @@ typedef enum ASSET_TYPE {
 #define RL_ASSET_TEXTURE_WOOD_CONTAINER2  "textures/wood_container2.jpg"
 #define RL_ASSET_TEXTURE_FACE             "textures/face.jpg"
 
+#define RL_ASSET_MESH_LION_HEAD           "models/lion_head_4k.gltf/lion_head_4k.gltf"
+
 typedef struct rl_asset {
     asset_id id;
     ASSET_TYPE type;

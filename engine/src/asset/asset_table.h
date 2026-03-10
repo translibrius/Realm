@@ -29,6 +29,8 @@ static asset_table_entry asset_table[] = {
     {ASSET_TEXTURE, "textures/wood_container.jpg",      "wood_container.jpg"},
     {ASSET_TEXTURE, "textures/wood_container2.jpg",     "wood_container2.jpg"},
     {ASSET_TEXTURE, "textures/face.jpg",                "face.jpg"},
+
+    {ASSET_MESH,    "models/lion_head_4k.gltf/lion_head_4k.gltf", "lion_head_4k.gltf"},
 };
 
 #define ASSET_TABLE_COUNT (sizeof(asset_table) / sizeof(asset_table[0]))
