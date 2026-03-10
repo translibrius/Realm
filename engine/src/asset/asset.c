@@ -184,6 +184,8 @@ b8 asset_system_load_all() {
             return false;
         }
         if (splash_active) {
+            e_splash_payload splash_payload = {.asset_name = entry->filename};
+            event_fire(EVENT_SPLASH_INCREMENT, &splash_payload);
             splash_update();
             platform_pump_messages();
         }
@@ -254,8 +256,6 @@ asset_id asset_load(ASSET_TYPE type, const char *source_path) {
     state->assets.items[id - 1] = asset;
 
     RL_TRACE("  '%s' = OK! (id=%u)", asset.filename, id);
-    e_splash_payload splash_payload = {.asset_name = asset.filename};
-    event_fire(EVENT_SPLASH_INCREMENT, &splash_payload);
     return id;
 }
 
