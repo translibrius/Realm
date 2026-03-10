@@ -11,6 +11,13 @@ extern "C" {
 
 #define RL_CONFIG_FILENAME "config.toml"
 
+typedef enum MSAA_SAMPLES {
+    MSAA_OFF = 1,
+    MSAA_2X  = 2,
+    MSAA_4X  = 4,
+    MSAA_8X  = 8,
+} MSAA_SAMPLES;
+
 typedef struct rl_config {
     i32 window_width;
     i32 window_height;
@@ -20,6 +27,7 @@ typedef struct rl_config {
 
     RENDERER_BACKEND renderer_backend;
     b8 vsync;
+    MSAA_SAMPLES msaa;
 
     LOG_LEVEL log_level;
 
@@ -42,6 +50,7 @@ REALM_API void config_set_vsync(b8 value);
 REALM_API void config_set_fov(f32 value);
 REALM_API void config_set_mouse_sensitivity(f32 value);
 REALM_API void config_set_log_level(LOG_LEVEL level);
+REALM_API void config_set_msaa(MSAA_SAMPLES value);
 REALM_API void config_mark_dirty(void);
 REALM_API void config_flush_if_dirty(f64 dt);
 REALM_API b8 config_save(void);

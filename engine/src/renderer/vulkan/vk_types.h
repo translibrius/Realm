@@ -199,6 +199,12 @@ typedef struct VK_Context {
     VkDeviceMemory depth_image_memory;
     VkImageView depth_image_view;
 
+    // MSAA
+    VkSampleCountFlagBits msaa_samples;
+    VkImage msaa_color_image;
+    VkDeviceMemory msaa_color_memory;
+    VkImageView msaa_color_view;
+
     // Per frame
     u32 current_frame;
     u32 current_image_index;

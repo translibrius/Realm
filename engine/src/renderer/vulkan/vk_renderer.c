@@ -21,8 +21,46 @@
 #include "vk_gui.h"
 #include "vk_util.h"
 #include "vk_depth.h"
+#include "core/config.h"
 
 static VK_Context context;
+
+static VkSampleCountFlagBits get_max_usable_sample_count(VK_Context *ctx) {
+    VkSampleCountFlags counts = ctx->device_properties.properties.limits.framebufferColorSampleCounts
+                              & ctx->device_properties.properties.limits.framebufferDepthSampleCounts;
+    if (counts & VK_SAMPLE_COUNT_8_BIT)  return VK_SAMPLE_COUNT_8_BIT;
+    if (counts & VK_SAMPLE_COUNT_4_BIT)  return VK_SAMPLE_COUNT_4_BIT;
+    if (counts & VK_SAMPLE_COUNT_2_BIT)  return VK_SAMPLE_COUNT_2_BIT;
+    return VK_SAMPLE_COUNT_1_BIT;
+}
+
+static b8 msaa_color_image_create(VK_Context *ctx) {
+    VkFormat color_format = ctx->swapchain.chosen_format.surfaceFormat.format;
+    if (!vk_image_create(ctx,
+            ctx->swapchain.chosen_extent.width,
+            ctx->swapchain.chosen_extent.height,
+            color_format,
+            VK_IMAGE_TILING_OPTIMAL,
+            VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            ctx->msaa_samples,
+            &ctx->msaa_color_image,
+            &ctx->msaa_color_memory)) {
+        RL_ERROR("Failed to create MSAA color image");
+        return false;
+    }
+    if (!vk_image_view_create(ctx, VK_IMAGE_ASPECT_COLOR_BIT, ctx->msaa_color_image, color_format, &ctx->msaa_color_view)) {
+        RL_ERROR("Failed to create MSAA color image view");
+        return false;
+    }
+    return true;
+}
+
+static void msaa_color_image_destroy(VK_Context *ctx) {
+    if (ctx->msaa_color_view)   { vkDestroyImageView(ctx->device, ctx->msaa_color_view, nullptr);   ctx->msaa_color_view = VK_NULL_HANDLE; }
+    if (ctx->msaa_color_image)  { vkDestroyImage(ctx->device, ctx->msaa_color_image, nullptr);      ctx->msaa_color_image = VK_NULL_HANDLE; }
+    if (ctx->msaa_color_memory) { vkFreeMemory(ctx->device, ctx->msaa_color_memory, nullptr);       ctx->msaa_color_memory = VK_NULL_HANDLE; }
+}
 
 VK_Context *vulkan_get_context_ptr(void) {
     return &context;
@@ -64,6 +102,18 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
     if (!vk_swapchain_create(&context, vsync, false, VK_NULL_HANDLE)) {
         RL_ERROR("failed to initialize swapchain");
         return false;
+    }
+
+    // Determine MSAA sample count from config, clamped to GPU maximum
+    {
+        rl_config *cfg = config_get();
+        VkSampleCountFlagBits requested = cfg ? (VkSampleCountFlagBits)cfg->msaa : VK_SAMPLE_COUNT_1_BIT;
+        VkSampleCountFlagBits max_samples = get_max_usable_sample_count(&context);
+        context.msaa_samples = (requested <= max_samples) ? requested : max_samples;
+        if (context.msaa_samples != requested) {
+            RL_WARN("Requested MSAA %dx not supported, using %dx", (i32)requested, (i32)context.msaa_samples);
+        }
+        RL_INFO("Vulkan MSAA: %dx", (i32)context.msaa_samples);
     }
 
     if (!vk_shader_init_compiler(&context)) {
@@ -120,6 +170,13 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
     if (!vk_depth_res_create(&context)) {
         RL_ERROR("failed to create depth resources");
         return false;
+    }
+
+    if (context.msaa_samples != VK_SAMPLE_COUNT_1_BIT) {
+        if (!msaa_color_image_create(&context)) {
+            RL_ERROR("failed to create MSAA color image");
+            return false;
+        }
     }
 
     if (!vk_framebuffers_create(&context)) {
@@ -203,6 +260,7 @@ void vulkan_destroy(void) {
     }
     vk_command_pool_destroy(&context, context.graphics_pool);
     vk_framebuffers_destroy(&context);
+    msaa_color_image_destroy(&context);
     vk_pipeline_destroy(&context);
     vk_renderpass_destroy(&context);
     vk_shader_destroy_compiler(&context);

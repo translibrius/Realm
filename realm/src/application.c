@@ -163,6 +163,13 @@ b8 create_application(void) {
             app.backend_switch_requested = true;
             app.requested_backend = module_output.requested_backend;
         }
+        if (module_output.wants_msaa_change) {
+            config_set_msaa(module_output.msaa_value);
+            app.app_context.msaa = config_get()->msaa;
+            // MSAA change requires renderer restart (new pixel format / render pass)
+            app.backend_switch_requested = true;
+            app.requested_backend = config_get()->renderer_backend;
+        }
 
         prev_output = module_output;
         rl_engine_end_frame();
@@ -212,6 +219,7 @@ static b8 create_app_module(void) {
         .focused = app.focused,
         .renderer_backend = config_get()->renderer_backend,
         .window_mode = config_get()->window_mode,
+        .msaa = config_get()->msaa,
         .fov = config_get()->fov,
         .mouse_sensitivity = config_get()->mouse_sensitivity,
     };

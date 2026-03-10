@@ -15,6 +15,7 @@ b8 vk_depth_res_create(VK_Context* ctx) {
         VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        ctx->msaa_samples,
         &ctx->depth_image,
         &ctx->depth_image_memory)) {
         RL_ERROR("Failed to create depth image");

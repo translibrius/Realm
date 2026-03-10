@@ -241,6 +241,7 @@ void opengl_render_gui(void *commands, i32 command_count) {
     clip_depth = 0;
 
     glDisable(GL_DEPTH_TEST);
+    glDisable(GL_MULTISAMPLE);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -342,5 +343,6 @@ void opengl_render_gui(void *commands, i32 command_count) {
     gui_flush(ctx, verts, &vert_count, current_font);
 
     glBindVertexArray(0);
+    glEnable(GL_MULTISAMPLE);
     glEnable(GL_DEPTH_TEST);
 }

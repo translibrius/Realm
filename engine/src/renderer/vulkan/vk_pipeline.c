@@ -52,7 +52,7 @@ b8 vk_pipeline_create_graphics(VK_Context *ctx, VK_PipelineConfig *cfg, VkPipeli
 
     VkPipelineMultisampleStateCreateInfo multisample_ci = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-        .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+        .rasterizationSamples = cfg->msaa_samples ? cfg->msaa_samples : VK_SAMPLE_COUNT_1_BIT,
         .sampleShadingEnable = VK_FALSE,
     };
 
@@ -164,6 +164,7 @@ b8 vk_pipeline_create(VK_Context *context) {
         .depth_write = true,
         .cull_mode = VK_CULL_MODE_BACK_BIT,
         .polygon_mode = VK_POLYGON_MODE_FILL,
+        .msaa_samples = context->msaa_samples,
         .render_pass = context->graphics_pipeline.render_pass,
     };
 
@@ -253,7 +254,7 @@ b8 vk_unlit_pipeline_create(VK_Context *context) {
     };
     VkPipelineMultisampleStateCreateInfo ms_ci = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-        .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+        .rasterizationSamples = context->msaa_samples ? context->msaa_samples : VK_SAMPLE_COUNT_1_BIT,
     };
     VkPipelineDepthStencilStateCreateInfo ds_ci = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
@@ -372,6 +373,7 @@ b8 vk_wireframe_pipelines_create(VK_Context *context) {
         .depth_write = true,
         .cull_mode = VK_CULL_MODE_BACK_BIT,
         .polygon_mode = VK_POLYGON_MODE_LINE,
+        .msaa_samples = context->msaa_samples,
         .render_pass = context->graphics_pipeline.render_pass,
     };
 

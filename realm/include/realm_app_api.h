@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/config.h"
 #include "defines.h"
 #include "platform/platform.h"
 #include "renderer/renderer_backend.h"
@@ -28,6 +29,7 @@ typedef struct realm_app_context {
     b8 focused;
     RENDERER_BACKEND renderer_backend;
     PLATFORM_WINDOW_MODE window_mode;
+    MSAA_SAMPLES msaa;
     f32 fov;
     f32 mouse_sensitivity;
     platform_window *window;
@@ -47,6 +49,8 @@ typedef struct realm_app_output {
     f32 fov_value;
     b8 wants_sensitivity_change;
     f32 sensitivity_value;
+    b8 wants_msaa_change;
+    MSAA_SAMPLES msaa_value;
 } realm_app_output;
 
 REALM_APP_API u32 realm_app_get_api_version(void);

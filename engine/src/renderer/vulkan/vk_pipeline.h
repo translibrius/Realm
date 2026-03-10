@@ -22,6 +22,7 @@ typedef struct VK_PipelineConfig {
     VkCullModeFlags cull_mode;
     b8 blend_enable;
     VkPolygonMode polygon_mode;
+    VkSampleCountFlagBits msaa_samples;
 
     VkRenderPass render_pass;
 } VK_PipelineConfig;

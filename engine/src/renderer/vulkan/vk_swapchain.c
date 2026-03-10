@@ -222,6 +222,32 @@ b8 vk_swapchain_recreate(VK_Context *context) {
         return false;
     }
 
+    // Recreate MSAA color image at new extent
+    if (context->msaa_samples != VK_SAMPLE_COUNT_1_BIT) {
+        if (context->msaa_color_view)   vkDestroyImageView(context->device, context->msaa_color_view, nullptr);
+        if (context->msaa_color_image)  vkDestroyImage(context->device, context->msaa_color_image, nullptr);
+        if (context->msaa_color_memory) vkFreeMemory(context->device, context->msaa_color_memory, nullptr);
+
+        VkFormat color_format = context->swapchain.chosen_format.surfaceFormat.format;
+        if (!vk_image_create(context,
+                context->swapchain.chosen_extent.width,
+                context->swapchain.chosen_extent.height,
+                color_format,
+                VK_IMAGE_TILING_OPTIMAL,
+                VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                context->msaa_samples,
+                &context->msaa_color_image,
+                &context->msaa_color_memory)) {
+            RL_ERROR("Failed to recreate MSAA color image");
+            return false;
+        }
+        if (!vk_image_view_create(context, VK_IMAGE_ASPECT_COLOR_BIT, context->msaa_color_image, color_format, &context->msaa_color_view)) {
+            RL_ERROR("Failed to recreate MSAA color image view");
+            return false;
+        }
+    }
+
     if (!vk_framebuffers_create(context)) {
         RL_ERROR("Failed to recreate swapchain: framebuffers could not be created");
         return false;

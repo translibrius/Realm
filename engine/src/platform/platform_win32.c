@@ -20,6 +20,7 @@
 #include <winternl.h>
 #include <winuser.h>
 
+#include "core/config.h"
 #include "core/event.h"
 #include "memory/memory.h"
 #include "platform/input.h"
@@ -965,19 +966,9 @@ b8 platform_create_opengl_context(platform_window *window) {
         return false;
     }
 
-    // Try modern pixel format via ARB
-    const int pixel_format_attribs_msaa[] = {
-        WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
-        WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
-        WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
-        WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
-        WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
-        WGL_COLOR_BITS_ARB, 32,
-        WGL_DEPTH_BITS_ARB, 24,
-        WGL_STENCIL_BITS_ARB, 8,
-        WGL_SAMPLE_BUFFERS_ARB, 1,
-        WGL_SAMPLES_ARB, 4, // 4x MSAA
-        0};
+    // Try modern pixel format via ARB — MSAA sample count from config
+    rl_config *cfg = config_get();
+    i32 msaa_samples = cfg ? (i32)cfg->msaa : 1;
 
     const int pixel_format_attribs_no_msaa[] = {
         WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
@@ -990,12 +981,29 @@ b8 platform_create_opengl_context(platform_window *window) {
         WGL_STENCIL_BITS_ARB, 8,
         0};
 
+    const int pixel_format_attribs_msaa[] = {
+        WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
+        WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
+        WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
+        WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
+        WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
+        WGL_COLOR_BITS_ARB, 32,
+        WGL_DEPTH_BITS_ARB, 24,
+        WGL_STENCIL_BITS_ARB, 8,
+        WGL_SAMPLE_BUFFERS_ARB, 1,
+        WGL_SAMPLES_ARB, msaa_samples,
+        0};
+
     int chosen_format = 0;
     UINT num_formats = 0;
-    if (!wglChoosePixelFormatARB ||
-        !wglChoosePixelFormatARB(hdc, pixel_format_attribs_msaa, nullptr, 1, &chosen_format, &num_formats) ||
-        num_formats == 0) {
-        // retry without MSAA
+    b8 use_msaa = msaa_samples > 1;
+
+    if (use_msaa && wglChoosePixelFormatARB &&
+        wglChoosePixelFormatARB(hdc, pixel_format_attribs_msaa, nullptr, 1, &chosen_format, &num_formats) &&
+        num_formats > 0) {
+        // MSAA format chosen
+    } else {
+        // Fallback to no MSAA
         if (!wglChoosePixelFormatARB ||
             !wglChoosePixelFormatARB(hdc, pixel_format_attribs_no_msaa, nullptr, 1, &chosen_format, &num_formats) ||
             num_formats == 0) {

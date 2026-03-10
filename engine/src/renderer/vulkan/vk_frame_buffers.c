@@ -4,17 +4,27 @@ b8 vk_framebuffers_create(VK_Context *context) {
     context->swapchain.frame_buffers_count = context->swapchain.image_count;
     context->swapchain.frame_buffers = rl_arena_push(&context->arena, sizeof(VkFramebuffer) * context->swapchain.frame_buffers_count, true);
 
+    b8 msaa = context->msaa_samples != VK_SAMPLE_COUNT_1_BIT;
+
     for (u32 i = 0; i < context->swapchain.image_count; i++) {
-        VkImageView attachements[2] = {
+        // No MSAA:  [0] swapchain color  [1] depth
+        // MSAA:     [0] msaa color        [1] depth        [2] swapchain resolve
+        VkImageView attachments_no_msaa[2] = {
             context->swapchain.image_views[i],
-            context->depth_image_view
+            context->depth_image_view,
+        };
+
+        VkImageView attachments_msaa[3] = {
+            context->msaa_color_view,
+            context->depth_image_view,
+            context->swapchain.image_views[i],
         };
 
         VkFramebufferCreateInfo framebuffer_create_info = {
             .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
             .renderPass = context->graphics_pipeline.render_pass,
-            .attachmentCount = 2,
-            .pAttachments = attachements,
+            .attachmentCount = msaa ? 3u : 2u,
+            .pAttachments = msaa ? attachments_msaa : attachments_no_msaa,
             .width = context->swapchain.chosen_extent.width,
             .height = context->swapchain.chosen_extent.height,
             .layers = 1

@@ -245,6 +245,7 @@ b8 vk_gui_pipeline_init(VK_Context *ctx) {
         .depth_write = false,
         .cull_mode = VK_CULL_MODE_NONE,
         .blend_enable = true,
+        .msaa_samples = ctx->msaa_samples,
         .render_pass = ctx->graphics_pipeline.render_pass,
     };
 

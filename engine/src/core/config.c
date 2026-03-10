@@ -39,6 +39,14 @@ static const enum_entry log_level_names[] = {
     {nullptr, 0        },
 };
 
+static const enum_entry msaa_names[] = {
+    {"off", MSAA_OFF},
+    {"2x",  MSAA_2X },
+    {"4x",  MSAA_4X },
+    {"8x",  MSAA_8X },
+    {nullptr, 0     },
+};
+
 static b8 enum_from_str(const enum_entry *table, const char *str, i32 *out) {
     for (const enum_entry *e = table; e->name; e++) {
         // Case-insensitive compare
@@ -96,6 +104,7 @@ rl_config config_defaults(void) {
         .window_mode = WINDOW_MODE_WINDOWED,
         .renderer_backend = BACKEND_OPENGL,
         .vsync = false,
+        .msaa = MSAA_OFF,
         .log_level = LOG_TRACE,
         .fov = 90.0f,
         .mouse_sensitivity = 0.1f,
@@ -216,6 +225,12 @@ static void config_parse_line(const char *line) {
             } else {
                 RL_WARN("Config: unknown engine.log_level '%s', using default", str_val);
             }
+        } else if (strcmp(fqk, "renderer.msaa") == 0) {
+            if (enum_from_str(msaa_names, str_val, &enum_val)) {
+                cfg->msaa = (MSAA_SAMPLES)enum_val;
+            } else {
+                RL_WARN("Config: unknown renderer.msaa '%s', using default", str_val);
+            }
         }
         return;
     }
@@ -316,6 +331,7 @@ b8 config_save(void) {
         "[renderer]\n"
         "backend = \"%s\"\n"
         "vsync = %s\n"
+        "msaa = \"%s\"\n"
         "\n"
         "[engine]\n"
         "log_level = \"%s\"\n"
@@ -330,6 +346,7 @@ b8 config_save(void) {
         enum_to_str(window_mode_names, (i32)cfg->window_mode),
         enum_to_str(backend_names, (i32)cfg->renderer_backend),
         cfg->vsync ? "true" : "false",
+        enum_to_str(msaa_names, (i32)cfg->msaa),
         enum_to_str(log_level_names, (i32)cfg->log_level),
         (f64)cfg->fov,
         (f64)cfg->mouse_sensitivity);
@@ -452,6 +469,15 @@ void config_set_log_level(LOG_LEVEL level) {
     logger_set_level(level);
     config_mark_dirty();
     e_config_changed_payload payload = { .key = "log_level" };
+    event_fire(EVENT_CONFIG_CHANGED, &payload);
+}
+
+void config_set_msaa(MSAA_SAMPLES value) {
+    if (!state) return;
+    if (state->config.msaa == value) return;
+    state->config.msaa = value;
+    config_mark_dirty();
+    e_config_changed_payload payload = { .key = "msaa" };
     event_fire(EVENT_CONFIG_CHANGED, &payload);
 }
 
