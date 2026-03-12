@@ -262,10 +262,11 @@ void vulkan_destroy(void) {
     vk_framebuffers_destroy(&context);
     msaa_color_image_destroy(&context);
     vk_pipeline_destroy(&context);
+    vk_pipeline_layout_destroy(&context);
+    vk_descriptor_destroy_set_layout(&context);
     vk_renderpass_destroy(&context);
     vk_shader_destroy_compiler(&context);
     vk_swapchain_destroy(&context);
-    vk_descriptor_destroy_set_layout(&context);
     vk_device_destroy(&context);
     vkDestroySurfaceKHR(context.instance, context.surface, nullptr);
     vk_instance_destroy(&context);
@@ -402,12 +403,7 @@ void vulkan_submit_frame_data(rl_frame_data *frame_data) {
     if (frame_data->point_light_count > 0 && frame_data->point_lights) {
         context.frame_light = frame_data->point_lights[0];
     } else {
-        context.frame_light = (rl_frame_point_light){
-            .position = {1.2f, 1.0f, 2.0f},
-            .ambient  = {0.2f, 0.2f, 0.2f},
-            .diffuse  = {0.5f, 0.5f, 0.5f},
-            .specular = {1.0f, 1.0f, 1.0f},
-        };
+        context.frame_light = RL_DEFAULT_POINT_LIGHT;
     }
 
     if (frame_data->text_count > 0 && frame_data->texts) {

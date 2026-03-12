@@ -86,17 +86,21 @@ b8 vk_pipeline_create_graphics(VK_Context *ctx, VK_PipelineConfig *cfg, VkPipeli
         .pAttachments = &blend_attachment,
     };
 
-    VkPipelineLayoutCreateInfo layout_ci = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = cfg->set_layout_count,
-        .pSetLayouts = cfg->set_layouts,
-        .pushConstantRangeCount = cfg->push_constant_count,
-        .pPushConstantRanges = cfg->push_constants,
-    };
+    if (cfg->existing_layout) {
+        *out_layout = cfg->existing_layout;
+    } else {
+        VkPipelineLayoutCreateInfo layout_ci = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .setLayoutCount = cfg->set_layout_count,
+            .pSetLayouts = cfg->set_layouts,
+            .pushConstantRangeCount = cfg->push_constant_count,
+            .pPushConstantRanges = cfg->push_constants,
+        };
 
-    if (vkCreatePipelineLayout(ctx->device, &layout_ci, nullptr, out_layout) != VK_SUCCESS) {
-        RL_ERROR("Failed to create pipeline layout");
-        return false;
+        if (vkCreatePipelineLayout(ctx->device, &layout_ci, nullptr, out_layout) != VK_SUCCESS) {
+            RL_ERROR("Failed to create pipeline layout");
+            return false;
+        }
     }
 
     VkGraphicsPipelineCreateInfo pipeline_ci = {
@@ -120,7 +124,9 @@ b8 vk_pipeline_create_graphics(VK_Context *ctx, VK_PipelineConfig *cfg, VkPipeli
 
     if (vkCreateGraphicsPipelines(ctx->device, VK_NULL_HANDLE, 1, &pipeline_ci, nullptr, out_pipeline) != VK_SUCCESS) {
         RL_ERROR("Failed to create graphics pipeline");
-        vkDestroyPipelineLayout(ctx->device, *out_layout, nullptr);
+        if (!cfg->existing_layout) {
+            vkDestroyPipelineLayout(ctx->device, *out_layout, nullptr);
+        }
         return false;
     }
 
@@ -128,11 +134,11 @@ b8 vk_pipeline_create_graphics(VK_Context *ctx, VK_PipelineConfig *cfg, VkPipeli
 }
 
 b8 vk_pipeline_create(VK_Context *context) {
-    if (!vk_shader_module_compile(context, asset_find(RL_ASSET_SHADER_VK_TRIANGLE_VERT))) {
+    if (!vk_shader_module_compile(context, asset_find(RL_ASSET_SHADER_VK_DEFAULT_VERT))) {
         return false;
     }
 
-    if (!vk_shader_module_compile(context, asset_find(RL_ASSET_SHADER_VK_TRIANGLE_FRAG))) {
+    if (!vk_shader_module_compile(context, asset_find(RL_ASSET_SHADER_VK_DEFAULT_FRAG))) {
         return false;
     }
 
@@ -144,9 +150,9 @@ b8 vk_pipeline_create(VK_Context *context) {
     vk_vertex_get_attr_desc(attribute_descriptions);
 
     VkPushConstantRange push_range = {
-        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
         .offset = 0,
-        .size = sizeof(mat4),
+        .size = sizeof(VK_MeshPushConstants),
     };
 
     VK_PipelineConfig cfg = {
@@ -156,7 +162,7 @@ b8 vk_pipeline_create(VK_Context *context) {
         .binding_count = 1,
         .attributes = attribute_descriptions,
         .attribute_count = attribute_desc_count,
-        .set_layouts = &context->graphics_pipeline.descriptor_set_layout,
+        .set_layouts = &context->descriptor_set_layout,
         .set_layout_count = 1,
         .push_constants = &push_range,
         .push_constant_count = 1,
@@ -165,10 +171,10 @@ b8 vk_pipeline_create(VK_Context *context) {
         .cull_mode = VK_CULL_MODE_BACK_BIT,
         .polygon_mode = VK_POLYGON_MODE_FILL,
         .msaa_samples = context->msaa_samples,
-        .render_pass = context->graphics_pipeline.render_pass,
+        .render_pass = context->render_pass,
     };
 
-    b8 result = vk_pipeline_create_graphics(context, &cfg, &context->graphics_pipeline.handle, &context->graphics_pipeline.layout);
+    b8 result = vk_pipeline_create_graphics(context, &cfg, &context->graphics_pipeline.handle, &context->pipeline_layout);
 
     vk_shader_modules_destroy(context);
 
@@ -181,13 +187,16 @@ b8 vk_pipeline_create(VK_Context *context) {
 
 void vk_pipeline_destroy(VK_Context *context) {
     vkDestroyPipeline(context->device, context->graphics_pipeline.handle, nullptr);
-    vkDestroyPipelineLayout(context->device, context->graphics_pipeline.layout, nullptr);
+}
+
+void vk_pipeline_layout_destroy(VK_Context *context) {
+    vkDestroyPipelineLayout(context->device, context->pipeline_layout, nullptr);
 }
 
 b8 vk_unlit_pipeline_create(VK_Context *context) {
     VkShaderModule vert_module, frag_module;
 
-    if (!vk_shader_compile_to_module(context, asset_find(RL_ASSET_SHADER_VK_TRIANGLE_VERT), &vert_module)) {
+    if (!vk_shader_compile_to_module(context, asset_find(RL_ASSET_SHADER_VK_DEFAULT_VERT), &vert_module)) {
         return false;
     }
     if (!vk_shader_compile_to_module(context, asset_find(RL_ASSET_SHADER_VK_LIGHT_FRAG), &frag_module)) {
@@ -196,126 +205,51 @@ b8 vk_unlit_pipeline_create(VK_Context *context) {
     }
 
     VkPipelineShaderStageCreateInfo stages[2] = {
-        {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-            .stage = VK_SHADER_STAGE_VERTEX_BIT,
-            .module = vert_module,
-            .pName = "main",
-        },
-        {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-            .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-            .module = frag_module,
-            .pName = "main",
-        },
+        {.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = vert_module, .pName = "main"},
+        {.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = frag_module, .pName = "main"},
     };
 
-    constexpr u32 attribute_desc_count = 3;
     VkVertexInputBindingDescription binding = vk_vertex_get_binding_desc();
     VkVertexInputAttributeDescription attrs[3];
     vk_vertex_get_attr_desc(attrs);
 
     VkPushConstantRange push_range = {
-        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
         .offset = 0,
-        .size = sizeof(mat4),
+        .size = sizeof(VK_MeshPushConstants),
     };
 
-    // Reuse the lit pipeline's layout — same descriptor set layout and push constant range.
-    // We only need to create the pipeline object itself.
-    VkDynamicState dynamic_states[2] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-    VkPipelineDynamicStateCreateInfo dynamic_ci = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-        .dynamicStateCount = 2,
-        .pDynamicStates = dynamic_states,
-    };
-    VkPipelineVertexInputStateCreateInfo vi_ci = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        .vertexBindingDescriptionCount = 1,
-        .pVertexBindingDescriptions = &binding,
-        .vertexAttributeDescriptionCount = attribute_desc_count,
-        .pVertexAttributeDescriptions = attrs,
-    };
-    VkPipelineInputAssemblyStateCreateInfo ia_ci = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-        .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-    };
-    VkPipelineViewportStateCreateInfo vp_ci = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-        .viewportCount = 1,
-        .scissorCount = 1,
-    };
-    VkPipelineRasterizationStateCreateInfo rs_ci = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-        .polygonMode = VK_POLYGON_MODE_FILL,
-        .cullMode = VK_CULL_MODE_BACK_BIT,
-        .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
-        .lineWidth = 1.0f,
-    };
-    VkPipelineMultisampleStateCreateInfo ms_ci = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-        .rasterizationSamples = context->msaa_samples ? context->msaa_samples : VK_SAMPLE_COUNT_1_BIT,
-    };
-    VkPipelineDepthStencilStateCreateInfo ds_ci = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-        .depthTestEnable = VK_TRUE,
-        .depthWriteEnable = VK_TRUE,
-        .depthCompareOp = VK_COMPARE_OP_LESS,
-    };
-    VkPipelineColorBlendAttachmentState blend_att = {
-        .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
-    };
-    VkPipelineColorBlendStateCreateInfo cb_ci = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-        .attachmentCount = 1,
-        .pAttachments = &blend_att,
+    VK_PipelineConfig cfg = {
+        .stages = stages,
+        .stage_count = 2,
+        .bindings = &binding,
+        .binding_count = 1,
+        .attributes = attrs,
+        .attribute_count = 3,
+        .set_layouts = &context->descriptor_set_layout,
+        .set_layout_count = 1,
+        .push_constants = &push_range,
+        .push_constant_count = 1,
+        .depth_test = true,
+        .depth_write = true,
+        .cull_mode = VK_CULL_MODE_BACK_BIT,
+        .polygon_mode = VK_POLYGON_MODE_FILL,
+        .msaa_samples = context->msaa_samples,
+        .render_pass = context->render_pass,
+        .existing_layout = context->pipeline_layout,
     };
 
-    // Create a temporary layout identical to the lit pipeline's (same descriptor + push constant).
-    // We could share the layout handle, but vk_pipeline_create_graphics owns the layout lifetime
-    // for the lit pipeline, so we create our own here to keep destroy paths simple.
-    VkPipelineLayoutCreateInfo layout_ci = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 1,
-        .pSetLayouts = &context->graphics_pipeline.descriptor_set_layout,
-        .pushConstantRangeCount = 1,
-        .pPushConstantRanges = &push_range,
-    };
-
-    // We reuse the lit pipeline layout directly — the layouts are compatible.
-    VkGraphicsPipelineCreateInfo pipeline_ci = {
-        .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-        .stageCount = 2,
-        .pStages = stages,
-        .pVertexInputState = &vi_ci,
-        .pInputAssemblyState = &ia_ci,
-        .pViewportState = &vp_ci,
-        .pRasterizationState = &rs_ci,
-        .pMultisampleState = &ms_ci,
-        .pDepthStencilState = &ds_ci,
-        .pColorBlendState = &cb_ci,
-        .pDynamicState = &dynamic_ci,
-        .layout = context->graphics_pipeline.layout,
-        .renderPass = context->graphics_pipeline.render_pass,
-        .subpass = 0,
-        .basePipelineHandle = VK_NULL_HANDLE,
-        .basePipelineIndex = -1,
-    };
-
-    (void)layout_ci; // layout reused from lit pipeline
-
-    VkResult vk_result = vkCreateGraphicsPipelines(context->device, VK_NULL_HANDLE, 1, &pipeline_ci, nullptr, &context->unlit_pipeline);
+    VkPipelineLayout reused_layout;
+    b8 ok = vk_pipeline_create_graphics(context, &cfg, &context->unlit_pipeline, &reused_layout);
 
     vkDestroyShaderModule(context->device, vert_module, nullptr);
     vkDestroyShaderModule(context->device, frag_module, nullptr);
 
-    if (vk_result != VK_SUCCESS) {
-        RL_ERROR("Failed to create unlit pipeline");
-        return false;
+    if (ok) {
+        RL_TRACE("Successfully created unlit pipeline");
     }
 
-    RL_TRACE("Successfully created unlit pipeline");
-    return true;
+    return ok;
 }
 
 void vk_unlit_pipeline_destroy(VK_Context *context) {
@@ -331,8 +265,8 @@ b8 vk_wireframe_pipelines_create(VK_Context *context) {
 
     VkShaderModule lit_vert, lit_frag, unlit_frag;
 
-    if (!vk_shader_compile_to_module(context, asset_find(RL_ASSET_SHADER_VK_TRIANGLE_VERT), &lit_vert)) return false;
-    if (!vk_shader_compile_to_module(context, asset_find(RL_ASSET_SHADER_VK_TRIANGLE_FRAG), &lit_frag)) {
+    if (!vk_shader_compile_to_module(context, asset_find(RL_ASSET_SHADER_VK_DEFAULT_VERT), &lit_vert)) return false;
+    if (!vk_shader_compile_to_module(context, asset_find(RL_ASSET_SHADER_VK_DEFAULT_FRAG), &lit_frag)) {
         vkDestroyShaderModule(context->device, lit_vert, nullptr);
         return false;
     }
@@ -347,9 +281,9 @@ b8 vk_wireframe_pipelines_create(VK_Context *context) {
     vk_vertex_get_attr_desc(attrs);
 
     VkPushConstantRange push_range = {
-        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
         .offset = 0,
-        .size = sizeof(mat4),
+        .size = sizeof(VK_MeshPushConstants),
     };
 
     // --- Wireframe lit pipeline ---
@@ -365,7 +299,7 @@ b8 vk_wireframe_pipelines_create(VK_Context *context) {
         .binding_count = 1,
         .attributes = attrs,
         .attribute_count = 3,
-        .set_layouts = &context->graphics_pipeline.descriptor_set_layout,
+        .set_layouts = &context->descriptor_set_layout,
         .set_layout_count = 1,
         .push_constants = &push_range,
         .push_constant_count = 1,
@@ -374,17 +308,17 @@ b8 vk_wireframe_pipelines_create(VK_Context *context) {
         .cull_mode = VK_CULL_MODE_BACK_BIT,
         .polygon_mode = VK_POLYGON_MODE_LINE,
         .msaa_samples = context->msaa_samples,
-        .render_pass = context->graphics_pipeline.render_pass,
+        .render_pass = context->render_pass,
+        .existing_layout = context->pipeline_layout,
     };
 
-    VkPipelineLayout unused_layout;
-    if (!vk_pipeline_create_graphics(context, &lit_cfg, &context->wireframe_lit_pipeline, &unused_layout)) {
+    VkPipelineLayout reused_layout;
+    if (!vk_pipeline_create_graphics(context, &lit_cfg, &context->wireframe_lit_pipeline, &reused_layout)) {
         vkDestroyShaderModule(context->device, lit_vert, nullptr);
         vkDestroyShaderModule(context->device, lit_frag, nullptr);
         vkDestroyShaderModule(context->device, unlit_frag, nullptr);
         return false;
     }
-    vkDestroyPipelineLayout(context->device, unused_layout, nullptr);
 
     // --- Wireframe unlit pipeline ---
     VkPipelineShaderStageCreateInfo unlit_stages[2] = {
@@ -395,15 +329,13 @@ b8 vk_wireframe_pipelines_create(VK_Context *context) {
     VK_PipelineConfig unlit_cfg = lit_cfg;
     unlit_cfg.stages = unlit_stages;
 
-    VkPipelineLayout unused_layout2;
-    if (!vk_pipeline_create_graphics(context, &unlit_cfg, &context->wireframe_unlit_pipeline, &unused_layout2)) {
+    if (!vk_pipeline_create_graphics(context, &unlit_cfg, &context->wireframe_unlit_pipeline, &reused_layout)) {
         vkDestroyPipeline(context->device, context->wireframe_lit_pipeline, nullptr);
         vkDestroyShaderModule(context->device, lit_vert, nullptr);
         vkDestroyShaderModule(context->device, lit_frag, nullptr);
         vkDestroyShaderModule(context->device, unlit_frag, nullptr);
         return false;
     }
-    vkDestroyPipelineLayout(context->device, unused_layout2, nullptr);
 
     vkDestroyShaderModule(context->device, lit_vert, nullptr);
     vkDestroyShaderModule(context->device, lit_frag, nullptr);

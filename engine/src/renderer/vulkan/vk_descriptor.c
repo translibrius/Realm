@@ -73,7 +73,7 @@ b8 vk_descriptor_create_set_layout(VK_Context *context) {
     };
 
     VK_CHECK_RETURN_FALSE(
-        vkCreateDescriptorSetLayout(context->device, &create_info, nullptr, &context->graphics_pipeline.descriptor_set_layout),
+        vkCreateDescriptorSetLayout(context->device, &create_info, nullptr, &context->descriptor_set_layout),
         "Failed to create descriptor set layout"
         );
 
@@ -81,7 +81,7 @@ b8 vk_descriptor_create_set_layout(VK_Context *context) {
 }
 
 void vk_descriptor_destroy_set_layout(VK_Context *context) {
-    vkDestroyDescriptorSetLayout(context->device, context->graphics_pipeline.descriptor_set_layout, nullptr);
+    vkDestroyDescriptorSetLayout(context->device, context->descriptor_set_layout, nullptr);
 }
 
 b8 vk_descriptor_create_pool(VK_Context *context) {
@@ -100,7 +100,7 @@ void vk_descriptor_destroy_pool(VK_Context *context) {
 b8 vk_descriptor_create_sets(VK_Context *context) {
     context->descriptor_sets = rl_arena_push(&context->arena, sizeof(VkDescriptorSet) * context->max_frames_in_flight, true);
 
-    if (!vk_descriptor_sets_allocate(context, context->descriptor_pool, context->graphics_pipeline.descriptor_set_layout, context->max_frames_in_flight, context->descriptor_sets)) {
+    if (!vk_descriptor_sets_allocate(context, context->descriptor_pool, context->descriptor_set_layout, context->max_frames_in_flight, context->descriptor_sets)) {
         return false;
     }
 

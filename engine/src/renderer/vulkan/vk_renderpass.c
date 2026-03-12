@@ -86,7 +86,7 @@ b8 vk_renderpass_create(VK_Context *context) {
         .pDependencies = &dependency,
     };
 
-    if (VK_SUCCESS != vkCreateRenderPass(context->device, &render_pass_create_info, nullptr, &context->graphics_pipeline.render_pass)) {
+    if (VK_SUCCESS != vkCreateRenderPass(context->device, &render_pass_create_info, nullptr, &context->render_pass)) {
         RL_ERROR("Failed to create render pass");
         return false;
     }
@@ -97,5 +97,5 @@ b8 vk_renderpass_create(VK_Context *context) {
 }
 
 void vk_renderpass_destroy(VK_Context *context) {
-    vkDestroyRenderPass(context->device, context->graphics_pipeline.render_pass, nullptr);
+    vkDestroyRenderPass(context->device, context->render_pass, nullptr);
 }

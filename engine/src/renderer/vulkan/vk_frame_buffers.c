@@ -22,7 +22,7 @@ b8 vk_framebuffers_create(VK_Context *context) {
 
         VkFramebufferCreateInfo framebuffer_create_info = {
             .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-            .renderPass = context->graphics_pipeline.render_pass,
+            .renderPass = context->render_pass,
             .attachmentCount = msaa ? 3u : 2u,
             .pAttachments = msaa ? attachments_msaa : attachments_no_msaa,
             .width = context->swapchain.chosen_extent.width,

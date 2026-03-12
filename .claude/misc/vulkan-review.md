@@ -1,6 +1,6 @@
 # Vulkan Backend Review — Open Items
 
-Reviewed against codebase as of 2026-03-08. All previously fixed items (1a, 1b, 1d–1i, 1j–1n, 1p–1r, 3h) have been removed.
+Reviewed against codebase as of 2026-03-12. Fixed items from this session and prior sessions have been removed.
 
 ---
 
@@ -25,13 +25,11 @@ Each swapchain recreation pushes new framebuffer/image-view arrays without recla
 
 | Feature | GL behavior | VK behavior | Fix approach |
 |---------|------------|-------------|--------------|
-| `material.specular` | Per-mesh uniform | Hardcoded `vec3(0.5)` in `triangle.frag` | Expand push constants: `mat4 + vec4` (pack specular.xyz + shininess in w) |
-| `material.shininess` | Per-mesh uniform | Hardcoded `32.0` in `triangle.frag` | Same push constant expansion |
 | `material.diffuse_map` | Selects between 2 textures per-mesh | Always `texture_wood` | Per-material descriptor sets (font segment pattern exists) |
 | Per-mesh wireframe | `glPolygonMode` per draw call | Only global `debug_wireframe` toggle | Read `rl_frame_mesh.wireframe` in `vk_commands.c` and bind wireframe pipeline per-mesh |
 | Multiple point lights | Uses first only | Uses first only | Same gap in both — expand UBO + shader loop |
 
-**Material push constants** is the highest-impact parity fix (~1-2 hours, touches `vk_commands.c` + `triangle.frag`).
+~~`material.specular`~~ and ~~`material.shininess`~~ — **DONE** (2026-03-12): push constants expanded to `VK_MeshPushConstants` (mat4 + vec4), fragment shader reads per-mesh values.
 
 ---
 
@@ -49,50 +47,39 @@ Every `vk_buffer_create` and `vk_texture_upload` calls `vkAllocateMemory` indivi
 - `rl_frame_mesh` carries a mesh handle instead of primitive enum
 - Command recording looks up buffer by handle
 
-### 3c. Unlit pipeline duplicates creation + dead code [S]
+---
 
-`vk_unlit_pipeline_create` manually builds all pipeline state instead of using `vk_pipeline_create_graphics` with `VK_PipelineConfig` (which the lit and wireframe pipelines already use). Also has dead `layout_ci` code (`(void)layout_ci`).
-**Fix**: refactor to use `VK_PipelineConfig` like the other pipelines, remove dead code.
+## Done (2026-03-12 session)
 
-### 3d. Render pass coupled to `VK_Pipeline` struct [M]
-
-`VK_Pipeline` stores `render_pass`, `descriptor_set_layout`, `pipeline_layout`, AND the pipeline handle. Render pass and descriptor set layout are shared by all pipelines, forcing `context->graphics_pipeline.render_pass` references everywhere.
-**Fix**: move `render_pass` and the 3D descriptor set layout onto `VK_Context` directly. `VK_Pipeline` becomes just `handle + layout`.
-
-### 3e. Shaders named `triangle.*` instead of `default.*` [S]
-
-VK 3D shaders are `triangle.vert`/`triangle.frag` (tutorial leftover). GL equivalents are `default.vert`/`default.frag`. Rename + update `ASSET_ID` enum references.
-
-### 3f. Default light values duplicated [S]
-
-Fallback light `{1.2, 1.0, 2.0}` with ambient/diffuse/specular values copy-pasted in both `gl_renderer.c` and `vk_renderer.c`.
-**Fix**: define once in `frame_data.h` or a shared helper.
-
-### 3g. `vk_util.h` — ~650 lines of `static inline` switches [S]
-
-`string_VkResult()` (~100 lines) and `string_VkFormat()` (~535 lines) are `static inline` in a header. Every includer gets its own copy.
-**Fix**: move to `vk_util.c`, keep declarations in header.
-
-### 3i. Duplicated shader compile functions [M]
-
-`vk_shader_module_compile` and `vk_shader_compile_to_module` (`vk_shader.c`) are ~90% identical. First stores result in DA, second returns directly.
-**Fix**: extract shared core, have both call it.
+| Item | What changed |
+|------|-------------|
+| **3e. Shader rename** | `triangle.{vert,frag}` → `default.{vert,frag}`, macros `RL_ASSET_SHADER_VK_DEFAULT_{VERT,FRAG}`, asset table updated |
+| **3f. Default light dedup** | `RL_DEFAULT_POINT_LIGHT` constant in `frame_data.h`, used by both GL and VK renderers |
+| **2. Material push constants** | `VK_MeshPushConstants` struct (80 bytes), both shaders updated, `vk_commands.c` pushes per-mesh specular/shininess |
+| **3c. Unlit pipeline cleanup** | Rewritten to use `VK_PipelineConfig` + `existing_layout` field; dead `layout_ci` removed; wireframe pipelines also use `existing_layout` |
+| **3d. Extract shared fields** | `render_pass`, `descriptor_set_layout`, `pipeline_layout` moved from `VK_Pipeline` to `VK_Context`; separate `vk_pipeline_layout_destroy()` |
+| **3g. vk_util.h → .c** | Functions moved to `vk_util.c`, header is declarations only |
+| **3i. Shader compile dedup** | Extracted `vk_shader_compile_core()` shared by both public functions |
 
 ---
 
-## 4. Recommended Work Order
+## 4. Recommended Next Steps
 
-Quick wins first, then parity, then structural work needed for model loading:
+Now that the cleanup / parity work is done, the remaining items fall into two tracks:
 
-1. **Quick cleanup** [~30 min]: 3e, 3f — remaining small mechanical fixes
-2. **Material parity** [~1-2 hours]: push constant expansion + shader update (biggest visual improvement)
-3. **Unlit pipeline cleanup** [~30 min]: 3c — use `VK_PipelineConfig`, remove dead code
-4. **Extract render pass** [~1-2 hours]: 3d — decouple before adding more pipelines
-5. **Memory sub-allocator** [~4+ hours]: 3a — required before model loading
-6. **Mesh registry + model loading** [~4+ hours]: 3b — the big feature unlock
-7. **Remaining cleanup**: 3g, 3i, 1o, per-mesh wireframe, multi-texture support
+### Track A: Model loading prerequisites
+1. **Memory sub-allocator** [~4+ hours]: 3a — required before loading arbitrary meshes/textures
+2. **Mesh registry + model loading** [~4+ hours]: 3b — the big feature unlock
+3. **Per-material descriptor sets**: multi-texture support (diffuse_map parity)
 
-Items 1c (fence-based submit) and 1s (arena accumulation) can defer indefinitely — only matter for runtime streaming and extreme resize spam respectively.
+### Track B: Smaller improvements (independent)
+- **Per-mesh wireframe**: read `rl_frame_mesh.wireframe` in `vk_commands.c`, bind wireframe pipeline per-mesh
+- **1o. Mipmap blit format check**: add `vkGetPhysicalDeviceFormatProperties` guard
+- **Multi-light support**: expand UBO + shader loop (both backends)
+
+### Deferred (no urgency)
+- 1c: fence-based single-use submit (only matters for runtime streaming)
+- 1s: arena accumulation on resize (25 MiB arena, unlikely to be practical)
 
 ---
 
@@ -100,8 +87,8 @@ Items 1c (fence-based submit) and 1s (arena accumulation) can defer indefinitely
 
 | Backend | Files | Purpose |
 |---------|-------|---------|
-| VK | `triangle.vert` + `triangle.frag` | 3D lit (Blinn-Phong) — specular/shininess hardcoded |
-| VK | `triangle.vert` + `light.frag` | 3D unlit (light source cubes) |
+| VK | `default.vert` + `default.frag` | 3D lit (Blinn-Phong) — reads material specular/shininess from push constants |
+| VK | `default.vert` + `light.frag` | 3D unlit (light source cubes) |
 | VK | `text.vert` + `text.frag` | MSDF text |
 | VK | `gui.vert` + `gui.frag` | GUI rects + MSDF text (dual-mode) |
 | GL | `default.vert` + `default.frag` | 3D lit (Blinn-Phong) — reads material uniforms |
@@ -109,4 +96,4 @@ Items 1c (fence-based submit) and 1s (arena accumulation) can defer indefinitely
 | GL | `text.vert` + `text.frag` | MSDF text |
 | GL | `gui.vert` + `gui.frag` | GUI rects + MSDF text |
 
-Key difference: VK uses UBO (binding 0) + push constants for uniforms; GL uses individual `glUniform*` calls. VK compiles GLSL→SPIR-V at runtime via shaderc.
+Key difference: VK uses UBO (binding 0) + push constants (`VK_MeshPushConstants`: mat4 model + vec4 material_params) for uniforms; GL uses individual `glUniform*` calls. VK compiles GLSL→SPIR-V at runtime via shaderc.

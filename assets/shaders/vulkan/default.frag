@@ -10,6 +10,11 @@ layout (binding = 0) uniform UniformBufferObject {
     vec4 camera_pos;
 } ubo;
 
+layout (push_constant) uniform PushConstants {
+    mat4 model;
+    vec4 material_params; // xyz = specular, w = shininess
+} push;
+
 layout (location = 0) in vec3 fragNormal;
 layout (location = 1) in vec3 fragPos;
 layout (location = 2) in vec2 fragTexCoord;
@@ -31,8 +36,8 @@ void main() {
     // Specular
     vec3 viewDir = normalize(ubo.camera_pos.xyz - fragPos);
     vec3 reflectDir = reflect(-lightDir, norm);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
-    vec3 specular = (vec3(0.5) * spec) * ubo.light_specular.xyz;
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), push.material_params.w);
+    vec3 specular = (push.material_params.xyz * spec) * ubo.light_specular.xyz;
 
     vec3 result = ambient + diffuse + specular;
     outColor = vec4(result, 1.0);

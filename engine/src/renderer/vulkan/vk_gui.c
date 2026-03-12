@@ -246,7 +246,7 @@ b8 vk_gui_pipeline_init(VK_Context *ctx) {
         .cull_mode = VK_CULL_MODE_NONE,
         .blend_enable = true,
         .msaa_samples = ctx->msaa_samples,
-        .render_pass = ctx->graphics_pipeline.render_pass,
+        .render_pass = ctx->render_pass,
     };
 
     b8 ok = vk_pipeline_create_graphics(ctx, &cfg, &gp->handle, &gp->layout);

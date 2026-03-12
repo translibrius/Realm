@@ -23,8 +23,8 @@ typedef enum ASSET_TYPE {
 #define RL_ASSET_SHADER_GL_GUI_VERT       "shaders/opengl/gui.vert"
 #define RL_ASSET_SHADER_GL_GUI_FRAG       "shaders/opengl/gui.frag"
 
-#define RL_ASSET_SHADER_VK_TRIANGLE_VERT  "shaders/vulkan/triangle.vert"
-#define RL_ASSET_SHADER_VK_TRIANGLE_FRAG  "shaders/vulkan/triangle.frag"
+#define RL_ASSET_SHADER_VK_DEFAULT_VERT   "shaders/vulkan/default.vert"
+#define RL_ASSET_SHADER_VK_DEFAULT_FRAG   "shaders/vulkan/default.frag"
 #define RL_ASSET_SHADER_VK_TEXT_VERT      "shaders/vulkan/text.vert"
 #define RL_ASSET_SHADER_VK_TEXT_FRAG      "shaders/vulkan/text.frag"
 #define RL_ASSET_SHADER_VK_GUI_VERT       "shaders/vulkan/gui.vert"

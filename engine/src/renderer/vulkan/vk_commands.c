@@ -69,7 +69,7 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
 
     VkRenderPassBeginInfo render_pass_begin_info = {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-        .renderPass = context->graphics_pipeline.render_pass,
+        .renderPass = context->render_pass,
         .framebuffer = context->swapchain.frame_buffers[image_index],
         .renderArea = {
             .offset = {0, 0},
@@ -104,14 +104,18 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
         VkBuffer vbufs[] = {context->cube_vertex_buffer};
         VkDeviceSize offsets[] = {0};
         vkCmdBindVertexBuffers(buffer, 0, 1, vbufs, offsets);
-        vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->graphics_pipeline.layout, 0, 1, &context->descriptor_sets[context->current_frame], 0, nullptr);
+        vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->pipeline_layout, 0, 1, &context->descriptor_sets[context->current_frame], 0, nullptr);
 
         // --- Lit pass ---
         VkPipeline lit_pipe = context->debug_wireframe ? context->wireframe_lit_pipeline : context->graphics_pipeline.handle;
         vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, lit_pipe);
         for (u32 i = 0; i < context->frame_mesh_count; i++) {
             if (context->frame_meshes[i].kind != RL_FRAME_MESH_KIND_LIT) continue;
-            vkCmdPushConstants(buffer, context->graphics_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), context->frame_meshes[i].model);
+            VK_MeshPushConstants pc;
+            glm_mat4_copy(context->frame_meshes[i].model, pc.model);
+            glm_vec3_copy(context->frame_meshes[i].material.specular, pc.material_params);
+            pc.material_params[3] = context->frame_meshes[i].material.shininess;
+            vkCmdPushConstants(buffer, context->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(VK_MeshPushConstants), &pc);
             vkCmdDraw(buffer, context->cube_vertex_count, 1, 0, 0);
         }
 
@@ -120,7 +124,10 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
         vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, unlit_pipe);
         for (u32 i = 0; i < context->frame_mesh_count; i++) {
             if (context->frame_meshes[i].kind != RL_FRAME_MESH_KIND_UNLIT) continue;
-            vkCmdPushConstants(buffer, context->graphics_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), context->frame_meshes[i].model);
+            VK_MeshPushConstants pc;
+            glm_mat4_copy(context->frame_meshes[i].model, pc.model);
+            glm_vec4_zero(pc.material_params);
+            vkCmdPushConstants(buffer, context->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(VK_MeshPushConstants), &pc);
             vkCmdDraw(buffer, context->cube_vertex_count, 1, 0, 0);
         }
 

@@ -122,12 +122,7 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
         goto text_pass;
     }
 
-    rl_frame_point_light light = {
-        .position = {1.2f, 1.0f, 2.0f},
-        .ambient  = {0.2f, 0.2f, 0.2f},
-        .diffuse  = {0.5f, 0.5f, 0.5f},
-        .specular = {1.0f, 1.0f, 1.0f},
-    };
+    rl_frame_point_light light = RL_DEFAULT_POINT_LIGHT;
     if (frame_data->point_light_count > 0 && frame_data->point_lights) {
         light = frame_data->point_lights[0];
     }

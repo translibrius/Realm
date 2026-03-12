@@ -12,6 +12,7 @@ layout (binding = 0) uniform UniformBufferObject {
 
 layout (push_constant) uniform PushConstants {
     mat4 model;
+    vec4 material_params; // xyz = specular, w = shininess
 } push;
 
 layout (location = 0) in vec3 inPosition;

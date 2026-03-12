@@ -25,12 +25,14 @@ typedef struct VK_PipelineConfig {
     VkSampleCountFlagBits msaa_samples;
 
     VkRenderPass render_pass;
+    VkPipelineLayout existing_layout; // non-null = reuse this layout instead of creating one
 } VK_PipelineConfig;
 
 b8 vk_pipeline_create_graphics(VK_Context *ctx, VK_PipelineConfig *cfg, VkPipeline *out_pipeline, VkPipelineLayout *out_layout);
 
 b8 vk_pipeline_create(VK_Context *context);
 void vk_pipeline_destroy(VK_Context *context);
+void vk_pipeline_layout_destroy(VK_Context *context);
 
 b8 vk_unlit_pipeline_create(VK_Context *context);
 void vk_unlit_pipeline_destroy(VK_Context *context);

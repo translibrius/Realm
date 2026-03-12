@@ -156,13 +156,15 @@ typedef struct {
     b8 initialized;
 } VK_Shader_Compiler;
 
+typedef struct VK_MeshPushConstants {
+    mat4 model;           // 64 bytes
+    vec4 material_params; // 16 bytes: xyz = specular, w = shininess
+} VK_MeshPushConstants;
+
 typedef struct VK_Pipeline {
     VkPipeline handle;
     u32 shader_stage_count;
     VkPipelineShaderStageCreateInfo *shader_stages;
-    VkDescriptorSetLayout descriptor_set_layout;
-    VkPipelineLayout layout;
-    VkRenderPass render_pass;
 } VK_Pipeline;
 
 typedef struct VK_Context {
@@ -190,6 +192,12 @@ typedef struct VK_Context {
     VK_QueueFamilyIndices queue_families;
 
     VK_Swapchain swapchain;
+
+    // Shared across all 3D pipelines
+    VkRenderPass render_pass;
+    VkDescriptorSetLayout descriptor_set_layout;
+    VkPipelineLayout pipeline_layout;
+
     VK_Pipeline graphics_pipeline;
     VkCommandPool graphics_pool;
     VkCommandPool transfer_pool;

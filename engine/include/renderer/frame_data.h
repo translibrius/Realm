@@ -53,6 +53,13 @@ typedef struct rl_frame_point_light {
     vec3 specular;
 } rl_frame_point_light;
 
+static const rl_frame_point_light RL_DEFAULT_POINT_LIGHT = {
+    .position = {1.2f, 1.0f, 2.0f},
+    .ambient  = {0.2f, 0.2f, 0.2f},
+    .diffuse  = {0.5f, 0.5f, 0.5f},
+    .specular = {1.0f, 1.0f, 1.0f},
+};
+
 typedef struct rl_frame_data {
     rl_frame_camera camera;
 
