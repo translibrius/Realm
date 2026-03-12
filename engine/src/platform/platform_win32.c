@@ -19,9 +19,11 @@
 #include <windowsx.h>
 #include <winternl.h>
 #include <winuser.h>
+#include <shellapi.h>
 
 #include "core/config.h"
 #include "core/event.h"
+#include "memory/arena.h"
 #include "memory/memory.h"
 #include "platform/input.h"
 #include "renderer/vulkan/vk_types.h"
@@ -36,6 +38,7 @@
 
 // Window messages
 #define MSG_RESIZE (WM_USER + 0x1339)
+#define MSG_FILE_DROP (WM_USER + 0x133A)
 
 /* ---- Custom window message structs */
 
@@ -456,6 +459,8 @@ b8 platform_create_window(platform_window *window) {
     w->hwnd = hwnd;
     w->alive = true;
     w->window = window;
+
+    DragAcceptFiles(hwnd, TRUE);
 
     window->id = id;
     window->handle = hwnd;
@@ -1295,6 +1300,44 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
         PostThreadMessageA(state.main_thread_id, Message, WParam, LParam);
         break;
     }
+
+    case WM_DROPFILES: {
+        HDROP hdrop = (HDROP)WParam;
+        UINT file_count = DragQueryFileA(hdrop, 0xFFFFFFFF, NULL, 0);
+        if (file_count == 0) {
+            DragFinish(hdrop);
+            break;
+        }
+
+        ARENA_SCRATCH_START();
+
+        const char **paths = rl_arena_push(scratch.arena, file_count * sizeof(const char *), false);
+        for (UINT i = 0; i < file_count; i++) {
+            UINT len = DragQueryFileA(hdrop, i, NULL, 0);
+            char *buf = rl_arena_push(scratch.arena, len + 1, false);
+            DragQueryFileA(hdrop, i, buf, len + 1);
+            paths[i] = buf;
+        }
+
+        u16 wid = 0;
+        for (u16 i = 0; i < MAX_WINDOWS; i++) {
+            if (state.windows[i].alive && state.windows[i].hwnd == Window) {
+                wid = state.windows[i].window ? state.windows[i].window->id : 0;
+                break;
+            }
+        }
+
+        e_file_drop_payload payload = {
+            .window_id = wid,
+            .paths = paths,
+            .count = (u32)file_count,
+        };
+
+        event_fire(EVENT_FILE_DROP, &payload);
+
+        ARENA_SCRATCH_RELEASE();
+        DragFinish(hdrop);
+    } break;
 
     // Focus
     case WM_SETFOCUS: {

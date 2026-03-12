@@ -6,6 +6,7 @@
 
 #include "core/event.h"
 #include "core/logger.h"
+#include "memory/arena.h"
 #include "memory/memory.h"
 #include "platform/input.h"
 #include "platform/splash/splash.h"
@@ -356,6 +357,63 @@ static KEYBOARD_KEY mac_map_keycode(u16 keycode) {
 }
 @end
 
+@interface RLDropView : NSView
+@property(nonatomic, assign) mac_window *window_state;
+@end
+
+@implementation RLDropView
+- (instancetype)initWithFrame:(NSRect)frame windowState:(mac_window *)ws {
+    self = [super initWithFrame:frame];
+    if (self) {
+        _window_state = ws;
+        [self registerForDraggedTypes:@[NSPasteboardTypeFileURL]];
+    }
+    return self;
+}
+
+- (NSDragOperation)draggingEntered:(id<NSDraggingInfo>)sender {
+    (void)sender;
+    return NSDragOperationCopy;
+}
+
+- (BOOL)performDragOperation:(id<NSDraggingInfo>)sender {
+    NSPasteboard *pb = [sender draggingPasteboard];
+    NSArray<NSURL *> *urls = [pb readObjectsForClasses:@[[NSURL class]]
+                                               options:@{NSPasteboardURLReadingFileURLsOnlyKey: @YES}];
+    if (!urls || urls.count == 0) {
+        return NO;
+    }
+
+    ARENA_SCRATCH_START();
+
+    u32 count = (u32)urls.count;
+    const char **paths = rl_arena_push(scratch.arena, count * sizeof(const char *), false);
+
+    for (u32 i = 0; i < count; i++) {
+        const char *fs_path = urls[i].fileSystemRepresentation;
+        u64 len = strlen(fs_path);
+        char *copy = rl_arena_push(scratch.arena, len + 1, false);
+        memcpy(copy, fs_path, len + 1);
+        paths[i] = copy;
+    }
+
+    u16 wid = _window_state && _window_state->platform_window
+                  ? _window_state->platform_window->id
+                  : 0;
+
+    e_file_drop_payload payload = {
+        .window_id = wid,
+        .paths = paths,
+        .count = count,
+    };
+
+    event_fire(EVENT_FILE_DROP, &payload);
+
+    ARENA_SCRATCH_RELEASE();
+    return YES;
+}
+@end
+
 static void mac_get_system_info() {
     static char machine[256] = {0};
     size_t size = sizeof(machine);
@@ -628,9 +686,13 @@ b8 platform_create_window(platform_window *window) {
     RLWindowDelegate *delegate = [[RLWindowDelegate alloc] initWithWindowState:mw];
     ns_window.delegate = delegate;
 
+    RLDropView *drop_view = [[RLDropView alloc] initWithFrame:ns_window.contentView.frame
+                                                  windowState:mw];
+    [ns_window setContentView:drop_view];
+
     mw->delegate = delegate;
     mw->window = ns_window;
-    mw->view = ns_window.contentView;
+    mw->view = drop_view;
     mw->saved_style = style;
     mw->saved_frame = ns_window.frame;
 

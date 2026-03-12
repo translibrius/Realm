@@ -18,6 +18,7 @@ b8 on_focus_lost(void *event, void *data);
 b8 on_window_resize(void *event, void *data);
 b8 on_key_press(void *event, void *data);
 b8 on_mouse_scroll(void *event, void *data);
+b8 on_file_drop(void *event, void *data);
 
 void app_event_handler_init(app_event_handler *handler, rl_application *application) {
     handler->application = application;
@@ -27,6 +28,7 @@ void app_event_handler_init(app_event_handler *handler, rl_application *applicat
     event_register(EVENT_WINDOW_RESIZE, on_window_resize, handler);
     event_register(EVENT_KEY_PRESS, on_key_press, handler);
     event_register(EVENT_MOUSE_SCROLL, on_mouse_scroll, handler);
+    event_register(EVENT_FILE_DROP, on_file_drop, handler);
 }
 
 // Impl
@@ -162,4 +164,13 @@ b8 on_mouse_scroll(void *event, void *data) {
     // Return false so Clay still processes the scroll event.
     app_console_on_scroll(&handler->application->console, (f32)scroll->z_delta);
     return false;
+}
+
+b8 on_file_drop(void *event, void *data) {
+    (void)data;
+    e_file_drop_payload *drop = event;
+    for (u32 i = 0; i < drop->count; i++) {
+        RL_INFO("File dropped: %s", drop->paths[i]);
+    }
+    return true;
 }

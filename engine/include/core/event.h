@@ -18,6 +18,12 @@ typedef struct e_config_changed_payload {
     const char *key;
 } e_config_changed_payload;
 
+typedef struct e_file_drop_payload {
+    u16 window_id;
+    const char **paths;
+    u32 count;
+} e_file_drop_payload;
+
 typedef enum EVENT_TYPE {
     EVENT_WINDOW_RESIZE,
     EVENT_WINDOW_FOCUS_GAINED,
@@ -35,6 +41,9 @@ typedef enum EVENT_TYPE {
 
     // Config
     EVENT_CONFIG_CHANGED,
+
+    // File drop
+    EVENT_FILE_DROP,
 } EVENT_TYPE;
 
 typedef struct rl_event {

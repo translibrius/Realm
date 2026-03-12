@@ -590,6 +590,8 @@ b8 platform_create_window(platform_window *window) {
         XMapWindow(state.display, xwin);
     }
 
+    // TODO: XDND file drop support — register XdndAware atom and handle XDND protocol messages
+
     XFlush(state.display);
 
     window->id = (u16)id;
