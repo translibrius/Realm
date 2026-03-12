@@ -89,6 +89,7 @@ configure_file(
 # Add subprojects
 add_subdirectory(engine)
 add_subdirectory(realm)
+add_subdirectory(realm_editor)
 
 if (BUILD_TESTING AND REALM_BUILD_TESTS)
     add_subdirectory(tests)

@@ -19,5 +19,19 @@
     "use_new_terminal": false,
     "allow_concurrent_runs": false,
     "reveal": "always"
+  },
+  {
+    "label": "Editor (Debug)",
+    "command": "cmake --build --preset debug --target RealmEditor && cd build/debug/bin && ./RealmEditor",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "Editor (Release)",
+    "command": "cmake --build --preset release --target RealmEditor && cd build/release/bin && ./RealmEditor",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
   }
 ]
