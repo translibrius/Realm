@@ -47,6 +47,15 @@ b8 platform_dir_exists(const char *path) {
     return (attrs != INVALID_FILE_ATTRIBUTES) && (attrs & FILE_ATTRIBUTE_DIRECTORY);
 }
 
+b8 platform_dir_create(const char *path) {
+    if (!path || !path[0]) return false;
+    if (CreateDirectoryA(path, NULL)) return true;
+    DWORD err = GetLastError();
+    if (err == ERROR_ALREADY_EXISTS) return true;
+    RL_ERROR("Failed to create directory '%s'. Error: %lu", path, err);
+    return false;
+}
+
 b8 platform_file_copy(const char *source_path, const char *dest_path, b8 overwrite) {
     if (!source_path || !dest_path) {
         RL_ERROR("Failed to copy file: invalid path(s)");

@@ -19,6 +19,7 @@ add_executable(RealmTests
         cases/test_asset.c
         cases/test_profiler.c
         cases/test_entity.c
+        cases/test_project.c
 )
 
 target_include_directories(RealmTests

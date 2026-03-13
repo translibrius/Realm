@@ -60,3 +60,12 @@ REALM_API asset_id asset_find(const char *source_path);
 
 // Load a new asset at runtime. Returns its id (or existing id if already loaded).
 REALM_API asset_id asset_load(ASSET_TYPE type, const char *source_path);
+
+// Content asset lifecycle — load/clear content assets separately from engine assets.
+REALM_API b8 asset_system_load_content(void);
+REALM_API void asset_system_clear_content(void);
+
+// Content root override — when set, TEXTURE/MESH assets resolve from this path.
+REALM_API void asset_set_content_root(const char *path);
+REALM_API void asset_clear_content_root(void);
+REALM_API const char *asset_get_resolve_root(ASSET_TYPE type);

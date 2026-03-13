@@ -7,11 +7,12 @@
 #include "host/host_renderer.h"
 #include "renderer/renderer_frontend.h"
 
-host_bootstrap_result host_bootstrap(const char *asset_root, const char *window_title) {
+host_bootstrap_result host_bootstrap(const char *asset_root, const char *window_title, const char *config_filename) {
     host_bootstrap_result result = {0};
 
     rl_engine_config engine_config = rl_engine_config_default();
     engine_config.asset_root = asset_root;
+    engine_config.config_filename = config_filename;
 
     if (!rl_engine_create(&engine_config)) {
         RL_FATAL("Engine failed to bootstrap");

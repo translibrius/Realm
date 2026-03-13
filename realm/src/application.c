@@ -2,6 +2,7 @@
 
 #include "app_console.h"
 #include "app_renderer.h"
+#include "asset/asset.h"
 #include "core/config.h"
 #include "core/logger.h"
 #include "engine.h"
@@ -26,9 +27,11 @@ b8 create_application(void) {
     app.backend_switch_requested = false;
     app.requested_backend = BACKEND_OPENGL;
 
-    host_bootstrap_result boot = host_bootstrap("../../../assets/", "Realm");
+    host_bootstrap_result boot = host_bootstrap("../../../assets/", "Realm", "config.toml");
     if (!boot.success) return false;
     app.window = boot.window;
+
+    asset_system_load_content();
 
     // Console registers events first so it can consume key/char input when visible
     app_console_init(&app.console);

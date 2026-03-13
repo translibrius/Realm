@@ -34,6 +34,13 @@ typedef struct asset_system {
     char shaders_dir[ASSET_DIR_PATH_MAX];
     char textures_dir[ASSET_DIR_PATH_MAX];
     char models_dir[ASSET_DIR_PATH_MAX];
+
+    // Content root override (set by project system)
+    char content_root[ASSET_ROOT_PATH_MAX];
+    b8 has_content_root;
+
+    // First content asset id (set after engine assets loaded)
+    asset_id content_start_id;
 } asset_system;
 
 static asset_system *state;
@@ -55,7 +62,8 @@ static b8 asset_compute_source_hash(rl_asset *asset) {
     }
 
     rl_temp_arena scratch = rl_arena_scratch_get();
-    rl_string absolute_path = rl_string_format(scratch.arena, "%s%s", state->asset_root, asset->source_path);
+    const char *root = asset_get_resolve_root(asset->type);
+    rl_string absolute_path = rl_string_format(scratch.arena, "%s%s", root, asset->source_path);
 
     rl_file source_file = {0};
     if (!platform_file_open(absolute_path.cstr, P_FILE_READ, &source_file)) {
@@ -153,6 +161,9 @@ b8 asset_system_start(void *system, const char *asset_root) {
     rl_arena_init(&state->asset_arena, MiB(200), MiB(5), MEM_SUBSYSTEM_ASSET);
     da_init(&state->assets);
     state->next_id = 1;
+    state->has_content_root = false;
+    state->content_root[0] = '\0';
+    state->content_start_id = 0;
 
     asset_set_root(asset_root);
 
@@ -167,15 +178,15 @@ void asset_system_shutdown() {
     state = nullptr;
 }
 
-b8 asset_system_load_all() {
+b8 asset_system_load_engine() {
     b8 splash_active = splash_show();
     if (splash_active) {
         splash_update();
     }
 
-    RL_DEBUG("Loading assets...");
-    for (u32 i = 0; i < ASSET_TABLE_COUNT; i++) {
-        asset_table_entry *entry = &asset_table[i];
+    RL_DEBUG("Loading engine assets...");
+    for (u32 i = 0; i < ENGINE_ASSET_TABLE_COUNT; i++) {
+        asset_table_entry *entry = &engine_asset_table[i];
         asset_id id = asset_load(entry->type, entry->source_path);
         if (id == 0) {
             if (splash_active) {
@@ -195,7 +206,34 @@ b8 asset_system_load_all() {
         splash_hide();
     }
 
+    state->content_start_id = state->next_id;
     return true;
+}
+
+b8 asset_system_load_content(void) {
+    if (!state) return false;
+
+    RL_DEBUG("Loading content assets...");
+    for (u32 i = 0; i < CONTENT_ASSET_TABLE_COUNT; i++) {
+        asset_table_entry *entry = &content_asset_table[i];
+        asset_id id = asset_load(entry->type, entry->source_path);
+        if (id == 0) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void asset_system_clear_content(void) {
+    if (!state || state->content_start_id == 0) return;
+
+    // Truncate back to engine-only assets
+    u32 engine_count = state->content_start_id - 1;
+    if (state->assets.count > engine_count) {
+        state->assets.count = engine_count;
+    }
+    state->next_id = state->content_start_id;
 }
 
 asset_id asset_load(ASSET_TYPE type, const char *source_path) {
@@ -265,6 +303,50 @@ const char *get_asset_root(void) {
     }
 
     return state->asset_root;
+}
+
+const char *asset_get_resolve_root(ASSET_TYPE type) {
+    if (!state) {
+        return DEFAULT_ASSET_ROOT;
+    }
+
+    if (state->has_content_root && (type == ASSET_TEXTURE || type == ASSET_MESH)) {
+        return state->content_root;
+    }
+
+    return state->asset_root;
+}
+
+void asset_set_content_root(const char *path) {
+    if (!state || !path || !path[0]) return;
+
+    u64 len = strlen(path);
+    u64 max_copy = sizeof(state->content_root) - 2;
+    if (len > max_copy) len = max_copy;
+
+    memcpy(state->content_root, path, len);
+
+    // Normalize slashes
+    for (u64 i = 0; i < len; i++) {
+        if (state->content_root[i] == '\\') {
+            state->content_root[i] = '/';
+        }
+    }
+
+    // Ensure trailing slash
+    if (len == 0 || state->content_root[len - 1] != '/') {
+        state->content_root[len++] = '/';
+    }
+    state->content_root[len] = '\0';
+    state->has_content_root = true;
+
+    RL_INFO("Content root set to: %s", state->content_root);
+}
+
+void asset_clear_content_root(void) {
+    if (!state) return;
+    state->content_root[0] = '\0';
+    state->has_content_root = false;
 }
 
 rl_asset *asset_get(asset_id id) {

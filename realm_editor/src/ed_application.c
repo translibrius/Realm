@@ -23,7 +23,7 @@ b8 create_editor(void) {
     app.backend_switch_requested = false;
     app.requested_backend = BACKEND_OPENGL;
 
-    host_bootstrap_result boot = host_bootstrap("../../../assets/", "Realm Editor");
+    host_bootstrap_result boot = host_bootstrap("../../../assets/", "Realm Editor", "editor.toml");
     if (!boot.success) return false;
     app.window = boot.window;
 

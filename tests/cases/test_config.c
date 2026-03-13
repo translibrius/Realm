@@ -12,14 +12,14 @@ static void *g_config_mem;
 static void config_test_setup(void) {
     g_config_mem = mem_alloc(config_system_size(), MEM_SUBSYSTEM_CONFIG);
     // Remove any leftover config file
-    platform_file_delete(RL_CONFIG_FILENAME);
+    platform_file_delete(RL_CONFIG_FILENAME_DEFAULT);
 }
 
 static void config_test_teardown(void) {
     config_system_shutdown();
     mem_free(g_config_mem, config_system_size(), MEM_SUBSYSTEM_CONFIG);
     g_config_mem = nullptr;
-    platform_file_delete(RL_CONFIG_FILENAME);
+    platform_file_delete(RL_CONFIG_FILENAME_DEFAULT);
 }
 
 RL_TEST(config_defaults_are_sane) {
@@ -38,7 +38,7 @@ RL_TEST(config_defaults_are_sane) {
 RL_TEST(config_load_missing_file_uses_defaults) {
     config_test_setup();
 
-    RL_EXPECT(config_system_start(g_config_mem));
+    RL_EXPECT(config_system_start(g_config_mem, NULL));
 
     rl_config *cfg = config_get();
     RL_EXPECT(cfg != nullptr);
@@ -52,7 +52,7 @@ RL_TEST(config_load_missing_file_uses_defaults) {
 RL_TEST(config_save_and_roundtrip) {
     config_test_setup();
 
-    RL_EXPECT(config_system_start(g_config_mem));
+    RL_EXPECT(config_system_start(g_config_mem, NULL));
 
     rl_config *cfg = config_get();
     cfg->window_width = 1280;
@@ -70,7 +70,7 @@ RL_TEST(config_save_and_roundtrip) {
     config_system_shutdown();
     mem_zero(g_config_mem, config_system_size());
 
-    RL_EXPECT(config_system_start(g_config_mem));
+    RL_EXPECT(config_system_start(g_config_mem, NULL));
 
     cfg = config_get();
     RL_EXPECT_EQ_I32(cfg->window_width, 1280);
@@ -96,9 +96,9 @@ RL_TEST(config_load_partial_keys_uses_defaults_for_missing) {
         "[renderer]\n"
         "vsync = true\n";
 
-    RL_EXPECT(platform_file_write_all(RL_CONFIG_FILENAME, partial_toml, strlen(partial_toml)));
+    RL_EXPECT(platform_file_write_all(RL_CONFIG_FILENAME_DEFAULT, partial_toml, strlen(partial_toml)));
 
-    RL_EXPECT(config_system_start(g_config_mem));
+    RL_EXPECT(config_system_start(g_config_mem, NULL));
 
     rl_config *cfg = config_get();
     RL_EXPECT_EQ_I32(cfg->window_width, 800);
@@ -116,9 +116,9 @@ RL_TEST(config_load_corrupt_file_uses_defaults) {
 
     const char *garbage = "{{{{ not valid toml !@#$%\n\xff\xfe";
 
-    RL_EXPECT(platform_file_write_all(RL_CONFIG_FILENAME, garbage, strlen(garbage)));
+    RL_EXPECT(platform_file_write_all(RL_CONFIG_FILENAME_DEFAULT, garbage, strlen(garbage)));
 
-    RL_EXPECT(config_system_start(g_config_mem));
+    RL_EXPECT(config_system_start(g_config_mem, NULL));
 
     rl_config *cfg = config_get();
     RL_EXPECT(cfg != nullptr);
@@ -142,9 +142,9 @@ RL_TEST(config_load_unknown_enum_uses_default) {
         "[engine]\n"
         "log_level = \"verbose\"\n";
 
-    RL_EXPECT(platform_file_write_all(RL_CONFIG_FILENAME, bad_enum, strlen(bad_enum)));
+    RL_EXPECT(platform_file_write_all(RL_CONFIG_FILENAME_DEFAULT, bad_enum, strlen(bad_enum)));
 
-    RL_EXPECT(config_system_start(g_config_mem));
+    RL_EXPECT(config_system_start(g_config_mem, NULL));
 
     rl_config *cfg = config_get();
     RL_EXPECT_EQ_I32(cfg->window_width, 800);

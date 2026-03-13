@@ -268,14 +268,12 @@ b8 opengl_initialize(platform_window *platform_window, b8 vsync) {
         return false;
     }
 
-    // Texture init — load all texture assets into the GL lookup table
-    if (!gl_load_texture(asset_find(RL_ASSET_TEXTURE_WOOD_CONTAINER))) {
-        RL_ERROR("gl_load_texture() failed");
-        return false;
-    }
-    if (!gl_load_texture(asset_find(RL_ASSET_TEXTURE_WOOD_CONTAINER2))) {
-        RL_ERROR("gl_load_texture() failed");
-        return false;
+    // Texture init — content textures loaded on demand, skip if not available
+    {
+        asset_id wood1 = asset_find(RL_ASSET_TEXTURE_WOOD_CONTAINER);
+        if (wood1) gl_load_texture(wood1);
+        asset_id wood2 = asset_find(RL_ASSET_TEXTURE_WOOD_CONTAINER2);
+        if (wood2) gl_load_texture(wood2);
     }
 
     // Text pipeline

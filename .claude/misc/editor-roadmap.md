@@ -123,56 +123,64 @@ Add `engine/include/host/` and `engine/src/host/` inside the existing Engine lib
 
 The editor needs to work with projects — each project is a directory with its own scenes, assets, and settings. This phase also splits config so editor and game have independent settings, and decouples asset loading so engine assets load at bootstrap while project assets load on demand.
 
-### 4a. Config split
+### 4a. Config split — DONE
 
-- [ ] Create `engine/include/host/host_config.h` + `engine/src/host/host_config.c`
-- [ ] `host_config` — application-level config (window geometry, renderer backend, log level, layout state)
-- [ ] Editor writes `editor.toml` next to its binary; game host keeps `config.toml`
-- [ ] Refactor `rl_config` or create `editor_config` struct with editor-specific fields (layout ratios, panel visibility, recent projects list)
-- [ ] `config_filename` passed into bootstrap or set per-application so editor and game use different files
-- [ ] Verify: editor and game each persist their own settings independently
+- [x] Added `config_filename` field to `rl_engine_config`, propagated through `rl_engine_create()`
+- [x] Renamed `RL_CONFIG_FILENAME` → `RL_CONFIG_FILENAME_DEFAULT`, parameterized `config_system_start(void *memory, const char *filename)`
+- [x] Stored filename in `config_state`, used in `config_load`/`config_save`
+- [x] Added `config_filename` param to `host_bootstrap()`
+- [x] Game host passes `"config.toml"`, editor passes `"editor.toml"`
+- [x] Updated `test_config.c` for new API — all tests pass
+- [x] Verify: editor and game each persist their own settings independently
 
-### 4b. Asset system split
+### 4b. Asset system split — DONE
 
-- [ ] Split asset loading into two stages: engine assets and content assets
-- [ ] Engine assets (fonts, shaders) — loaded during `host_bootstrap()`, path derived from engine/binary location
-- [ ] Content assets (meshes, textures, models) — loaded on demand via `asset_load()` when a project is opened
-- [ ] `asset_system_load_all()` renamed or scoped to only load engine assets at bootstrap
-- [ ] Add `asset_unload()` or `asset_clear_content()` for project close/switch
-- [ ] Editor bootstrap no longer passes game asset root — engine finds its own assets
-- [ ] Verify: editor starts with only engine assets loaded, game host still works as before
+- [x] Split `asset_table[]` into `engine_asset_table[]` (1 font + 14 shaders) and `content_asset_table[]` (3 textures + 1 mesh)
+- [x] Replaced `asset_system_load_all()` with `asset_system_load_engine()` (with splash) + `asset_system_load_content()` (no splash)
+- [x] Added `asset_system_clear_content()` — truncates asset array back to engine-only
+- [x] Added `asset_set_content_root(path)` / `asset_clear_content_root()` — override resolve root for TEXTURE/MESH types
+- [x] Added `asset_get_resolve_root(ASSET_TYPE)` — used by `texture.c`, `mesh.c`, and `asset_compute_source_hash`
+- [x] GL and Vulkan renderers gracefully handle missing content textures at init
+- [x] Vulkan descriptor sets skip image descriptor write when `texture_count == 0`
+- [x] Game host calls `asset_system_load_content()` after bootstrap
+- [x] Verify: editor starts with only engine assets loaded, game host still works as before
 
-### 4c. Project file & directory structure
+### 4c. Project file & directory structure — DONE
 
-- [ ] Create `engine/include/core/project.h` + `engine/src/core/project.c`
-- [ ] Project directory layout:
+- [x] Added `platform_dir_create()` on all 3 platforms (macOS, Linux, Win32) in `file_io.h`
+- [x] Created `engine/include/core/project.h` + `engine/src/core/project.c`
+- [x] Project directory layout:
   ```
   my_project/
   ├── project.realm          (TOML — project name, engine version, default scene)
-  ├── config.toml            (per-project game settings — backend, window, camera, etc.)
   ├── scenes/
-  │   └── default.scene      (scene files, format TBD in Phase 7)
   └── assets/
       ├── models/
       ├── textures/
       └── materials/
   ```
-- [ ] `rl_project` struct: name, root path, default scene path, dirty flag
-- [ ] `project_create(path, name)` — create directory structure + write `project.realm`
-- [ ] `project_open(path)` — parse `project.realm`, load project assets, load default scene
-- [ ] `project_close()` — unload project assets, clear scene
-- [ ] `project_is_open()` — check if a project is currently loaded
-- [ ] Verify: can create and open a project from code
+- [x] `rl_project` struct: name, root_path, asset_path, scenes_path, default_scene, open flag
+- [x] `project_create(path, name)` — create directory structure + write `project.realm`
+- [x] `project_open(path)` — parse `project.realm`, set content root via `asset_set_content_root()`
+- [x] `project_close()` — clear content assets + content root, zero state
+- [x] `project_is_open()` / `project_get()` — trivial accessors
+- [x] 4 unit tests in `tests/cases/test_project.c` — all passing
+- [x] Verify: can create and open a project from code
 
-### 4d. Editor bootstrap refactor
+### 4d. Editor bootstrap refactor — next up
 
 - [ ] Editor skips splash screen — boots straight to project picker or last project
-- [ ] `host_bootstrap()` gains a flag or variant for editor mode (skip content asset loading)
 - [ ] After bootstrap, if no project open → show project picker; if project open → show editor layout
-- [ ] Editor stores last-opened project path + recent projects in `editor.toml`
+- [ ] Editor stores last-opened project path + recent projects list in `editor.toml`
+- [ ] Add `recent_projects` field to `rl_config` or a separate editor config struct
 - [ ] Verify: editor boots to picker, game host unchanged
 
-### 4e. Project picker screen
+**Implementation notes from 4a-4c:**
+- `host_bootstrap()` now takes 3 args: `(asset_root, window_title, config_filename)` — no separate editor mode flag needed, the config filename already differentiates
+- Content loading is already decoupled — editor doesn't call `asset_system_load_content()`, so it boots with engine assets only
+- `project_open()` calls `asset_set_content_root()` automatically, so opening a project is enough to redirect texture/mesh loading to the project's `assets/` directory
+
+### 4e. Project picker screen — next up (after 4d)
 
 - [ ] Create `realm_editor/src/ed_project_picker.h/.c`
 - [ ] Landing screen with: "New Project" button, "Open Project" button/path input, recent projects list
@@ -181,6 +189,8 @@ The editor needs to work with projects — each project is a directory with its 
 - [ ] Recent projects loaded from `editor.toml`
 - [ ] On project selected → transition to full editor layout with scene loaded
 - [ ] New project creates a default scene with a camera and a light (minimal starting point)
+- [ ] Need a text input widget for path entry — use existing `gui_text_input` or add path input variant
+- [ ] Consider native file dialog (`NSOpenPanel` on macOS, `IFileOpenDialog` on Win32) for directory picking
 - [ ] Verify: full flow — launch editor → pick/create project → editor layout with scene
 
 ---
@@ -289,8 +299,8 @@ Phase 2: GUI Widgets                ✓ done (context menu deferred)
     │
 Phase 3: Scene/Entity System        ✓ done
     │
-Phase 4: Project System & Config    ◄── next up
-    │       (config split, asset split, project dirs, picker screen)
+Phase 4: Project System & Config    ◐ in progress (4a-4c done, 4d-4e next)
+    │       (config split ✓, asset split ✓, project dirs ✓, bootstrap refactor + picker screen next)
     │
     ├── Phase 5: Properties + Undo
     │

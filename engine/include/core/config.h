@@ -9,7 +9,7 @@
 extern "C" {
 #endif
 
-#define RL_CONFIG_FILENAME "config.toml"
+#define RL_CONFIG_FILENAME_DEFAULT "config.toml"
 
 typedef enum MSAA_SAMPLES {
     MSAA_OFF = 1,
@@ -38,7 +38,7 @@ typedef struct rl_config {
 } rl_config;
 
 REALM_API u64 config_system_size(void);
-REALM_API b8 config_system_start(void *memory);
+REALM_API b8 config_system_start(void *memory, const char *filename);
 REALM_API void config_system_shutdown(void);
 
 REALM_API rl_config *config_get(void);

@@ -29,6 +29,7 @@ static engine_state state;
 rl_engine_config rl_engine_config_default(void) {
     return (rl_engine_config){
         .asset_root = "../../../assets/",
+        .config_filename = "config.toml",
     };
 }
 
@@ -38,6 +39,9 @@ b8 rl_engine_create(const rl_engine_config *config) {
     if (config) {
         if (config->asset_root && config->asset_root[0]) {
             state.config.asset_root = config->asset_root;
+        }
+        if (config->config_filename && config->config_filename[0]) {
+            state.config.config_filename = config->config_filename;
         }
     }
 
@@ -69,7 +73,7 @@ b8 rl_engine_create(const rl_engine_config *config) {
     RL_INFO("Engine config: asset_root='%s'", state.config.asset_root);
 
     void *config_system = mem_alloc(config_system_size(), MEM_SUBSYSTEM_CONFIG);
-    if (!config_system_start(config_system)) {
+    if (!config_system_start(config_system, state.config.config_filename)) {
         RL_FATAL("Failed to initialize config sub-system, exiting...");
         return false;
     }
@@ -88,7 +92,7 @@ b8 rl_engine_create(const rl_engine_config *config) {
     input_system_init();
 
     void *asset_system = mem_alloc(asset_system_size(), MEM_SUBSYSTEM_ASSET);
-    if (!asset_system_start(asset_system, state.config.asset_root) || !asset_system_load_all()) {
+    if (!asset_system_start(asset_system, state.config.asset_root) || !asset_system_load_engine()) {
         RL_FATAL("Failed to initialize asset sub-system, exiting...");
         return false;
     }

@@ -111,13 +111,9 @@ b8 vk_descriptor_create_sets(VK_Context *context) {
             .range = sizeof(ubo)
         };
 
-        VkDescriptorImageInfo image_info = {
-            .sampler = context->texture_sampler,
-            .imageView = context->texture_count > 0 ? context->textures[0].texture.texture_image_view : VK_NULL_HANDLE,
-            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-        };
-
         VkWriteDescriptorSet descriptor_writes[2] = {};
+        u32 write_count = 1;
+
         descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         descriptor_writes[0].dstSet = context->descriptor_sets[i];
         descriptor_writes[0].dstBinding = 0;
@@ -126,15 +122,23 @@ b8 vk_descriptor_create_sets(VK_Context *context) {
         descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         descriptor_writes[0].pBufferInfo = &buffer_info;
 
-        descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptor_writes[1].dstSet = context->descriptor_sets[i];
-        descriptor_writes[1].dstBinding = 1;
-        descriptor_writes[1].dstArrayElement = 0;
-        descriptor_writes[1].descriptorCount = 1;
-        descriptor_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        descriptor_writes[1].pImageInfo = &image_info;
+        VkDescriptorImageInfo image_info = {0};
+        if (context->texture_count > 0) {
+            image_info.sampler = context->texture_sampler;
+            image_info.imageView = context->textures[0].texture.texture_image_view;
+            image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-        vkUpdateDescriptorSets(context->device, 2, descriptor_writes, 0, nullptr);
+            descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptor_writes[1].dstSet = context->descriptor_sets[i];
+            descriptor_writes[1].dstBinding = 1;
+            descriptor_writes[1].dstArrayElement = 0;
+            descriptor_writes[1].descriptorCount = 1;
+            descriptor_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptor_writes[1].pImageInfo = &image_info;
+            write_count = 2;
+        }
+
+        vkUpdateDescriptorSets(context->device, write_count, descriptor_writes, 0, nullptr);
     }
 
     return true;

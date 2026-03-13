@@ -59,6 +59,14 @@ b8 platform_dir_exists(const char *path) {
     return stat(path, &st) == 0 && S_ISDIR(st.st_mode);
 }
 
+b8 platform_dir_create(const char *path) {
+    if (!path || !path[0]) return false;
+    if (mkdir(path, 0755) == 0) return true;
+    if (errno == EEXIST) return true;
+    RL_ERROR("Failed to create directory '%s'. Error: %d", path, errno);
+    return false;
+}
+
 b8 platform_file_copy(const char *source_path, const char *dest_path, b8 overwrite) {
     if (!source_path || !dest_path) {
         RL_ERROR("Failed to copy file: invalid path(s)");

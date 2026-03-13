@@ -89,6 +89,7 @@ typedef struct config_state {
     b8 dirty;
     f64 time_since_flush;
     platform_window *tracked_window;
+    char filename[64];
 } config_state;
 
 static config_state *state;
@@ -268,13 +269,13 @@ static void config_parse_line(const char *line) {
 // --- Load / Save ---
 
 static b8 config_load(void) {
-    if (!platform_file_exists(RL_CONFIG_FILENAME)) {
+    if (!platform_file_exists(state->filename)) {
         RL_INFO("No config file found, using defaults");
         return false;
     }
 
     rl_file file = {0};
-    if (!platform_file_open(RL_CONFIG_FILENAME, P_FILE_READ, &file)) {
+    if (!platform_file_open(state->filename, P_FILE_READ, &file)) {
         RL_WARN("Failed to open config file, using defaults");
         return false;
     }
@@ -308,7 +309,7 @@ static b8 config_load(void) {
     platform_file_close(&file);
 
     state->config.loaded = true;
-    RL_INFO("Config loaded from '%s'", RL_CONFIG_FILENAME);
+    RL_INFO("Config loaded from '%s'", state->filename);
     return true;
 }
 
@@ -356,14 +357,14 @@ b8 config_save(void) {
         return false;
     }
 
-    if (!platform_file_write_all(RL_CONFIG_FILENAME, buf, (u64)len)) {
-        RL_ERROR("Failed to write config file '%s'", RL_CONFIG_FILENAME);
+    if (!platform_file_write_all(state->filename, buf, (u64)len)) {
+        RL_ERROR("Failed to write config file '%s'", state->filename);
         return false;
     }
 
     state->dirty = false;
     state->time_since_flush = 0.0;
-    RL_DEBUG("Config saved to '%s'", RL_CONFIG_FILENAME);
+    RL_DEBUG("Config saved to '%s'", state->filename);
     return true;
 }
 
@@ -394,11 +395,17 @@ u64 config_system_size(void) {
     return sizeof(config_state);
 }
 
-b8 config_system_start(void *memory) {
+b8 config_system_start(void *memory, const char *filename) {
     state = (config_state *)memory;
     state->config = config_defaults();
     state->dirty = false;
     state->time_since_flush = 0.0;
+
+    const char *fn = (filename && filename[0]) ? filename : RL_CONFIG_FILENAME_DEFAULT;
+    u64 len = strlen(fn);
+    if (len >= sizeof(state->filename)) len = sizeof(state->filename) - 1;
+    memcpy(state->filename, fn, len);
+    state->filename[len] = '\0';
 
     config_load();
 

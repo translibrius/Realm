@@ -116,7 +116,7 @@ static b8 load_primitive(rl_arena *asset_arena, const cgltf_primitive *prim, con
 b8 load_mesh(rl_arena *asset_arena, rl_asset *asset) {
     rl_temp_arena scratch = rl_arena_scratch_get();
 
-    rl_string path = rl_string_format(scratch.arena, "%s%s", get_asset_root(), asset->source_path);
+    rl_string path = rl_string_format(scratch.arena, "%s%s", asset_get_resolve_root(ASSET_MESH), asset->source_path);
 
     // Read file into memory
     rl_file model_file = {0};
