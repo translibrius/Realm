@@ -57,8 +57,8 @@ gui_tree_node_result gui_tree_node_begin(u32 node_id, const char *label, b8 *exp
 
     f32 left_pad = tree_cfg.indent * (f32)tree_depth;
 
-    // Row container
-    Clay__OpenElement();
+    // Row container — stable ID prevents auto-ID shifts on expand/collapse
+    Clay__OpenElementWithId(CLAY_IDI("GuiTreeRow", node_id));
     b8 hovered = Clay_Hovered();
 
     Clay_Color bg = {0};

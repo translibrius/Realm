@@ -1,5 +1,14 @@
 # Realm Editor — Deduplication & Development Roadmap
 
+## Instructions for agents
+
+When starting a session from this roadmap:
+
+1. **Generate a scoped plan first.** Read the next incomplete phase below, then produce a concrete implementation plan (files to create/modify, API sketches, wiring steps) scoped to what can be done in **~50% of your context window**. Do not attempt to implement the entire roadmap in one session — pick the next logical chunk and plan it thoroughly before writing code.
+2. **Update this file at the end of a successful session.** Check off completed items, add notes on any deferred work or decisions made, and update the dependency graph if needed. This keeps the roadmap accurate for the next agent.
+
+---
+
 ## Context
 
 The editor skeleton is built and running (`realm_editor/`). It duplicates significant code from the game host (`realm/`). Before building further, we need to extract shared logic so that changes to console, window management, event handling, and bootstrap don't require updating two places. After that, the roadmap describes how to grow the editor into something useful.
@@ -56,17 +65,17 @@ Add `engine/include/host/` and `engine/src/host/` inside the existing Engine lib
 
 ### 2a. Tree View
 
-- [ ] Create `engine/include/gui/gui_tree.h` + `engine/src/gui/gui_tree.c`
-- [ ] Immediate-mode `gui_tree_node()` — caller manages nesting, widget handles expand/collapse/select
-- [ ] Test in hierarchy panel with dummy data
+- [x] Create `engine/include/gui/gui_tree.h` + `engine/src/gui/gui_tree.c`
+- [x] Immediate-mode `gui_tree_node_begin/end()` — caller manages nesting, widget handles expand/collapse/select
+- [x] Wired into hierarchy panel with dummy scene data (Scene Root, Camera, Objects, Cube, Sphere, Light)
 
 ### 2b. Drag-Handle Splitter
 
-- [ ] Create `engine/include/gui/gui_splitter.h` + `engine/src/gui/gui_splitter.c`
-- [ ] Thin draggable bar that adjusts adjacent panel widths on drag
-- [ ] Wire into `ed_layout` between hierarchy/viewport/properties/console panels
+- [x] Create `engine/include/gui/gui_splitter.h` + `engine/src/gui/gui_splitter.c`
+- [x] `gui_splitter_v` / `gui_splitter_h` — draggable bar with hover highlight, min/max clamping, invert flag
+- [x] Wired into `ed_layout` between hierarchy/viewport/properties panels and above console
 
-### 2c. Context Menu
+### 2c. Context Menu (deferred — not useful until entities exist in Phase 3)
 
 - [ ] Create `engine/include/gui/gui_context_menu.h` + `engine/src/gui/gui_context_menu.c`
 - [ ] Right-click popup positioned at mouse cursor, builds on `gui_dropdown` pattern
@@ -74,8 +83,9 @@ Add `engine/include/host/` and `engine/src/host/` inside the existing Engine lib
 
 ### 2d. Wire up menu bar
 
-- [ ] Connect menu bar items to `gui_dropdown` for actual dropdown menus
-- [ ] File > Quit, View > Toggle Console, View > Toggle Wireframe
+- [x] Added `label` field to `gui_dropdown_cfg` for menu-bar-style trigger text
+- [x] File > Quit (`rl_engine_stop()`), Edit > Undo/Redo (placeholders), View > Toggle Console
+- [x] Fire-and-forget pattern: `selected` reset to `-1` after handling action
 
 ---
 
@@ -181,11 +191,11 @@ Add `engine/include/host/` and `engine/src/host/` inside the existing Engine lib
 ## Dependency Graph
 
 ```
-Phase 1: Deduplication
+Phase 1: Deduplication              ✓ done
     │
-Phase 2: GUI Widgets (tree view, splitter, context menu)
+Phase 2: GUI Widgets                ✓ done (2c deferred)
     │
-Phase 3: Scene/Entity System  ◄── critical path
+Phase 3: Scene/Entity System  ◄── critical path, next up
     │
     ├── Phase 4: Properties + Undo
     │       │

@@ -41,12 +41,13 @@ b8 gui_dropdown(gui_dropdown_state *state, const gui_dropdown_cfg *cfg) {
         .layout = {.sizing = {.width = CLAY_SIZING_FIT(0)}},
     });
 
+    // Label mode (menu bar): fit-to-content trigger. Normal mode: fixed width.
     gui_button_state btn = gui_button_begin(&(gui_button_cfg){
         .color        = bg_color,
         .hover_color  = hover_color,
         .press_color  = bg_color,
-        .width        = width,
-        .padding      = 8,
+        .width        = cfg->label ? 0 : width,
+        .padding      = cfg->label ? 4 : 8,
         .corner_radius = radius,
     });
     gui_text(display, &(gui_text_cfg){.color = text_color, .size = font_size, .font = font});

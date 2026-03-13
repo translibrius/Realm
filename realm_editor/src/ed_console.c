@@ -28,7 +28,7 @@ void ed_console_on_scroll(ed_console *c, f32 delta) {
     host_console_on_scroll(&c->core, delta);
 }
 
-void ed_console_render(ed_console *c, f32 dt) {
+void ed_console_render(ed_console *c, f32 height, f32 dt) {
     if (!c || !c->core.visible) return;
 
     rl_arena *arena = rl_engine_get_frame_arena();
@@ -42,7 +42,7 @@ void ed_console_render(ed_console *c, f32 dt) {
     gui_panel_cfg console_panel = {
         .color = t->bg,
         .width_sizing = GUI_SIZE_GROW,
-        .height = 200,
+        .height = height,
         .padding = 8,
         .gap = 4,
     };

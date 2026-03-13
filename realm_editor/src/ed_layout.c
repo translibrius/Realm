@@ -49,6 +49,7 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
         .padding = 6,
         .gap = 4,
         .horizontal = true,
+        .align_y = CLAY_ALIGN_Y_CENTER,
     };
     GUI_PANEL(&bar) {
         // File menu
@@ -209,7 +210,7 @@ void ed_layout_render(ed_layout *layout, ed_application *app, f32 dt) {
         // Bottom separator + console
         if (app->console.core.visible) {
             gui_splitter_h(&layout->splitter_bottom, &layout->bottom_panel_height, &splitter_cfg_inv);
-            ed_console_render(&app->console, dt);
+            ed_console_render(&app->console, layout->bottom_panel_height, dt);
         }
     }
 }
