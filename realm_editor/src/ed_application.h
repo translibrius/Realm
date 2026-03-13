@@ -26,6 +26,10 @@ typedef struct ed_application {
     ED_MODE mode;
     rl_scene *scene;
     rl_camera camera;
+    char scene_path[512];
+    b8 scene_dirty;
+    b8 new_scene_requested;
+    b8 save_scene_requested;
     b8 focused;
     b8 backend_switch_requested;
     b8 close_project_requested;

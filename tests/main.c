@@ -21,6 +21,7 @@ void register_asset_tests(void);
 void register_profiler_tests(void);
 void register_entity_tests(void);
 void register_project_tests(void);
+void register_scene_io_tests(void);
 
 int main(int argc, const char **argv) {
     if (!rl_test_runtime_init()) {
@@ -46,6 +47,7 @@ int main(int argc, const char **argv) {
     register_profiler_tests();
     register_entity_tests();
     register_project_tests();
+    register_scene_io_tests();
 
     i32 result = rl_test_run_from_args(argc, argv);
 

@@ -55,16 +55,20 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
     };
     GUI_PANEL(&bar) {
         // File menu
-        static const char *file_items[] = {"New Project", "Open Project", "Close Project", "Quit"};
+        static const char *file_items[] = {
+            "New Scene", "Save Scene",
+            "New Project", "Open Project", "Close Project",
+            "Quit"
+        };
         menu_cfg.items = file_items;
-        menu_cfg.item_count = 4;
+        menu_cfg.item_count = 6;
         menu_cfg.label = "File";
         if (gui_dropdown(&layout->menu_file, &menu_cfg)) {
             i32 sel = layout->menu_file.selected;
-            if (sel == 0 || sel == 1 || sel == 2) {
-                app->close_project_requested = true;
-            }
-            if (sel == 3) rl_engine_stop();
+            if (sel == 0) app->new_scene_requested = true;
+            if (sel == 1) app->save_scene_requested = true;
+            if (sel == 2 || sel == 3 || sel == 4) app->close_project_requested = true;
+            if (sel == 5) rl_engine_stop();
             layout->menu_file.selected = -1;
         }
 
@@ -88,7 +92,7 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
         }
 
         gui_spacer();
-        gui_text("Realm Editor", &dim_text);
+        gui_text(app->scene_dirty ? "Realm Editor *" : "Realm Editor", &dim_text);
     }
 }
 

@@ -46,6 +46,7 @@ file(GLOB_RECURSE ENGINE_C_SOURCES
         CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/vendor/glad/*.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/vendor/yyjson/*.c"
 )
 
 if (APPLE)

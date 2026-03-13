@@ -5,6 +5,7 @@
 #include "core/logger.h"
 #include "core/project.h"
 #include "core/scene.h"
+#include "core/scene_io.h"
 #include "engine.h"
 #include "cglm.h"
 #include "gui/gui.h"
@@ -12,6 +13,9 @@
 #include "host/host_renderer.h"
 #include "platform/io/file_io.h"
 #include "renderer/renderer_frontend.h"
+#include "util/str.h"
+
+#include <stdio.h>
 
 static ed_application app;
 
@@ -20,17 +24,74 @@ static b8 ed_switch_backend(RENDERER_BACKEND backend) {
     return r.success;
 }
 
+static void ed_save_scene(const char *path) {
+    if (!app.scene || !path || !path[0]) return;
+    if (scene_save(app.scene, path)) {
+        cstr_copy(app.scene_path, sizeof(app.scene_path), path);
+        app.scene_dirty = false;
+        RL_INFO("Scene saved to '%s'", path);
+    }
+}
+
+static void ed_load_scene(const char *path) {
+    if (!path || !path[0]) return;
+
+    rl_scene *loaded = scene_load(path);
+    if (!loaded) {
+        RL_ERROR("Failed to load scene from '%s'", path);
+        return;
+    }
+
+    if (app.scene) scene_destroy(app.scene);
+    app.scene = loaded;
+    cstr_copy(app.scene_path, sizeof(app.scene_path), path);
+    app.scene_dirty = false;
+    app.layout.hierarchy_tree.selected_id = 0;
+}
+
+static void ed_new_scene(void) {
+    if (app.scene_dirty && app.scene_path[0]) {
+        ed_save_scene(app.scene_path);
+    }
+
+    if (app.scene) scene_destroy(app.scene);
+    app.scene = scene_create("Untitled");
+    app.scene_path[0] = '\0';
+    app.scene_dirty = false;
+    app.layout.hierarchy_tree.selected_id = 0;
+}
+
+static void ed_build_scene_abs_path(char *buf, u32 buf_size) {
+    rl_project *proj = project_get();
+    if (proj) {
+        snprintf(buf, buf_size, "%s%s", proj->root_path, proj->default_scene);
+    } else {
+        buf[0] = '\0';
+    }
+}
+
 static void ed_enter_editor_mode(void) {
     app.mode = ED_MODE_EDITOR;
     app.picker.active = false;
 
-    // Default scene: Light entity only (no default mesh in empty project)
-    app.scene = scene_create("Default Scene");
-    {
-        rl_entity light = scene_entity_create(app.scene, "Light");
-        rl_transform *lt = transform_add(&app.scene->components, light);
-        glm_vec3_copy((vec3){1.2f, 1.0f, 2.0f}, lt->position);
-        light_add(&app.scene->components, light);
+    // Try to load the project's default scene from disk
+    char abs_path[512];
+    ed_build_scene_abs_path(abs_path, sizeof(abs_path));
+
+    if (abs_path[0] && platform_file_exists(abs_path)) {
+        ed_load_scene(abs_path);
+    } else {
+        // Create default scene with Light entity, save to disk
+        app.scene = scene_create("Default Scene");
+        {
+            rl_entity light = scene_entity_create(app.scene, "Light");
+            rl_transform *lt = transform_add(&app.scene->components, light);
+            glm_vec3_copy((vec3){1.2f, 1.0f, 2.0f}, lt->position);
+            light_add(&app.scene->components, light);
+        }
+        if (abs_path[0]) {
+            ed_save_scene(abs_path);
+        }
     }
 
     camera_init(&app.camera);
@@ -48,10 +109,16 @@ static void ed_enter_editor_mode(void) {
 
 static void ed_enter_picker_mode(void) {
     if (app.mode == ED_MODE_EDITOR) {
+        // Auto-save dirty scene before closing
+        if (app.scene_dirty && app.scene_path[0]) {
+            ed_save_scene(app.scene_path);
+        }
         if (app.scene) {
             scene_destroy(app.scene);
             app.scene = nullptr;
         }
+        app.scene_path[0] = '\0';
+        app.scene_dirty = false;
         project_close();
     }
 
@@ -142,6 +209,24 @@ b8 create_editor(void) {
             ed_switch_backend(app.requested_backend);
         }
 
+        // Handle scene save request
+        if (app.mode == ED_MODE_EDITOR && app.save_scene_requested) {
+            app.save_scene_requested = false;
+            if (app.scene_path[0]) {
+                ed_save_scene(app.scene_path);
+            } else {
+                char abs_path[512];
+                ed_build_scene_abs_path(abs_path, sizeof(abs_path));
+                if (abs_path[0]) ed_save_scene(abs_path);
+            }
+        }
+
+        // Handle new scene request
+        if (app.mode == ED_MODE_EDITOR && app.new_scene_requested) {
+            app.new_scene_requested = false;
+            ed_new_scene();
+        }
+
         // Handle close project request from menu
         if (app.mode == ED_MODE_EDITOR && app.close_project_requested) {
             app.close_project_requested = false;
@@ -155,6 +240,9 @@ b8 create_editor(void) {
     }
 
     if (app.scene) {
+        if (app.scene_dirty && app.scene_path[0]) {
+            ed_save_scene(app.scene_path);
+        }
         scene_destroy(app.scene);
     }
     ed_console_shutdown(&app.console);

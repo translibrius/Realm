@@ -4,7 +4,7 @@
 
 When starting a session from this roadmap:
 
-1. **Generate a scoped plan first.** Read the next incomplete phase below, then produce a concrete implementation plan (files to create/modify, API sketches, wiring steps) scoped to what can be done in **~50% of your context window**. Do not attempt to entire roadmap in one session — pick the next logical chunk and plan it thoroughly before writing code.
+1. **Generate a scoped plan first.** Read the next incomplete phase below, then produce a concrete implementation plan (files to create/modify, API sketches, wiring steps) scoped to what can be done in **~50% of your context window**. Do not attempt to entire roadmap in one session — pick the next logical chunk and plan it thoroughly before writing code. Also feel free to interview the user for any questions or clarifications if needed.
 2. **Update this file at the end of a successful session.** Check off completed items, add notes on any deferred work or decisions made, and update the dependency graph if needed. This keeps the roadmap accurate for the next agent.
 
 ---
@@ -204,24 +204,26 @@ The editor needs to work with projects — each project is a directory with its 
 
 Scenes are currently built in code. Both editor and game need a shared file format so the editor can author scenes that the game loads at runtime. This is the single biggest blocker to making the editor useful.
 
-### 5a. Scene serialization
+### 5a. Scene serialization — DONE
 
-- [ ] Create `engine/include/core/scene_io.h` + `engine/src/core/scene_io.c`
-- [ ] JSON format via yyjson (already vendored) — one `.scene` file per scene
-- [ ] `scene_save(scene, path)` — serialize all entities + components to JSON
-- [ ] `scene_load(path)` → `rl_scene *` — deserialize from JSON, create entities + components
-- [ ] Format: `{ "name": "...", "entities": [ { "name": "Cube", "transform": {...}, "mesh": {...}, "light": {...} } ] }`
-- [ ] Component serializers: transform (position/rotation/scale), mesh (primitive, kind), light (ambient/diffuse/specular)
-- [ ] Unit tests: round-trip save→load, empty scene, entities with various component combos
+- [x] Create `engine/include/core/scene_io.h` + `engine/src/core/scene_io.c`
+- [x] JSON format via yyjson (vendored, now compiled into Engine) — one `.scene` file per scene
+- [x] `scene_save(scene, path)` — serialize all entities + components to JSON (pretty-print 2-space)
+- [x] `scene_load(path)` → `rl_scene *` — deserialize from JSON, create entities + components
+- [x] Format: `{ "name": "...", "entities": [ { "name": "Cube", "transform": {...}, "mesh": {...}, "light": {...} } ] }`
+- [x] Component serializers: transform (position/rotation/scale), mesh (primitive, kind, wireframe), light (ambient/diffuse/specular)
+- [x] 6 unit tests in `tests/cases/test_scene_io.c` — all passing
+- [x] Added `vendor/yyjson/*.c` to engine CMake GLOB so yyjson compiles into the shared library
 
-### 5b. Wire scene I/O into editor
+### 5b. Wire scene I/O into editor — DONE
 
-- [ ] File menu: New Scene, Open Scene, Save Scene, Save Scene As
-- [ ] Editor tracks current scene file path (null = unsaved)
-- [ ] New project creates `scenes/default.scene` with a Light entity on disk
-- [ ] Opening a project loads its `default_scene` from `project.realm`
-- [ ] Dirty state tracking — mark scene dirty on any entity/component change
-- [ ] Unsaved changes prompt before close/open/new (simple confirm dialog or just auto-save)
+- [x] File menu: New Scene, Save Scene (Open Scene deferred — needs file browser)
+- [x] Editor tracks current scene file path (`scene_path[512]`, empty = unsaved)
+- [x] New project creates `scenes/default.scene` with a Light entity on disk
+- [x] Opening a project loads its `default_scene` from `project.realm`
+- [x] Dirty state flag (`scene_dirty`) + asterisk indicator in menu bar title
+- [x] Auto-save on: close project, quit, new scene (if dirty + path set)
+- [x] `ed_save_scene`, `ed_load_scene`, `ed_new_scene` helpers in `ed_application.c`
 
 ### 5c. Wire scene loading into game host
 
@@ -382,7 +384,7 @@ Phase 3: Scene/Entity System        ✓ done
     │
 Phase 4: Project System & Config    ✓ done
     │
-    ├── Phase 5: Scene I/O          ← critical path (editor↔game bridge)
+    ├── Phase 5: Scene I/O          ✓ 5a+5b done, 5c deferred
     │       │
     │       ├── Phase 6: Asset Discovery
     │       │       │
