@@ -1,5 +1,6 @@
 #include "core/scene_io.h"
 
+#include "asset/asset.h"
 #include "core/component.h"
 #include "core/entity.h"
 #include "core/logger.h"
@@ -80,6 +81,29 @@ static yyjson_mut_val *serialize_mesh(yyjson_mut_doc *doc, const rl_mesh_compone
     yyjson_mut_obj_add_str(doc, obj, "primitive", primitive_to_str(m->primitive));
     yyjson_mut_obj_add_str(doc, obj, "kind",      kind_to_str(m->kind));
     yyjson_mut_obj_add_bool(doc, obj, "wireframe", m->wireframe);
+
+    // Mesh asset path
+    if (m->mesh_asset) {
+        rl_asset *a = asset_get(m->mesh_asset);
+        if (a && a->source_path) {
+            yyjson_mut_obj_add_strcpy(doc, obj, "mesh_asset_path", a->source_path);
+        }
+    }
+
+    // Material
+    {
+        yyjson_mut_val *mat = yyjson_mut_obj(doc);
+        if (m->material.diffuse_map) {
+            rl_asset *a = asset_get(m->material.diffuse_map);
+            if (a && a->source_path) {
+                yyjson_mut_obj_add_strcpy(doc, mat, "diffuse_map_path", a->source_path);
+            }
+        }
+        yyjson_mut_obj_add_val(doc, mat, "specular", serialize_vec3(doc, (f32 *)m->material.specular));
+        yyjson_mut_obj_add_real(doc, mat, "shininess", (f64)m->material.shininess);
+        yyjson_mut_obj_add_val(doc, obj, "material", mat);
+    }
+
     return obj;
 }
 
@@ -87,8 +111,21 @@ static void deserialize_mesh(yyjson_val *obj, rl_mesh_component *m) {
     m->primitive = str_to_primitive(yyjson_get_str(yyjson_obj_get(obj, "primitive")));
     m->kind      = str_to_kind(yyjson_get_str(yyjson_obj_get(obj, "kind")));
     m->wireframe = yyjson_get_bool(yyjson_obj_get(obj, "wireframe"));
-    m->mesh_asset = 0;
+
+    // Mesh asset path
+    const char *mesh_path = yyjson_get_str(yyjson_obj_get(obj, "mesh_asset_path"));
+    m->mesh_asset = mesh_path ? asset_find(mesh_path) : 0;
+
+    // Material
     memset(&m->material, 0, sizeof(rl_material));
+    yyjson_val *mat = yyjson_obj_get(obj, "material");
+    if (mat) {
+        const char *diffuse_path = yyjson_get_str(yyjson_obj_get(mat, "diffuse_map_path"));
+        m->material.diffuse_map = diffuse_path ? asset_find(diffuse_path) : 0;
+        deserialize_vec3(yyjson_obj_get(mat, "specular"), m->material.specular);
+        yyjson_val *shin = yyjson_obj_get(mat, "shininess");
+        m->material.shininess = shin ? (f32)yyjson_get_num(shin) : 0.0f;
+    }
 }
 
 static yyjson_mut_val *serialize_light(yyjson_mut_doc *doc, const rl_light_component *l) {

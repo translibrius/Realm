@@ -177,6 +177,10 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
         }
 
         GL_Texture *tex = diffuse_id ? gl_find_texture(diffuse_id) : nullptr;
+        if (!tex && diffuse_id) {
+            gl_load_texture(diffuse_id);
+            tex = gl_find_texture(diffuse_id);
+        }
         u32 tex_id = tex ? tex->id : 0;
         if (tex_id && tex_id != bound_tex) {
             glBindTexture(GL_TEXTURE_2D, tex_id);
@@ -266,14 +270,6 @@ b8 opengl_initialize(platform_window *platform_window, b8 vsync) {
     if (!opengl_shader_setup(asset_find(RL_ASSET_SHADER_GL_DEFAULT_VERT), asset_find(RL_ASSET_SHADER_GL_LIGHT_FRAG), &context.light_shader)) {
         RL_ERROR("opengl_shader_setup() failed");
         return false;
-    }
-
-    // Texture init — content textures loaded on demand, skip if not available
-    {
-        asset_id wood1 = asset_find(RL_ASSET_TEXTURE_WOOD_CONTAINER);
-        if (wood1) gl_load_texture(wood1);
-        asset_id wood2 = asset_find(RL_ASSET_TEXTURE_WOOD_CONTAINER2);
-        if (wood2) gl_load_texture(wood2);
     }
 
     // Text pipeline

@@ -193,6 +193,50 @@ RL_TEST(scene_io_save_null_args) {
     scene_destroy(scene);
 }
 
+RL_TEST(scene_io_mesh_material_roundtrip) {
+    cleanup_scene_file();
+
+    rl_scene *scene = scene_create("MaterialTest");
+
+    rl_entity e = scene_entity_create(scene, "LitCube");
+    rl_transform *t = transform_add(&scene->components, e);
+    t->position[0] = 1.0f;
+
+    rl_mesh_component *m = mesh_add(&scene->components, e);
+    m->primitive = RL_FRAME_PRIMITIVE_CUBE;
+    m->kind = RL_FRAME_MESH_KIND_LIT;
+    m->wireframe = false;
+    m->mesh_asset = 0; // no mesh asset in test (asset system not running)
+    m->material.diffuse_map = 0;
+    m->material.specular[0] = 0.5f;
+    m->material.specular[1] = 0.6f;
+    m->material.specular[2] = 0.7f;
+    m->material.shininess = 32.0f;
+
+    RL_EXPECT(scene_save(scene, TEST_SCENE_PATH));
+
+    // Verify the JSON contains material fields by loading and checking
+    rl_scene *loaded = scene_load(TEST_SCENE_PATH);
+    RL_EXPECT_NOT_NULL(loaded);
+
+    rl_component_store *cs = &loaded->components;
+    RL_EXPECT(cs->has_mesh[1]);
+
+    // mesh_asset and diffuse_map resolve to 0 since asset system isn't running
+    RL_EXPECT_EQ_U32(cs->meshes[1].mesh_asset, 0);
+    RL_EXPECT_EQ_U32(cs->meshes[1].material.diffuse_map, 0);
+
+    // specular and shininess should roundtrip
+    RL_EXPECT_NEAR_F32(cs->meshes[1].material.specular[0], 0.5f, 0.01f);
+    RL_EXPECT_NEAR_F32(cs->meshes[1].material.specular[1], 0.6f, 0.01f);
+    RL_EXPECT_NEAR_F32(cs->meshes[1].material.specular[2], 0.7f, 0.01f);
+    RL_EXPECT_NEAR_F32(cs->meshes[1].material.shininess, 32.0f, 0.01f);
+
+    scene_destroy(loaded);
+    scene_destroy(scene);
+    cleanup_scene_file();
+}
+
 void register_scene_io_tests(void) {
     rl_test_begin_group("scene_io");
     RL_REGISTER_TEST(scene_io_save_load_roundtrip);
@@ -201,4 +245,5 @@ void register_scene_io_tests(void) {
     RL_REGISTER_TEST(scene_io_transform_dirty_on_load);
     RL_REGISTER_TEST(scene_io_load_nonexistent_returns_null);
     RL_REGISTER_TEST(scene_io_save_null_args);
+    RL_REGISTER_TEST(scene_io_mesh_material_roundtrip);
 }

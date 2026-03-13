@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <string.h>
 
 #include <core/logger.h>
@@ -11,6 +12,11 @@ int main(int argc, char **argv) {
             project_path = argv[i + 1];
             break;
         }
+    }
+
+    if (!project_path) {
+        printf("Usage: Realm --project <path>\n");
+        return 0;
     }
 
     if (!create_application(project_path)) {

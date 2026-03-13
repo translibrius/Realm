@@ -31,12 +31,6 @@ typedef enum ASSET_TYPE {
 #define RL_ASSET_SHADER_VK_GUI_FRAG       "shaders/vulkan/gui.frag"
 #define RL_ASSET_SHADER_VK_LIGHT_FRAG     "shaders/vulkan/light.frag"
 
-#define RL_ASSET_TEXTURE_WOOD_CONTAINER   "textures/wood_container.jpg"
-#define RL_ASSET_TEXTURE_WOOD_CONTAINER2  "textures/wood_container2.jpg"
-#define RL_ASSET_TEXTURE_FACE             "textures/face.jpg"
-
-#define RL_ASSET_MESH_LION_HEAD           "models/lion_head_4k.gltf/lion_head_4k.gltf"
-
 typedef struct rl_asset {
     asset_id id;
     ASSET_TYPE type;
@@ -61,8 +55,7 @@ REALM_API asset_id asset_find(const char *source_path);
 // Load a new asset at runtime. Returns its id (or existing id if already loaded).
 REALM_API asset_id asset_load(ASSET_TYPE type, const char *source_path);
 
-// Content asset lifecycle — load/clear content assets separately from engine assets.
-REALM_API b8 asset_system_load_content(void);
+// Clear content assets (loaded via project_load_assets).
 REALM_API void asset_system_clear_content(void);
 
 // Content root override — when set, TEXTURE/MESH assets resolve from this path.

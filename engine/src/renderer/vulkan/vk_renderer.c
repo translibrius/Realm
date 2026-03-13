@@ -190,17 +190,6 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
         return false;
     }
 
-    // Load texture assets into lookup table — content textures may not be available yet
-    {
-        asset_id wood_tex_id = asset_find(RL_ASSET_TEXTURE_WOOD_CONTAINER2);
-        if (wood_tex_id != 0 && context.texture_count < 64) {
-            if (vk_texture_create(&context, wood_tex_id, &context.textures[0].texture)) {
-                context.textures[0].asset_id = wood_tex_id;
-                context.texture_count = 1;
-            }
-        }
-    }
-
     if (!vk_texture_create_sampler(&context)) {
         RL_ERROR("failed to create texture sampler");
         return false;

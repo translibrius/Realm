@@ -49,6 +49,22 @@ b8 scene_entity_is_alive(const rl_scene *scene, rl_entity e) {
     return entity_is_alive(&scene->entities, e);
 }
 
+rl_entity scene_entity_find(const rl_scene *scene, const char *name) {
+    if (!scene || !name) return RL_ENTITY_INVALID;
+
+    const rl_entity_store *es = &scene->entities;
+    const rl_component_store *cs = &scene->components;
+
+    for (u32 i = 1; i < es->high_water; i++) {
+        if (!es->alive[i]) continue;
+        if (cs->has_name[i] && strcmp(cs->names[i].name, name) == 0) {
+            return rl_entity_pack(i, es->generation[i]);
+        }
+    }
+
+    return RL_ENTITY_INVALID;
+}
+
 void scene_build_frame_data(rl_scene *scene, const rl_frame_camera *camera, rl_frame_data *out) {
     if (!scene || !camera || !out) return;
 

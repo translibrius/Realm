@@ -4,11 +4,10 @@
 
 #include "asset/asset.h"
 #include "core/camera.h"
+#include "core/component.h"
 #include "core/logger.h"
-#include "core/project.h"
-#include "core/scene_io.h"
+#include "core/scene.h"
 #include "memory/memory.h"
-#include "util/str.h"
 
 b8 game_init(rl_game *game, const realm_app_context *ctx) {
     if (!game) {
@@ -50,17 +49,10 @@ b8 game_init(rl_game *game, const realm_app_context *ctx) {
         return false;
     }
 
-    // Load scene from project if available
-    game->loaded_scene = nullptr;
-    if (ctx->project && ctx->project->default_scene[0]) {
-        char path[512];
-        cstr_format_buf(path, sizeof(path), "%s%s", ctx->project->root_path, ctx->project->default_scene);
-        game->loaded_scene = scene_load(path);
-        if (game->loaded_scene) {
-            RL_INFO("Loaded project scene: %s", path);
-        } else {
-            RL_WARN("Failed to load project scene: %s", path);
-        }
+    // Find rotating cube entity in host-owned scene for animation
+    game->rotating_cube_entity = RL_ENTITY_INVALID;
+    if (ctx->scene) {
+        game->rotating_cube_entity = scene_entity_find(ctx->scene, "RotatingCube");
     }
 
     return true;
@@ -122,10 +114,6 @@ void game_render(rl_game *game, const realm_app_context *ctx, realm_app_output *
 void game_destroy(rl_game *game) {
     if (!game) {
         return;
-    }
-    if (game->loaded_scene) {
-        scene_destroy(game->loaded_scene);
-        game->loaded_scene = nullptr;
     }
     rl_arena_deinit(&game->frame_arena);
 }

@@ -214,21 +214,6 @@ b8 asset_system_load_engine() {
     return true;
 }
 
-b8 asset_system_load_content(void) {
-    if (!state) return false;
-
-    RL_DEBUG("Loading content assets...");
-    for (u32 i = 0; i < CONTENT_ASSET_TABLE_COUNT; i++) {
-        asset_table_entry *entry = &content_asset_table[i];
-        asset_id id = asset_load(entry->type, entry->source_path);
-        if (id == 0) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
 void asset_system_clear_content(void) {
     if (!state || state->content_start_id == 0) return;
 

@@ -2,11 +2,12 @@
 
 #include "app_console.h"
 #include "app_renderer.h"
-#include "asset/asset.h"
 #include "core/config.h"
 #include "core/logger.h"
 #include "core/project.h"
 #include "core/project_assets.h"
+#include "core/scene.h"
+#include "core/scene_io.h"
 #include "engine.h"
 #include "event_handler.h"
 #include "gui/gui.h"
@@ -14,6 +15,7 @@
 #include "memory/memory.h"
 #include "profiler/profiler.h"
 #include "renderer/renderer_frontend.h"
+#include "util/str.h"
 
 static rl_application app;
 
@@ -33,20 +35,23 @@ b8 create_application(const char *project_path) {
     if (!boot.success) return false;
     app.window = boot.window;
 
-    b8 project_opened = false;
-    if (project_path) {
-        rl_project *proj = project_open(project_path);
-        if (proj) {
-            RL_INFO("Opened project '%s' at %s", proj->name, proj->root_path);
-            project_load_assets();
-            project_opened = true;
-        } else {
-            RL_WARN("Failed to open project at '%s', falling back to legacy mode", project_path);
-        }
+    rl_project *proj = project_open(project_path);
+    if (!proj) {
+        RL_FATAL("Failed to open project at '%s'", project_path);
+        return false;
     }
+    RL_INFO("Opened project '%s' at %s", proj->name, proj->root_path);
+    project_load_assets();
 
-    if (!project_opened) {
-        asset_system_load_content();
+    // Load default scene from project
+    app.scene = nullptr;
+    if (proj->default_scene[0]) {
+        char path[512];
+        cstr_format_buf(path, sizeof(path), "%s%s", proj->root_path, proj->default_scene);
+        app.scene = scene_load(path);
+        if (!app.scene) {
+            RL_ERROR("Failed to load default scene: %s", path);
+        }
     }
 
     // Console registers events first so it can consume key/char input when visible
@@ -174,6 +179,10 @@ b8 create_application(const char *project_path) {
     realm_app_watcher_stop(&app.app_watcher);
     destroy_app_module();
     app_console_shutdown(&app.console);
+    if (app.scene) {
+        scene_destroy(app.scene);
+        app.scene = nullptr;
+    }
     if (project_is_open()) {
         project_close();
     }
@@ -217,6 +226,7 @@ static b8 create_app_module(void) {
         .fov = config_get()->fov,
         .mouse_sensitivity = config_get()->mouse_sensitivity,
         .project = project_get(),
+        .scene = app.scene,
     };
 
     app.app_module.init(app.game_state, &app.app_context);

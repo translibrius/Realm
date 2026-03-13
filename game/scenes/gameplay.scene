@@ -1,0 +1,89 @@
+{
+  "name": "Gameplay",
+  "entities": [
+    {
+      "name": "RotatingCube",
+      "transform": {
+        "position": [0.0, 0.0, 0.0],
+        "rotation": [0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "mesh": {
+        "primitive": "cube",
+        "kind": "lit",
+        "wireframe": false,
+        "material": {
+          "diffuse_map_path": "textures/wood_container2.jpg",
+          "specular": [0.5, 0.5, 0.5],
+          "shininess": 32.0
+        }
+      }
+    },
+    {
+      "name": "GroundPlane",
+      "transform": {
+        "position": [0.0, -2.0, 0.0],
+        "rotation": [0.0, 0.0, 0.0],
+        "scale": [11.0, 0.2, 11.0]
+      },
+      "mesh": {
+        "primitive": "cube",
+        "kind": "lit",
+        "wireframe": false,
+        "material": {
+          "diffuse_map_path": "textures/wood_container2.jpg",
+          "specular": [0.5, 0.5, 0.5],
+          "shininess": 32.0
+        }
+      }
+    },
+    {
+      "name": "LionHead",
+      "transform": {
+        "position": [3.0, 0.0, 0.0],
+        "rotation": [0.0, 0.0, 0.0],
+        "scale": [5.0, 5.0, 5.0]
+      },
+      "mesh": {
+        "primitive": "cube",
+        "kind": "lit",
+        "wireframe": false,
+        "mesh_asset_path": "models/lion_head_4k.gltf/lion_head_4k.gltf",
+        "material": {
+          "specular": [0.5, 0.5, 0.5],
+          "shininess": 32.0
+        }
+      }
+    },
+    {
+      "name": "PointLight",
+      "transform": {
+        "position": [1.2, 1.0, 2.0],
+        "rotation": [0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "light": {
+        "ambient": [0.2, 0.2, 0.2],
+        "diffuse": [0.5, 0.5, 0.5],
+        "specular": [1.0, 1.0, 1.0]
+      }
+    },
+    {
+      "name": "LightCube",
+      "transform": {
+        "position": [1.2, 1.0, 2.0],
+        "rotation": [0.0, 0.0, 0.0],
+        "scale": [0.2, 0.2, 0.2]
+      },
+      "mesh": {
+        "primitive": "cube",
+        "kind": "unlit",
+        "wireframe": false,
+        "material": {
+          "specular": [0.0, 0.0, 0.0],
+          "shininess": 1.0
+        }
+      }
+    }
+  ]
+}

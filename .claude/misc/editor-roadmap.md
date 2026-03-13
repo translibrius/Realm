@@ -280,29 +280,37 @@ Content assets are currently a compile-time `content_asset_table[]`. For a share
 
 Make the Realm game executable a first-class consumer of editor-authored projects. The goal: edit a scene in the editor, hit play in the game, see the same thing.
 
-### 7a. Game host project support — PARTIALLY DONE
+### 7a. Game host project support — DONE
 
 - [x] Game host opens project via CLI arg: `Realm --project /path/to/my_project`
-- [x] Falls back to legacy mode (hardcoded `content_asset_table[]`) when no project specified
+- [x] Project is now required — prints usage and exits if no `--project` arg
 - [x] On project open: discovers + loads project assets via `project_load_assets()`
 - [x] `realm_app_context` exposes `rl_project *project` to game module
-- [ ] Game module loads default scene from project on init (currently scene is still built in code)
-- [ ] `realm_app_context` exposes `rl_scene *scene` so module can use editor-authored scene data
+- [x] Host loads default scene from project and owns scene lifetime
+- [x] `realm_app_context` exposes `rl_scene *scene` so module uses editor-authored scene data
+- [x] Removed `asset_system_load_content()` and `content_asset_table[]` — no legacy fallback
+- [x] Scene I/O now serializes/deserializes `mesh_asset_path` and `material` fields
+- [x] GL renderer lazily uploads textures on first use (no hardcoded pre-load)
+- [x] VK renderer removed hardcoded wood texture pre-load
+- [x] Added `scene_entity_find(scene, name)` convenience helper
 
-### 7b. Migrate existing game content to a project
+### 7b. Migrate existing game content to a project — DONE
 
-- [ ] Create a `game/` project directory (or use repo root with `project.realm`)
-- [ ] Move/symlink textures and models from `assets/` into `game/assets/`
-- [ ] Create `game/scenes/main_menu.scene`, `game/scenes/gameplay.scene` from existing hardcoded scenes
-- [ ] Update game module to load scenes from files instead of building in code
-- [ ] Existing `scene_main_menu.c` etc. become gameplay logic layers on top of loaded scenes
+- [x] Created `game/` project directory with `project.realm`
+- [x] Copied textures and models from `assets/` into `game/assets/`
+- [x] Created `game/scenes/gameplay.scene` with 5 entities (RotatingCube, GroundPlane, LionHead, PointLight, LightCube)
+- [x] Game module loads scenes from files, no more hardcoded `scene_game_render_legacy()`
+- [x] `scene_game.c` uses `ctx->scene` and `scene_build_frame_data()` exclusively
+- [x] Rotating cube animation via `scene_entity_find` + `transform_get` + rotation update
+- [x] Deleted old `assets/textures/` and `assets/models/` — `assets/` keeps only `fonts/` and `shaders/`
+- [x] Bumped `RL_GAME_STATE_VERSION` to 10
 
 ### 7c. Shared workflow validation
 
-- [ ] End-to-end: create project in editor → add entities → save scene → launch game with same project → scene renders
-- [ ] Editor and game read the same `project.realm`, same `assets/`, same `scenes/`
-- [ ] Hot-reload still works: game module reloads, scene persists from file
-- [ ] No separate repos needed — single repo, shared project directory
+- [x] End-to-end: create project in editor → add entities → save scene → launch game with same project → scene renders
+- [x] Editor and game read the same `project.realm`, same `assets/`, same `scenes/`
+- [x] Hot-reload still works: game module reloads, scene persists from host-owned lifetime
+- [x] No separate repos needed — single repo, shared `game/` project directory
 
 ---
 
@@ -397,8 +405,7 @@ Phase 4: Project System & Config    ✓ done
     │       │
     │       ├── Phase 6: Asset Discovery    ✓ done
     │       │       │
-    │       │       └── Phase 7: Game Host Integration  ← NEXT (7a partially done)
-    │       │               (game loads editor-authored scenes + project assets)
+    │       │       └── Phase 7: Game Host Integration  ✓ done
     │       │
     │       └── Phase 8: Properties + Undo
     │               (meaningful once scenes are saveable)
@@ -407,6 +414,5 @@ Phase 4: Project System & Config    ✓ done
             (camera, gizmos, picking — independent of integration)
 ```
 
-**Next session: Phase 7 (remaining) — game module scene loading + content migration + end-to-end validation.**
-Phases 8 and 9 can run in parallel once Phase 7 is done.
-Phase 7 is the "it all comes together" milestone — editor authors, game runs.
+**Next session: Phase 8 (Properties + Undo) or Phase 9 (Viewport Interaction) — can run in parallel.**
+Phase 7 is complete — editor authors, game runs.

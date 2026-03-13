@@ -6,6 +6,7 @@
 #include "renderer/renderer_backend.h"
 
 typedef struct rl_project rl_project;
+typedef struct rl_scene rl_scene;
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,7 +36,8 @@ typedef struct realm_app_context {
     f32 fov;
     f32 mouse_sensitivity;
     platform_window *window;
-    const rl_project *project;  // NULL = legacy mode (no project)
+    const rl_project *project;
+    rl_scene *scene;
 } realm_app_context;
 
 typedef struct realm_app_output {
