@@ -147,12 +147,14 @@ u16 gui_font_id(asset_id id) {
     return 0;
 }
 
-// Internal — defined in gui_button.c
+// Internal — defined in gui_button.c / gui_panel.c
 void gui_button_frame_reset_(void);
+void gui_panel_frame_reset_(void);
 
 void gui_layout_begin(f32 dt) {
     gui_begin_frame(dt);
     gui_button_frame_reset_();
+    gui_panel_frame_reset_();
     Clay_BeginLayout();
 }
 

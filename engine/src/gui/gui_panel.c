@@ -1,5 +1,19 @@
 #include "gui/gui_panel.h"
 
+#include "clay.h"
+
+// Per-frame sequential counter for stable Clay element IDs.
+// Without this, panels/spacers/separators use Clay auto-IDs that are derived
+// from (child_index + floatingChildrenCount) of the parent element.  When a
+// sibling widget (e.g. dropdown) conditionally creates a floating element,
+// floatingChildrenCount changes and every subsequent auto-ID sibling shifts,
+// causing a full-layout ID mismatch and visible flicker.
+static u32 gui_panel_counter;
+
+void gui_panel_frame_reset_(void) {
+    gui_panel_counter = 0;
+}
+
 static Clay_SizingAxis resolve_sizing(gui_sizing mode, f32 value) {
     switch (mode) {
     case GUI_SIZE_GROW:    return CLAY_SIZING_GROW(0);
@@ -42,7 +56,8 @@ void gui_panel_begin(const gui_panel_cfg *cfg) {
         }
     }
 
-    Clay__OpenElement();
+    gui_panel_counter++;
+    Clay__OpenElementWithId(CLAY_IDI("GuiPanel", gui_panel_counter));
     Clay__ConfigureOpenElement(decl);
 }
 
@@ -63,19 +78,22 @@ void gui_col(f32 gap) {
 void gui_col_end(void) { gui_panel_end(); }
 
 void gui_spacer(void) {
-    CLAY_AUTO_ID({
+    gui_panel_counter++;
+    CLAY(CLAY_IDI("GuiPanel", gui_panel_counter), {
         .layout = {.sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0)}},
     }) {}
 }
 
 void gui_spacer_fixed(f32 size) {
-    CLAY_AUTO_ID({
+    gui_panel_counter++;
+    CLAY(CLAY_IDI("GuiPanel", gui_panel_counter), {
         .layout = {.sizing = {.width = CLAY_SIZING_FIXED(size), .height = CLAY_SIZING_FIXED(size)}},
     }) {}
 }
 
 void gui_separator(void) {
-    CLAY_AUTO_ID({
+    gui_panel_counter++;
+    CLAY(CLAY_IDI("GuiPanel", gui_panel_counter), {
         .layout = {.sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(1)}},
         .backgroundColor = {60, 60, 65, 255},
     }) {}

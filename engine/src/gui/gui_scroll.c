@@ -5,6 +5,7 @@
 
 // Stashed by begin(), read by end(). Single-threaded, non-reentrant (same as Clay).
 static Clay_ElementId scroll_eid;
+static u32 scroll_base_id;
 static gui_scroll_state *scroll_state;
 static const gui_scroll_cfg *scroll_cfg;
 
@@ -16,6 +17,7 @@ void gui_scroll_begin(gui_scroll_state *state, const gui_scroll_cfg *cfg) {
 
     Clay_ElementId eid = state ? CLAY_IDI("GuiScroll", state->_id) : (Clay_ElementId){0};
     scroll_eid = eid;
+    scroll_base_id = state ? state->_id : 0;
     scroll_state = state;
     scroll_cfg = cfg;
 
@@ -42,7 +44,8 @@ void gui_scroll_begin(gui_scroll_state *state, const gui_scroll_cfg *cfg) {
     }
 
     // Outer container: horizontal row with scroll area + optional scrollbar
-    Clay__OpenElement();
+    // Derive ID from scroll state to keep it stable across frames
+    Clay__OpenElementWithId(CLAY_IDI("GuiScrollOuter", scroll_base_id));
     Clay__ConfigureOpenElement((Clay_ElementDeclaration){
         .layout = {
             .sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0)},
@@ -51,6 +54,10 @@ void gui_scroll_begin(gui_scroll_state *state, const gui_scroll_cfg *cfg) {
     });
 
     // Scroll content area — needs explicit ID for Clay_GetScrollContainerData
+    // Use cached offset instead of Clay_GetScrollOffset() which matches by
+    // layout element pointer — that pointer breaks when dropdown open/close
+    // shifts element indices in Clay's ephemeral array.
+    Clay_Vector2 child_offset = state ? state->_offset : (Clay_Vector2){0, 0};
     Clay__OpenElementWithId(eid);
     Clay__ConfigureOpenElement((Clay_ElementDeclaration){
         .layout = {
@@ -59,7 +66,7 @@ void gui_scroll_begin(gui_scroll_state *state, const gui_scroll_cfg *cfg) {
             .layoutDirection = CLAY_TOP_TO_BOTTOM,
             .childGap = 1,
         },
-        .clip = {.vertical = true, .childOffset = Clay_GetScrollOffset()},
+        .clip = {.vertical = true, .childOffset = child_offset},
     });
     // Caller places children here, then calls gui_scroll_end()
 }
@@ -72,6 +79,12 @@ void gui_scroll_end(void) {
     f32 sb_width = (scroll_cfg && scroll_cfg->scrollbar_width > 0) ? scroll_cfg->scrollbar_width : 8;
 
     Clay_ScrollContainerData scd = Clay_GetScrollContainerData(scroll_eid);
+
+    // Cache scroll offset for next frame (pointer is valid here since
+    // ConfigureOpenElement already updated layoutElement for this element)
+    if (scd.found && scroll_state) {
+        scroll_state->_offset = *scd.scrollPosition;
+    }
 
     b8 show_scrollbar = false;
     f32 thumb_h_frac = 0;
@@ -101,8 +114,8 @@ void gui_scroll_end(void) {
         if (scroll_cfg->thumb_radius > 0) thumb_radius = scroll_cfg->thumb_radius;
     }
 
-    // Scrollbar track
-    Clay__OpenElement();
+    // Scrollbar track — stable ID derived from scroll state
+    Clay__OpenElementWithId(CLAY_IDI("GuiScrollTrack", scroll_base_id));
     Clay__ConfigureOpenElement((Clay_ElementDeclaration){
         .layout = {
             .sizing = {.width = CLAY_SIZING_FIXED(sb_width), .height = CLAY_SIZING_GROW(0)},
@@ -114,12 +127,12 @@ void gui_scroll_end(void) {
 
     if (show_scrollbar) {
         // Spacer above thumb
-        CLAY_AUTO_ID({
+        CLAY(CLAY_IDI("GuiScrollSpacer", scroll_base_id), {
             .layout = {.sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_PERCENT(spacer_frac)}},
         }) {}
 
         // Thumb
-        CLAY_AUTO_ID({
+        CLAY(CLAY_IDI("GuiScrollThumb", scroll_base_id), {
             .layout = {.sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_PERCENT(thumb_h_frac)}},
             .backgroundColor = thumb_color,
             .cornerRadius = CLAY_CORNER_RADIUS(thumb_radius),
@@ -134,6 +147,7 @@ void gui_scroll_end(void) {
 
     // Clear stashed state
     scroll_eid = (Clay_ElementId){0};
+    scroll_base_id = 0;
     scroll_state = nullptr;
     scroll_cfg = nullptr;
 }

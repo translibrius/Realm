@@ -293,6 +293,11 @@ void vulkan_begin_frame(f64 delta_time) {
     (void)delta_time;
     context.frame_acquired = false;
 
+    // Reset GUI pipeline state so stale data from a skipped frame never renders
+    context.gui_pipeline.vertex_count = 0;
+    context.gui_pipeline.segment_count = 0;
+    context.gui_pipeline.current_font = nullptr;
+
     // Wait for previous frame to finish
     vkWaitForFences(context.device, 1, &context.in_flight_fences[context.current_frame], VK_TRUE, UINT64_MAX);
 

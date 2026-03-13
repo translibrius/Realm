@@ -185,9 +185,12 @@ void vk_text_pipeline_destroy(VK_Context *ctx) {
 
 void vulkan_render_text(const char *text, f32 size_px, f32 x, f32 y, vec4 color) {
     VK_Context *ctx = vulkan_get_context_ptr();
+    if (!ctx || !ctx->frame_acquired || !text)
+        return;
+
     VK_TextPipeline *tp = &ctx->text_pipeline;
 
-    if (!ctx || !text || !tp->active_font)
+    if (!tp->active_font)
         return;
 
     VK_Font *vk_font = vk_find_font(ctx, tp->active_font);

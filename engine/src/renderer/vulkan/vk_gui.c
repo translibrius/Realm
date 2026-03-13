@@ -328,7 +328,7 @@ void vulkan_render_gui(void *commands, i32 command_count) {
     if (!commands || command_count <= 0) return;
 
     VK_Context *ctx = vulkan_get_context_ptr();
-    if (!ctx) return;
+    if (!ctx || !ctx->frame_acquired) return;
 
     VK_GuiPipeline *gp = &ctx->gui_pipeline;
     Clay_RenderCommand *cmds = (Clay_RenderCommand *)commands;

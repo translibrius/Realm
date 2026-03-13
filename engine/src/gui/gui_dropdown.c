@@ -59,32 +59,35 @@ b8 gui_dropdown(gui_dropdown_state *state, const gui_dropdown_cfg *cfg) {
         state->open = !state->open;
     }
 
-    // Floating dropdown list
+    // Floating dropdown list — always created to keep parent's
+    // floatingChildrenCount constant and prevent auto-ID shifts.
+    Clay_ElementId list_eid = CLAY_IDI("GuiDropdownList", state->_id);
+
+    Clay__OpenElementWithId(list_eid);
+    Clay__ConfigureOpenElement((Clay_ElementDeclaration){
+        .layout = {
+            .sizing = {.width = state->open ? CLAY_SIZING_FIXED(width) : CLAY_SIZING_FIT(0)},
+            .layoutDirection = CLAY_TOP_TO_BOTTOM,
+            .padding = state->open ? (Clay_Padding){.top = 2, .bottom = 2} : (Clay_Padding){0},
+        },
+        .floating = {
+            .attachTo = CLAY_ATTACH_TO_ELEMENT_WITH_ID,
+            .parentId = trigger_eid.id,
+            .attachPoints = {
+                .element = CLAY_ATTACH_POINT_LEFT_TOP,
+                .parent = CLAY_ATTACH_POINT_LEFT_BOTTOM,
+            },
+            .zIndex = 200,
+            .pointerCaptureMode = state->open ? CLAY_POINTER_CAPTURE_MODE_CAPTURE
+                                              : CLAY_POINTER_CAPTURE_MODE_PASSTHROUGH,
+        },
+        .backgroundColor = state->open ? bg_color : (Clay_Color){0},
+        .cornerRadius = CLAY_CORNER_RADIUS(radius),
+        .border = state->open ? (Clay_BorderElementConfig){.color = t->border, .width = {1, 1, 1, 1, 0}}
+                              : (Clay_BorderElementConfig){0},
+    });
+
     if (state->open) {
-        Clay_ElementId list_eid = CLAY_IDI("GuiDropdownList", state->_id);
-
-        Clay__OpenElementWithId(list_eid);
-        Clay__ConfigureOpenElement((Clay_ElementDeclaration){
-            .layout = {
-                .sizing = {.width = CLAY_SIZING_FIXED(width)},
-                .layoutDirection = CLAY_TOP_TO_BOTTOM,
-                .padding = {.top = 2, .bottom = 2},
-            },
-            .floating = {
-                .attachTo = CLAY_ATTACH_TO_ELEMENT_WITH_ID,
-                .parentId = trigger_eid.id,
-                .attachPoints = {
-                    .element = CLAY_ATTACH_POINT_LEFT_TOP,
-                    .parent = CLAY_ATTACH_POINT_LEFT_BOTTOM,
-                },
-                .zIndex = 200,
-                .pointerCaptureMode = CLAY_POINTER_CAPTURE_MODE_CAPTURE,
-            },
-            .backgroundColor = bg_color,
-            .cornerRadius = CLAY_CORNER_RADIUS(radius),
-            .border = {.color = t->border, .width = {1, 1, 1, 1, 0}},
-        });
-
         for (i32 i = 0; i < cfg->item_count; i++) {
             gui_button_state item_btn = gui_button_begin(&(gui_button_cfg){
                 .color       = bg_color,
@@ -102,8 +105,6 @@ b8 gui_dropdown(gui_dropdown_state *state, const gui_dropdown_cfg *cfg) {
             }
         }
 
-        Clay__CloseElement(); // list
-
         // Close on click outside — if mouse pressed and not hovering the list
         if (input_mouse_pressed(MOUSE_LEFT) && !btn.hovered) {
             Clay_ElementData list_data = Clay_GetElementData(list_eid);
@@ -120,6 +121,8 @@ b8 gui_dropdown(gui_dropdown_state *state, const gui_dropdown_cfg *cfg) {
             }
         }
     }
+
+    Clay__CloseElement(); // list
 
     return state->selected != old_selected;
 }
