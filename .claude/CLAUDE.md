@@ -15,6 +15,14 @@ cmake --preset release && cmake --build --preset release
 
 `ctest --preset debug` or `bin/RealmTests --filter <pattern>`. Details: [.claude/docs/testing.md](.claude/docs/testing.md).
 
+## Testing integrity
+
+- **Test behavior, not implementation.** Assert what the function promises, not how it works internally. Never re-implement logic in a test to compare against itself.
+- **Tests must be able to fail.** If a broken implementation still passes the test, the test is worthless. Ask: "what bug would this catch?"
+- **No trivial assertions.** `!= NULL` or `> 0` alone is not a test. Verify actual values, round-trip data, or observable side effects.
+- **No flaky timing.** Don't `sleep()` and hope. If testing async behavior, use deterministic synchronization or skip.
+- **Test the public API.** Call the same functions users of the subsystem call, not internal helpers.
+
 ## Boot and frame loop
 
 See [.claude/docs/boot-and-frame-loop.md](.claude/docs/boot-and-frame-loop.md). Key hotkeys: F5 = rebuild + reload module, F7 = switch backend.

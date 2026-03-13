@@ -23,18 +23,20 @@ RL_TEST(gui_id_no_duplicates_first_1000) {
     }
 }
 
-RL_TEST(gui_id_values_change_each_call) {
+RL_TEST(gui_id_hash_has_good_spread) {
+    // The Jenkins hash should spread consecutive counter values widely
+    // across the u32 range, not cluster them together.
     u32 a = gui__next_id();
     u32 b = gui__next_id();
-    u32 c = gui__next_id();
-    RL_EXPECT(a != b);
-    RL_EXPECT(b != c);
-    RL_EXPECT(a != c);
+    RL_EXPECT_MSG(a != b, "consecutive IDs should differ: a=%u b=%u", a, b);
+
+    u32 diff = a > b ? a - b : b - a;
+    RL_EXPECT_MSG(diff > 1000, "IDs should be well-separated (hash spread), diff=%u", diff);
 }
 
 void register_gui_id_tests(void) {
     rl_test_begin_group("gui_id");
     RL_REGISTER_TEST(gui_id_never_returns_zero);
     RL_REGISTER_TEST(gui_id_no_duplicates_first_1000);
-    RL_REGISTER_TEST(gui_id_values_change_each_call);
+    RL_REGISTER_TEST(gui_id_hash_has_good_spread);
 }

@@ -3,9 +3,7 @@
 #include "util/clock.h"
 #include "platform/platform.h"
 
-// --- Tests ---
-
-RL_TEST(clock_reset_sets_positive_frequency) {
+RL_TEST(clock_reset_populates_fields) {
     rl_clock c = {0};
     clock_reset(&c);
 
@@ -13,37 +11,54 @@ RL_TEST(clock_reset_sets_positive_frequency) {
     RL_EXPECT_MSG(c.start > 0, "start=%lld", c.start);
 }
 
-RL_TEST(clock_update_advances_last) {
+RL_TEST(clock_update_advances_last_past_start) {
     rl_clock c = {0};
     clock_reset(&c);
-    clock_update(&c);
 
+    // Burn a tiny bit of time so the counter actually moves.
+    volatile i32 dummy = 0;
+    for (i32 i = 0; i < 10000; i++) dummy += i;
+    (void)dummy;
+
+    clock_update(&c);
     RL_EXPECT_MSG(c.last >= c.start, "last=%lld start=%lld", c.last, c.start);
 }
 
-RL_TEST(clock_elapsed_non_negative) {
+RL_TEST(clock_elapsed_increases_after_work) {
     rl_clock c = {0};
     clock_reset(&c);
-    clock_update(&c);
 
+    // Do some real work so elapsed > 0.
+    volatile i32 dummy = 0;
+    for (i32 i = 0; i < 100000; i++) dummy += i;
+    (void)dummy;
+
+    clock_update(&c);
     f64 elapsed = clock_elapsed_s(&c);
-    RL_EXPECT_MSG(elapsed >= 0.0, "elapsed=%f", elapsed);
+    RL_EXPECT_MSG(elapsed > 0.0, "elapsed=%f, expected > 0 after work", elapsed);
 }
 
-RL_TEST(clock_elapsed_after_sleep) {
+RL_TEST(clock_reset_resets_elapsed) {
     rl_clock c = {0};
     clock_reset(&c);
-    platform_sleep(10);
-    clock_update(&c);
 
-    f64 elapsed = clock_elapsed_s(&c);
-    RL_EXPECT_MSG(elapsed >= 0.005, "elapsed=%f expected>=0.005", elapsed);
+    // Accumulate some time.
+    platform_sleep(5);
+    clock_update(&c);
+    f64 before = clock_elapsed_s(&c);
+    RL_EXPECT_MSG(before > 0.0, "before=%f", before);
+
+    // Reset should bring elapsed back near zero.
+    clock_reset(&c);
+    clock_update(&c);
+    f64 after = clock_elapsed_s(&c);
+    RL_EXPECT_MSG(after < before, "after reset elapsed=%f should be less than before=%f", after, before);
 }
 
 void register_clock_tests(void) {
     rl_test_begin_group("clock");
-    RL_REGISTER_TEST(clock_reset_sets_positive_frequency);
-    RL_REGISTER_TEST(clock_update_advances_last);
-    RL_REGISTER_TEST(clock_elapsed_non_negative);
-    RL_REGISTER_TEST(clock_elapsed_after_sleep);
+    RL_REGISTER_TEST(clock_reset_populates_fields);
+    RL_REGISTER_TEST(clock_update_advances_last_past_start);
+    RL_REGISTER_TEST(clock_elapsed_increases_after_work);
+    RL_REGISTER_TEST(clock_reset_resets_elapsed);
 }

@@ -13,6 +13,7 @@
 #include "platform/platform.h"
 #include "platform/io/file_io.h"
 #include "platform/splash/splash.h"
+#include "util/hash.h"
 #include "util/str.h"
 
 #include <stdio.h>
@@ -46,17 +47,6 @@ typedef struct asset_system {
 
 static asset_system *state;
 
-static u64 asset_hash_bytes(const void *data, u64 length) {
-    const u8 *bytes = (const u8 *)data;
-    u64 hash = 1469598103934665603ull;
-    for (u64 i = 0; i < length; i++) {
-        hash ^= bytes[i];
-        hash *= 1099511628211ull;
-    }
-
-    return hash;
-}
-
 static b8 asset_compute_source_hash(rl_asset *asset) {
     if (!state || !asset || !asset->source_path || !asset->source_path[0]) {
         return false;
@@ -80,7 +70,7 @@ static b8 asset_compute_source_hash(rl_asset *asset) {
         return false;
     }
 
-    asset->source_hash = asset_hash_bytes(source_file.buf, source_file.buf_len);
+    asset->source_hash = hash_fnv1a(source_file.buf, source_file.buf_len);
 
     platform_file_close(&source_file);
     arena_scratch_release(scratch);
