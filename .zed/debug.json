@@ -3,7 +3,7 @@
     "label": "Debug Realm",
     "adapter": "CodeLLDB",
     "request": "launch",
-    "program": "${ZED_WORKTREE_ROOT}/build/debug/bin/Realm.exe",
+    "program": "${ZED_WORKTREE_ROOT}/build/debug/bin/Realm",
     "cwd": "${ZED_WORKTREE_ROOT}/build/debug/bin",
     "build": {
       "command": "cmake",
@@ -14,7 +14,7 @@
     "label": "Debug Tests",
     "adapter": "CodeLLDB",
     "request": "launch",
-    "program": "${ZED_WORKTREE_ROOT}/build/debug/bin/RealmTests.exe",
+    "program": "${ZED_WORKTREE_ROOT}/build/debug/bin/RealmTests",
     "cwd": "${ZED_WORKTREE_ROOT}/build/debug/bin",
     "build": {
       "command": "cmake",
@@ -25,11 +25,22 @@
     "label": "Profile Realm",
     "adapter": "CodeLLDB",
     "request": "launch",
-    "program": "${ZED_WORKTREE_ROOT}/build/profile/bin/Realm.exe",
+    "program": "${ZED_WORKTREE_ROOT}/build/profile/bin/Realm",
     "cwd": "${ZED_WORKTREE_ROOT}/build/profile/bin",
     "build": {
       "command": "cmake",
       "args": ["--build", "--preset", "profile"],
+    },
+  },
+  {
+    "label": "Debug Editor",
+    "adapter": "CodeLLDB",
+    "request": "launch",
+    "program": "${ZED_WORKTREE_ROOT}/build/debug/bin/RealmEditor",
+    "cwd": "${ZED_WORKTREE_ROOT}/build/debug/bin",
+    "build": {
+      "command": "cmake",
+      "args": ["--build", "--preset", "debug"],
     },
   },
 ]
