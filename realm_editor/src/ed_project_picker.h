@@ -1,6 +1,7 @@
 #pragma once
 
 #include "defines.h"
+#include "gui/gui_file_browser.h"
 #include "gui/gui_text_input.h"
 
 typedef struct ed_config ed_config;
@@ -20,6 +21,7 @@ typedef struct ed_project_picker {
     u8 focused_input;   // 0=path, 1=name
     b8 project_selected;
     b8 active;
+    gui_file_browser_state file_browser;
 } ed_project_picker;
 
 void ed_project_picker_init(ed_project_picker *picker);

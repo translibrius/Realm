@@ -19,3 +19,7 @@ REALM_API b8 platform_dir_scan(const char *path,
                                 const char *ext_filter,
                                 rl_arena *arena,
                                 DirEntries *out);
+
+// List available drive letters (Windows only). On Unix this returns false.
+// Each entry has name="X:\" and is_dir=true. Names allocated on caller's arena.
+REALM_API b8 platform_list_drives(rl_arena *arena, DirEntries *out);

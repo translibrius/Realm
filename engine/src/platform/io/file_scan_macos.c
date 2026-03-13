@@ -92,4 +92,10 @@ b8 platform_dir_scan(const char *path,
     return true;
 }
 
+b8 platform_list_drives(rl_arena *arena, DirEntries *out) {
+    (void)arena;
+    (void)out;
+    return false;
+}
+
 #endif // PLATFORM_MACOS

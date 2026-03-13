@@ -81,4 +81,24 @@ b8 platform_dir_scan(const char *path,
     return true;
 }
 
+b8 platform_list_drives(rl_arena *arena, DirEntries *out) {
+    if (!arena || !out) return false;
+
+    DWORD mask = GetLogicalDrives();
+    if (mask == 0) return false;
+
+    for (u32 bit = 0; bit < 26; bit++) {
+        if (!(mask & (1u << bit))) continue;
+
+        char drive[4] = {(char)('A' + bit), ':', '\\', '\0'};
+        char *arena_name = rl_arena_push(arena, 4, false);
+        memcpy(arena_name, drive, 4);
+
+        platform_dir_entry de = {.name = arena_name, .is_dir = true};
+        da_append(out, de);
+    }
+
+    return true;
+}
+
 #endif // PLATFORM_WINDOWS

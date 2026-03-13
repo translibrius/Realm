@@ -24,6 +24,11 @@ static b8 on_key_press(void *data, void *user_data) {
     input_key *key = data;
     if (!key->pressed) return false;
 
+    // File browser intercepts input when open
+    if (picker->file_browser.status == GUI_FILE_BROWSER_OPEN) {
+        return gui_file_browser_handle_key(&picker->file_browser, key);
+    }
+
     // Tab cycles focus between inputs in new project view
     if (key->key == KEY_TAB && picker->view == ED_PICKER_NEW_PROJECT) {
         picker->focused_input = picker->focused_input == 0 ? 1 : 0;
@@ -63,6 +68,10 @@ static b8 on_char_input(void *data, void *user_data) {
     ed_project_picker *picker = user_data;
     if (!picker || !picker->active) return false;
 
+    if (picker->file_browser.status == GUI_FILE_BROWSER_OPEN) {
+        return gui_file_browser_handle_char(&picker->file_browser, data);
+    }
+
     gui_text_input_state *target = nullptr;
     if (picker->view == ED_PICKER_NEW_PROJECT) {
         target = picker->focused_input == 0 ? &picker->path_input : &picker->name_input;
@@ -83,6 +92,7 @@ void ed_project_picker_init(ed_project_picker *picker) {
     memset(picker, 0, sizeof(*picker));
     picker->view = ED_PICKER_HOME;
     picker->active = true;
+    gui_file_browser_init(&picker->file_browser);
 
     event_register(EVENT_KEY_PRESS, on_key_press, picker);
     event_register(EVENT_CHAR_INPUT, on_char_input, picker);
@@ -248,7 +258,15 @@ void ed_project_picker_render(ed_project_picker *picker, ed_application *app, f3
                 gui_text("New Project", &title_text);
                 gui_separator();
 
-                gui_text("Project Path:", &label_text);
+                GUI_ROW(8) {
+                    gui_text("Project Path:", &label_text);
+                    gui_spacer();
+                    if (gui_text_button("Browse", &btn_cfg, &label_text).clicked) {
+                        const char *init = picker->path_input.buf[0] ? picker->path_input.buf : nullptr;
+                        gui_file_browser_open(&picker->file_browser,
+                                              GUI_FILE_BROWSER_DIRECTORY, init, nullptr);
+                    }
+                }
                 gui_text_input_render(&picker->path_input,
                     picker->focused_input == 0 ? dt : 0,
                     picker->focused_input == 0 ? &input_cfg : &input_cfg_dim);
@@ -277,7 +295,15 @@ void ed_project_picker_render(ed_project_picker *picker, ed_application *app, f3
                 gui_text("Open Project", &title_text);
                 gui_separator();
 
-                gui_text("Project Path:", &label_text);
+                GUI_ROW(8) {
+                    gui_text("Project Path:", &label_text);
+                    gui_spacer();
+                    if (gui_text_button("Browse", &btn_cfg, &label_text).clicked) {
+                        const char *init = picker->path_input.buf[0] ? picker->path_input.buf : nullptr;
+                        gui_file_browser_open(&picker->file_browser,
+                                              GUI_FILE_BROWSER_DIRECTORY, init, nullptr);
+                    }
+                }
                 gui_text_input_render(&picker->path_input, dt, &input_cfg);
 
                 if (picker->error_msg[0]) {
@@ -295,6 +321,15 @@ void ed_project_picker_render(ed_project_picker *picker, ed_application *app, f3
                 }
             } break;
             }
+        }
+
+        // File browser overlay (rendered on top of card)
+        gui_file_browser_status fb_status = gui_file_browser_render(&picker->file_browser, dt, nullptr);
+        if (fb_status == GUI_FILE_BROWSER_CONFIRMED) {
+            cstr_copy(picker->path_input.buf, sizeof(picker->path_input.buf),
+                      picker->file_browser.result_path);
+            picker->path_input.len = (u16)cstr_len(picker->path_input.buf);
+            picker->path_input.cursor = picker->path_input.len;
         }
     }
 }
