@@ -55,12 +55,16 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
     };
     GUI_PANEL(&bar) {
         // File menu
-        static const char *file_items[] = {"Quit"};
+        static const char *file_items[] = {"New Project", "Open Project", "Close Project", "Quit"};
         menu_cfg.items = file_items;
-        menu_cfg.item_count = 1;
+        menu_cfg.item_count = 4;
         menu_cfg.label = "File";
         if (gui_dropdown(&layout->menu_file, &menu_cfg)) {
-            if (layout->menu_file.selected == 0) rl_engine_stop();
+            i32 sel = layout->menu_file.selected;
+            if (sel == 0 || sel == 1 || sel == 2) {
+                app->close_project_requested = true;
+            }
+            if (sel == 3) rl_engine_stop();
             layout->menu_file.selected = -1;
         }
 

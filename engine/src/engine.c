@@ -43,6 +43,7 @@ b8 rl_engine_create(const rl_engine_config *config) {
         if (config->config_filename && config->config_filename[0]) {
             state.config.config_filename = config->config_filename;
         }
+        state.config.skip_splash = config->skip_splash;
     }
 
     state.is_running = true;
@@ -169,4 +170,8 @@ rl_engine_stats rl_engine_get_stats(void) {
 
 rl_arena *rl_engine_get_frame_arena(void) {
     return &state.frame_arena;
+}
+
+b8 rl_engine_get_skip_splash(void) {
+    return state.config.skip_splash;
 }

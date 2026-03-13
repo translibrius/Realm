@@ -1,0 +1,308 @@
+#include "ed_project_picker.h"
+
+#include "ed_application.h"
+#include "ed_config.h"
+#include "asset/asset.h"
+#include "core/event.h"
+#include "core/logger.h"
+#include "core/project.h"
+#include "gui/gui_button.h"
+#include "gui/gui_clay.h"
+#include "gui/gui_panel.h"
+#include "gui/gui_text.h"
+#include "gui/gui_text_input.h"
+#include "gui/gui_theme.h"
+#include "platform/io/file_io.h"
+#include "util/str.h"
+
+#include <string.h>
+
+static b8 on_key_press(void *data, void *user_data) {
+    ed_project_picker *picker = user_data;
+    if (!picker || !picker->active) return false;
+
+    input_key *key = data;
+    if (!key->pressed) return false;
+
+    // Tab cycles focus between inputs in new project view
+    if (key->key == KEY_TAB && picker->view == ED_PICKER_NEW_PROJECT) {
+        picker->focused_input = picker->focused_input == 0 ? 1 : 0;
+        // Reset blink so caret is immediately visible on newly focused input
+        gui_text_input_state *next = picker->focused_input == 0
+            ? &picker->path_input : &picker->name_input;
+        next->cursor_blink = 0;
+        return true;
+    }
+
+    // Escape returns to home view
+    if (key->key == KEY_ESCAPE) {
+        if (picker->view != ED_PICKER_HOME) {
+            picker->view = ED_PICKER_HOME;
+            picker->error_msg[0] = '\0';
+            return true;
+        }
+        return false;
+    }
+
+    // Route to focused input
+    gui_text_input_state *target = nullptr;
+    if (picker->view == ED_PICKER_NEW_PROJECT) {
+        target = picker->focused_input == 0 ? &picker->path_input : &picker->name_input;
+    } else if (picker->view == ED_PICKER_OPEN_PROJECT) {
+        target = &picker->path_input;
+    }
+
+    if (target) {
+        return gui_text_input_handle_key(target, key);
+    }
+
+    return false;
+}
+
+static b8 on_char_input(void *data, void *user_data) {
+    ed_project_picker *picker = user_data;
+    if (!picker || !picker->active) return false;
+
+    gui_text_input_state *target = nullptr;
+    if (picker->view == ED_PICKER_NEW_PROJECT) {
+        target = picker->focused_input == 0 ? &picker->path_input : &picker->name_input;
+    } else if (picker->view == ED_PICKER_OPEN_PROJECT) {
+        target = &picker->path_input;
+    }
+
+    if (target) {
+        gui_text_input_handle_char(target, data);
+        return true;
+    }
+
+    return false;
+}
+
+void ed_project_picker_init(ed_project_picker *picker) {
+    if (!picker) return;
+    memset(picker, 0, sizeof(*picker));
+    picker->view = ED_PICKER_HOME;
+    picker->active = true;
+
+    event_register(EVENT_KEY_PRESS, on_key_press, picker);
+    event_register(EVENT_CHAR_INPUT, on_char_input, picker);
+}
+
+static void picker_try_open(ed_project_picker *picker, ed_application *app, const char *path) {
+    if (!path || !path[0]) {
+        cstr_copy(picker->error_msg, sizeof(picker->error_msg), "Path cannot be empty");
+        return;
+    }
+
+    rl_project *proj = project_open(path);
+    if (!proj) {
+        cstr_copy(picker->error_msg, sizeof(picker->error_msg), "Failed to open project (missing project.realm?)");
+        return;
+    }
+
+    picker->project_selected = true;
+    picker->error_msg[0] = '\0';
+}
+
+static void picker_try_create(ed_project_picker *picker, ed_application *app) {
+    const char *path = picker->path_input.buf;
+    const char *name = picker->name_input.buf;
+
+    if (!path[0]) {
+        cstr_copy(picker->error_msg, sizeof(picker->error_msg), "Project path cannot be empty");
+        return;
+    }
+    if (!name[0]) {
+        cstr_copy(picker->error_msg, sizeof(picker->error_msg), "Project name cannot be empty");
+        return;
+    }
+
+    if (!project_create(path, name)) {
+        cstr_copy(picker->error_msg, sizeof(picker->error_msg), "Failed to create project");
+        return;
+    }
+
+    rl_project *proj = project_open(path);
+    if (!proj) {
+        cstr_copy(picker->error_msg, sizeof(picker->error_msg), "Project created but failed to open");
+        return;
+    }
+
+    picker->project_selected = true;
+    picker->error_msg[0] = '\0';
+}
+
+void ed_project_picker_render(ed_project_picker *picker, ed_application *app, f32 dt) {
+    if (!picker || !app) return;
+
+    const gui_theme *t = gui_theme_get();
+    u16 font = gui_font_id(asset_find(RL_ASSET_FONT_JETBRAINS_MONO));
+    gui_text_cfg title_text = {.color = t->text, .size = 22, .font = font};
+    gui_text_cfg label_text = {.color = t->text, .size = 13, .font = font};
+    gui_text_cfg dim_text   = {.color = t->text_dim, .size = 13, .font = font};
+    gui_text_cfg error_text = {.color = t->danger, .size = 13, .font = font};
+
+    gui_button_cfg btn_cfg = {
+        .color = t->control,
+        .hover_color = t->control_hover,
+        .press_color = t->control_press,
+        .padding = 10,
+        .corner_radius = 4,
+    };
+
+    gui_text_input_render_cfg input_cfg = {
+        .bg_color = t->bg_input,
+        .text_color = t->text,
+        .border_color = t->border,
+        .border_width = 1,
+        .padding = 8,
+        .height = 28,
+        .font = font,
+        .font_size = 13,
+    };
+
+    gui_text_input_render_cfg input_cfg_dim = input_cfg;
+    input_cfg_dim.border_color = (Clay_Color){40, 40, 45, 255};
+
+    // Full-screen centered root
+    gui_panel_cfg root = {
+        .color = t->bg,
+        .width_sizing = GUI_SIZE_GROW,
+        .height_sizing = GUI_SIZE_GROW,
+        .align_x = CLAY_ALIGN_X_CENTER,
+        .align_y = CLAY_ALIGN_Y_CENTER,
+    };
+    GUI_PANEL(&root) {
+        // Card
+        gui_panel_cfg card = {
+            .color = t->bg_secondary,
+            .width = 500,
+            .padding = 24,
+            .gap = 12,
+            .corner_radius = 8,
+        };
+        GUI_PANEL(&card) {
+            switch (picker->view) {
+            case ED_PICKER_HOME: {
+                gui_text("Realm Editor", &title_text);
+                gui_separator();
+
+                // Buttons row
+                GUI_ROW(8) {
+                    if (gui_text_button("New Project", &btn_cfg, &label_text).clicked) {
+                        picker->view = ED_PICKER_NEW_PROJECT;
+                        picker->error_msg[0] = '\0';
+                        memset(&picker->path_input, 0, sizeof(picker->path_input));
+                        memset(&picker->name_input, 0, sizeof(picker->name_input));
+                        picker->focused_input = 0;
+                    }
+                    if (gui_text_button("Open Project", &btn_cfg, &label_text).clicked) {
+                        picker->view = ED_PICKER_OPEN_PROJECT;
+                        picker->error_msg[0] = '\0';
+                        memset(&picker->path_input, 0, sizeof(picker->path_input));
+                        picker->focused_input = 0;
+                    }
+                }
+
+                // Recent projects
+                if (app->ed_cfg.recent_count > 0) {
+                    gui_spacer_fixed(4);
+                    gui_text("Recent Projects", &dim_text);
+                    gui_separator();
+
+                    for (u32 i = 0; i < app->ed_cfg.recent_count; i++) {
+                        const char *path = app->ed_cfg.recent_projects[i];
+                        if (!path[0]) continue;
+
+                        gui_button_cfg row_btn = {
+                            .color = {0, 0, 0, 0},
+                            .hover_color = t->control_hover,
+                            .press_color = t->control_press,
+                            .padding = 6,
+                            .corner_radius = 4,
+                            .grow_width = true,
+                        };
+                        if (gui_text_button(path, &row_btn, &dim_text).clicked) {
+                            picker_try_open(picker, app, path);
+                            if (!picker->project_selected) {
+                                // Failed to open — remove from recents
+                                for (u32 j = i; j + 1 < app->ed_cfg.recent_count; j++) {
+                                    cstr_copy(app->ed_cfg.recent_projects[j],
+                                              sizeof(app->ed_cfg.recent_projects[j]),
+                                              app->ed_cfg.recent_projects[j + 1]);
+                                }
+                                app->ed_cfg.recent_count--;
+                                app->ed_cfg.recent_projects[app->ed_cfg.recent_count][0] = '\0';
+                                ed_config_save(&app->ed_cfg);
+                            }
+                        }
+                    }
+                }
+
+                if (picker->error_msg[0]) {
+                    gui_text(picker->error_msg, &error_text);
+                }
+            } break;
+
+            case ED_PICKER_NEW_PROJECT: {
+                gui_text("New Project", &title_text);
+                gui_separator();
+
+                gui_text("Project Path:", &label_text);
+                gui_text_input_render(&picker->path_input,
+                    picker->focused_input == 0 ? dt : 0,
+                    picker->focused_input == 0 ? &input_cfg : &input_cfg_dim);
+
+                gui_text("Project Name:", &label_text);
+                gui_text_input_render(&picker->name_input,
+                    picker->focused_input == 1 ? dt : 0,
+                    picker->focused_input == 1 ? &input_cfg : &input_cfg_dim);
+
+                if (picker->error_msg[0]) {
+                    gui_text(picker->error_msg, &error_text);
+                }
+
+                GUI_ROW(8) {
+                    if (gui_text_button("Cancel", &btn_cfg, &label_text).clicked) {
+                        picker->view = ED_PICKER_HOME;
+                        picker->error_msg[0] = '\0';
+                    }
+                    if (gui_text_button("Create", &btn_cfg, &label_text).clicked) {
+                        picker_try_create(picker, app);
+                    }
+                }
+            } break;
+
+            case ED_PICKER_OPEN_PROJECT: {
+                gui_text("Open Project", &title_text);
+                gui_separator();
+
+                gui_text("Project Path:", &label_text);
+                gui_text_input_render(&picker->path_input, dt, &input_cfg);
+
+                if (picker->error_msg[0]) {
+                    gui_text(picker->error_msg, &error_text);
+                }
+
+                GUI_ROW(8) {
+                    if (gui_text_button("Cancel", &btn_cfg, &label_text).clicked) {
+                        picker->view = ED_PICKER_HOME;
+                        picker->error_msg[0] = '\0';
+                    }
+                    if (gui_text_button("Open", &btn_cfg, &label_text).clicked) {
+                        picker_try_open(picker, app, picker->path_input.buf);
+                    }
+                }
+            } break;
+            }
+        }
+    }
+}
+
+b8 ed_project_picker_handle_key(ed_project_picker *picker, void *key_data) {
+    return on_key_press(key_data, picker);
+}
+
+b8 ed_project_picker_handle_char(ed_project_picker *picker, void *char_data) {
+    return on_char_input(char_data, picker);
+}

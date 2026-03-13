@@ -19,6 +19,8 @@ typedef struct rl_engine_config {
     const char *asset_root;
     // Config filename (e.g. "editor.toml"). NULL or "" defaults to "config.toml".
     const char *config_filename;
+    // Skip splash screen during engine asset loading (editor skips it).
+    b8 skip_splash;
 } rl_engine_config;
 
 REALM_API rl_engine_config rl_engine_config_default(void);
@@ -34,6 +36,8 @@ REALM_API rl_engine_stats rl_engine_get_stats(void);
 // Per-frame arena cleared at rl_engine_end_frame(). Use for temporary
 // allocations that must survive until end of frame (e.g. GUI strings).
 REALM_API rl_arena *rl_engine_get_frame_arena(void);
+
+REALM_API b8 rl_engine_get_skip_splash(void);
 
 #ifdef __cplusplus
 }

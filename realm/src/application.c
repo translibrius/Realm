@@ -27,7 +27,7 @@ b8 create_application(void) {
     app.backend_switch_requested = false;
     app.requested_backend = BACKEND_OPENGL;
 
-    host_bootstrap_result boot = host_bootstrap("../../../assets/", "Realm", "config.toml");
+    host_bootstrap_result boot = host_bootstrap("../../../assets/", "Realm", "config.toml", false);
     if (!boot.success) return false;
     app.window = boot.window;
 

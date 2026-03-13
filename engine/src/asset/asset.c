@@ -9,6 +9,7 @@
 #include "asset/texture.h"
 #include "core/event.h"
 #include "core/logger.h"
+#include "engine.h"
 #include "platform/platform.h"
 #include "platform/io/file_io.h"
 #include "platform/splash/splash.h"
@@ -179,9 +180,12 @@ void asset_system_shutdown() {
 }
 
 b8 asset_system_load_engine() {
-    b8 splash_active = splash_show();
-    if (splash_active) {
-        splash_update();
+    b8 splash_active = false;
+    if (!rl_engine_get_skip_splash()) {
+        splash_active = splash_show();
+        if (splash_active) {
+            splash_update();
+        }
     }
 
     RL_DEBUG("Loading engine assets...");

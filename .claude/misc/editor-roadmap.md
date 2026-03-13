@@ -11,7 +11,17 @@ When starting a session from this roadmap:
 
 ## Context
 
-The editor skeleton is built and running (`realm_editor/`). Phases 1-3 extracted shared logic into `engine/include/host/`, built GUI widgets, and added a scene/entity system. Before building further editing features, we need a project system so the editor works with discrete project directories rather than a hardcoded shared asset root.
+The editor skeleton is built and running (`realm_editor/`). Phases 1-4 extracted shared logic into `engine/include/host/`, built GUI widgets, added a scene/entity system, and created a project system with picker UI. The next priority is **editor↔game integration**: making the editor actually useful for authoring content that the Realm game executable can load and run. This means scene serialization, dynamic asset discovery, and getting the game host onto the project system — before investing in editor polish features like property editing or viewport gizmos.
+
+### The integration problem
+
+Right now the editor and game are disconnected:
+- **Content assets** are a compile-time `content_asset_table[]` — no discovery from disk
+- **Scenes** are built in code (game module), not loaded from files — nothing to share
+- **Game host** doesn't use the project system — it has its own hardcoded asset root
+- **Editor** creates throwaway empty scenes — can't load or save anything real
+
+The fix is a shared project directory that both hosts point at, with scenes as files and assets discovered from disk.
 
 ---
 
@@ -167,84 +177,177 @@ The editor needs to work with projects — each project is a directory with its 
 - [x] 4 unit tests in `tests/cases/test_project.c` — all passing
 - [x] Verify: can create and open a project from code
 
-### 4d. Editor bootstrap refactor — next up
+### 4d. Editor bootstrap refactor — DONE
 
-- [ ] Editor skips splash screen — boots straight to project picker or last project
-- [ ] After bootstrap, if no project open → show project picker; if project open → show editor layout
-- [ ] Editor stores last-opened project path + recent projects list in `editor.toml`
-- [ ] Add `recent_projects` field to `rl_config` or a separate editor config struct
-- [ ] Verify: editor boots to picker, game host unchanged
+- [x] Editor skips splash screen — `b8 skip_splash` added to `rl_engine_config`, propagated through `host_bootstrap()`
+- [x] After bootstrap, if no project open → show project picker; if project open → show editor layout
+- [x] Editor stores last-opened project path + recent projects list in `editor_state.toml` (separate `ed_config` struct)
+- [x] `ED_MODE` enum (`ED_MODE_PICKER`, `ED_MODE_EDITOR`) drives frame loop branching
+- [x] Verify: editor boots to picker, game host unchanged (splash still works)
 
-**Implementation notes from 4a-4c:**
-- `host_bootstrap()` now takes 3 args: `(asset_root, window_title, config_filename)` — no separate editor mode flag needed, the config filename already differentiates
-- Content loading is already decoupled — editor doesn't call `asset_system_load_content()`, so it boots with engine assets only
-- `project_open()` calls `asset_set_content_root()` automatically, so opening a project is enough to redirect texture/mesh loading to the project's `assets/` directory
+### 4e. Project picker screen — DONE
 
-### 4e. Project picker screen — next up (after 4d)
-
-- [ ] Create `realm_editor/src/ed_project_picker.h/.c`
-- [ ] Landing screen with: "New Project" button, "Open Project" button/path input, recent projects list
-- [ ] "New Project" flow: pick directory, enter name → `project_create()` → open it
-- [ ] "Open Project" flow: pick directory containing `project.realm` → `project_open()`
-- [ ] Recent projects loaded from `editor.toml`
-- [ ] On project selected → transition to full editor layout with scene loaded
-- [ ] New project creates a default scene with a camera and a light (minimal starting point)
-- [ ] Need a text input widget for path entry — use existing `gui_text_input` or add path input variant
-- [ ] Consider native file dialog (`NSOpenPanel` on macOS, `IFileOpenDialog` on Win32) for directory picking
-- [ ] Verify: full flow — launch editor → pick/create project → editor layout with scene
+- [x] Created `realm_editor/src/ed_project_picker.h/.c`
+- [x] Landing screen with: "New Project" button, "Open Project" button, recent projects list
+- [x] "New Project" flow: path + name text inputs → `project_create()` → `project_open()`
+- [x] "Open Project" flow: path text input → `project_open()`
+- [x] Recent projects loaded from `editor_state.toml` via `ed_config`
+- [x] On project selected → transition to full editor layout with default scene (Light entity only)
+- [x] Tab cycles focus between inputs, Escape returns to home view, Enter submits
+- [x] File menu: New Project / Open Project / Close Project → returns to picker
+- [x] Failed recent project opens remove entry from list
+- [x] Native file dialog deferred to future (uses `gui_text_input` for now)
 
 ---
 
-## Phase 5: Editable Properties + Undo
+## Phase 5: Scene I/O (critical path — enables editor↔game)
 
-### 5a. Property inspector
+Scenes are currently built in code. Both editor and game need a shared file format so the editor can author scenes that the game loads at runtime. This is the single biggest blocker to making the editor useful.
+
+### 5a. Scene serialization
+
+- [ ] Create `engine/include/core/scene_io.h` + `engine/src/core/scene_io.c`
+- [ ] JSON format via yyjson (already vendored) — one `.scene` file per scene
+- [ ] `scene_save(scene, path)` — serialize all entities + components to JSON
+- [ ] `scene_load(path)` → `rl_scene *` — deserialize from JSON, create entities + components
+- [ ] Format: `{ "name": "...", "entities": [ { "name": "Cube", "transform": {...}, "mesh": {...}, "light": {...} } ] }`
+- [ ] Component serializers: transform (position/rotation/scale), mesh (primitive, kind), light (ambient/diffuse/specular)
+- [ ] Unit tests: round-trip save→load, empty scene, entities with various component combos
+
+### 5b. Wire scene I/O into editor
+
+- [ ] File menu: New Scene, Open Scene, Save Scene, Save Scene As
+- [ ] Editor tracks current scene file path (null = unsaved)
+- [ ] New project creates `scenes/default.scene` with a Light entity on disk
+- [ ] Opening a project loads its `default_scene` from `project.realm`
+- [ ] Dirty state tracking — mark scene dirty on any entity/component change
+- [ ] Unsaved changes prompt before close/open/new (simple confirm dialog or just auto-save)
+
+### 5c. Wire scene loading into game host
+
+- [ ] Game host (`realm/src/application.c`) gains `project_open()` call after bootstrap
+- [ ] Game module can call `scene_load()` to load editor-authored scenes
+- [ ] Expand `realm_app_context` with project pointer so module knows project paths
+- [ ] Proof of life: game loads a `.scene` file saved by the editor and renders it
+
+---
+
+## Phase 6: Dynamic Asset Discovery
+
+Content assets are currently a compile-time `content_asset_table[]`. For a shared project to work, both hosts need to discover assets from the project directory at runtime.
+
+### 6a. Directory scanning
+
+- [ ] Create `engine/include/platform/io/file_scan.h` + platform implementations
+- [ ] `platform_dir_scan(path, extension_filter, results)` — list files in a directory
+- [ ] Returns array of relative paths (caller provides arena)
+- [ ] Extension filter: `".jpg,.png,.gltf"` style comma-separated list
+
+### 6b. Project asset manifest
+
+- [ ] On `project_open()`, scan `assets/textures/`, `assets/models/` etc.
+- [ ] Build a runtime asset list from what's on disk (replaces `content_asset_table[]`)
+- [ ] `project_load_assets()` — calls `asset_load()` for each discovered file
+- [ ] Editor calls this after opening a project; game host calls it too
+- [ ] Assets show up in hierarchy / can be assigned to entities
+
+### 6c. Decouple content_asset_table
+
+- [ ] `content_asset_table[]` becomes the "demo/fallback" set — only used when no project is open
+- [ ] Game host: if project open → `project_load_assets()`, else → `asset_system_load_content()`
+- [ ] Editor: always uses `project_load_assets()` (never loads demo content)
+- [ ] Verify: game still works standalone with hardcoded assets, also works with project
+
+### 6d. Asset browser panel
+
+- [ ] Create `realm_editor/src/ed_asset_browser.h/.c`
+- [ ] Panel showing project's `assets/` directory tree using tree view widget
+- [ ] Click mesh → create entity with that mesh
+- [ ] Drag-and-drop import: `EVENT_FILE_DROP` → copy file into project's `assets/` dir → auto-load
+
+---
+
+## Phase 7: Game Host Integration
+
+Make the Realm game executable a first-class consumer of editor-authored projects. The goal: edit a scene in the editor, hit play in the game, see the same thing.
+
+### 7a. Game host project support
+
+- [ ] Game host opens project via CLI arg or config: `Realm --project /path/to/my_project`
+- [ ] Falls back to legacy mode (hardcoded `content_asset_table[]`) when no project specified
+- [ ] On project open: discover + load project assets, load default scene
+- [ ] `realm_app_context` exposes `rl_project *project` and `rl_scene *scene` to game module
+
+### 7b. Migrate existing game content to a project
+
+- [ ] Create a `game/` project directory (or use repo root with `project.realm`)
+- [ ] Move/symlink textures and models from `assets/` into `game/assets/`
+- [ ] Create `game/scenes/main_menu.scene`, `game/scenes/gameplay.scene` from existing hardcoded scenes
+- [ ] Update game module to load scenes from files instead of building in code
+- [ ] Existing `scene_main_menu.c` etc. become gameplay logic layers on top of loaded scenes
+
+### 7c. Shared workflow validation
+
+- [ ] End-to-end: create project in editor → add entities → save scene → launch game with same project → scene renders
+- [ ] Editor and game read the same `project.realm`, same `assets/`, same `scenes/`
+- [ ] Hot-reload still works: game module reloads, scene persists from file
+- [ ] No separate repos needed — single repo, shared project directory
+
+---
+
+## Phase 8: Editable Properties + Undo
+
+With scene I/O in place, property editing becomes meaningful — changes can be saved and loaded.
+
+### 8a. Property inspector
 
 - [ ] Create `realm_editor/src/ed_inspector.h/.c`
 - [ ] Generic component inspector using existing GUI widgets
 - [ ] Transform → 3 vec3 fields (position, rotation, scale)
-- [ ] Mesh → asset path display (dropdown later when asset browser exists)
+- [ ] Mesh → asset path display (dropdown from asset browser)
 - [ ] Light → color RGB sliders, intensity
 
-### 5b. Number input widget
+### 8b. Number input widget
 
 - [ ] Create `engine/include/gui/gui_number_input.h` + `engine/src/gui/gui_number_input.c`
 - [ ] Numeric text input with drag-to-adjust (click-drag on label changes value)
 
-### 5c. Undo/redo system
+### 8c. Undo/redo system
 
 - [ ] Create `engine/include/core/undo.h` + `engine/src/core/undo.c`
 - [ ] Command pattern with fixed-size ring buffer (256 entries)
 - [ ] `undo_push(description, apply_fn, revert_fn, data, data_size)`
 - [ ] Ctrl+Z / Ctrl+Shift+Z hotkeys
+- [ ] Scene marked dirty on any undo-able action
 
 ---
 
-## Phase 6: Viewport Interaction
+## Phase 9: Viewport Interaction
 
-### 6a. Editor camera
+### 9a. Editor camera
 
 - [ ] Create `realm_editor/src/ed_camera.h/.c`
 - [ ] Orbit camera: middle-mouse orbit, scroll zoom, right-click WASD fly, F to frame selection
 
-### 6b. Origin axis gizmo
+### 9b. Origin axis gizmo
 
 - [ ] Colored XYZ axis indicator in viewport corner (red=X, green=Y, blue=Z)
 - [ ] Always visible, shows current camera orientation
 - [ ] Rendered as overlay (not affected by scene depth)
 
-### 6c. Transform gizmos
+### 9c. Transform gizmos
 
 - [ ] Create `realm_editor/src/ed_gizmo.h/.c`
 - [ ] Translate/rotate/scale handles as overlay geometry
 - [ ] Requires overlay render pass in both GL and Vulkan backends
 - [ ] W/E/R to switch between translate/rotate/scale modes
 
-### 6d. Entity picking
+### 9d. Entity picking
 
 - [ ] CPU ray casting against entity bounding boxes
 - [ ] Click in viewport to select entity (syncs with hierarchy panel)
 
-### 6e. Infinite grid (optional/toggleable)
+### 9e. Infinite grid (optional/toggleable)
 
 - [ ] Infinite ground plane grid rendered in world space
 - [ ] Fades with distance, major/minor grid lines
@@ -252,41 +355,19 @@ The editor needs to work with projects — each project is a directory with its 
 
 ---
 
-## Phase 7: Scene I/O + Asset Browser
-
-### 7a. Scene save/load
-
-- [ ] JSON serialization via yyjson (already vendored)
-- [ ] Save to / load from project's `scenes/` directory
-- [ ] Wire to File > New Scene / Open Scene / Save Scene / Save As
-- [ ] Track dirty state, prompt on unsaved changes
-
-### 7b. Asset browser panel
-
-- [ ] Panel showing project's `assets/` directory tree using tree view widget
-- [ ] Thumbnail previews (future)
-- [ ] Click mesh → create entity with that mesh
-- [ ] Double-click to open/inspect asset
-
-### 7c. Drag-and-drop import
-
-- [ ] Wire `EVENT_FILE_DROP` to copy dropped files into project's asset directory
-- [ ] Auto-load dropped assets
-
----
-
 ## Future (not scoped)
 
+- Native file/directory picker dialog (`NSOpenPanel` on macOS, `IFileOpenDialog` on Win32, GTK/portal on Linux) — "Browse" button next to path inputs in project picker
 - Context menu widget (`gui_context_menu`) — right-click in hierarchy/viewport
 - Multi-select, copy/paste entities
 - Transform hierarchy (parent/child relationships)
 - Multiple viewports (offscreen render targets)
-- Play mode (launch game module inside editor with project path)
+- Play mode — launch game module inside editor with project path (F5 = play, Esc = stop)
 - Snap-to-grid
 - Editor preferences panel
 - Prefab system
 - Material system / material editor
-- Game host project integration (realm/ opens project directory for assets/scenes)
+- Live sync — editor watches `.scene` files for external changes, game watches for editor saves
 
 ---
 
@@ -299,17 +380,22 @@ Phase 2: GUI Widgets                ✓ done (context menu deferred)
     │
 Phase 3: Scene/Entity System        ✓ done
     │
-Phase 4: Project System & Config    ◐ in progress (4a-4c done, 4d-4e next)
-    │       (config split ✓, asset split ✓, project dirs ✓, bootstrap refactor + picker screen next)
+Phase 4: Project System & Config    ✓ done
     │
-    ├── Phase 5: Properties + Undo
+    ├── Phase 5: Scene I/O          ← critical path (editor↔game bridge)
+    │       │
+    │       ├── Phase 6: Asset Discovery
+    │       │       │
+    │       │       └── Phase 7: Game Host Integration
+    │       │               (game loads editor-authored scenes + project assets)
+    │       │
+    │       └── Phase 8: Properties + Undo
+    │               (meaningful once scenes are saveable)
     │
-    ├── Phase 6: Viewport Interaction
-    │       (camera, axis gizmo, transform gizmos, picking, grid)
-    │
-    └── Phase 7: Scene I/O + Asset Browser
-            (requires project system for paths)
+    └── Phase 9: Viewport Interaction
+            (camera, gizmos, picking — independent of integration)
 ```
 
-Phases 5 and 6 can run in parallel after Phase 4.
-Phase 7 depends on Phase 4 (project paths) and benefits from Phase 5 (dirty tracking).
+**Critical path to editor usability: 5 → 6 → 7.**
+Phases 8 and 9 can run in parallel once Phase 5 is done.
+Phase 7 is the "it all comes together" milestone — editor authors, game runs.
