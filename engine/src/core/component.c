@@ -8,7 +8,7 @@ void component_store_init(rl_component_store *store, u32 capacity, rl_arena *are
 
     store->capacity = capacity;
 
-    store->transforms    = rl_arena_push(arena, capacity * sizeof(rl_transform), true);
+    store->transforms    = rl_arena_push_aligned(arena, capacity * sizeof(rl_transform), 16, true);
     store->has_transform = rl_arena_push(arena, capacity * sizeof(b8), true);
 
     store->meshes   = rl_arena_push(arena, capacity * sizeof(rl_mesh_component), true);

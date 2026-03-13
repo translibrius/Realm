@@ -7,6 +7,8 @@
 #include "core/logger.h"
 #include "util/str.h"
 
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #include <string.h>
 
 static b8 matches_filter(const char *name, const char *ext_filter) {

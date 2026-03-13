@@ -113,3 +113,22 @@ else ()
             COMMENT "Launch Realm"
     )
 endif ()
+
+if (TARGET RealmTests)
+    add_custom_target(run_editor_checked
+            COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --test-dir ${CMAKE_BINARY_DIR}
+            COMMAND $<TARGET_FILE:RealmEditor>
+            DEPENDS RealmEditor RealmTests
+            WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            USES_TERMINAL
+            COMMENT "Run tests, then launch RealmEditor"
+    )
+else ()
+    add_custom_target(run_editor_checked
+            COMMAND $<TARGET_FILE:RealmEditor>
+            DEPENDS RealmEditor
+            WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            USES_TERMINAL
+            COMMENT "Launch RealmEditor"
+    )
+endif ()

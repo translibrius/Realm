@@ -8,7 +8,11 @@
 
 #include <string.h>
 
+#ifdef PLATFORM_WINDOWS
+#define TEST_SCENE_PATH "realm_test_scene.scene"
+#else
 #define TEST_SCENE_PATH "/tmp/realm_test_scene.scene"
+#endif
 
 static void cleanup_scene_file(void) {
     platform_file_delete(TEST_SCENE_PATH);
