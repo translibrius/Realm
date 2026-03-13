@@ -21,6 +21,7 @@ add_executable(RealmTests
         cases/test_entity.c
         cases/test_project.c
         cases/test_scene_io.c
+        cases/test_file_scan.c
 )
 
 target_include_directories(RealmTests

@@ -3,6 +3,7 @@
 #include "core/camera.h"
 #include "core/scene.h"
 #include "defines.h"
+#include "ed_asset_browser.h"
 #include "ed_config.h"
 #include "ed_console.h"
 #include "ed_event_handler.h"
@@ -23,6 +24,7 @@ typedef struct ed_application {
     ed_console console;
     ed_config ed_cfg;
     ed_project_picker picker;
+    ed_asset_browser asset_browser;
     ED_MODE mode;
     rl_scene *scene;
     rl_camera camera;

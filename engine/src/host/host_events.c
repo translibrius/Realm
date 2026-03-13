@@ -92,8 +92,13 @@ static b8 host_on_mouse_scroll(void *event, void *data) {
 }
 
 static b8 host_on_file_drop(void *event, void *data) {
-    (void)data;
+    host_event_ctx *ctx = data;
     e_file_drop_payload *drop = event;
+
+    if (ctx->on_file_drop) {
+        ctx->on_file_drop(ctx->userdata, drop);
+    }
+
     for (u32 i = 0; i < drop->count; i++) {
         RL_INFO("File dropped: %s", drop->paths[i]);
     }

@@ -234,38 +234,45 @@ Scenes are currently built in code. Both editor and game need a shared file form
 
 ---
 
-## Phase 6: Dynamic Asset Discovery
+## Phase 6: Dynamic Asset Discovery — DONE
 
 Content assets are currently a compile-time `content_asset_table[]`. For a shared project to work, both hosts need to discover assets from the project directory at runtime.
 
-### 6a. Directory scanning
+### 6a. Directory scanning — DONE
 
-- [ ] Create `engine/include/platform/io/file_scan.h` + platform implementations
-- [ ] `platform_dir_scan(path, extension_filter, results)` — list files in a directory
-- [ ] Returns array of relative paths (caller provides arena)
-- [ ] Extension filter: `".jpg,.png,.gltf"` style comma-separated list
+- [x] Created `engine/include/platform/io/file_scan.h` — `platform_dir_scan()` API with `DirEntries` DA type and `platform_dir_entry` struct
+- [x] `engine/src/platform/io/file_scan_macos.c` — `opendir`/`readdir`/`closedir` with `d_type` + `stat` fallback
+- [x] `engine/src/platform/io/file_scan_linux.c` — same POSIX calls
+- [x] `engine/src/platform/io/file_scan_win32.c` — `FindFirstFileA`/`FindNextFileA`/`FindClose`
+- [x] Extension filter: comma-separated (e.g. `".jpg,.png"`), parsed into local array, matched with `cstr_ends_with()`
+- [x] Skips hidden files (`.` prefix) and `.`/`..` entries
+- [x] 6 unit tests in `tests/cases/test_file_scan.c` — all passing (138 total)
 
-### 6b. Project asset manifest
+### 6b. Project asset loading — DONE
 
-- [ ] On `project_open()`, scan `assets/textures/`, `assets/models/` etc.
-- [ ] Build a runtime asset list from what's on disk (replaces `content_asset_table[]`)
-- [ ] `project_load_assets()` — calls `asset_load()` for each discovered file
-- [ ] Editor calls this after opening a project; game host calls it too
-- [ ] Assets show up in hierarchy / can be assigned to entities
+- [x] Created `engine/include/core/project_assets.h` + `engine/src/core/project_assets.c`
+- [x] `project_load_assets()` scans `textures/` and `models/` subdirs under project asset path
+- [x] Handles nested model folders (e.g. `models/lion_head_4k.gltf/lion_head_4k.gltf` pattern)
+- [x] Logs summary: "Loaded N textures, M meshes from project"
+- [x] Fixed `asset_load()` source_path lifetime — now copies to `asset_arena` via `cstr_format()` so dynamic paths don't dangle
 
-### 6c. Decouple content_asset_table
+### 6c. Wired into both hosts — DONE
 
-- [ ] `content_asset_table[]` becomes the "demo/fallback" set — only used when no project is open
-- [ ] Game host: if project open → `project_load_assets()`, else → `asset_system_load_content()`
-- [ ] Editor: always uses `project_load_assets()` (never loads demo content)
-- [ ] Verify: game still works standalone with hardcoded assets, also works with project
+- [x] Editor: `project_load_assets()` called in `ed_enter_editor_mode()` after project open
+- [x] Game host: `project_load_assets()` called after `project_open()`, falls back to `asset_system_load_content()` if no project
+- [x] `content_asset_table[]` remains as demo/fallback — only loaded when no project is open
+- [x] Verify: game works standalone with hardcoded assets and with project
 
-### 6d. Asset browser panel
+### 6d. Asset browser panel — DONE
 
-- [ ] Create `realm_editor/src/ed_asset_browser.h/.c`
-- [ ] Panel showing project's `assets/` directory tree using tree view widget
-- [ ] Click mesh → create entity with that mesh
-- [ ] Drag-and-drop import: `EVENT_FILE_DROP` → copy file into project's `assets/` dir → auto-load
+- [x] Created `realm_editor/src/ed_asset_browser.h/.c` — tree-based browser with "Textures" and "Models" top-level nodes
+- [x] Node IDs use `ED_ASSET_NODE_BASE = 0x20000u` to avoid collision with entity node IDs
+- [x] Click on a mesh leaf node → create entity in scene with that mesh asset
+- [x] `ed_asset_browser_refresh()` scans project dirs, caches results with heap-copied names
+- [x] Left panel split: hierarchy (top) + asset browser (bottom) with horizontal splitter (`splitter_left_h`)
+- [x] Added `on_file_drop` callback to `host_event_ctx` — dispatched before logging in `host_events.c`
+- [x] Editor file drop handler: detects type by extension, copies to project `assets/` subdir, calls `asset_load()`, sets `needs_refresh`
+- [x] Asset browser field added to `ed_application`, lifecycle wired (init/refresh/shutdown)
 
 ---
 
@@ -273,12 +280,14 @@ Content assets are currently a compile-time `content_asset_table[]`. For a share
 
 Make the Realm game executable a first-class consumer of editor-authored projects. The goal: edit a scene in the editor, hit play in the game, see the same thing.
 
-### 7a. Game host project support
+### 7a. Game host project support — PARTIALLY DONE
 
-- [ ] Game host opens project via CLI arg or config: `Realm --project /path/to/my_project`
-- [ ] Falls back to legacy mode (hardcoded `content_asset_table[]`) when no project specified
-- [ ] On project open: discover + load project assets, load default scene
-- [ ] `realm_app_context` exposes `rl_project *project` and `rl_scene *scene` to game module
+- [x] Game host opens project via CLI arg: `Realm --project /path/to/my_project`
+- [x] Falls back to legacy mode (hardcoded `content_asset_table[]`) when no project specified
+- [x] On project open: discovers + loads project assets via `project_load_assets()`
+- [x] `realm_app_context` exposes `rl_project *project` to game module
+- [ ] Game module loads default scene from project on init (currently scene is still built in code)
+- [ ] `realm_app_context` exposes `rl_scene *scene` so module can use editor-authored scene data
 
 ### 7b. Migrate existing game content to a project
 
@@ -386,9 +395,9 @@ Phase 4: Project System & Config    ✓ done
     │
     ├── Phase 5: Scene I/O          ✓ done
     │       │
-    │       ├── Phase 6: Asset Discovery
+    │       ├── Phase 6: Asset Discovery    ✓ done
     │       │       │
-    │       │       └── Phase 7: Game Host Integration
+    │       │       └── Phase 7: Game Host Integration  ← NEXT (7a partially done)
     │       │               (game loads editor-authored scenes + project assets)
     │       │
     │       └── Phase 8: Properties + Undo
@@ -398,6 +407,6 @@ Phase 4: Project System & Config    ✓ done
             (camera, gizmos, picking — independent of integration)
 ```
 
-**Critical path to editor usability: 5 → 6 → 7.**
-Phases 8 and 9 can run in parallel once Phase 5 is done.
+**Next session: Phase 7 (remaining) — game module scene loading + content migration + end-to-end validation.**
+Phases 8 and 9 can run in parallel once Phase 7 is done.
 Phase 7 is the "it all comes together" milestone — editor authors, game runs.

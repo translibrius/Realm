@@ -4,6 +4,7 @@
 #include "core/config.h"
 #include "core/logger.h"
 #include "core/project.h"
+#include "core/project_assets.h"
 #include "core/scene.h"
 #include "core/scene_io.h"
 #include "engine.h"
@@ -74,6 +75,9 @@ static void ed_enter_editor_mode(void) {
     app.mode = ED_MODE_EDITOR;
     app.picker.active = false;
 
+    project_load_assets();
+    ed_asset_browser_refresh(&app.asset_browser);
+
     // Try to load the project's default scene from disk
     char abs_path[512];
     ed_build_scene_abs_path(abs_path, sizeof(abs_path));
@@ -142,6 +146,8 @@ b8 create_editor(void) {
 
     // Load editor-only persistent state
     ed_config_load(&app.ed_cfg);
+
+    ed_asset_browser_init(&app.asset_browser);
 
     // Console registers events first so it can consume key/char input when visible
     ed_console_init(&app.console);
@@ -245,6 +251,7 @@ b8 create_editor(void) {
         }
         scene_destroy(app.scene);
     }
+    ed_asset_browser_shutdown(&app.asset_browser);
     ed_console_shutdown(&app.console);
     rl_engine_destroy();
 

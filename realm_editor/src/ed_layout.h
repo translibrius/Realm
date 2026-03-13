@@ -13,6 +13,7 @@ typedef struct ed_layout {
     f32 right_panel_width;
     f32 bottom_panel_height;
     f32 menu_bar_height;
+    f32 left_split_height; // height of hierarchy portion in left panel
     gui_scroll_state hierarchy_scroll;
     gui_scroll_state properties_scroll;
 
@@ -20,6 +21,7 @@ typedef struct ed_layout {
     gui_splitter_state splitter_left;
     gui_splitter_state splitter_right;
     gui_splitter_state splitter_bottom;
+    gui_splitter_state splitter_left_h; // horizontal split within left panel
 
     // Hierarchy tree
     gui_tree_state hierarchy_tree;

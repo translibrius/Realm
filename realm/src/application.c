@@ -6,6 +6,7 @@
 #include "core/config.h"
 #include "core/logger.h"
 #include "core/project.h"
+#include "core/project_assets.h"
 #include "engine.h"
 #include "event_handler.h"
 #include "gui/gui.h"
@@ -37,6 +38,7 @@ b8 create_application(const char *project_path) {
         rl_project *proj = project_open(project_path);
         if (proj) {
             RL_INFO("Opened project '%s' at %s", proj->name, proj->root_path);
+            project_load_assets();
             project_opened = true;
         } else {
             RL_WARN("Failed to open project at '%s', falling back to legacy mode", project_path);

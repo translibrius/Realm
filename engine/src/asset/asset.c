@@ -257,9 +257,13 @@ asset_id asset_load(ASSET_TYPE type, const char *source_path) {
         return existing;
     }
 
-    // Extract filename from path
-    const char *filename = source_path;
-    for (const char *p = source_path; *p; p++) {
+    // Copy source_path to asset arena so it persists for the asset's lifetime
+    // (dynamic paths from scratch arenas would otherwise dangle)
+    const char *owned_path = cstr_format(&state->asset_arena, "%s", source_path);
+
+    // Extract filename from the arena-owned copy
+    const char *filename = owned_path;
+    for (const char *p = owned_path; *p; p++) {
         if (*p == '/' || *p == '\\') {
             filename = p + 1;
         }
@@ -270,7 +274,7 @@ asset_id asset_load(ASSET_TYPE type, const char *source_path) {
     rl_asset asset = {
         .id = id,
         .type = type,
-        .source_path = source_path,
+        .source_path = owned_path,
         .source_version = 1,
         .source_hash = 0,
         .filename = filename,

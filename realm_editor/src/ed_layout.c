@@ -1,6 +1,7 @@
 #include "ed_layout.h"
 
 #include "ed_application.h"
+#include "ed_asset_browser.h"
 #include "ed_console.h"
 #include "asset/asset.h"
 #include "core/component.h"
@@ -22,6 +23,7 @@ void ed_layout_init(ed_layout *layout) {
     layout->right_panel_width = 300.0f;
     layout->bottom_panel_height = 200.0f;
     layout->menu_bar_height = 28.0f;
+    layout->left_split_height = 300.0f;
     layout->hierarchy_scroll = (gui_scroll_state){.auto_scroll = false};
     layout->properties_scroll = (gui_scroll_state){.auto_scroll = false};
     layout->scene_root_expanded = true;
@@ -96,15 +98,15 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
     }
 }
 
-static void ed_layout_panel_hierarchy(ed_layout *layout, rl_scene *scene) {
+static void ed_layout_panel_hierarchy(ed_layout *layout, rl_scene *scene, f32 height) {
     const gui_theme *t = gui_theme_get();
     u16 font = gui_font_id(asset_find(RL_ASSET_FONT_JETBRAINS_MONO));
     gui_text_cfg header_text = {.color = t->text, .size = 13, .font = font};
 
     gui_panel_cfg panel = {
         .color = t->bg,
-        .width = layout->left_panel_width,
-        .height_sizing = GUI_SIZE_GROW,
+        .width_sizing = GUI_SIZE_GROW,
+        .height = height,
         .padding = 8,
         .gap = 4,
     };
@@ -250,7 +252,19 @@ void ed_layout_render(ed_layout *layout, ed_application *app, f32 dt) {
             .horizontal = true,
         };
         GUI_PANEL(&main_area) {
-            ed_layout_panel_hierarchy(layout, app->scene);
+            // Left column: hierarchy + asset browser
+            gui_panel_cfg left_col = {
+                .width = layout->left_panel_width,
+                .height_sizing = GUI_SIZE_GROW,
+            };
+            GUI_PANEL(&left_col) {
+                ed_layout_panel_hierarchy(layout, app->scene, layout->left_split_height);
+                gui_splitter_h(&layout->splitter_left_h, &layout->left_split_height, &(gui_splitter_cfg){
+                    .min_value = 80, .max_value = 600,
+                });
+                ed_asset_browser_render(&app->asset_browser, app,
+                                        layout->left_panel_width, 0);
+            }
             gui_splitter_v(&layout->splitter_left, &layout->left_panel_width, &splitter_cfg);
             ed_layout_viewport();
             gui_splitter_v(&layout->splitter_right, &layout->right_panel_width, &splitter_cfg_inv);
