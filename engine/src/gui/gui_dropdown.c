@@ -29,7 +29,8 @@ b8 gui_dropdown(gui_dropdown_state *state, const gui_dropdown_cfg *cfg) {
     i32 old_selected = state->selected;
 
     // Current value display — acts like a button
-    const char *display = (state->selected >= 0 && state->selected < cfg->item_count)
+    const char *display = cfg->label ? cfg->label
+                        : (state->selected >= 0 && state->selected < cfg->item_count)
                               ? cfg->items[state->selected]
                               : "---";
 

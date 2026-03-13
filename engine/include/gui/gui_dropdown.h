@@ -12,6 +12,7 @@ typedef struct gui_dropdown_state {
 typedef struct gui_dropdown_cfg {
     const char **items; // array of null-terminated strings
     i32 item_count;
+    const char *label;  // override trigger text (NULL = show selected item)
     f32 width;          // dropdown width (default: 200)
     Clay_Color color;        // closed dropdown background
     Clay_Color hover_color;  // hovered item background

@@ -1,135 +1,48 @@
 #include "app_console.h"
 
 #include "asset/asset.h"
-#include "core/event.h"
 #include "engine.h"
 #include "gui/gui_clay.h"
 #include "gui/gui_panel.h"
 #include "gui/gui_scroll.h"
 #include "gui/gui_text.h"
+#include "gui/gui_text_input.h"
 #include "gui/gui_theme.h"
 #include "gui/gui_window.h"
-#include "platform/input.h"
-#include "platform/platform.h"
 #include "renderer/renderer_frontend.h"
-#include <string.h>
-
-static void console_log_callback(LOG_LEVEL level, const char *text, u16 len, void *userdata) {
-    app_console *c = userdata;
-    if (!c) return;
-
-    u32 idx = (c->head + c->count) % APP_CONSOLE_MAX_LINES;
-    if (c->count == APP_CONSOLE_MAX_LINES) {
-        c->head = (c->head + 1) % APP_CONSOLE_MAX_LINES;
-    } else {
-        c->count++;
-    }
-
-    app_console_line *line = &c->lines[idx];
-    u16 copy_len = len;
-    if (copy_len > 0 && text[copy_len - 1] == '\n') copy_len--;
-    if (copy_len >= APP_CONSOLE_LINE_MAX) copy_len = APP_CONSOLE_LINE_MAX - 1;
-    memcpy(line->text, text, copy_len);
-    line->text[copy_len] = '\0';
-    line->len = copy_len;
-    line->level = level;
-}
-
-static Clay_Color console_level_color(LOG_LEVEL level) {
-    const gui_theme *t = gui_theme_get();
-    switch (level) {
-    case LOG_WARN:  return t->log_warn;
-    case LOG_ERROR: return t->log_error;
-    case LOG_FATAL: return t->log_fatal;
-    case LOG_DEBUG: return t->log_debug;
-    case LOG_TRACE: return t->log_trace;
-    case LOG_INFO:
-    default:        return t->log_info;
-    }
-}
-
-static b8 console_on_key(void *event, void *user_data) {
-    app_console *c = user_data;
-    input_key *k = event;
-    if (!c || !c->window.visible || !k || !k->pressed) return false;
-    if (k->key == KEY_GRAVE) return false;
-
-    if (gui_text_input_handle_key(&c->input, k)) {
-        c->input.buf[c->input.len] = '\0';
-        RL_INFO("> %s", c->input.buf);
-        c->input.len = 0;
-        c->input.cursor = 0;
-        c->input.buf[0] = '\0';
-        c->scroll.auto_scroll = true;
-    }
-
-    return true;
-}
-
-static b8 console_on_char(void *event, void *user_data) {
-    app_console *c = user_data;
-    input_char *ch = event;
-    if (!c || !c->window.visible || !ch) return false;
-    if (ch->codepoint == 96) return false;
-
-    gui_text_input_handle_char(&c->input, ch);
-    return true;
-}
 
 void app_console_init(app_console *c) {
     if (!c) return;
-    c->head = 0;
-    c->count = 0;
+    host_console_init(&c->core);
     c->window = (gui_window_state){.visible = false, .pos_x = 0, .pos_y = 16};
-    c->scroll = (gui_scroll_state){.auto_scroll = true};
-    c->input = (gui_text_input_state){0};
-    event_register(EVENT_KEY_PRESS, console_on_key, c);
-    event_register(EVENT_CHAR_INPUT, console_on_char, c);
-    logger_set_callback(console_log_callback, c);
+    c->core.visible = c->window.visible;
 }
 
 void app_console_shutdown(app_console *c) {
-    (void)c;
-    logger_set_callback(nullptr, nullptr);
+    host_console_shutdown(&c->core);
 }
 
 b8 app_console_toggle(app_console *c) {
     if (!c) return false;
-    c->window.visible = !c->window.visible;
-    return c->window.visible;
+    host_console_toggle(&c->core);
+    c->window.visible = c->core.visible;
+    return c->core.visible;
 }
 
 void app_console_on_scroll(app_console *c, f32 delta) {
-    if (!c || !c->window.visible) return;
-    if (delta > 0) c->scroll.auto_scroll = false;
+    host_console_on_scroll(&c->core, delta);
 }
 
 void app_console_render(app_console *c, f32 dt) {
-    if (!c || !c->window.visible) return;
+    if (!c || !c->core.visible) return;
+    // Sync gui_window_state visibility from core (shared events toggle core.visible)
+    c->window.visible = c->core.visible;
 
     rl_arena *arena = rl_engine_get_frame_arena();
     u16 font = gui_font_id(asset_find(RL_ASSET_FONT_JETBRAINS_MONO));
+    host_console_prepared_lines lines = host_console_prepare_lines(&c->core);
 
-    // ── Prepare log lines (arena copies for Clay_String lifetime) ──
-    u32 line_count = c->count;
-    char **line_ptrs       = rl_arena_push(arena, line_count * sizeof(char *), false);
-    u16 *line_lens         = rl_arena_push(arena, line_count * sizeof(u16), false);
-    Clay_Color *line_colors = rl_arena_push(arena, line_count * sizeof(Clay_Color), false);
-
-    for (u32 i = 0; i < line_count; i++) {
-        u32 idx = (c->head + i) % APP_CONSOLE_MAX_LINES;
-        const app_console_line *line = &c->lines[idx];
-        u16 len = line->len;
-        if (len >= APP_CONSOLE_LINE_MAX) len = APP_CONSOLE_LINE_MAX - 1;
-        char *buf = rl_arena_push(arena, len + 1, false);
-        memcpy(buf, line->text, len);
-        buf[len] = '\0';
-        line_ptrs[i] = buf;
-        line_lens[i] = len;
-        line_colors[i] = console_level_color(line->level);
-    }
-
-    // ── Responsive sizing ───────────────────────────────────────
+    // Responsive sizing
     platform_window *win = renderer_get_active_window();
     f32 win_w = win ? (f32)win->settings.width : 700.0f;
     f32 win_h = win ? (f32)win->settings.height : 400.0f;
@@ -137,9 +50,9 @@ void app_console_render(app_console *c, f32 dt) {
     if (win_w - 32.0f < cw) cw = win_w - 32.0f;
     if (cw < 200.0f) cw = 200.0f;
 
-    // ── Layout ──────────────────────────────────────────────────
     const gui_theme *t = gui_theme_get();
     gui_text_cfg log_text = {.size = 13, .font = font};
+    Clay_Color *colors = lines.colors;
 
     gui_window_result wr = gui_window_begin(&c->window, &(gui_window_cfg){
         .title = "Console", .width = cw, .height = win_h * 0.4f,
@@ -149,22 +62,22 @@ void app_console_render(app_console *c, f32 dt) {
         .corner_radius = 6, .font = font, .font_size = 13,
     });
     if (!wr.visible) return;
-    if (wr.close_clicked) c->window.visible = false;
+    if (wr.close_clicked) { c->window.visible = false; c->core.visible = false; }
 
-        gui_scroll_begin(&c->scroll, &(gui_scroll_cfg){
+        gui_scroll_begin(&c->core.scroll, &(gui_scroll_cfg){
             .scrollbar_width = 8,
             .thumb_radius = 3,
         });
-            for (u32 i = 0; i < line_count; i++) {
-                log_text.color = line_colors[i];
-                gui_textn(line_ptrs[i], line_lens[i], &log_text);
+            for (u32 i = 0; i < lines.count; i++) {
+                log_text.color = colors[i];
+                gui_textn(lines.ptrs[i], lines.lens[i], &log_text);
             }
         gui_scroll_end();
 
         char *input_display = rl_arena_push(arena, GUI_TEXT_INPUT_MAX + 4, false);
         input_display[0] = '>';
         input_display[1] = ' ';
-        u16 ilen = gui_text_input_display(&c->input, dt, &input_display[2], GUI_TEXT_INPUT_MAX);
+        u16 ilen = gui_text_input_display(&c->core.input, dt, &input_display[2], GUI_TEXT_INPUT_MAX);
 
         gui_panel_cfg input_bar = {
             .color = t->bg_input,

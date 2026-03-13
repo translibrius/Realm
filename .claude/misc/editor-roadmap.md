@@ -14,42 +14,41 @@ Add `engine/include/host/` and `engine/src/host/` inside the existing Engine lib
 
 ### Step 1: `host_console.h/.c` — shared console core
 
-- [ ] Create `engine/include/host/host_console.h` + `engine/src/host/host_console.c`
-- [ ] Extract shared struct: `host_console` with lines, head, count, visible, scroll, input
-- [ ] Move into shared: log callback, level→color mapping, key/char handlers, init, shutdown, toggle, on_scroll (~96 lines)
-- [ ] Add `host_console_prepare_lines()` — arena-copies line data for rendering
-- [ ] Add `host_console_render_input()` — renders the "> input" bar (identical in both hosts)
-- [ ] Simplify `realm/src/app_console.c` — embed `host_console` + `gui_window_state`, thin render wrapper
-- [ ] Simplify `realm_editor/src/ed_console.c` — embed `host_console`, thin docked render wrapper
-- [ ] Verify: both Realm and RealmEditor build and console works identically
+- [x] Create `engine/include/host/host_console.h` + `engine/src/host/host_console.c`
+- [x] Extract shared struct: `host_console` with lines, head, count, visible, scroll, input
+- [x] Move into shared: log callback, level→color mapping, key/char handlers, init, shutdown, toggle, on_scroll
+- [x] Add `host_console_prepare_lines()` — arena-copies line data for rendering
+- [x] Simplify `realm/src/app_console.c` — embed `host_console` + `gui_window_state`, thin render wrapper
+- [x] Simplify `realm_editor/src/ed_console.c` — embed `host_console`, thin docked render wrapper
+- [x] Verify: both Realm and RealmEditor build and console works identically
 
 ### Step 2: `host_renderer.h/.c` — window create + backend switch
 
-- [ ] Create `engine/include/host/host_renderer.h` + `engine/src/host/host_renderer.c`
-- [ ] Extract `host_window_create()` from `app_window_create()` (20 lines)
-- [ ] Extract `host_renderer_switch_backend()` — destroy/recreate/rollback dance (44 lines)
-- [ ] Returns `host_switch_result { success, rolled_back, active_backend }` — host reacts to result
-- [ ] Simplify `realm/src/app_renderer.c` — call shared, then update `app_context` + `reload_requested`
-- [ ] Simplify `realm_editor/src/ed_application.c` — call shared, then `config_mark_dirty()`
-- [ ] Verify: backend switch works on both executables
+- [x] Create `engine/include/host/host_renderer.h` + `engine/src/host/host_renderer.c`
+- [x] Extract `host_window_create()` from `app_window_create()`
+- [x] Extract `host_renderer_switch_backend()` — destroy/recreate/rollback dance
+- [x] Returns `host_switch_result { success, rolled_back, active_backend }` — host reacts to result
+- [x] Simplify `realm/src/app_renderer.c` — call shared, then update `app_context` + `reload_requested`
+- [x] Simplify `realm_editor/src/ed_application.c` — call shared
+- [x] Verify: backend switch works on both executables
 
 ### Step 3: `host_events.h/.c` — shared event handlers
 
-- [ ] Create `engine/include/host/host_events.h` + `engine/src/host/host_events.c`
-- [ ] `host_event_ctx` struct: window ptr, focused ptr, console ptr, backend_switch callback
-- [ ] `host_events_init()` registers: focus, resize, scroll, file_drop, grave/F9/F10/F11 (~80 lines)
-- [ ] Simplify `realm/src/event_handler.c` — call `host_events_init()` + register game-only extras (F3/F4/F5/M)
-- [ ] Simplify `realm_editor/src/ed_event_handler.c` — just call `host_events_init()`
-- [ ] Verify: all hotkeys work on both executables
+- [x] Create `engine/include/host/host_events.h` + `engine/src/host/host_events.c`
+- [x] `host_event_ctx` struct: window ptr, focused ptr, console ptr, backend_switch callback
+- [x] `host_events_init()` registers: focus, resize, scroll, file_drop, grave/F9/F10/F11
+- [x] Simplify `realm/src/event_handler.c` — call `host_events_init()` + register game-only extras (F3/F4/F5/M)
+- [x] Simplify `realm_editor/src/ed_event_handler.c` — just call `host_events_init()`
+- [x] Verify: all hotkeys work on both executables
 
 ### Step 4: `host_bootstrap.h/.c` — engine init sequence
 
-- [ ] Create `engine/include/host/host_bootstrap.h` + `engine/src/host/host_bootstrap.c`
-- [ ] `host_bootstrap()` — engine create → config → window → renderer (GL fallback) → init_gui → config_track (~35 lines)
-- [ ] Returns `host_bootstrap_result { window, success }`
-- [ ] Simplify `realm/src/application.c` — call `host_bootstrap("Realm")`, then init subsystems
-- [ ] Simplify `realm_editor/src/ed_application.c` — call `host_bootstrap("Realm Editor")`, then init subsystems
-- [ ] Verify: both executables start correctly, config saves work
+- [x] Create `engine/include/host/host_bootstrap.h` + `engine/src/host/host_bootstrap.c`
+- [x] `host_bootstrap()` — engine create → config → window → renderer (GL fallback) → init_gui → config_track
+- [x] Returns `host_bootstrap_result { window, success }`
+- [x] Simplify `realm/src/application.c` — call `host_bootstrap("Realm")`, then init subsystems
+- [x] Simplify `realm_editor/src/ed_application.c` — call `host_bootstrap("Realm Editor")`, then init subsystems
+- [x] Verify: both executables start correctly, config saves work
 
 ---
 

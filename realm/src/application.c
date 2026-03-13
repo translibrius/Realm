@@ -7,6 +7,7 @@
 #include "engine.h"
 #include "event_handler.h"
 #include "gui/gui.h"
+#include "host/host_bootstrap.h"
 #include "memory/memory.h"
 #include "profiler/profiler.h"
 #include "renderer/renderer_frontend.h"
@@ -17,9 +18,6 @@ static b8 create_app_module(void);
 static void destroy_app_module(void);
 
 b8 create_application(void) {
-    rl_engine_config engine_config = rl_engine_config_default();
-    engine_config.asset_root = "../../../assets/";
-
     app.game_state = nullptr;
     app.game_state_size = 0;
     app.focused = true;
@@ -28,36 +26,10 @@ b8 create_application(void) {
     app.backend_switch_requested = false;
     app.requested_backend = BACKEND_OPENGL;
 
-    if (!rl_engine_create(&engine_config)) {
-        RL_FATAL("Engine failed to bootstrap");
-        return false;
-    }
+    host_bootstrap_result boot = host_bootstrap("../../../assets/", "Realm");
+    if (!boot.success) return false;
+    app.window = boot.window;
 
-    rl_config *cfg = config_get();
-    platform_window_settings win_settings = config_to_window_settings(cfg, "Realm");
-
-    if (!app_window_create(&app.window, &win_settings)) {
-        return false;
-    }
-
-    config_track_window(&app.window);
-
-    if (!renderer_init(&app.window, cfg->renderer_backend, cfg->vsync)) {
-        if (cfg->renderer_backend != BACKEND_OPENGL) {
-            RL_WARN("Renderer init failed (backend=%d). Falling back to OpenGL.", cfg->renderer_backend);
-            cfg->renderer_backend = BACKEND_OPENGL;
-            config_mark_dirty();
-            if (!renderer_init(&app.window, cfg->renderer_backend, cfg->vsync)) {
-                RL_ERROR("failed to initialize renderer");
-                return false;
-            }
-        } else {
-            RL_ERROR("failed to initialize renderer");
-            return false;
-        }
-    }
-
-    init_gui((f32)app.window.settings.width, (f32)app.window.settings.height);
     // Console registers events first so it can consume key/char input when visible
     app_console_init(&app.console);
     app_debug_panel_init(&app.debug_panel);
@@ -83,7 +55,7 @@ b8 create_application(void) {
         rl_profiler_frame_mark();
 
         // Apply cursor state from previous frame's module output, before input_update + pump
-        b8 capture = app.focused && !prev_output.wants_cursor_visible && !app.console.window.visible;
+        b8 capture = app.focused && !prev_output.wants_cursor_visible && !app.console.core.visible;
         if (capture != prev_capture) {
             platform_set_cursor_mode(app.app_context.window, capture ? CURSOR_MODE_HIDDEN : CURSOR_MODE_NORMAL);
             platform_set_raw_input(app.app_context.window, capture);
