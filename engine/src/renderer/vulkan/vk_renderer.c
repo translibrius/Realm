@@ -72,6 +72,12 @@ void vulkan_resize_framebuffer(i32 w, i32 h) {
         return;
     }
 
+    // Skip if size hasn't actually changed (e.g. window move, not resize)
+    if ((u32)w == context.swapchain.chosen_extent.width &&
+        (u32)h == context.swapchain.chosen_extent.height) {
+        return;
+    }
+
     context.framebuffer_resized = true;
 }
 
