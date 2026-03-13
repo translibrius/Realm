@@ -1,10 +1,14 @@
 #include "ed_event_handler.h"
 
 #include "ed_application.h"
+#include "ed_camera.h"
+#include "ed_layout.h"
 #include "asset/asset.h"
+#include "core/component.h"
 #include "core/event.h"
 #include "core/logger.h"
 #include "core/project.h"
+#include "platform/input.h"
 #include "platform/io/file_io.h"
 #include "util/str.h"
 
@@ -79,8 +83,70 @@ static void ed_on_file_drop(void *userdata, const e_file_drop_payload *drop) {
     app->asset_browser.needs_refresh = true;
 }
 
+static b8 ed_on_scroll(void *event, void *user_data) {
+    ed_application *app = user_data;
+    input_mouse_scroll *scroll = event;
+    if (!app || !scroll || app->mode != ED_MODE_EDITOR) return false;
+
+    if (app->camera.viewport_hovered) {
+        ed_camera_on_scroll(&app->camera, (f32)scroll->z_delta);
+        return true; // consume — don't scroll console
+    }
+    return false;
+}
+
+static b8 ed_on_key(void *event, void *user_data) {
+    ed_application *app = user_data;
+    input_key *k = event;
+    if (!app || !k || !k->pressed || k->repeat) return false;
+    if (app->mode != ED_MODE_EDITOR) return false;
+
+    // Don't intercept when inspector is editing text
+    ed_inspector *insp = &app->layout.inspector;
+    if ((insp->focused_input && insp->focused_input->editing) || insp->name_focused) {
+        return false;
+    }
+
+    b8 ctrl = input_is_key_down(KEY_L_CTRL) || input_is_key_down(KEY_R_CTRL);
+    b8 shift = input_is_key_down(KEY_L_SHIFT) || input_is_key_down(KEY_R_SHIFT);
+
+    // Ctrl+Z = Undo
+    if (k->key == KEY_Z && ctrl && !shift) {
+        app->undo_requested = true;
+        return true;
+    }
+
+    // Ctrl+Shift+Z = Redo
+    if (k->key == KEY_Z && ctrl && shift) {
+        app->redo_requested = true;
+        return true;
+    }
+
+    // F = Frame selection
+    if (k->key == KEY_F && !ctrl && !shift) {
+        u32 sel = app->layout.hierarchy_tree.selected_id;
+        if (sel >= ED_ENTITY_NODE_BASE && app->scene) {
+            u32 idx = sel - ED_ENTITY_NODE_BASE;
+            rl_entity e = rl_entity_pack(idx, app->scene->entities.generation[idx]);
+            if (scene_entity_is_alive(app->scene, e)) {
+                rl_transform *t = transform_get(&app->scene->components, e);
+                if (t) {
+                    ed_camera_frame_selection(&app->camera, t->position);
+                }
+            }
+        }
+        return true;
+    }
+
+    return false;
+}
+
 void ed_event_handler_init(ed_event_handler *handler, ed_application *application) {
     handler->application = application;
+
+    // Register editor-specific handlers before host events so they run first (FIFO)
+    event_register(EVENT_MOUSE_SCROLL, ed_on_scroll, application);
+    event_register(EVENT_KEY_PRESS, ed_on_key, application);
 
     handler->host = (host_event_ctx){
         .window = &application->window,

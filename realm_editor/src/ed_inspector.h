@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/component.h"
 #include "core/entity.h"
 #include "core/scene.h"
 #include "defines.h"
@@ -7,6 +8,8 @@
 #include "gui/gui_dropdown.h"
 #include "gui/gui_number_input.h"
 #include "gui/gui_text_input.h"
+
+typedef struct ed_undo_stack ed_undo_stack;
 
 typedef struct ed_inspector_vec3 {
     gui_number_input_state x, y, z;
@@ -35,9 +38,18 @@ typedef struct ed_inspector {
 
     // Track bound entity to detect selection changes
     u32 bound_entity_idx;
+
+    // Undo drag coalescing
+    ed_undo_stack *undo;
+    b8 was_any_dragging;
+    rl_entity undo_entity;
+    u32 undo_action; // ED_UNDO_ACTION
+    rl_transform       drag_start_transform;
+    rl_mesh_component  drag_start_mesh;
+    rl_light_component drag_start_light;
 } ed_inspector;
 
-void ed_inspector_init(ed_inspector *insp);
+void ed_inspector_init(ed_inspector *insp, ed_undo_stack *undo);
 void ed_inspector_bind(ed_inspector *insp, rl_scene *scene, rl_entity entity);
 b8   ed_inspector_render(ed_inspector *insp, rl_scene *scene, rl_entity entity,
                          b8 *scene_dirty, f32 dt);

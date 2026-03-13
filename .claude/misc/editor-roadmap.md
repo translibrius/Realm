@@ -342,22 +342,37 @@ With scene I/O in place, property editing becomes meaningful — changes can be 
 - [x] `gui_number_input_handle_key` / `gui_number_input_handle_char` for event-driven input routing
 - [x] Added `#include "gui/gui_number_input.h"` to `gui_widgets.h`
 
-### 8c. Undo/redo system
+### 8c. Undo/redo system — DONE
 
-- [ ] Create `engine/include/core/undo.h` + `engine/src/core/undo.c`
-- [ ] Command pattern with fixed-size ring buffer (256 entries)
-- [ ] `undo_push(description, apply_fn, revert_fn, data, data_size)`
-- [ ] Ctrl+Z / Ctrl+Shift+Z hotkeys
-- [ ] Scene marked dirty on any undo-able action
+- [x] Created `realm_editor/src/ed_undo.h/.c` (editor-only, not in engine)
+- [x] Memcpy-snapshot design: `ed_undo_entry` stores `{entity, action_type, before_data, after_data}` as component-typed union
+- [x] Fixed-size ring buffer (256 entries) with head/count/redo_count arithmetic
+- [x] `ed_undo_push`, `ed_undo_perform` (Ctrl+Z), `ed_undo_redo` (Ctrl+Shift+Z), `ed_undo_clear`
+- [x] Action types: `ED_UNDO_TRANSFORM`, `ED_UNDO_MESH`, `ED_UNDO_LIGHT`, `ED_UNDO_NAME`, `ED_UNDO_CREATE_ENTITY`, `ED_UNDO_DESTROY_ENTITY`
+- [x] Drag coalescing in inspector: tracks `was_any_dragging` → one undo entry per drag operation (not per frame)
+- [x] Discrete undo for checkbox toggle, dropdown select, name confirm — immediate push inline
+- [x] Ctrl+Z / Ctrl+Shift+Z hotkeys in `ed_event_handler.c`, guard against inspector text editing
+- [x] Edit menu Undo/Redo items wired via `undo_requested`/`redo_requested` flags on `ed_application`
+- [x] Inspector rebind after undo/redo to resync widget state
+- [x] Undo stack clears on scene load/new scene
+- [x] Entity create/destroy action types defined but recreation logic not yet wired (no UI for entity delete yet)
 
 ---
 
 ## Phase 9: Viewport Interaction
 
-### 9a. Editor camera
+### 9a. Editor camera — DONE
 
-- [ ] Create `realm_editor/src/ed_camera.h/.c`
-- [ ] Orbit camera: middle-mouse orbit, scroll zoom, right-click WASD fly, F to frame selection
+- [x] Created `realm_editor/src/ed_camera.h/.c`
+- [x] `ed_camera` struct wraps `rl_camera` with orbit target, distance, fly/orbit/viewport_hovered flags
+- [x] Orbit mode (middle-mouse drag): rotates yaw/pitch around target, derives position from `target - forward * distance`
+- [x] Fly mode (right-click hold): WASD + Space/Shift movement, mouse look with raw input + cursor lock, orbit center tracks fly position
+- [x] Scroll zoom: proportional `distance -= z_delta * distance * 0.1f`, clamped [0.1, 500]
+- [x] F-key frame selection: snaps orbit center to selected entity transform position, distance = 5
+- [x] Viewport bounds tracking: viewport panel uses `CLAY_ID("EditorViewport")`, bounds queried via `Clay_GetElementData` after layout
+- [x] `viewport_hovered` check: mouse position vs Clay bounding box, used to gate scroll/orbit/fly entry
+- [x] Scroll event handler registered before host events (FIFO), consumes when over viewport so console scroll still works
+- [x] Key handler guards against inspector text editing before processing F/Ctrl+Z/Ctrl+Shift+Z
 
 ### 9b. Origin axis gizmo
 
@@ -418,15 +433,20 @@ Phase 4: Project System & Config    ✓ done
     │       │       │
     │       │       └── Phase 7: Game Host Integration  ✓ done
     │       │
-    │       └── Phase 8: Properties + Undo
+    │       └── Phase 8: Properties + Undo     ✓ done
     │               8a. Property inspector     ✓ done
     │               8b. Number input widget     ✓ done
-    │               8c. Undo/redo system        ← next
+    │               8c. Undo/redo system        ✓ done
     │
     └── Phase 9: Viewport Interaction
-            (camera, gizmos, picking — independent of integration)
+            9a. Editor camera              ✓ done
+            9b. Origin axis gizmo          ← next
+            9c. Transform gizmos
+            9d. Entity picking
+            9e. Infinite grid
 ```
 
-**Next session: Phase 8c (Undo/Redo) or Phase 9 (Viewport Interaction) — can run in parallel.**
-Phase 8a+8b are complete — properties panel is editable with drag-scrub and text editing. Undo/redo (8c) deferred to next session.
-Name editing in the inspector is wired for keyboard but not yet clickable (no click-to-focus on the name text). Could be added alongside 8c or as a small follow-up.
+**Next session: Phase 9b (Origin Axis Gizmo) or Phase 9c (Transform Gizmos) or Phase 9d (Entity Picking).**
+Phase 8 is fully complete — property editing with drag-scrub, text editing, and undo/redo. Phase 9a editor camera is done with orbit/fly/zoom/frame-selection.
+Name editing in the inspector is wired for keyboard but not yet clickable (no click-to-focus on the name text). Could be added as a small follow-up.
+Entity create/destroy undo action types exist but the recreation logic isn't wired — no UI for entity delete yet. Wire when adding context menu (Phase 2c) or delete hotkey.

@@ -1,5 +1,6 @@
 #include "ed_inspector.h"
 
+#include "ed_undo.h"
 #include "asset/asset.h"
 #include "core/component.h"
 #include "core/event.h"
@@ -63,11 +64,12 @@ static b8 inspector_on_char(void *event, void *user_data) {
 
 // ── Init / bind ─────────────────────────────────────────────────────────────
 
-void ed_inspector_init(ed_inspector *insp) {
+void ed_inspector_init(ed_inspector *insp, ed_undo_stack *undo) {
     if (!insp) return;
     memset(insp, 0, sizeof(*insp));
     insp->bound_entity_idx = 0;
     insp->mesh_kind = (gui_dropdown_state){.selected = 0};
+    insp->undo = undo;
     event_register(EVENT_KEY_PRESS, inspector_on_key, insp);
     event_register(EVENT_CHAR_INPUT, inspector_on_char, insp);
 }
@@ -220,10 +222,17 @@ b8 ed_inspector_render(ed_inspector *insp, rl_scene *scene, rl_entity entity,
         if (!insp->name_focused && insp->name_input.len > 0) {
             // Write back name if it changed
             if (strcmp(nc->name, insp->name_input.buf) != 0) {
+                rl_name_component before = *nc;
                 u16 copy_len = insp->name_input.len;
                 if (copy_len >= RL_NAME_MAX) copy_len = RL_NAME_MAX - 1;
                 memcpy(nc->name, insp->name_input.buf, copy_len);
                 nc->name[copy_len] = '\0';
+                if (insp->undo) {
+                    ed_undo_entry entry = {.action = ED_UNDO_NAME, .entity = entity};
+                    entry.name.before = before;
+                    entry.name.after = *nc;
+                    ed_undo_push(insp->undo, &entry);
+                }
                 any_changed = true;
             }
         }
@@ -293,14 +302,28 @@ b8 ed_inspector_render(ed_inspector *insp, rl_scene *scene, rl_entity entity,
             .font_size = 12,
         };
         if (gui_dropdown(&insp->mesh_kind, &dd_cfg)) {
+            rl_mesh_component before = *mc;
             mc->kind = (rl_frame_mesh_kind)insp->mesh_kind.selected;
+            if (insp->undo) {
+                ed_undo_entry entry = {.action = ED_UNDO_MESH, .entity = entity};
+                entry.mesh.before = before;
+                entry.mesh.after = *mc;
+                ed_undo_push(insp->undo, &entry);
+            }
             any_changed = true;
         }
         gui_field_end();
 
         gui_field_begin("Wireframe", &fcfg);
         if (gui_checkbox(&insp->wireframe, nullptr)) {
+            rl_mesh_component before = *mc;
             mc->wireframe = insp->wireframe;
+            if (insp->undo) {
+                ed_undo_entry entry = {.action = ED_UNDO_MESH, .entity = entity};
+                entry.mesh.before = before;
+                entry.mesh.after = *mc;
+                ed_undo_push(insp->undo, &entry);
+            }
             any_changed = true;
         }
         gui_field_end();
@@ -365,6 +388,76 @@ b8 ed_inspector_render(ed_inspector *insp, rl_scene *scene, rl_entity entity,
             update_focus(insp, &insp->light[i].y);
             update_focus(insp, &insp->light[i].z);
         }
+    }
+
+    // ── Drag lifecycle tracking for undo coalescing ────────────────────
+    if (insp->undo) {
+        b8 is_transform_dragging = false;
+        if (tr) {
+            for (u32 i = 0; i < 3; i++) {
+                is_transform_dragging |= insp->transform[i].x.dragging;
+                is_transform_dragging |= insp->transform[i].y.dragging;
+                is_transform_dragging |= insp->transform[i].z.dragging;
+            }
+        }
+
+        b8 is_mesh_dragging = false;
+        if (mc) {
+            is_mesh_dragging = insp->mat_specular.x.dragging ||
+                               insp->mat_specular.y.dragging ||
+                               insp->mat_specular.z.dragging ||
+                               insp->mat_shininess.dragging;
+        }
+
+        b8 is_light_dragging = false;
+        if (lc) {
+            for (u32 i = 0; i < 3; i++) {
+                is_light_dragging |= insp->light[i].x.dragging;
+                is_light_dragging |= insp->light[i].y.dragging;
+                is_light_dragging |= insp->light[i].z.dragging;
+            }
+        }
+
+        b8 is_any_dragging = is_transform_dragging || is_mesh_dragging || is_light_dragging;
+
+        if (!insp->was_any_dragging && is_any_dragging) {
+            // Drag started — snapshot "before" state
+            insp->undo_entity = entity;
+            if (is_transform_dragging) {
+                insp->undo_action = ED_UNDO_TRANSFORM;
+                insp->drag_start_transform = *tr;
+            } else if (is_mesh_dragging) {
+                insp->undo_action = ED_UNDO_MESH;
+                insp->drag_start_mesh = *mc;
+            } else if (is_light_dragging) {
+                insp->undo_action = ED_UNDO_LIGHT;
+                insp->drag_start_light = *lc;
+            }
+        }
+
+        if (insp->was_any_dragging && !is_any_dragging) {
+            // Drag ended — push undo entry with before + current as after
+            ed_undo_entry entry = {.action = (ED_UNDO_ACTION)insp->undo_action,
+                                   .entity = insp->undo_entity};
+            switch (insp->undo_action) {
+            case ED_UNDO_TRANSFORM:
+                entry.transform.before = insp->drag_start_transform;
+                entry.transform.after = *transform_get(cs, insp->undo_entity);
+                break;
+            case ED_UNDO_MESH:
+                entry.mesh.before = insp->drag_start_mesh;
+                entry.mesh.after = *mesh_get(cs, insp->undo_entity);
+                break;
+            case ED_UNDO_LIGHT:
+                entry.light.before = insp->drag_start_light;
+                entry.light.after = *light_get(cs, insp->undo_entity);
+                break;
+            default: break;
+            }
+            ed_undo_push(insp->undo, &entry);
+        }
+
+        insp->was_any_dragging = is_any_dragging;
     }
 
     if (any_changed && scene_dirty) {

@@ -18,7 +18,7 @@
 #include "gui/gui_theme.h"
 #include "gui/gui_tree.h"
 
-void ed_layout_init(ed_layout *layout) {
+void ed_layout_init(ed_layout *layout, ed_undo_stack *undo) {
     if (!layout) return;
     layout->left_panel_width = 250.0f;
     layout->right_panel_width = 300.0f;
@@ -31,8 +31,9 @@ void ed_layout_init(ed_layout *layout) {
     layout->menu_file = (gui_dropdown_state){.selected = -1};
     layout->menu_edit = (gui_dropdown_state){.selected = -1};
     layout->menu_view = (gui_dropdown_state){.selected = -1};
+    layout->viewport_bounds = (Clay_BoundingBox){0};
 
-    ed_inspector_init(&layout->inspector);
+    ed_inspector_init(&layout->inspector, undo);
 }
 
 static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
@@ -83,6 +84,9 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
         menu_cfg.item_count = 2;
         menu_cfg.label = "Edit";
         if (gui_dropdown(&layout->menu_edit, &menu_cfg)) {
+            i32 sel = layout->menu_edit.selected;
+            if (sel == 0) app->undo_requested = true;
+            if (sel == 1) app->redo_requested = true;
             layout->menu_edit.selected = -1;
         }
 
@@ -123,8 +127,6 @@ static void ed_layout_panel_hierarchy(ed_layout *layout, rl_scene *scene, f32 he
         gui_tree_cfg tcfg = {.font = font};
         gui_tree_begin(&layout->hierarchy_tree, &tcfg);
         {
-            // Node IDs: root=1, entities use index + offset to avoid collision
-            #define ED_ENTITY_NODE_BASE 0x10000u
             gui_tree_node_result r = gui_tree_node_begin(1, scene->name, &layout->scene_root_expanded, false);
             if (r.expanded) {
                 rl_entity_store *es = &scene->entities;
@@ -150,17 +152,18 @@ static void ed_layout_viewport(void) {
     u16 font = gui_font_id(asset_find(RL_ASSET_FONT_JETBRAINS_MONO));
     gui_text_cfg dim_text = {.color = t->text_dim, .size = 16, .font = font};
 
-    gui_panel_cfg panel = {
-        .color = GUI_RGB(51, 51, 51),
-        .width_sizing = GUI_SIZE_GROW,
-        .height_sizing = GUI_SIZE_GROW,
-        .padding = 8,
-        .align_x = CLAY_ALIGN_X_CENTER,
-        .align_y = CLAY_ALIGN_Y_CENTER,
-    };
-    GUI_PANEL(&panel) {
-        gui_text("Viewport", &dim_text);
-    }
+    // Use Clay API directly to give viewport a known ID for bounds querying
+    Clay__OpenElementWithId(CLAY_ID("EditorViewport"));
+    Clay__ConfigureOpenElement((Clay_ElementDeclaration){
+        .layout = {
+            .sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0)},
+            .padding = CLAY_PADDING_ALL(8),
+            .childAlignment = {.x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER},
+        },
+        .backgroundColor = {51, 51, 51, 255},
+    });
+    gui_text("Viewport", &dim_text);
+    Clay__CloseElement();
 }
 
 static void ed_layout_panel_properties(ed_layout *layout, ed_application *app, f32 dt) {

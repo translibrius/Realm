@@ -1,6 +1,5 @@
 #include "ed_application.h"
 
-#include "core/camera.h"
 #include "core/config.h"
 #include "core/logger.h"
 #include "core/project.h"
@@ -9,6 +8,7 @@
 #include "core/scene_io.h"
 #include "engine.h"
 #include "cglm.h"
+#include "clay.h"
 #include "gui/gui.h"
 #include "host/host_bootstrap.h"
 #include "host/host_renderer.h"
@@ -48,6 +48,7 @@ static void ed_load_scene(const char *path) {
     cstr_copy(app.scene_path, sizeof(app.scene_path), path);
     app.scene_dirty = false;
     app.layout.hierarchy_tree.selected_id = 0;
+    ed_undo_clear(&app.undo);
 }
 
 static void ed_new_scene(void) {
@@ -60,6 +61,7 @@ static void ed_new_scene(void) {
     app.scene_path[0] = '\0';
     app.scene_dirty = false;
     app.layout.hierarchy_tree.selected_id = 0;
+    ed_undo_clear(&app.undo);
 }
 
 static void ed_build_scene_abs_path(char *buf, u32 buf_size) {
@@ -98,8 +100,9 @@ static void ed_enter_editor_mode(void) {
         }
     }
 
-    camera_init(&app.camera);
-    ed_layout_init(&app.layout);
+    ed_camera_init(&app.camera);
+    ed_undo_init(&app.undo);
+    ed_layout_init(&app.layout, &app.undo);
 
     // Update recents + save
     rl_project *proj = project_get();
@@ -181,15 +184,18 @@ b8 create_editor(void) {
         }
 
         if (app.mode == ED_MODE_EDITOR) {
+            // Update editor camera
+            ed_camera_update(&app.camera, dt, &app.layout.viewport_bounds, &app.window);
+
             // Build and submit frame data from scene
             i32 w = app.window.settings.width;
             i32 h = app.window.settings.height;
             f32 aspect = (h > 0) ? (f32)w / (f32)h : 1.0f;
 
             rl_frame_camera fc = {.valid = true};
-            camera_get_view(&app.camera, fc.view);
-            camera_get_projection(&app.camera, aspect, fc.projection, config_get()->renderer_backend);
-            glm_vec3_copy(app.camera.pos, fc.position);
+            camera_get_view(&app.camera.cam, fc.view);
+            camera_get_projection(&app.camera.cam, aspect, fc.projection, config_get()->renderer_backend);
+            glm_vec3_copy(app.camera.cam.pos, fc.position);
 
             rl_frame_data frame = {0};
             scene_build_frame_data(app.scene, &fc, &frame);
@@ -198,6 +204,10 @@ b8 create_editor(void) {
             gui_layout_begin((f32)dt);
             ed_layout_render(&app.layout, &app, (f32)dt);
             gui_layout_end();
+
+            // Update viewport bounds for next frame's camera input
+            Clay_ElementData vp = Clay_GetElementData(CLAY_ID("EditorViewport"));
+            if (vp.found) app.layout.viewport_bounds = vp.boundingBox;
         } else {
             // Picker mode: empty scene, just GUI
             rl_frame_data frame = {0};
@@ -231,6 +241,32 @@ b8 create_editor(void) {
         if (app.mode == ED_MODE_EDITOR && app.new_scene_requested) {
             app.new_scene_requested = false;
             ed_new_scene();
+        }
+
+        // Handle undo/redo requests (from menu or hotkey)
+        if (app.mode == ED_MODE_EDITOR && app.undo_requested) {
+            app.undo_requested = false;
+            if (ed_undo_perform(&app.undo, app.scene)) {
+                u32 sel = app.layout.hierarchy_tree.selected_id;
+                if (sel >= ED_ENTITY_NODE_BASE) {
+                    u32 idx = sel - ED_ENTITY_NODE_BASE;
+                    rl_entity e = rl_entity_pack(idx, app.scene->entities.generation[idx]);
+                    ed_inspector_bind(&app.layout.inspector, app.scene, e);
+                }
+                app.scene_dirty = true;
+            }
+        }
+        if (app.mode == ED_MODE_EDITOR && app.redo_requested) {
+            app.redo_requested = false;
+            if (ed_undo_redo(&app.undo, app.scene)) {
+                u32 sel = app.layout.hierarchy_tree.selected_id;
+                if (sel >= ED_ENTITY_NODE_BASE) {
+                    u32 idx = sel - ED_ENTITY_NODE_BASE;
+                    rl_entity e = rl_entity_pack(idx, app.scene->entities.generation[idx]);
+                    ed_inspector_bind(&app.layout.inspector, app.scene, e);
+                }
+                app.scene_dirty = true;
+            }
         }
 
         // Handle close project request from menu

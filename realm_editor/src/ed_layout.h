@@ -7,7 +7,12 @@
 #include "gui/gui_splitter.h"
 #include "gui/gui_tree.h"
 
+#include "clay.h"
+
+#define ED_ENTITY_NODE_BASE 0x10000u
+
 typedef struct ed_application ed_application;
+typedef struct ed_undo_stack ed_undo_stack;
 
 typedef struct ed_layout {
     f32 left_panel_width;
@@ -33,9 +38,12 @@ typedef struct ed_layout {
     gui_dropdown_state menu_edit;
     gui_dropdown_state menu_view;
 
+    // Viewport bounds from previous frame (for camera input)
+    Clay_BoundingBox viewport_bounds;
+
     // Property inspector
     ed_inspector inspector;
 } ed_layout;
 
-void ed_layout_init(ed_layout *layout);
+void ed_layout_init(ed_layout *layout, ed_undo_stack *undo);
 void ed_layout_render(ed_layout *layout, ed_application *app, f32 dt);
