@@ -5,6 +5,7 @@
 #include "asset/asset.h"
 #include "core/config.h"
 #include "core/logger.h"
+#include "core/project.h"
 #include "engine.h"
 #include "event_handler.h"
 #include "gui/gui.h"
@@ -18,7 +19,7 @@ static rl_application app;
 static b8 create_app_module(void);
 static void destroy_app_module(void);
 
-b8 create_application(void) {
+b8 create_application(const char *project_path) {
     app.game_state = nullptr;
     app.game_state_size = 0;
     app.focused = true;
@@ -31,7 +32,20 @@ b8 create_application(void) {
     if (!boot.success) return false;
     app.window = boot.window;
 
-    asset_system_load_content();
+    b8 project_opened = false;
+    if (project_path) {
+        rl_project *proj = project_open(project_path);
+        if (proj) {
+            RL_INFO("Opened project '%s' at %s", proj->name, proj->root_path);
+            project_opened = true;
+        } else {
+            RL_WARN("Failed to open project at '%s', falling back to legacy mode", project_path);
+        }
+    }
+
+    if (!project_opened) {
+        asset_system_load_content();
+    }
 
     // Console registers events first so it can consume key/char input when visible
     app_console_init(&app.console);
@@ -158,6 +172,9 @@ b8 create_application(void) {
     realm_app_watcher_stop(&app.app_watcher);
     destroy_app_module();
     app_console_shutdown(&app.console);
+    if (project_is_open()) {
+        project_close();
+    }
     rl_profiler_write_session_report("profiler_session.bin");
     rl_profiler_shutdown();
     rl_engine_destroy();
@@ -197,6 +214,7 @@ static b8 create_app_module(void) {
         .msaa = config_get()->msaa,
         .fov = config_get()->fov,
         .mouse_sensitivity = config_get()->mouse_sensitivity,
+        .project = project_get(),
     };
 
     app.app_module.init(app.game_state, &app.app_context);

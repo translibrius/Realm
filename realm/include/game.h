@@ -8,8 +8,9 @@
 #include <realm_app_api.h>
 
 typedef struct rl_font rl_font;
+typedef struct rl_scene rl_scene;
 
-#define RL_GAME_STATE_VERSION 8
+#define RL_GAME_STATE_VERSION 9
 
 typedef enum game_scene {
     SCENE_MAIN_MENU,
@@ -40,6 +41,9 @@ typedef struct rl_game {
     gui_dropdown_state settings_theme_dropdown;
     gui_dropdown_state settings_log_level_dropdown;
     gui_dropdown_state settings_msaa_dropdown;
+
+    // Loaded scene (from project, NULL in legacy mode)
+    rl_scene *loaded_scene;
 
     // Shared
     rl_arena frame_arena;

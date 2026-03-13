@@ -27,4 +27,4 @@ typedef struct rl_application {
     RENDERER_BACKEND requested_backend;
 } rl_application;
 
-b8 create_application(void);
+b8 create_application(const char *project_path);

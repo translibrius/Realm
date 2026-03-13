@@ -4,6 +4,7 @@
 
 #include "asset/asset.h"
 #include "core/camera.h"
+#include "core/scene.h"
 #include "platform/input.h"
 #include "renderer/renderer_frontend.h"
 
@@ -42,7 +43,42 @@ void scene_game_update(rl_game *game, const realm_app_context *ctx, realm_app_ou
     camera_update(&game->camera, dt);
 }
 
+static void scene_game_render_legacy(rl_game *game, const realm_app_context *ctx);
+static void scene_game_render_project(rl_game *game, const realm_app_context *ctx);
+
 void scene_game_render(rl_game *game, const realm_app_context *ctx, realm_app_output *out) {
+    if (game->loaded_scene) {
+        scene_game_render_project(game, ctx);
+    } else {
+        scene_game_render_legacy(game, ctx);
+    }
+
+    if (game->pause_menu_open) {
+        menu_pause_render(game, ctx, out);
+    }
+}
+
+static void scene_game_render_project(rl_game *game, const realm_app_context *ctx) {
+    i32 width = ctx->window->settings.width;
+    i32 height = ctx->window->settings.height;
+    f32 aspect = (f32)width / (f32)height;
+
+    mat4 view = {};
+    mat4 proj = {};
+    camera_get_view(&game->camera, view);
+    camera_get_projection(&game->camera, aspect, proj, ctx->renderer_backend);
+
+    rl_frame_camera fc = {.valid = true};
+    glm_mat4_copy(view, fc.view);
+    glm_mat4_copy(proj, fc.projection);
+    glm_vec3_copy(game->camera.pos, fc.position);
+
+    rl_frame_data frame = {0};
+    scene_build_frame_data(game->loaded_scene, &fc, &frame);
+    renderer_submit_frame_data(&frame);
+}
+
+static void scene_game_render_legacy(rl_game *game, const realm_app_context *ctx) {
     i32 width = ctx->window->settings.width;
     i32 height = ctx->window->settings.height;
     f32 aspect = (f32)width / (f32)height;
@@ -137,9 +173,4 @@ void scene_game_render(rl_game *game, const realm_app_context *ctx, realm_app_ou
     frame_data.text_count = 0;
 
     renderer_submit_frame_data(&frame_data);
-
-    // Render pause overlay on top of 3D scene
-    if (game->pause_menu_open) {
-        menu_pause_render(game, ctx, out);
-    }
 }

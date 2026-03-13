@@ -225,12 +225,12 @@ Scenes are currently built in code. Both editor and game need a shared file form
 - [x] Auto-save on: close project, quit, new scene (if dirty + path set)
 - [x] `ed_save_scene`, `ed_load_scene`, `ed_new_scene` helpers in `ed_application.c`
 
-### 5c. Wire scene loading into game host
+### 5c. Wire scene loading into game host — DONE
 
-- [ ] Game host (`realm/src/application.c`) gains `project_open()` call after bootstrap
-- [ ] Game module can call `scene_load()` to load editor-authored scenes
-- [ ] Expand `realm_app_context` with project pointer so module knows project paths
-- [ ] Proof of life: game loads a `.scene` file saved by the editor and renders it
+- [x] Game host (`realm/src/application.c`) gains `project_open()` call after bootstrap
+- [x] Game module can call `scene_load()` to load editor-authored scenes
+- [x] Expand `realm_app_context` with project pointer so module knows project paths
+- [x] Proof of life: game loads a `.scene` file saved by the editor and renders it
 
 ---
 
@@ -384,7 +384,7 @@ Phase 3: Scene/Entity System        ✓ done
     │
 Phase 4: Project System & Config    ✓ done
     │
-    ├── Phase 5: Scene I/O          ✓ 5a+5b done, 5c deferred
+    ├── Phase 5: Scene I/O          ✓ done
     │       │
     │       ├── Phase 6: Asset Discovery
     │       │       │

@@ -5,12 +5,14 @@
 #include "platform/platform.h"
 #include "renderer/renderer_backend.h"
 
+typedef struct rl_project rl_project;
+
 #ifdef __cplusplus
 extern "C" {
 
 #endif
 
-#define REALM_APP_API_VERSION 2
+#define REALM_APP_API_VERSION 3
 
 #if defined(_WIN32)
 #if defined(REALM_APP_BUILD)
@@ -33,6 +35,7 @@ typedef struct realm_app_context {
     f32 fov;
     f32 mouse_sensitivity;
     platform_window *window;
+    const rl_project *project;  // NULL = legacy mode (no project)
 } realm_app_context;
 
 typedef struct realm_app_output {
