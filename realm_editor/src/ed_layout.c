@@ -3,6 +3,9 @@
 #include "ed_application.h"
 #include "ed_console.h"
 #include "asset/asset.h"
+#include "core/component.h"
+#include "core/entity.h"
+#include "core/scene.h"
 #include "engine.h"
 #include "gui/gui_clay.h"
 #include "gui/gui_dropdown.h"
@@ -21,8 +24,7 @@ void ed_layout_init(ed_layout *layout) {
     layout->menu_bar_height = 28.0f;
     layout->hierarchy_scroll = (gui_scroll_state){.auto_scroll = false};
     layout->properties_scroll = (gui_scroll_state){.auto_scroll = false};
-    layout->dummy_root_expanded = true;
-    layout->dummy_objects_expanded = true;
+    layout->scene_root_expanded = true;
     layout->menu_file = (gui_dropdown_state){.selected = -1};
     layout->menu_edit = (gui_dropdown_state){.selected = -1};
     layout->menu_view = (gui_dropdown_state){.selected = -1};
@@ -86,7 +88,7 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
     }
 }
 
-static void ed_layout_panel_hierarchy(ed_layout *layout) {
+static void ed_layout_panel_hierarchy(ed_layout *layout, rl_scene *scene) {
     const gui_theme *t = gui_theme_get();
     u16 font = gui_font_id(asset_find(RL_ASSET_FONT_JETBRAINS_MONO));
     gui_text_cfg header_text = {.color = t->text, .size = 13, .font = font};
@@ -108,22 +110,19 @@ static void ed_layout_panel_hierarchy(ed_layout *layout) {
         gui_tree_cfg tcfg = {.font = font};
         gui_tree_begin(&layout->hierarchy_tree, &tcfg);
         {
-            gui_tree_node_result r = gui_tree_node_begin(1, "Scene Root", &layout->dummy_root_expanded, false);
+            // Node IDs: root=1, entities use index + offset to avoid collision
+            #define ED_ENTITY_NODE_BASE 0x10000u
+            gui_tree_node_result r = gui_tree_node_begin(1, scene->name, &layout->scene_root_expanded, false);
             if (r.expanded) {
-                gui_tree_node_begin(2, "Camera", nullptr, true);
-                gui_tree_node_end();
-
-                gui_tree_node_begin(3, "Objects", &layout->dummy_objects_expanded, false);
-                if (layout->dummy_objects_expanded) {
-                    gui_tree_node_begin(4, "Cube", nullptr, true);
-                    gui_tree_node_end();
-                    gui_tree_node_begin(5, "Sphere", nullptr, true);
+                rl_entity_store *es = &scene->entities;
+                rl_component_store *cs = &scene->components;
+                for (u32 i = 1; i < es->high_water; i++) {
+                    if (!es->alive[i]) continue;
+                    const char *label = "Entity";
+                    if (cs->has_name[i]) label = cs->names[i].name;
+                    gui_tree_node_begin(ED_ENTITY_NODE_BASE + i, label, nullptr, true);
                     gui_tree_node_end();
                 }
-                gui_tree_node_end();
-
-                gui_tree_node_begin(6, "Light", nullptr, true);
-                gui_tree_node_end();
             }
             gui_tree_node_end();
         }
@@ -151,11 +150,12 @@ static void ed_layout_viewport(void) {
     }
 }
 
-static void ed_layout_panel_properties(ed_layout *layout) {
+static void ed_layout_panel_properties(ed_layout *layout, rl_scene *scene) {
     const gui_theme *t = gui_theme_get();
     u16 font = gui_font_id(asset_find(RL_ASSET_FONT_JETBRAINS_MONO));
     gui_text_cfg header_text = {.color = t->text, .size = 13, .font = font};
     gui_text_cfg dim_text = {.color = t->text_dim, .size = 13, .font = font};
+    gui_text_cfg prop_text = {.color = t->text, .size = 12, .font = font};
 
     gui_panel_cfg panel = {
         .color = t->bg,
@@ -170,7 +170,49 @@ static void ed_layout_panel_properties(ed_layout *layout) {
         gui_scroll_begin(&layout->properties_scroll, &(gui_scroll_cfg){
             .scrollbar_width = 6, .thumb_radius = 3,
         });
+
+        u32 sel = layout->hierarchy_tree.selected_id;
+        b8 is_entity = (sel >= ED_ENTITY_NODE_BASE);
+        u32 entity_idx = sel - ED_ENTITY_NODE_BASE;
+        rl_entity entity_handle = is_entity ? rl_entity_pack(entity_idx, scene->entities.generation[entity_idx]) : RL_ENTITY_INVALID;
+        if (is_entity && scene_entity_is_alive(scene, entity_handle)) {
+            rl_entity e = entity_handle;
+            rl_component_store *cs = &scene->components;
+
+            rl_name_component *nc = name_get(cs, e);
+            if (nc) {
+                gui_textf(&header_text, "%s", nc->name);
+                gui_separator();
+            }
+
+            rl_transform *tr = transform_get(cs, e);
+            if (tr) {
+                gui_text("Transform", &dim_text);
+                gui_textf(&prop_text, "Pos: %.2f, %.2f, %.2f", (f64)tr->position[0], (f64)tr->position[1], (f64)tr->position[2]);
+                gui_textf(&prop_text, "Rot: %.1f, %.1f, %.1f", (f64)tr->rotation[0], (f64)tr->rotation[1], (f64)tr->rotation[2]);
+                gui_textf(&prop_text, "Scl: %.2f, %.2f, %.2f", (f64)tr->scale[0], (f64)tr->scale[1], (f64)tr->scale[2]);
+                gui_separator();
+            }
+
+            rl_mesh_component *mc = mesh_get(cs, e);
+            if (mc) {
+                gui_text("Mesh", &dim_text);
+                gui_textf(&prop_text, "Primitive: %s", mc->primitive == RL_FRAME_PRIMITIVE_CUBE ? "Cube" : "Custom");
+                gui_textf(&prop_text, "Kind: %s", mc->kind == RL_FRAME_MESH_KIND_LIT ? "Lit" : "Unlit");
+                gui_separator();
+            }
+
+            rl_light_component *lc = light_get(cs, e);
+            if (lc) {
+                gui_text("Light", &dim_text);
+                gui_textf(&prop_text, "Ambient:  %.2f, %.2f, %.2f", (f64)lc->ambient[0], (f64)lc->ambient[1], (f64)lc->ambient[2]);
+                gui_textf(&prop_text, "Diffuse:  %.2f, %.2f, %.2f", (f64)lc->diffuse[0], (f64)lc->diffuse[1], (f64)lc->diffuse[2]);
+                gui_textf(&prop_text, "Specular: %.2f, %.2f, %.2f", (f64)lc->specular[0], (f64)lc->specular[1], (f64)lc->specular[2]);
+            }
+        } else {
             gui_text("Select an object", &dim_text);
+        }
+
         gui_scroll_end();
     }
 }
@@ -200,11 +242,11 @@ void ed_layout_render(ed_layout *layout, ed_application *app, f32 dt) {
             .horizontal = true,
         };
         GUI_PANEL(&main_area) {
-            ed_layout_panel_hierarchy(layout);
+            ed_layout_panel_hierarchy(layout, app->scene);
             gui_splitter_v(&layout->splitter_left, &layout->left_panel_width, &splitter_cfg);
             ed_layout_viewport();
             gui_splitter_v(&layout->splitter_right, &layout->right_panel_width, &splitter_cfg_inv);
-            ed_layout_panel_properties(layout);
+            ed_layout_panel_properties(layout, app->scene);
         }
 
         // Bottom separator + console

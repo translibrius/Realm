@@ -23,8 +23,7 @@ typedef struct ed_layout {
 
     // Hierarchy tree
     gui_tree_state hierarchy_tree;
-    b8 dummy_root_expanded;
-    b8 dummy_objects_expanded;
+    b8 scene_root_expanded;
 
     // Menu bar dropdowns
     gui_dropdown_state menu_file;

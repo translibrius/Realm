@@ -93,27 +93,29 @@ Add `engine/include/host/` and `engine/src/host/` inside the existing Engine lib
 
 ### 3a. Entity store
 
-- [ ] Create `engine/include/core/entity.h` + `engine/src/core/entity.c`
-- [ ] Entity handles: `u32` with index + generation counter
-- [ ] Create/destroy with generation bump for dangling-handle safety
+- [x] Create `engine/include/core/entity.h` + `engine/src/core/entity.c`
+- [x] Entity handles: `u32` with 20-bit index + 12-bit generation
+- [x] Create/destroy with generation bump for dangling-handle safety
 
 ### 3b. Component storage
 
-- [ ] Create `engine/include/core/component.h` + `engine/src/core/component.c`
-- [ ] Parallel arrays keyed by entity index
-- [ ] Initial types: `rl_transform`, `rl_mesh_component`, `rl_light_component`, `rl_name_component`
+- [x] Create `engine/include/core/component.h` + `engine/src/core/component.c`
+- [x] Parallel arrays keyed by entity index
+- [x] Initial types: `rl_transform`, `rl_mesh_component`, `rl_light_component`, `rl_name_component`
 
 ### 3c. Scene container
 
-- [ ] Create `engine/include/core/scene.h` + `engine/src/core/scene.c`
-- [ ] Named container owning entity store
-- [ ] `scene_build_frame_data()` — walks entities with transform+mesh, fills `rl_frame_data`
+- [x] Create `engine/include/core/scene.h` + `engine/src/core/scene.c`
+- [x] Named container owning entity store (4 MiB arena)
+- [x] `scene_build_frame_data()` — walks entities with transform+mesh, fills `rl_frame_data`
 
 ### 3d. Wire editor to scene
 
-- [ ] Editor creates default scene on startup
-- [ ] Hierarchy panel shows entities via tree view
-- [ ] Viewport submits `scene_build_frame_data()` each frame
+- [x] Editor creates default scene on startup (Cube + Light)
+- [x] Hierarchy panel shows real entities via tree view
+- [x] Properties panel shows component data for selected entity
+- [x] Viewport submits `scene_build_frame_data()` each frame
+- [x] 9 unit tests in `tests/cases/test_entity.c` — all passing
 
 ---
 
@@ -195,9 +197,9 @@ Phase 1: Deduplication              ✓ done
     │
 Phase 2: GUI Widgets                ✓ done (2c deferred)
     │
-Phase 3: Scene/Entity System  ◄── critical path, next up
+Phase 3: Scene/Entity System     ✓ done
     │
-    ├── Phase 4: Properties + Undo
+    ├── Phase 4: Properties + Undo  ◄── next up
     │       │
     │       └── Phase 6: Asset Browser + Scene I/O
     │

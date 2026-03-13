@@ -19,6 +19,7 @@ void register_gui_id_tests(void);
 void register_text_input_tests(void);
 void register_asset_tests(void);
 void register_profiler_tests(void);
+void register_entity_tests(void);
 
 int main(int argc, const char **argv) {
     if (!rl_test_runtime_init()) {
@@ -42,6 +43,7 @@ int main(int argc, const char **argv) {
     register_text_input_tests();
     register_asset_tests();
     register_profiler_tests();
+    register_entity_tests();
 
     i32 result = rl_test_run_from_args(argc, argv);
 

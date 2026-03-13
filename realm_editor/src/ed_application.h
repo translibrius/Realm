@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/camera.h"
+#include "core/scene.h"
 #include "defines.h"
 #include "ed_console.h"
 #include "ed_event_handler.h"
@@ -12,6 +14,8 @@ typedef struct ed_application {
     ed_event_handler event_handler;
     ed_layout layout;
     ed_console console;
+    rl_scene *scene;
+    rl_camera camera;
     b8 focused;
     b8 backend_switch_requested;
     RENDERER_BACKEND requested_backend;
