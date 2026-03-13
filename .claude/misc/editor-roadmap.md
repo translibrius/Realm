@@ -318,18 +318,29 @@ Make the Realm game executable a first-class consumer of editor-authored project
 
 With scene I/O in place, property editing becomes meaningful — changes can be saved and loaded.
 
-### 8a. Property inspector
+### 8a. Property inspector — DONE
 
-- [ ] Create `realm_editor/src/ed_inspector.h/.c`
-- [ ] Generic component inspector using existing GUI widgets
-- [ ] Transform → 3 vec3 fields (position, rotation, scale)
-- [ ] Mesh → asset path display (dropdown from asset browser)
-- [ ] Light → color RGB sliders, intensity
+- [x] Created `realm_editor/src/ed_inspector.h/.c`
+- [x] `ed_inspector` struct with per-component widget state (vec3 groups for transform/light, dropdown for mesh kind, checkbox for wireframe, number inputs for material)
+- [x] `ed_inspector_init` registers `EVENT_KEY_PRESS` / `EVENT_CHAR_INPUT` handlers for keyboard routing
+- [x] `ed_inspector_bind` syncs widget state from component data on entity selection change
+- [x] `ed_inspector_render` lays out all component sections with `gui_field` rows; writes back changes immediately to components; sets `scene_dirty` and `tr->dirty`
+- [x] Focus tracking: `focused_input` pointer routes keyboard events to the active number input; console still takes priority when visible
+- [x] Transform: Position/Rotation/Scale vec3 rows with colored X/Y/Z labels
+- [x] Mesh: Kind dropdown (Lit/Unlit), wireframe checkbox
+- [x] Material: Specular vec3 (0–1 range), shininess float (0–256)
+- [x] Light: Ambient/Diffuse/Specular vec3 rows (0–1 range)
+- [x] Wired into `ed_layout`: inspector field in struct, init in `ed_layout_init`, properties panel calls bind/render
 
-### 8b. Number input widget
+### 8b. Number input widget — DONE
 
-- [ ] Create `engine/include/gui/gui_number_input.h` + `engine/src/gui/gui_number_input.c`
-- [ ] Numeric text input with drag-to-adjust (click-drag on label changes value)
+- [x] Created `engine/include/gui/gui_number_input.h` + `engine/src/gui/gui_number_input.c`
+- [x] `gui_number_input_state` with value, editing/dragging flags, text buffer, cursor, auto-generated Clay ID
+- [x] `gui_number_input_cfg` with min/max/step/format/width/height (sensible defaults, both-zero min/max = no limit)
+- [x] Drag-to-scrub: click starts tracking, >2px horizontal movement becomes drag (value += delta_x × step, clamped); <2px release enters text editing mode
+- [x] Text editing: blinking caret, digits/dot/minus only, Enter confirms (parsed via `strtod`), Escape cancels (reverts to drag_start_value)
+- [x] `gui_number_input_handle_key` / `gui_number_input_handle_char` for event-driven input routing
+- [x] Added `#include "gui/gui_number_input.h"` to `gui_widgets.h`
 
 ### 8c. Undo/redo system
 
@@ -408,11 +419,14 @@ Phase 4: Project System & Config    ✓ done
     │       │       └── Phase 7: Game Host Integration  ✓ done
     │       │
     │       └── Phase 8: Properties + Undo
-    │               (meaningful once scenes are saveable)
+    │               8a. Property inspector     ✓ done
+    │               8b. Number input widget     ✓ done
+    │               8c. Undo/redo system        ← next
     │
     └── Phase 9: Viewport Interaction
             (camera, gizmos, picking — independent of integration)
 ```
 
-**Next session: Phase 8 (Properties + Undo) or Phase 9 (Viewport Interaction) — can run in parallel.**
-Phase 7 is complete — editor authors, game runs.
+**Next session: Phase 8c (Undo/Redo) or Phase 9 (Viewport Interaction) — can run in parallel.**
+Phase 8a+8b are complete — properties panel is editable with drag-scrub and text editing. Undo/redo (8c) deferred to next session.
+Name editing in the inspector is wired for keyboard but not yet clickable (no click-to-focus on the name text). Could be added alongside 8c or as a small follow-up.

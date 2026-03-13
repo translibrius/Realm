@@ -1,6 +1,7 @@
 #pragma once
 
 #include "defines.h"
+#include "ed_inspector.h"
 #include "gui/gui_dropdown.h"
 #include "gui/gui_scroll.h"
 #include "gui/gui_splitter.h"
@@ -31,6 +32,9 @@ typedef struct ed_layout {
     gui_dropdown_state menu_file;
     gui_dropdown_state menu_edit;
     gui_dropdown_state menu_view;
+
+    // Property inspector
+    ed_inspector inspector;
 } ed_layout;
 
 void ed_layout_init(ed_layout *layout);

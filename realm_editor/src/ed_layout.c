@@ -3,6 +3,7 @@
 #include "ed_application.h"
 #include "ed_asset_browser.h"
 #include "ed_console.h"
+#include "ed_inspector.h"
 #include "asset/asset.h"
 #include "core/component.h"
 #include "core/entity.h"
@@ -30,6 +31,8 @@ void ed_layout_init(ed_layout *layout) {
     layout->menu_file = (gui_dropdown_state){.selected = -1};
     layout->menu_edit = (gui_dropdown_state){.selected = -1};
     layout->menu_view = (gui_dropdown_state){.selected = -1};
+
+    ed_inspector_init(&layout->inspector);
 }
 
 static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
@@ -160,12 +163,13 @@ static void ed_layout_viewport(void) {
     }
 }
 
-static void ed_layout_panel_properties(ed_layout *layout, rl_scene *scene) {
+static void ed_layout_panel_properties(ed_layout *layout, ed_application *app, f32 dt) {
     const gui_theme *t = gui_theme_get();
     u16 font = gui_font_id(asset_find(RL_ASSET_FONT_JETBRAINS_MONO));
     gui_text_cfg header_text = {.color = t->text, .size = 13, .font = font};
     gui_text_cfg dim_text = {.color = t->text_dim, .size = 13, .font = font};
-    gui_text_cfg prop_text = {.color = t->text, .size = 12, .font = font};
+
+    rl_scene *scene = app->scene;
 
     gui_panel_cfg panel = {
         .color = t->bg,
@@ -185,40 +189,14 @@ static void ed_layout_panel_properties(ed_layout *layout, rl_scene *scene) {
         b8 is_entity = (sel >= ED_ENTITY_NODE_BASE);
         u32 entity_idx = sel - ED_ENTITY_NODE_BASE;
         rl_entity entity_handle = is_entity ? rl_entity_pack(entity_idx, scene->entities.generation[entity_idx]) : RL_ENTITY_INVALID;
+
         if (is_entity && scene_entity_is_alive(scene, entity_handle)) {
-            rl_entity e = entity_handle;
-            rl_component_store *cs = &scene->components;
-
-            rl_name_component *nc = name_get(cs, e);
-            if (nc) {
-                gui_textf(&header_text, "%s", nc->name);
-                gui_separator();
+            // Detect selection change → rebind inspector
+            if (entity_idx != layout->inspector.bound_entity_idx) {
+                ed_inspector_bind(&layout->inspector, scene, entity_handle);
             }
-
-            rl_transform *tr = transform_get(cs, e);
-            if (tr) {
-                gui_text("Transform", &dim_text);
-                gui_textf(&prop_text, "Pos: %.2f, %.2f, %.2f", (f64)tr->position[0], (f64)tr->position[1], (f64)tr->position[2]);
-                gui_textf(&prop_text, "Rot: %.1f, %.1f, %.1f", (f64)tr->rotation[0], (f64)tr->rotation[1], (f64)tr->rotation[2]);
-                gui_textf(&prop_text, "Scl: %.2f, %.2f, %.2f", (f64)tr->scale[0], (f64)tr->scale[1], (f64)tr->scale[2]);
-                gui_separator();
-            }
-
-            rl_mesh_component *mc = mesh_get(cs, e);
-            if (mc) {
-                gui_text("Mesh", &dim_text);
-                gui_textf(&prop_text, "Primitive: %s", mc->primitive == RL_FRAME_PRIMITIVE_CUBE ? "Cube" : "Custom");
-                gui_textf(&prop_text, "Kind: %s", mc->kind == RL_FRAME_MESH_KIND_LIT ? "Lit" : "Unlit");
-                gui_separator();
-            }
-
-            rl_light_component *lc = light_get(cs, e);
-            if (lc) {
-                gui_text("Light", &dim_text);
-                gui_textf(&prop_text, "Ambient:  %.2f, %.2f, %.2f", (f64)lc->ambient[0], (f64)lc->ambient[1], (f64)lc->ambient[2]);
-                gui_textf(&prop_text, "Diffuse:  %.2f, %.2f, %.2f", (f64)lc->diffuse[0], (f64)lc->diffuse[1], (f64)lc->diffuse[2]);
-                gui_textf(&prop_text, "Specular: %.2f, %.2f, %.2f", (f64)lc->specular[0], (f64)lc->specular[1], (f64)lc->specular[2]);
-            }
+            ed_inspector_render(&layout->inspector, scene, entity_handle,
+                                &app->scene_dirty, dt);
         } else {
             gui_text("Select an object", &dim_text);
         }
@@ -268,7 +246,7 @@ void ed_layout_render(ed_layout *layout, ed_application *app, f32 dt) {
             gui_splitter_v(&layout->splitter_left, &layout->left_panel_width, &splitter_cfg);
             ed_layout_viewport();
             gui_splitter_v(&layout->splitter_right, &layout->right_panel_width, &splitter_cfg_inv);
-            ed_layout_panel_properties(layout, app->scene);
+            ed_layout_panel_properties(layout, app, dt);
         }
 
         // Bottom separator + console
