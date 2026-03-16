@@ -1,6 +1,7 @@
 #include "gui/gui_panel.h"
 
 #include "clay.h"
+#include "gui/gui_theme.h"
 
 // Per-frame sequential counter for stable Clay element IDs.
 // Without this, panels/spacers/separators use Clay auto-IDs that are derived
@@ -95,6 +96,6 @@ void gui_separator(void) {
     gui_panel_counter++;
     CLAY(CLAY_IDI("GuiPanel", gui_panel_counter), {
         .layout = {.sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(1)}},
-        .backgroundColor = {60, 60, 65, 255},
+        .backgroundColor = gui_theme_get()->separator,
     }) {}
 }

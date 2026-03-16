@@ -94,8 +94,9 @@ static void free_entry_names(DirEntries *entries) {
     }
 }
 
-void ed_asset_browser_render(ed_asset_browser *browser, ed_application *app, f32 width, f32 height) {
+void ed_asset_browser_render(ed_asset_browser *browser, ed_application *app, f32 width, f32 height, f32 dt) {
     if (!browser || !app) return;
+    browser->time_acc += dt;
 
     if (browser->needs_refresh) {
         // Free old names before refresh
@@ -156,19 +157,32 @@ void ed_asset_browser_render(ed_asset_browser *browser, ed_application *app, f32
                     gui_tree_node_end();
 
                     // Double-click on a mesh entry: create entity in scene
-                    if (nr.selected && !is_dir && app->scene) {
-                        char rel_path[512];
-                        snprintf(rel_path, sizeof(rel_path), "models/%s", name);
-                        asset_id aid = asset_find(rel_path);
-                        if (aid) {
-                            rl_entity e = scene_entity_create(app->scene, name);
-                            transform_add(&app->scene->components, e);
-                            rl_mesh_component *mc = mesh_add(&app->scene->components, e);
-                            if (mc) {
-                                mc->mesh_asset = aid;
-                                mc->kind = RL_FRAME_MESH_KIND_LIT;
+                    if (nr.selected && app->scene) {
+                        f32 click_time = browser->time_acc;
+                        b8 is_double = ((i32)node_id == browser->last_click_node_id &&
+                                        (click_time - browser->last_click_time) < 0.4f);
+                        browser->last_click_time = click_time;
+                        browser->last_click_node_id = (i32)node_id;
+
+                        if (is_double) {
+                            char rel_path[512];
+                            if (is_dir) {
+                                // Directory-based model: e.g. models/lion_head_4k.gltf/lion_head_4k.gltf
+                                snprintf(rel_path, sizeof(rel_path), "models/%s/%s", name, name);
+                            } else {
+                                snprintf(rel_path, sizeof(rel_path), "models/%s", name);
                             }
-                            app->scene_dirty = true;
+                            asset_id aid = asset_find(rel_path);
+                            if (aid) {
+                                rl_entity e = scene_entity_create(app->scene, name);
+                                transform_add(&app->scene->components, e);
+                                rl_mesh_component *mc = mesh_add(&app->scene->components, e);
+                                if (mc) {
+                                    mc->mesh_asset = aid;
+                                    mc->kind = RL_FRAME_MESH_KIND_LIT;
+                                }
+                                app->scene_dirty = true;
+                            }
                         }
                     }
                 }

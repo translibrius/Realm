@@ -397,6 +397,9 @@ void vulkan_submit_frame_data(rl_frame_data *frame_data) {
         context.frame_meshes = nullptr;
     }
 
+    // Store viewport rect for command recording
+    context.scene_viewport = frame_data->viewport_rect;
+
     // Store first point light (or sensible default)
     if (frame_data->point_light_count > 0 && frame_data->point_lights) {
         context.frame_light = frame_data->point_lights[0];

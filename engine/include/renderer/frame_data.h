@@ -55,10 +55,14 @@ typedef struct rl_frame_point_light {
 
 static const rl_frame_point_light RL_DEFAULT_POINT_LIGHT = {
     .position = {1.2f, 1.0f, 2.0f},
-    .ambient  = {0.2f, 0.2f, 0.2f},
-    .diffuse  = {0.5f, 0.5f, 0.5f},
+    .ambient  = {0.3f, 0.3f, 0.3f},
+    .diffuse  = {0.9f, 0.9f, 0.9f},
     .specular = {1.0f, 1.0f, 1.0f},
 };
+
+typedef struct rl_viewport_rect {
+    f32 x, y, w, h; // pixels; all-zero = full window
+} rl_viewport_rect;
 
 typedef struct rl_frame_data {
     rl_frame_camera camera;
@@ -71,4 +75,6 @@ typedef struct rl_frame_data {
 
     rl_frame_text *texts;
     u32 text_count;
+
+    rl_viewport_rect viewport_rect;
 } rl_frame_data;

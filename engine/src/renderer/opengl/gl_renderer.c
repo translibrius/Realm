@@ -118,6 +118,18 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
         glm_vec3_copy(frame_data->camera.position, context.pos);
     }
 
+    // Constrain 3D rendering to viewport rect if specified
+    rl_viewport_rect vr = frame_data->viewport_rect;
+    b8 has_viewport = (vr.w > 0 && vr.h > 0);
+    if (has_viewport) {
+        i32 win_h = context.window->settings.height;
+        i32 gl_y = win_h - (i32)(vr.y + vr.h);
+        glViewport((i32)vr.x, gl_y, (i32)vr.w, (i32)vr.h);
+        glEnable(GL_SCISSOR_TEST);
+        glScissor((i32)vr.x, gl_y, (i32)vr.w, (i32)vr.h);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
+
     if (!frame_data->meshes || frame_data->mesh_count == 0) {
         goto text_pass;
     }
@@ -241,6 +253,12 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
     }
 
 text_pass:
+    // Restore full-window viewport after 3D passes
+    if (has_viewport) {
+        glViewport(0, 0, context.window->settings.width, context.window->settings.height);
+        glDisable(GL_SCISSOR_TEST);
+    }
+
     if (frame_data->texts && frame_data->text_count > 0) {
         opengl_render_text_batch(frame_data->texts, frame_data->text_count);
     }

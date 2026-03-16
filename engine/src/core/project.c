@@ -218,6 +218,11 @@ rl_project *project_open(const char *path) {
     platform_file_close(&file);
     arena_scratch_release(scratch);
 
+    // Default scene path if not specified in project file
+    if (!state.default_scene[0]) {
+        cstr_copy(state.default_scene, sizeof(state.default_scene), "scenes/default.scene");
+    }
+
     // Set content root
     asset_set_content_root(state.asset_path);
     state.open = true;

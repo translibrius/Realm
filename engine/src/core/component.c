@@ -96,8 +96,8 @@ rl_light_component *light_add(rl_component_store *s, rl_entity e) {
     if (!s || idx >= s->capacity) return nullptr;
 
     rl_light_component *l = &s->lights[idx];
-    glm_vec3_copy((vec3){0.2f, 0.2f, 0.2f}, l->ambient);
-    glm_vec3_copy((vec3){0.5f, 0.5f, 0.5f}, l->diffuse);
+    glm_vec3_copy((vec3){0.3f, 0.3f, 0.3f}, l->ambient);
+    glm_vec3_copy((vec3){0.9f, 0.9f, 0.9f}, l->diffuse);
     glm_vec3_copy((vec3){1.0f, 1.0f, 1.0f}, l->specular);
     s->has_light[idx] = true;
     return l;

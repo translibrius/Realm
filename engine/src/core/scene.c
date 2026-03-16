@@ -77,7 +77,11 @@ void scene_build_frame_data(rl_scene *scene, const rl_frame_camera *camera, rl_f
     for (u32 i = 1; i < es->high_water; i++) {
         if (!es->alive[i]) continue;
         if (cs->has_transform[i] && cs->has_mesh[i])  mesh_count++;
-        if (cs->has_transform[i] && cs->has_light[i]) light_count++;
+        if (cs->has_transform[i] && cs->has_light[i]) {
+            light_count++;
+            // Also emit a small unlit cube to visualize the light source
+            if (!cs->has_mesh[i]) mesh_count++;
+        }
     }
 
     // Allocate from frame arena
@@ -118,6 +122,17 @@ void scene_build_frame_data(rl_scene *scene, const rl_frame_camera *camera, rl_f
                 glm_vec3_copy(lc->ambient, fl->ambient);
                 glm_vec3_copy(lc->diffuse, fl->diffuse);
                 glm_vec3_copy(lc->specular, fl->specular);
+
+                // Emit a small unlit cube to visualize the light source
+                if (!cs->has_mesh[i]) {
+                    rl_frame_mesh *fm = &meshes[mi++];
+                    fm->primitive  = RL_FRAME_PRIMITIVE_CUBE;
+                    fm->kind       = RL_FRAME_MESH_KIND_UNLIT;
+                    fm->wireframe  = false;
+                    fm->mesh_asset = 0;
+                    glm_mat4_copy(t->local_to_world, fm->model);
+                    glm_scale_uni(fm->model, 0.15f);
+                }
             }
         }
     }

@@ -150,20 +150,59 @@ static void ed_layout_panel_hierarchy(ed_layout *layout, rl_scene *scene, f32 he
 static void ed_layout_viewport(void) {
     const gui_theme *t = gui_theme_get();
     u16 font = gui_font_id(asset_find(RL_ASSET_FONT_JETBRAINS_MONO));
-    gui_text_cfg dim_text = {.color = t->text_dim, .size = 16, .font = font};
 
-    // Use Clay API directly to give viewport a known ID for bounds querying
-    Clay__OpenElementWithId(CLAY_ID("EditorViewport"));
-    Clay__ConfigureOpenElement((Clay_ElementDeclaration){
-        .layout = {
-            .sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0)},
-            .padding = CLAY_PADDING_ALL(8),
-            .childAlignment = {.x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER},
-        },
-        .backgroundColor = {51, 51, 51, 255},
-    });
-    gui_text("Viewport", &dim_text);
-    Clay__CloseElement();
+    // Outer container: tab strip + viewport area, vertical
+    gui_panel_cfg outer = {
+        .color = {0, 0, 0, 0},
+        .width_sizing = GUI_SIZE_GROW,
+        .height_sizing = GUI_SIZE_GROW,
+    };
+    GUI_PANEL(&outer) {
+        // Tab strip — thin, dark, with bottom border separator
+        Clay__OpenElement();
+        Clay__ConfigureOpenElement((Clay_ElementDeclaration){
+            .layout = {
+                .sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIT(0)},
+                .padding = {.left = 2, .right = 2},
+                .childAlignment = {.y = CLAY_ALIGN_Y_BOTTOM},
+                .layoutDirection = CLAY_LEFT_TO_RIGHT,
+            },
+            .backgroundColor = t->bg_input,
+            .border = {
+                .color = t->border,
+                .width = {0, 0, 0, 1, 0},
+            },
+        });
+        {
+            // Active tab — accent top line, slightly lifted from strip
+            Clay__OpenElement();
+            Clay__ConfigureOpenElement((Clay_ElementDeclaration){
+                .layout = {
+                    .padding = {.left = 10, .right = 10, .top = 5, .bottom = 5},
+                },
+                .backgroundColor = t->bg_secondary,
+                .border = {
+                    .color = t->accent,
+                    .width = {0, 0, 2, 0, 0},
+                },
+            });
+            gui_text("Viewport", &(gui_text_cfg){
+                .color = t->text, .size = 12, .font = font,
+            });
+            Clay__CloseElement();
+        }
+        Clay__CloseElement();
+
+        // 3D viewport area (transparent, with known ID for bounds querying)
+        Clay__OpenElementWithId(CLAY_ID("EditorViewport"));
+        Clay__ConfigureOpenElement((Clay_ElementDeclaration){
+            .layout = {
+                .sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0)},
+            },
+            .backgroundColor = {0, 0, 0, 0},
+        });
+        Clay__CloseElement();
+    }
 }
 
 static void ed_layout_panel_properties(ed_layout *layout, ed_application *app, f32 dt) {
@@ -216,9 +255,9 @@ void ed_layout_render(ed_layout *layout, ed_application *app, f32 dt) {
     gui_splitter_cfg splitter_cfg = {.min_value = 100, .max_value = 500};
     gui_splitter_cfg splitter_cfg_inv = {.min_value = 100, .max_value = 500, .invert = true};
 
-    // Root: full-screen, top-to-bottom
+    // Root: full-screen, top-to-bottom (transparent so 3D viewport shows through)
     gui_panel_cfg root = {
-        .color = t->bg,
+        .color = {0, 0, 0, 0},
         .width_sizing = GUI_SIZE_GROW,
         .height_sizing = GUI_SIZE_GROW,
     };
@@ -244,7 +283,7 @@ void ed_layout_render(ed_layout *layout, ed_application *app, f32 dt) {
                     .min_value = 80, .max_value = 600,
                 });
                 ed_asset_browser_render(&app->asset_browser, app,
-                                        layout->left_panel_width, 0);
+                                        layout->left_panel_width, 0, dt);
             }
             gui_splitter_v(&layout->splitter_left, &layout->left_panel_width, &splitter_cfg);
             ed_layout_viewport();

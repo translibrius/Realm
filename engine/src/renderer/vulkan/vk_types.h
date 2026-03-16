@@ -249,6 +249,7 @@ typedef struct VK_Context {
     u32 frame_mesh_count;
     rl_frame_point_light frame_light;
     vec3 camera_pos;
+    rl_viewport_rect scene_viewport;
 
     // Textures
     VkSampler texture_sampler;

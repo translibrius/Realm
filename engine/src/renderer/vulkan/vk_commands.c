@@ -81,23 +81,42 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
 
     vkCmdBeginRenderPass(buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
     {
+        rl_viewport_rect vr = context->scene_viewport;
+        b8 has_vp = (vr.w > 0 && vr.h > 0);
+
         // Negative height flips Y to match OpenGL conventions without
         // affecting winding order (unlike proj[1][1] *= -1).
-        f32 vp_h = (f32)context->swapchain.chosen_extent.height;
-        VkViewport viewport = {
-            .x = 0.0f,
-            .y = vp_h,
-            .width = (f32)context->swapchain.chosen_extent.width,
-            .height = -vp_h,
-            .minDepth = 0.0f,
-            .maxDepth = 1.0f
-        };
+        VkViewport viewport;
+        VkRect2D scissor;
+        if (has_vp) {
+            viewport = (VkViewport){
+                .x = vr.x,
+                .y = vr.y + vr.h,
+                .width = vr.w,
+                .height = -vr.h,
+                .minDepth = 0.0f,
+                .maxDepth = 1.0f,
+            };
+            scissor = (VkRect2D){
+                .offset = {(i32)vr.x, (i32)vr.y},
+                .extent = {(u32)vr.w, (u32)vr.h},
+            };
+        } else {
+            f32 vp_h = (f32)context->swapchain.chosen_extent.height;
+            viewport = (VkViewport){
+                .x = 0.0f,
+                .y = vp_h,
+                .width = (f32)context->swapchain.chosen_extent.width,
+                .height = -vp_h,
+                .minDepth = 0.0f,
+                .maxDepth = 1.0f,
+            };
+            scissor = (VkRect2D){
+                .offset = {0, 0},
+                .extent = context->swapchain.chosen_extent,
+            };
+        }
         vkCmdSetViewport(buffer, 0, 1, &viewport);
-
-        VkRect2D scissor = {
-            .offset = {0, 0},
-            .extent = context->swapchain.chosen_extent
-        };
         vkCmdSetScissor(buffer, 0, 1, &scissor);
 
         // Shared vertex buffer + descriptors for all 3D meshes
@@ -129,6 +148,25 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
             glm_vec4_zero(pc.material_params);
             vkCmdPushConstants(buffer, context->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(VK_MeshPushConstants), &pc);
             vkCmdDraw(buffer, context->cube_vertex_count, 1, 0, 0);
+        }
+
+        // Restore full-swapchain viewport/scissor for GUI overlay
+        if (has_vp) {
+            f32 full_h = (f32)context->swapchain.chosen_extent.height;
+            VkViewport full_viewport = {
+                .x = 0.0f,
+                .y = full_h,
+                .width = (f32)context->swapchain.chosen_extent.width,
+                .height = -full_h,
+                .minDepth = 0.0f,
+                .maxDepth = 1.0f,
+            };
+            VkRect2D full_scissor = {
+                .offset = {0, 0},
+                .extent = context->swapchain.chosen_extent,
+            };
+            vkCmdSetViewport(buffer, 0, 1, &full_viewport);
+            vkCmdSetScissor(buffer, 0, 1, &full_scissor);
         }
 
         // GUI + text overlay (unified pipeline)

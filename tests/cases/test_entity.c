@@ -183,8 +183,8 @@ RL_TEST(component_mesh_light_defaults) {
 
     rl_light_component *l = light_add(&cs, e);
     RL_EXPECT_NOT_NULL(l);
-    RL_EXPECT_NEAR_F32(l->ambient[0], 0.2f, 0.001f);
-    RL_EXPECT_NEAR_F32(l->diffuse[0], 0.5f, 0.001f);
+    RL_EXPECT_NEAR_F32(l->ambient[0], 0.3f, 0.001f);
+    RL_EXPECT_NEAR_F32(l->diffuse[0], 0.9f, 0.001f);
     RL_EXPECT_NEAR_F32(l->specular[0], 1.0f, 0.001f);
 
     rl_arena_destroy(arena);

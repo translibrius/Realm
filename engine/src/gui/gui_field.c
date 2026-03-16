@@ -1,6 +1,7 @@
 #include "gui/gui_field.h"
 
 #include "gui/gui_text.h"
+#include "gui/gui_theme.h"
 
 void gui_field_begin(const char *label, const gui_field_cfg *cfg) {
     f32 label_width = (cfg && cfg->label_width > 0) ? cfg->label_width : 120;
@@ -9,7 +10,7 @@ void gui_field_begin(const char *label, const gui_field_cfg *cfg) {
     u16 font      = cfg ? cfg->font      : 0;
     u16 font_size = (cfg && cfg->font_size > 0) ? cfg->font_size : 14;
 
-    Clay_Color label_color = {180, 180, 185, 255};
+    Clay_Color label_color = gui_theme_get()->text_dim;
     if (cfg && cfg->label_color.a > 0) label_color = cfg->label_color;
 
     // Outer row

@@ -1,6 +1,7 @@
 #include "gui/gui_text.h"
 
 #include "engine.h"
+#include "gui/gui_theme.h"
 #include "memory/arena.h"
 #include "util/str.h"
 
@@ -12,7 +13,7 @@ void gui_text(const char *str, const gui_text_cfg *cfg) {
 
     u16 font = 0;
     u16 size = 14;
-    Clay_Color color = {255, 255, 255, 255};
+    Clay_Color color = gui_theme_get()->text;
 
     if (cfg) {
         if (cfg->size > 0) size = cfg->size;
@@ -29,7 +30,7 @@ void gui_textn(const char *str, u16 len, const gui_text_cfg *cfg) {
 
     u16 font = 0;
     u16 size = 14;
-    Clay_Color color = {255, 255, 255, 255};
+    Clay_Color color = gui_theme_get()->text;
 
     if (cfg) {
         if (cfg->size > 0) size = cfg->size;

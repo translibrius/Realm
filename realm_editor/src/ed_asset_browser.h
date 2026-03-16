@@ -13,9 +13,12 @@ typedef struct ed_asset_browser {
     b8 needs_refresh;
     DirEntries textures;
     DirEntries models;
+    f32 time_acc;
+    f32 last_click_time;
+    i32 last_click_node_id;
 } ed_asset_browser;
 
 void ed_asset_browser_init(ed_asset_browser *browser);
 void ed_asset_browser_shutdown(ed_asset_browser *browser);
 void ed_asset_browser_refresh(ed_asset_browser *browser);
-void ed_asset_browser_render(ed_asset_browser *browser, ed_application *app, f32 width, f32 height);
+void ed_asset_browser_render(ed_asset_browser *browser, ed_application *app, f32 width, f32 height, f32 dt);

@@ -188,9 +188,10 @@ b8 create_editor(void) {
             ed_camera_update(&app.camera, dt, &app.layout.viewport_bounds, &app.window);
 
             // Build and submit frame data from scene
-            i32 w = app.window.settings.width;
-            i32 h = app.window.settings.height;
-            f32 aspect = (h > 0) ? (f32)w / (f32)h : 1.0f;
+            Clay_BoundingBox vb = app.layout.viewport_bounds;
+            f32 vp_w = (vb.width > 0) ? vb.width : (f32)app.window.settings.width;
+            f32 vp_h = (vb.height > 0) ? vb.height : (f32)app.window.settings.height;
+            f32 aspect = vp_w / vp_h;
 
             rl_frame_camera fc = {.valid = true};
             camera_get_view(&app.camera.cam, fc.view);
@@ -199,6 +200,9 @@ b8 create_editor(void) {
 
             rl_frame_data frame = {0};
             scene_build_frame_data(app.scene, &fc, &frame);
+            if (vb.width > 0 && vb.height > 0) {
+                frame.viewport_rect = (rl_viewport_rect){vb.x, vb.y, vb.width, vb.height};
+            }
             renderer_submit_frame_data(&frame);
 
             gui_layout_begin((f32)dt);

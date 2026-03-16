@@ -172,7 +172,7 @@ void ed_project_picker_render(ed_project_picker *picker, ed_application *app, f3
     };
 
     gui_text_input_render_cfg input_cfg_dim = input_cfg;
-    input_cfg_dim.border_color = (Clay_Color){40, 40, 45, 255};
+    input_cfg_dim.border_color = t->control_press;
 
     // Full-screen centered root
     gui_panel_cfg root = {

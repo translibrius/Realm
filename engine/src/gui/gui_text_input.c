@@ -2,6 +2,7 @@
 
 #include "gui/gui_panel.h"
 #include "gui/gui_text.h"
+#include "gui/gui_theme.h"
 #include "engine.h"
 #include "memory/arena.h"
 
@@ -83,9 +84,10 @@ u16 gui_text_input_display(gui_text_input_state *s, f32 dt, char *out, u16 out_s
 void gui_text_input_render(gui_text_input_state *state, f32 dt, const gui_text_input_render_cfg *cfg) {
     if (!state) return;
 
-    Clay_Color bg_color     = {15, 15, 17, 255};
-    Clay_Color text_color   = {200, 200, 205, 255};
-    Clay_Color border_color = {60, 60, 65, 255};
+    const gui_theme *th     = gui_theme_get();
+    Clay_Color bg_color     = th->bg_input;
+    Clay_Color text_color   = th->text;
+    Clay_Color border_color = th->border;
     f32 border_width = 1;
     f32 padding      = 8;
     f32 height       = 28;

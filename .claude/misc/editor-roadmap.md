@@ -374,29 +374,94 @@ With scene I/O in place, property editing becomes meaningful — changes can be 
 - [x] Scroll event handler registered before host events (FIFO), consumes when over viewport so console scroll still works
 - [x] Key handler guards against inspector text editing before processing F/Ctrl+Z/Ctrl+Shift+Z
 
-### 9b. Origin axis gizmo
+### 9b. Viewport-constrained 3D rendering — DONE
+
+The viewport Clay panel was drawing an opaque background over the 3D scene, and the camera used full-window aspect ratio. This phase made the 3D scene actually visible inside the editor viewport.
+
+- [x] Added `rl_viewport_rect` struct to `engine/include/renderer/frame_data.h` — `{x, y, w, h}` in pixels, all-zero = full window (no breakage for game host)
+- [x] OpenGL: `glViewport` + `glScissor` constrain 3D passes to viewport rect, clear depth+color within scissor, restore full-window viewport before GUI overlay
+- [x] Vulkan: `VkViewport`/`VkRect2D` constrain 3D passes in `vk_commands.c`, restore full-swapchain viewport before `vulkan_gui_record_commands`
+- [x] Viewport panel background changed to transparent `{0,0,0,0}` — 3D scene shows through
+- [x] Root GUI panel also made transparent — was `t->bg` (alpha 230) covering the white cube
+- [x] Camera aspect ratio uses `viewport_bounds.width/height` instead of full window dimensions
+- [x] `frame.viewport_rect` set from `app.layout.viewport_bounds` before `renderer_submit_frame_data()`
+
+### 9c. Viewport tab bar — DONE
+
+Replaced centered "Viewport" text with a proper tab strip, matching the VS Code / Unity panel tab pattern.
+
+- [x] Tab strip: `bg_input` background, 1px bottom border in `border` color
+- [x] Active tab: `bg_secondary` background, 2px accent-colored top line
+- [x] Uses raw Clay API (`Clay__OpenElement`/`Clay__ConfigureOpenElement`/`Clay__CloseElement`) for per-side borders
+- [x] `EditorViewport` Clay ID remains on the 3D area below the tab bar (not the tab strip), so camera bounds are correct
+- [x] Structure supports adding more tabs later (e.g. Settings, Game View) — inactive tabs would use strip background + dim text
+
+### 9d. Origin axis gizmo
 
 - [ ] Colored XYZ axis indicator in viewport corner (red=X, green=Y, blue=Z)
 - [ ] Always visible, shows current camera orientation
 - [ ] Rendered as overlay (not affected by scene depth)
 
-### 9c. Transform gizmos
+### 9e. Transform gizmos
 
 - [ ] Create `realm_editor/src/ed_gizmo.h/.c`
 - [ ] Translate/rotate/scale handles as overlay geometry
 - [ ] Requires overlay render pass in both GL and Vulkan backends
 - [ ] W/E/R to switch between translate/rotate/scale modes
 
-### 9d. Entity picking
+### 9f. Entity picking
 
 - [ ] CPU ray casting against entity bounding boxes
 - [ ] Click in viewport to select entity (syncs with hierarchy panel)
 
-### 9e. Infinite grid (optional/toggleable)
+### 9g. Infinite grid (optional/toggleable)
 
 - [ ] Infinite ground plane grid rendered in world space
 - [ ] Fades with distance, major/minor grid lines
 - [ ] Toggle via View menu or hotkey
+
+---
+
+## Phase 10: Editor Polish & Theme System — DONE (partial)
+
+### 10a. Theme compliance — DONE
+
+All GUI widgets now read colors from `gui_theme_get()` at render time. Swapping themes via `gui_theme_set()` instantly updates all UI colors.
+
+- [x] `gui_text.c`: white fallback `{255,255,255,255}` → `t->text`
+- [x] `gui_field.c`: label color `{180,180,185,255}` → `t->text_dim`
+- [x] `gui_text_input.c`: bg/text/border hardcoded colors → `t->bg_input`, `t->text`, `t->border`
+- [x] `gui_panel.c` (separator): `{60,60,65,255}` → `t->separator`
+- [x] `ed_project_picker.c`: `{40,40,45,255}` → `t->control_press`
+- [x] `ed_layout.c` (tab strip): verbose `(Clay_Color){t->...r, ...g, ...b, 255}` → direct `t->bg_input`, `t->bg_secondary`
+- [x] Audited all `realm_editor/src/` and `engine/src/gui/` — remaining `{0,0,0,0}` literals are intentional "transparent"
+
+### 10b. Light entity visualization — DONE
+
+- [x] `scene_build_frame_data()` now emits a small (0.15x scale) unlit cube for light entities without explicit mesh components
+- [x] Drawn with the unlit pipeline (`RL_FRAME_MESH_KIND_UNLIT`) — pure white `vec4(1.0)` in both GL and VK shaders
+- [x] Count pass accounts for visualization cubes so arena allocation is correct
+- [x] Light defaults brightened: ambient `0.2→0.3`, diffuse `0.5→0.9` (new lights only; saved scenes keep their values)
+- [x] `RL_DEFAULT_POINT_LIGHT` constant updated to match
+
+### 10c. Asset browser double-click fix — DONE
+
+- [x] Removed `!is_dir` guard — directory-based models (e.g. `lion_head_4k.gltf/`) are now clickable
+- [x] Directory entries construct nested path `"models/<dirname>/<dirname>"` matching how `project_load_assets` registers them
+- [x] Single-click selects, double-click creates entity (0.4s threshold, matching `gui_file_browser` pattern)
+- [x] Added `time_acc`, `last_click_time`, `last_click_node_id` to `ed_asset_browser` struct
+- [x] `ed_asset_browser_render` signature updated to take `f32 dt`
+
+### 10d. Project default_scene fallback — DONE
+
+- [x] `project_open()` now falls back to `"scenes/default.scene"` when `default_scene` key is missing from project file
+- [x] Fixes `scene_save` error when opening older projects that predate the `default_scene` field
+
+### 10e. Theme dropdown & editor settings tab
+
+- [ ] Add theme selector dropdown (dark, catppuccin, etc.) in a new "Settings" center tab
+- [ ] Persist selected theme in `editor_state.toml`
+- [ ] Tab switching logic in viewport area (Viewport vs Settings)
 
 ---
 
@@ -409,7 +474,6 @@ With scene I/O in place, property editing becomes meaningful — changes can be 
 - Multiple viewports (offscreen render targets)
 - Play mode — launch game module inside editor with project path (F5 = play, Esc = stop)
 - Snap-to-grid
-- Editor preferences panel
 - Prefab system
 - Material system / material editor
 - Live sync — editor watches `.scene` files for external changes, game watches for editor saves
@@ -438,15 +502,24 @@ Phase 4: Project System & Config    ✓ done
     │               8b. Number input widget     ✓ done
     │               8c. Undo/redo system        ✓ done
     │
-    └── Phase 9: Viewport Interaction
-            9a. Editor camera              ✓ done
-            9b. Origin axis gizmo          ← next
-            9c. Transform gizmos
-            9d. Entity picking
-            9e. Infinite grid
+    ├── Phase 9: Viewport Interaction
+    │       9a. Editor camera              ✓ done
+    │       9b. Viewport 3D rendering      ✓ done
+    │       9c. Viewport tab bar           ✓ done
+    │       9d. Origin axis gizmo          ← next
+    │       9e. Transform gizmos
+    │       9f. Entity picking
+    │       9g. Infinite grid
+    │
+    └── Phase 10: Editor Polish & Theme
+            10a. Theme compliance          ✓ done
+            10b. Light visualization       ✓ done
+            10c. Asset browser fix         ✓ done
+            10d. Project fallback fix      ✓ done
+            10e. Theme dropdown/settings   ← next
 ```
 
-**Next session: Phase 9b (Origin Axis Gizmo) or Phase 9c (Transform Gizmos) or Phase 9d (Entity Picking).**
-Phase 8 is fully complete — property editing with drag-scrub, text editing, and undo/redo. Phase 9a editor camera is done with orbit/fly/zoom/frame-selection.
+**Next session: Phase 9d (Origin Axis Gizmo), Phase 9e (Transform Gizmos), Phase 9f (Entity Picking), or Phase 10e (Theme Dropdown & Settings Tab).**
+Phase 9b-c and 10a-d are complete. The editor viewport now renders 3D content correctly within its bounds, light entities have visible markers, asset browser double-click works for directory-based models, and all GUI colors are theme-driven.
 Name editing in the inspector is wired for keyboard but not yet clickable (no click-to-focus on the name text). Could be added as a small follow-up.
 Entity create/destroy undo action types exist but the recreation logic isn't wired — no UI for entity delete yet. Wire when adding context menu (Phase 2c) or delete hotkey.
