@@ -167,14 +167,13 @@ b8 gui_number_input_handle_key(gui_number_input_state *state, input_key *key) {
     case KEY_RIGHT:
         if (state->cursor < state->len) state->cursor++;
         break;
-    case KEY_ENTER: {
-        // Confirm: parse value, exit editing, clear focus
-        f32 parsed = (f32)strtod(state->buf, nullptr);
-        state->value = parsed;
-        state->editing = false;
+    case KEY_ENTER:
+        // Clear focus — gui_number_input()'s focus-loss handler will parse
+        // the buffer and set editing=false on the next render call.
+        // This ordering is critical: callers that sync state from external
+        // sources (e.g. settings config) skip the sync while editing=true.
         gui_focus_clear();
         return true;
-    }
     case KEY_ESCAPE:
         // Cancel: revert to drag_start_value and exit editing
         state->value = state->drag_start_value;

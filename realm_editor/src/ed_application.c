@@ -267,64 +267,67 @@ b8 create_editor(void) {
                 ed_camera_update(&app.camera, dt, &app.layout.viewport_bounds, &app.window);
             }
 
-            // Build and submit frame data from scene
-            Clay_BoundingBox vb = app.layout.viewport_bounds;
-            f32 vp_w = (vb.width > 0) ? vb.width : (f32)app.window.settings.width;
-            f32 vp_h = (vb.height > 0) ? vb.height : (f32)app.window.settings.height;
-            f32 aspect = vp_w / vp_h;
-
-            rl_frame_camera fc = {.valid = true};
-            camera_get_view(&app.camera.cam, fc.view);
-            camera_get_projection(&app.camera.cam, aspect, fc.projection, config_get()->renderer_backend);
-            glm_vec3_copy(app.camera.cam.pos, fc.position);
-
+            // Build and submit frame data — skip 3D scene when settings tab is active
             rl_frame_data frame = {0};
-            frame.show_grid = app.show_grid;
-            scene_build_frame_data(app.scene, &fc, &frame);
-            if (vb.width > 0 && vb.height > 0) {
-                frame.viewport_rect = (rl_viewport_rect){vb.x, vb.y, vb.width, vb.height};
-            }
 
-            // Resolve selected entity for gizmo
-            rl_entity gizmo_entity = RL_ENTITY_INVALID;
-            {
-                u32 sel = app.layout.hierarchy_tree.selected_id;
-                if (sel >= ED_ENTITY_NODE_BASE && app.scene) {
-                    u32 idx = sel - ED_ENTITY_NODE_BASE;
-                    rl_entity e = rl_entity_pack(idx, app.scene->entities.generation[idx]);
-                    if (scene_entity_is_alive(app.scene, e)) {
-                        gizmo_entity = e;
-                    }
+            if (app.layout.viewport_tab == 0) {
+                Clay_BoundingBox vb = app.layout.viewport_bounds;
+                f32 vp_w = (vb.width > 0) ? vb.width : (f32)app.window.settings.width;
+                f32 vp_h = (vb.height > 0) ? vb.height : (f32)app.window.settings.height;
+                f32 aspect = vp_w / vp_h;
+
+                rl_frame_camera fc = {.valid = true};
+                camera_get_view(&app.camera.cam, fc.view);
+                camera_get_projection(&app.camera.cam, aspect, fc.projection, config_get()->renderer_backend);
+                glm_vec3_copy(app.camera.cam.pos, fc.position);
+
+                frame.show_grid = app.show_grid;
+                scene_build_frame_data(app.scene, &fc, &frame);
+                if (vb.width > 0 && vb.height > 0) {
+                    frame.viewport_rect = (rl_viewport_rect){vb.x, vb.y, vb.width, vb.height};
                 }
-            }
 
-            // Build transform gizmo overlays
-            ed_gizmo_transform_build(&app.gizmo, app.scene, gizmo_entity, &frame);
-
-            // Update gizmo drag in progress
-            if (app.gizmo.dragging) {
-                ed_gizmo_drag_result dr = ed_gizmo_transform_frame_update(
-                    &app.gizmo, app.scene, &fc, &vb);
-                if (dr.scene_dirty) app.scene_dirty = true;
-                if (dr.drag_ended) {
-                    if (dr.transform_changed) {
-                        ed_undo_entry ue = {
-                            .action = ED_UNDO_TRANSFORM,
-                            .entity = dr.drag_entity,
-                            .transform = {.before = dr.before, .after = dr.after},
-                        };
-                        ed_undo_push(&app.undo, &ue);
-                    }
+                // Resolve selected entity for gizmo
+                rl_entity gizmo_entity = RL_ENTITY_INVALID;
+                {
                     u32 sel = app.layout.hierarchy_tree.selected_id;
-                    if (sel >= ED_ENTITY_NODE_BASE) {
+                    if (sel >= ED_ENTITY_NODE_BASE && app.scene) {
                         u32 idx = sel - ED_ENTITY_NODE_BASE;
                         rl_entity e = rl_entity_pack(idx, app.scene->entities.generation[idx]);
-                        ed_inspector_bind(&app.layout.inspector, app.scene, e);
+                        if (scene_entity_is_alive(app.scene, e)) {
+                            gizmo_entity = e;
+                        }
                     }
                 }
+
+                ed_gizmo_transform_build(&app.gizmo, app.scene, gizmo_entity, &frame);
+
+                // Update gizmo drag in progress
+                if (app.gizmo.dragging) {
+                    ed_gizmo_drag_result dr = ed_gizmo_transform_frame_update(
+                        &app.gizmo, app.scene, &fc, &vb);
+                    if (dr.scene_dirty) app.scene_dirty = true;
+                    if (dr.drag_ended) {
+                        if (dr.transform_changed) {
+                            ed_undo_entry ue = {
+                                .action = ED_UNDO_TRANSFORM,
+                                .entity = dr.drag_entity,
+                                .transform = {.before = dr.before, .after = dr.after},
+                            };
+                            ed_undo_push(&app.undo, &ue);
+                        }
+                        u32 sel = app.layout.hierarchy_tree.selected_id;
+                        if (sel >= ED_ENTITY_NODE_BASE) {
+                            u32 idx = sel - ED_ENTITY_NODE_BASE;
+                            rl_entity e = rl_entity_pack(idx, app.scene->entities.generation[idx]);
+                            ed_inspector_bind(&app.layout.inspector, app.scene, e);
+                        }
+                    }
+                }
+
+                ed_gizmo_build_axis_overlay(&app.camera, &vb, &frame);
             }
 
-            ed_gizmo_build_axis_overlay(&app.camera, &vb, &frame);
             renderer_submit_frame_data(&frame);
 
             gui_layout_begin((f32)dt);

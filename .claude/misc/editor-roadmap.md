@@ -657,7 +657,7 @@ Consolidated keyboard routing into one engine-level dispatcher, standardized wid
 - [x] Extended `gui_focus` with `gui_input_type` enum + `gui_focus_set_input()` for widget registration
 - [x] Widgets register via `gui_focus_set_input()` on click/edit — only the focused widget receives keys
 - [x] Added `submitted` flag to `gui_text_input_state` — set by router on Enter, cleared by caller
-- [x] Internalized Enter confirm in `gui_number_input_handle_key` (parses value, clears focus)
+- [x] Number input Enter confirm: `handle_key` only clears focus; `gui_number_input()`'s focus-loss handler does the actual parse/transition (critical for callers that sync state from external sources while `editing=true`)
 - [x] Removed per-panel key/char handlers from inspector, settings, console, project picker
 - [x] Console command submission via `submitted` flag in both `ed_console.c` and `app_console.c`
 - [x] Init order: console → picker → `gui_input_init()` → event handler (both editor and game host)
@@ -676,6 +676,7 @@ Consolidated keyboard routing into one engine-level dispatcher, standardized wid
 - [x] Extracted `ed_handle_requests()` — backend switch, save, new scene, undo/redo, close project, picker transition
 - [x] Main loop body reduced from ~180 to ~50 lines
 - [x] Removed unused `math/ray.h` and `platform/input.h` includes from `ed_application.c`
+- [x] Skip 3D scene submission when Settings tab is active — submit empty frame so the scene doesn't render behind the settings panel
 
 ### 14d. Text cursor improvements ✓ done
 
