@@ -4,6 +4,7 @@
     "adapter": "CodeLLDB",
     "request": "launch",
     "program": "${ZED_WORKTREE_ROOT}/build/debug/bin/Realm@EXE_SUFFIX@",
+    "args": ["--project", "${ZED_WORKTREE_ROOT}/realm/"],
     "cwd": "${ZED_WORKTREE_ROOT}/build/debug/bin",
     "build": {
       "command": "cmake",
@@ -26,6 +27,7 @@
     "adapter": "CodeLLDB",
     "request": "launch",
     "program": "${ZED_WORKTREE_ROOT}/build/profile/bin/Realm@EXE_SUFFIX@",
+    "args": ["--project", "${ZED_WORKTREE_ROOT}/realm/"],
     "cwd": "${ZED_WORKTREE_ROOT}/build/profile/bin",
     "build": {
       "command": "cmake",

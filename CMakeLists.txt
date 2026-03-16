@@ -98,7 +98,7 @@ endif ()
 if (TARGET RealmTests)
     add_custom_target(run_realm_checked
             COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --test-dir ${CMAKE_BINARY_DIR}
-            COMMAND $<TARGET_FILE:Realm>
+            COMMAND $<TARGET_FILE:Realm> --project ${CMAKE_SOURCE_DIR}/realm/
             DEPENDS Realm RealmTests
             WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
             USES_TERMINAL
@@ -106,7 +106,7 @@ if (TARGET RealmTests)
     )
 else ()
     add_custom_target(run_realm_checked
-            COMMAND $<TARGET_FILE:Realm>
+            COMMAND $<TARGET_FILE:Realm> --project ${CMAKE_SOURCE_DIR}/realm/
             DEPENDS Realm
             WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
             USES_TERMINAL

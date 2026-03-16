@@ -23,7 +23,7 @@ Phases 1–14 are complete. The editor and game host share a project system, sce
 
 ### Next priorities
 
-1. **Infrastructure cleanup**: ~~centralized TOML parser~~ ✓, consolidate `game/` project data into `realm/`, string utils consolidation (see `.claude/misc/string-utils-refactor.md`)
+1. **Infrastructure cleanup**: ~~centralized TOML parser~~ ✓, ~~consolidate `game/` project data into `realm/`~~ ✓, string utils consolidation (see `.claude/misc/string-utils-refactor.md`)
 2. **Behavior system**: name-addressed entity update functions — the architectural seam for future scripting language support
 3. **Project scaffolding**: "New Project" generates a buildable game module template
 4. **Binary scenes + export pipeline**: custom binary format for fast loading, editor export for shipping
@@ -73,25 +73,26 @@ Three independent hand-rolled TOML parsers existed (`config.c`, `project.c`, `ed
 
 ---
 
-## Phase 16: Project Consolidation
+## Phase 16: Project Consolidation ✓
 
-The `game/` directory is a standalone project directory that should live inside `realm/` — making `realm/` itself look like a real project (mirroring what a generated user project would be).
+Moved `game/` project data into `realm/`, making it a self-contained project directory. Fixed `project.realm` to use `[project]` section header (was using flat keys, falling back to defaults). Added `--project` args to CMake launch target and Zed debug configs.
 
-### 16a. Move project data into realm/
+### 16a. Move project data into realm/ ✓
 
-- [ ] Move `game/project.realm` → `realm/project.realm`
-- [ ] Move `game/assets/` → `realm/assets/` (textures, models, materials)
-- [ ] Move `game/scenes/` → `realm/scenes/`
-- [ ] Delete `game/` directory
-- [ ] Update `--project` default path / launch configs to point at `realm/`
-- [ ] Update `.gitignore` if needed
-- [ ] Verify: `Realm --project realm/` loads sandbox game correctly
+- [x] Move `game/project.realm` → `realm/project.realm` (added `[project]` section header)
+- [x] Move `game/assets/` → `realm/assets/` (textures, models, materials)
+- [x] Move `game/scenes/` → `realm/scenes/`
+- [x] Delete `game/` directory
+- [x] Update `--project` default path / launch configs to point at `realm/`
+- [x] `.gitignore` — no changes needed (no `game/`-specific entries)
+- [x] Verify: `Realm --project realm/` loads sandbox game correctly
 
-### 16b. Clean up references
+### 16b. Clean up references ✓
 
-- [ ] Update any hardcoded paths in code, CMake, or docs that reference `game/`
-- [ ] Update editor recent projects list if it cached old path
-- [ ] Verify: editor can open `realm/` as a project, save/load scenes
+- [x] Updated CMake `run_realm_checked` targets with `--project` arg
+- [x] Updated `.zed/debug.json.in` Debug Realm and Profile Realm entries with `--project` arg
+- [x] No hardcoded `game/` paths in C code — project path is always passed at runtime
+- [x] Editor recent projects stored in `editor_state.toml` at runtime — auto-updates on next open
 
 ---
 
@@ -244,7 +245,7 @@ Phase 1–14: Foundation                       ✓ all done
     │
     ├── Phase 15: Centralized TOML Parser    ✓ done
     │
-    ├── Phase 16: Project Consolidation      ○ next (independent of 15)
+    ├── Phase 16: Project Consolidation      ✓ done
     │
     └── Phase 17: Entity Behavior System     ○ depends on scene I/O (done)
             │
