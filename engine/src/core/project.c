@@ -5,6 +5,7 @@
 #include "memory/arena.h"
 #include "platform/io/file_io.h"
 #include "util/str.h"
+#include "util/toml.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -27,83 +28,6 @@ static void normalize_path(char *dst, u64 dst_size, const char *src) {
     dst[len] = '\0';
 }
 
-// Simple TOML-like line parser for project.realm
-static char s_current_table[32];
-
-static void project_parse_line(const char *line) {
-    while (*line == ' ' || *line == '\t') line++;
-    if (*line == '\0' || *line == '#' || *line == '\n' || *line == '\r') return;
-
-    // Table header
-    if (*line == '[') {
-        const char *end = strchr(line + 1, ']');
-        if (!end) return;
-        u32 len = (u32)(end - line - 1);
-        if (len >= sizeof(s_current_table)) return;
-        memcpy(s_current_table, line + 1, len);
-        s_current_table[len] = '\0';
-        return;
-    }
-
-    // Key = value
-    const char *eq = strchr(line, '=');
-    if (!eq) return;
-
-    // Extract key
-    char key[64] = {0};
-    u32 key_len = (u32)(eq - line);
-    if (key_len >= sizeof(key)) return;
-    memcpy(key, line, key_len);
-    key[key_len] = '\0';
-    // Trim key
-    char *k = key;
-    while (*k == ' ' || *k == '\t') k++;
-    char *kend = k + strlen(k) - 1;
-    while (kend > k && (*kend == ' ' || *kend == '\t')) { *kend = '\0'; kend--; }
-
-    // Build fully-qualified key
-    char fqk[96] = {0};
-    if (s_current_table[0]) {
-        snprintf(fqk, sizeof(fqk), "%s.%s", s_current_table, k);
-    } else {
-        snprintf(fqk, sizeof(fqk), "%s", k);
-    }
-
-    // Extract value
-    const char *v = eq + 1;
-    while (*v == ' ' || *v == '\t') v++;
-
-    // Strip quotes if present
-    char val_buf[256] = {0};
-    u32 vlen = 0;
-    while (v[vlen] && v[vlen] != '\n' && v[vlen] != '\r' && v[vlen] != '#' && vlen < sizeof(val_buf) - 1) {
-        vlen++;
-    }
-    memcpy(val_buf, v, vlen);
-    val_buf[vlen] = '\0';
-
-    // Trim trailing whitespace
-    char *val = val_buf;
-    while (*val == ' ' || *val == '\t') val++;
-    char *vend = val + strlen(val) - 1;
-    while (vend > val && (*vend == ' ' || *vend == '\t' || *vend == '\n' || *vend == '\r')) {
-        *vend = '\0';
-        vend--;
-    }
-
-    // Strip surrounding quotes
-    u32 val_len = (u32)strlen(val);
-    if (val_len >= 2 && val[0] == '"' && val[val_len - 1] == '"') {
-        val[val_len - 1] = '\0';
-        val++;
-    }
-
-    if (strcmp(fqk, "project.name") == 0) {
-        cstr_copy(state.name, sizeof(state.name), val);
-    } else if (strcmp(fqk, "project.default_scene") == 0) {
-        cstr_copy(state.default_scene, sizeof(state.default_scene), val);
-    }
-}
 
 b8 project_create(const char *path, const char *name) {
     if (!path || !path[0] || !name || !name[0]) {
@@ -180,16 +104,9 @@ rl_project *project_open(const char *path) {
         return nullptr;
     }
 
-    rl_file file = {0};
-    if (!platform_file_open(project_file.cstr, P_FILE_READ, &file)) {
-        RL_ERROR("project_open: failed to open '%s'", project_file.cstr);
-        arena_scratch_release(scratch);
-        return nullptr;
-    }
-
-    if (!platform_file_read_all(&file)) {
-        RL_ERROR("project_open: failed to read '%s'", project_file.cstr);
-        platform_file_close(&file);
+    toml_table *t = toml_parse_file(project_file.cstr);
+    if (!t) {
+        RL_ERROR("project_open: failed to parse '%s'", project_file.cstr);
         arena_scratch_release(scratch);
         return nullptr;
     }
@@ -200,22 +117,10 @@ rl_project *project_open(const char *path) {
     snprintf(state.asset_path, sizeof(state.asset_path), "%sassets/", root);
     snprintf(state.scenes_path, sizeof(state.scenes_path), "%sscenes/", root);
 
-    // Parse line by line
-    u64 buf_size = file.buf_len + 1;
-    char *text = rl_arena_push(scratch.arena, buf_size, false);
-    memcpy(text, file.buf, file.buf_len);
-    text[file.buf_len] = '\0';
+    cstr_copy(state.name, sizeof(state.name), toml_get_string(t, "project", "name", "Untitled"));
+    cstr_copy(state.default_scene, sizeof(state.default_scene), toml_get_string(t, "project", "default_scene", ""));
 
-    s_current_table[0] = '\0';
-    char *line = text;
-    while (line && *line) {
-        char *next = strchr(line, '\n');
-        if (next) { *next = '\0'; next++; }
-        project_parse_line(line);
-        line = next;
-    }
-
-    platform_file_close(&file);
+    toml_free(t);
     arena_scratch_release(scratch);
 
     // Default scene path if not specified in project file

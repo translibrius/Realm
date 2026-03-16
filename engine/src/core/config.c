@@ -4,6 +4,7 @@
 #include "core/logger.h"
 #include "memory/arena.h"
 #include "platform/io/file_io.h"
+#include "util/toml.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -112,201 +113,39 @@ rl_config config_defaults(void) {
     };
 }
 
-// --- TOML parsing helpers ---
-
-static char *trim_whitespace(char *s) {
-    while (*s == ' ' || *s == '\t') s++;
-    char *end = s + strlen(s) - 1;
-    while (end > s && (*end == ' ' || *end == '\t' || *end == '\n' || *end == '\r')) {
-        *end = '\0';
-        end--;
-    }
-    return s;
-}
-
-// Current table name tracked across lines during parsing
-static char current_table[32];
-
-static b8 config_parse_table_header(const char *line) {
-    while (*line == ' ' || *line == '\t') line++;
-    if (*line != '[') return false;
-    line++;
-
-    const char *end = strchr(line, ']');
-    if (!end) return false;
-
-    u32 len = (u32)(end - line);
-    if (len >= sizeof(current_table)) return false;
-    memcpy(current_table, line, len);
-    current_table[len] = '\0';
-    return true;
-}
-
-static void config_parse_line(const char *line) {
-    while (*line == ' ' || *line == '\t') line++;
-    if (*line == '\0' || *line == '#' || *line == '\n' || *line == '\r') {
-        return;
-    }
-
-    // Table header
-    if (*line == '[') {
-        config_parse_table_header(line);
-        return;
-    }
-
-    // Find '='
-    const char *eq = strchr(line, '=');
-    if (!eq) return;
-
-    // Extract key (before '=')
-    char key[64] = {0};
-    u32 key_len = (u32)(eq - line);
-    if (key_len >= sizeof(key)) return;
-    memcpy(key, line, key_len);
-    key[key_len] = '\0';
-
-    // Trim key
-    char *k = key;
-    while (*k == ' ' || *k == '\t') k++;
-    char *kend = k + strlen(k) - 1;
-    while (kend > k && (*kend == ' ' || *kend == '\t')) {
-        *kend = '\0';
-        kend--;
-    }
-
-    // Build fully-qualified key: "table.key"
-    char fqk[96] = {0};
-    if (current_table[0]) {
-        snprintf(fqk, sizeof(fqk), "%s.%s", current_table, k);
-    } else {
-        snprintf(fqk, sizeof(fqk), "%s", k);
-    }
-
-    // Extract value (after '=')
-    char val_buf[128] = {0};
-    const char *v = eq + 1;
-    while (*v == ' ' || *v == '\t') v++;
-
-    u32 vlen = 0;
-    while (v[vlen] && v[vlen] != '\n' && v[vlen] != '\r' && v[vlen] != '#' && vlen < sizeof(val_buf) - 1) {
-        vlen++;
-    }
-    memcpy(val_buf, v, vlen);
-    val_buf[vlen] = '\0';
-
-    // Trim trailing whitespace from value
-    char *val = trim_whitespace(val_buf);
-
-    // Determine value type and apply
-    rl_config *cfg = &state->config;
-
-    // Check if quoted string (enum)
-    u32 val_len = (u32)strlen(val);
-    if (val_len >= 2 && val[0] == '"' && val[val_len - 1] == '"') {
-        // Strip quotes
-        val[val_len - 1] = '\0';
-        char *str_val = val + 1;
-
-        i32 enum_val;
-        if (strcmp(fqk, "window.mode") == 0) {
-            if (enum_from_str(window_mode_names, str_val, &enum_val)) {
-                cfg->window_mode = (PLATFORM_WINDOW_MODE)enum_val;
-            } else {
-                RL_WARN("Config: unknown window.mode '%s', using default", str_val);
-            }
-        } else if (strcmp(fqk, "renderer.backend") == 0) {
-            if (enum_from_str(backend_names, str_val, &enum_val)) {
-                cfg->renderer_backend = (RENDERER_BACKEND)enum_val;
-            } else {
-                RL_WARN("Config: unknown renderer.backend '%s', using default", str_val);
-            }
-        } else if (strcmp(fqk, "engine.log_level") == 0) {
-            if (enum_from_str(log_level_names, str_val, &enum_val)) {
-                cfg->log_level = (LOG_LEVEL)enum_val;
-            } else {
-                RL_WARN("Config: unknown engine.log_level '%s', using default", str_val);
-            }
-        } else if (strcmp(fqk, "renderer.msaa") == 0) {
-            if (enum_from_str(msaa_names, str_val, &enum_val)) {
-                cfg->msaa = (MSAA_SAMPLES)enum_val;
-            } else {
-                RL_WARN("Config: unknown renderer.msaa '%s', using default", str_val);
-            }
-        }
-        return;
-    }
-
-    // Boolean
-    if (strcmp(val, "true") == 0 || strcmp(val, "false") == 0) {
-        b8 bool_val = strcmp(val, "true") == 0;
-        if (strcmp(fqk, "renderer.vsync") == 0) {
-            cfg->vsync = bool_val;
-        }
-        return;
-    }
-
-    // Float (contains '.')
-    char *endptr = nullptr;
-    if (strchr(val, '.')) {
-        f64 float_val = strtod(val, &endptr);
-        if (endptr != val && *endptr == '\0') {
-            if (strcmp(fqk, "camera.fov") == 0)              cfg->fov = (f32)float_val;
-            else if (strcmp(fqk, "camera.sensitivity") == 0) cfg->mouse_sensitivity = (f32)float_val;
-        }
-        return;
-    }
-
-    // Integer
-    i64 int_val = strtol(val, &endptr, 10);
-    if (endptr != val && *endptr == '\0') {
-        if (strcmp(fqk, "window.width") == 0)       cfg->window_width = (i32)int_val;
-        else if (strcmp(fqk, "window.height") == 0)  cfg->window_height = (i32)int_val;
-        else if (strcmp(fqk, "window.x") == 0)       cfg->window_x = (i32)int_val;
-        else if (strcmp(fqk, "window.y") == 0)       cfg->window_y = (i32)int_val;
-    }
-}
-
 // --- Load / Save ---
 
 static b8 config_load(void) {
-    if (!platform_file_exists(state->filename)) {
+    toml_table *t = toml_parse_file(state->filename);
+    if (!t) {
         RL_INFO("No config file found, using defaults");
         return false;
     }
 
-    rl_file file = {0};
-    if (!platform_file_open(state->filename, P_FILE_READ, &file)) {
-        RL_WARN("Failed to open config file, using defaults");
-        return false;
-    }
+    rl_config *cfg = &state->config;
+    cfg->window_width      = toml_get_int(t, "window", "width", cfg->window_width);
+    cfg->window_height     = toml_get_int(t, "window", "height", cfg->window_height);
+    cfg->window_x          = toml_get_int(t, "window", "x", cfg->window_x);
+    cfg->window_y          = toml_get_int(t, "window", "y", cfg->window_y);
+    cfg->vsync             = toml_get_bool(t, "renderer", "vsync", cfg->vsync);
+    cfg->fov               = toml_get_float(t, "camera", "fov", cfg->fov);
+    cfg->mouse_sensitivity = toml_get_float(t, "camera", "sensitivity", cfg->mouse_sensitivity);
 
-    if (!platform_file_read_all(&file)) {
-        RL_WARN("Failed to read config file, using defaults");
-        platform_file_close(&file);
-        return false;
-    }
+    const char *s;
+    i32 v;
+    s = toml_get_string(t, "window", "mode", nullptr);
+    if (s && enum_from_str(window_mode_names, s, &v)) cfg->window_mode = (PLATFORM_WINDOW_MODE)v;
 
-    // Parse line by line (work on a mutable copy since buf may not be null-terminated)
-    rl_temp_arena scratch = rl_arena_scratch_get();
-    u64 buf_size = file.buf_len + 1;
-    char *text = rl_arena_push(scratch.arena, buf_size, false);
-    memcpy(text, file.buf, file.buf_len);
-    text[file.buf_len] = '\0';
+    s = toml_get_string(t, "renderer", "backend", nullptr);
+    if (s && enum_from_str(backend_names, s, &v)) cfg->renderer_backend = (RENDERER_BACKEND)v;
 
-    current_table[0] = '\0';
-    char *line = text;
-    while (line && *line) {
-        char *next = strchr(line, '\n');
-        if (next) {
-            *next = '\0';
-            next++;
-        }
-        config_parse_line(line);
-        line = next;
-    }
+    s = toml_get_string(t, "engine", "log_level", nullptr);
+    if (s && enum_from_str(log_level_names, s, &v)) cfg->log_level = (LOG_LEVEL)v;
 
-    arena_scratch_release(scratch);
-    platform_file_close(&file);
+    s = toml_get_string(t, "renderer", "msaa", nullptr);
+    if (s && enum_from_str(msaa_names, s, &v)) cfg->msaa = (MSAA_SAMPLES)v;
+
+    toml_free(t);
 
     state->config.loaded = true;
     RL_INFO("Config loaded from '%s'", state->filename);

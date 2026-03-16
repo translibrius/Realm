@@ -44,6 +44,7 @@ Key rules:
 
 - Types: `u8`, `i32`, `f32`, `b8` from `engine/include/defines.h` — not `size_t` or bare `int`.
 - Logging: `RL_INFO` / `RL_DEBUG` / `RL_ERROR` / `RL_FATAL` — not `printf`.
+- Strings: `cstr_copy` / `cstr_format_buf` / `cstr_len` / `cstr_eq` from `engine/include/util/str.h` — not `strcpy` / `snprintf` / `strlen` / `strcmp`. If the needed utility doesn't exist, add it to `str.h` rather than using raw C.
 - Platform code stays in `engine/src/platform/`.
 - Straight C with explicit structs and function tables. No unnecessary abstraction layers.
 - Don't change global build flags silently.
