@@ -18,7 +18,6 @@ typedef struct ed_project_picker {
     gui_text_input_state path_input;
     gui_text_input_state name_input;
     char error_msg[256];
-    u8 focused_input;   // 0=path, 1=name
     b8 project_selected;
     b8 active;
     gui_file_browser_state file_browser;

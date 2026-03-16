@@ -5,6 +5,7 @@
 #include "asset/asset.h"
 #include "core/event.h"
 #include "core/logger.h"
+#include "gui/gui_focus.h"
 #include "core/project.h"
 #include "gui/gui_button.h"
 #include "gui/gui_clay.h"
@@ -31,10 +32,9 @@ static b8 on_key_press(void *data, void *user_data) {
 
     // Tab cycles focus between inputs in new project view
     if (key->key == KEY_TAB && picker->view == ED_PICKER_NEW_PROJECT) {
-        picker->focused_input = picker->focused_input == 0 ? 1 : 0;
-        // Reset blink so caret is immediately visible on newly focused input
-        gui_text_input_state *next = picker->focused_input == 0
-            ? &picker->path_input : &picker->name_input;
+        gui_text_input_state *next = gui_focus_is(picker->path_input._id)
+            ? &picker->name_input : &picker->path_input;
+        gui_focus_set(next->_id);
         next->cursor_blink = 0;
         return true;
     }
@@ -49,18 +49,6 @@ static b8 on_key_press(void *data, void *user_data) {
         return false;
     }
 
-    // Route to focused input
-    gui_text_input_state *target = nullptr;
-    if (picker->view == ED_PICKER_NEW_PROJECT) {
-        target = picker->focused_input == 0 ? &picker->path_input : &picker->name_input;
-    } else if (picker->view == ED_PICKER_OPEN_PROJECT) {
-        target = &picker->path_input;
-    }
-
-    if (target) {
-        return gui_text_input_handle_key(target, key);
-    }
-
     return false;
 }
 
@@ -70,18 +58,6 @@ static b8 on_char_input(void *data, void *user_data) {
 
     if (picker->file_browser.status == GUI_FILE_BROWSER_OPEN) {
         return gui_file_browser_handle_char(&picker->file_browser, data);
-    }
-
-    gui_text_input_state *target = nullptr;
-    if (picker->view == ED_PICKER_NEW_PROJECT) {
-        target = picker->focused_input == 0 ? &picker->path_input : &picker->name_input;
-    } else if (picker->view == ED_PICKER_OPEN_PROJECT) {
-        target = &picker->path_input;
-    }
-
-    if (target) {
-        gui_text_input_handle_char(target, data);
-        return true;
     }
 
     return false;
@@ -145,6 +121,17 @@ static void picker_try_create(ed_project_picker *picker, ed_application *app) {
 void ed_project_picker_render(ed_project_picker *picker, ed_application *app, f32 dt) {
     if (!picker || !app) return;
 
+    // Handle Enter-triggered submit from centralized router
+    if (picker->path_input.submitted || picker->name_input.submitted) {
+        picker->path_input.submitted = false;
+        picker->name_input.submitted = false;
+        if (picker->view == ED_PICKER_NEW_PROJECT) {
+            picker_try_create(picker, app);
+        } else if (picker->view == ED_PICKER_OPEN_PROJECT) {
+            picker_try_open(picker, app, picker->path_input.buf);
+        }
+    }
+
     const gui_theme *t = gui_theme_get();
     u16 font = gui_font_id(asset_find(RL_ASSET_FONT_JETBRAINS_MONO));
     gui_text_cfg title_text = {.color = t->text, .size = 22, .font = font};
@@ -204,13 +191,11 @@ void ed_project_picker_render(ed_project_picker *picker, ed_application *app, f3
                         picker->error_msg[0] = '\0';
                         memset(&picker->path_input, 0, sizeof(picker->path_input));
                         memset(&picker->name_input, 0, sizeof(picker->name_input));
-                        picker->focused_input = 0;
                     }
                     if (gui_text_button("Open Project", &btn_cfg, &label_text).clicked) {
                         picker->view = ED_PICKER_OPEN_PROJECT;
                         picker->error_msg[0] = '\0';
                         memset(&picker->path_input, 0, sizeof(picker->path_input));
-                        picker->focused_input = 0;
                     }
                 }
 
@@ -267,14 +252,20 @@ void ed_project_picker_render(ed_project_picker *picker, ed_application *app, f3
                                               GUI_FILE_BROWSER_DIRECTORY, init, nullptr);
                     }
                 }
-                gui_text_input_render(&picker->path_input,
-                    picker->focused_input == 0 ? dt : 0,
-                    picker->focused_input == 0 ? &input_cfg : &input_cfg_dim);
+                {
+                    b8 path_focused = gui_focus_is(picker->path_input._id);
+                    gui_text_input_render(&picker->path_input,
+                        path_focused ? dt : 0,
+                        path_focused ? &input_cfg : &input_cfg_dim);
+                }
 
                 gui_text("Project Name:", &label_text);
-                gui_text_input_render(&picker->name_input,
-                    picker->focused_input == 1 ? dt : 0,
-                    picker->focused_input == 1 ? &input_cfg : &input_cfg_dim);
+                {
+                    b8 name_focused = gui_focus_is(picker->name_input._id);
+                    gui_text_input_render(&picker->name_input,
+                        name_focused ? dt : 0,
+                        name_focused ? &input_cfg : &input_cfg_dim);
+                }
 
                 if (picker->error_msg[0]) {
                     gui_text(picker->error_msg, &error_text);

@@ -114,17 +114,10 @@ RL_TEST(text_input_display_caret) {
     type_char(&s, 'a');
     type_char(&s, 'b');
 
-    // Focus the input so the caret is visible
-    // _id is auto-assigned by display(); call once to assign, then focus
-    char tmp[64];
-    gui_text_input_display(&s, 0.0f, tmp, sizeof(tmp));
-    gui_focus_set(s._id);
-
+    // display() now returns plain buffer content (cursor is a pixel-rect overlay)
     char out[64];
-    // dt=0 means cursor_blink stays at 0 which is < 0.5, so caret is visible
     gui_text_input_display(&s, 0.0f, out, sizeof(out));
-    // Caret should appear as '|' at cursor position (end)
-    RL_EXPECT_STR_EQ(out, "ab|");
+    RL_EXPECT_STR_EQ(out, "ab");
 }
 
 void register_text_input_tests(void) {

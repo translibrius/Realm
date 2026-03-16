@@ -153,6 +153,29 @@ void gui_button_frame_reset_(void);
 void gui_panel_frame_reset_(void);
 void gui_icon_frame_reset_(void);
 
+f32 gui_measure_text_width(const char *text, u16 len, u16 font_id, u16 font_size) {
+    if (!text || len == 0) return 0;
+
+    rl_font *font = nullptr;
+    if (font_id < state.font_count) {
+        font = state.fonts[font_id].font;
+    }
+    if (!font && state.font_count > 0) {
+        font = state.fonts[0].font;
+    }
+    if (!font) return 0;
+
+    f32 size_px = (f32)font_size;
+    f32 width = 0;
+    for (u16 i = 0; i < len; i++) {
+        u32 cp = (u32)(unsigned char)text[i];
+        const rl_glyph *g = (cp < 256) ? font->glyph_map[cp] : nullptr;
+        if (!g) continue;
+        width += g->advance * size_px;
+    }
+    return width;
+}
+
 void gui_layout_begin(f32 dt) {
     gui_focus_begin_frame();
     gui_begin_frame(dt);

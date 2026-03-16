@@ -1,7 +1,9 @@
 #include "ed_gizmo_transform.h"
 
+#include "cglm.h"
 #include "engine.h"
 #include "memory/arena.h"
+#include "platform/input.h"
 
 #include <math.h>
 #include <string.h>
@@ -495,4 +497,47 @@ b8 ed_gizmo_transform_drag_end(ed_gizmo_transform *g) {
     if (!g || !g->dragging) return false;
     g->dragging = false;
     return true; // caller checks actual delta via drag_start_transform
+}
+
+ed_gizmo_drag_result ed_gizmo_transform_frame_update(
+    ed_gizmo_transform *g, rl_scene *scene,
+    const rl_frame_camera *fc, const Clay_BoundingBox *vb) {
+    ed_gizmo_drag_result result = {0};
+    if (!g || !scene || !g->dragging) return result;
+
+    // Construct ray from current mouse position
+    vec2 mpos;
+    input_get_mouse_position(mpos);
+    rl_viewport_rect vp = {vb->x, vb->y, vb->width, vb->height};
+
+    mat4 view_copy, proj_copy, inv_view, inv_proj;
+    memcpy(view_copy, fc->view, sizeof(mat4));
+    memcpy(proj_copy, fc->projection, sizeof(mat4));
+    glm_mat4_inv(view_copy, inv_view);
+    glm_mat4_inv(proj_copy, inv_proj);
+
+    rl_ray ray = ray_from_screen(mpos[0], mpos[1],
+                                  vp.x, vp.y, vp.w, vp.h,
+                                  inv_view, inv_proj);
+    ed_gizmo_transform_drag_update(g, scene, &ray);
+    result.scene_dirty = true;
+
+    // End drag when mouse released
+    if (!input_is_mouse_down(MOUSE_LEFT)) {
+        result.drag_entity = g->drag_entity;
+        result.before = g->drag_start_transform;
+        if (ed_gizmo_transform_drag_end(g)) {
+            result.drag_ended = true;
+            rl_transform *after = transform_get(&scene->components, result.drag_entity);
+            if (after) {
+                result.after = *after;
+                result.transform_changed =
+                    glm_vec3_distance(result.before.position, after->position) > 1e-5f
+                    || glm_vec3_distance(result.before.rotation, after->rotation) > 1e-5f
+                    || glm_vec3_distance(result.before.scale, after->scale) > 1e-5f;
+            }
+        }
+    }
+
+    return result;
 }

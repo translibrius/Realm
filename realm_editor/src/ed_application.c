@@ -11,12 +11,11 @@
 #include "ed_inspector.h"
 #include "ed_picking.h"
 #include "ed_settings.h"
-#include "math/ray.h"
-#include "platform/input.h"
 #include "engine.h"
 #include "cglm.h"
 #include "clay.h"
 #include "gui/gui.h"
+#include "gui/gui_input.h"
 #include "gui/gui_theme.h"
 #include "host/host_bootstrap.h"
 #include "host/host_renderer.h"
@@ -150,6 +149,64 @@ static void ed_enter_picker_mode(void) {
     RL_INFO("Picker mode entered");
 }
 
+static void ed_handle_requests(void) {
+    if (app.backend_switch_requested) {
+        app.backend_switch_requested = false;
+        ed_switch_backend(app.requested_backend);
+    }
+
+    if (app.mode == ED_MODE_EDITOR && app.save_scene_requested) {
+        app.save_scene_requested = false;
+        if (app.scene_path[0]) {
+            ed_save_scene(app.scene_path);
+        } else {
+            char abs_path[512];
+            ed_build_scene_abs_path(abs_path, sizeof(abs_path));
+            if (abs_path[0]) ed_save_scene(abs_path);
+        }
+    }
+
+    if (app.mode == ED_MODE_EDITOR && app.new_scene_requested) {
+        app.new_scene_requested = false;
+        ed_new_scene();
+    }
+
+    if (app.mode == ED_MODE_EDITOR && app.undo_requested) {
+        app.undo_requested = false;
+        if (ed_undo_perform(&app.undo, app.scene)) {
+            u32 sel = app.layout.hierarchy_tree.selected_id;
+            if (sel >= ED_ENTITY_NODE_BASE) {
+                u32 idx = sel - ED_ENTITY_NODE_BASE;
+                rl_entity e = rl_entity_pack(idx, app.scene->entities.generation[idx]);
+                ed_inspector_bind(&app.layout.inspector, app.scene, e);
+            }
+            app.scene_dirty = true;
+        }
+    }
+
+    if (app.mode == ED_MODE_EDITOR && app.redo_requested) {
+        app.redo_requested = false;
+        if (ed_undo_redo(&app.undo, app.scene)) {
+            u32 sel = app.layout.hierarchy_tree.selected_id;
+            if (sel >= ED_ENTITY_NODE_BASE) {
+                u32 idx = sel - ED_ENTITY_NODE_BASE;
+                rl_entity e = rl_entity_pack(idx, app.scene->entities.generation[idx]);
+                ed_inspector_bind(&app.layout.inspector, app.scene, e);
+            }
+            app.scene_dirty = true;
+        }
+    }
+
+    if (app.mode == ED_MODE_EDITOR && app.close_project_requested) {
+        app.close_project_requested = false;
+        ed_enter_picker_mode();
+    }
+
+    if (app.mode == ED_MODE_PICKER && app.picker.project_selected) {
+        ed_enter_editor_mode();
+    }
+}
+
 b8 create_editor(void) {
     app.focused = true;
     app.backend_switch_requested = false;
@@ -171,6 +228,9 @@ b8 create_editor(void) {
 
     // Picker registers before event handler so it can consume input in picker mode
     ed_project_picker_init(&app.picker);
+
+    // Centralized key/char router for focused widgets (between picker and editor hotkeys)
+    gui_input_init();
 
     ed_event_handler_init(&app.event_handler, &app);
 
@@ -241,45 +301,20 @@ b8 create_editor(void) {
             // Build transform gizmo overlays
             ed_gizmo_transform_build(&app.gizmo, app.scene, gizmo_entity, &frame);
 
-            // Update drag in progress
+            // Update gizmo drag in progress
             if (app.gizmo.dragging) {
-                vec2 mpos;
-                input_get_mouse_position(mpos);
-                rl_viewport_rect vp = {vb.x, vb.y, vb.width, vb.height};
-
-                mat4 view_copy, proj_copy, inv_view, inv_proj;
-                glm_mat4_copy(fc.view, view_copy);
-                glm_mat4_copy(fc.projection, proj_copy);
-                glm_mat4_inv(view_copy, inv_view);
-                glm_mat4_inv(proj_copy, inv_proj);
-
-                rl_ray ray = ray_from_screen(mpos[0], mpos[1],
-                                              vp.x, vp.y, vp.w, vp.h,
-                                              inv_view, inv_proj);
-                ed_gizmo_transform_drag_update(&app.gizmo, app.scene, &ray);
-                app.scene_dirty = true;
-
-                // End drag when mouse released
-                if (!input_is_mouse_down(MOUSE_LEFT)) {
-                    rl_entity drag_e = app.gizmo.drag_entity;
-                    rl_transform before = app.gizmo.drag_start_transform;
-                    if (ed_gizmo_transform_drag_end(&app.gizmo)) {
-                        rl_transform *after = transform_get(&app.scene->components, drag_e);
-                        if (after) {
-                            b8 changed = glm_vec3_distance(before.position, after->position) > 1e-5f
-                                      || glm_vec3_distance(before.rotation, after->rotation) > 1e-5f
-                                      || glm_vec3_distance(before.scale,    after->scale)    > 1e-5f;
-                            if (changed) {
-                                ed_undo_entry ue = {
-                                    .action = ED_UNDO_TRANSFORM,
-                                    .entity = drag_e,
-                                    .transform = {.before = before, .after = *after},
-                                };
-                                ed_undo_push(&app.undo, &ue);
-                            }
-                        }
+                ed_gizmo_drag_result dr = ed_gizmo_transform_frame_update(
+                    &app.gizmo, app.scene, &fc, &vb);
+                if (dr.scene_dirty) app.scene_dirty = true;
+                if (dr.drag_ended) {
+                    if (dr.transform_changed) {
+                        ed_undo_entry ue = {
+                            .action = ED_UNDO_TRANSFORM,
+                            .entity = dr.drag_entity,
+                            .transform = {.before = dr.before, .after = dr.after},
+                        };
+                        ed_undo_push(&app.undo, &ue);
                     }
-                    // Rebind inspector
                     u32 sel = app.layout.hierarchy_tree.selected_id;
                     if (sel >= ED_ENTITY_NODE_BASE) {
                         u32 idx = sel - ED_ENTITY_NODE_BASE;
@@ -310,66 +345,7 @@ b8 create_editor(void) {
         }
 
         rl_engine_end_frame();
-
-        if (app.backend_switch_requested) {
-            app.backend_switch_requested = false;
-            ed_switch_backend(app.requested_backend);
-        }
-
-        // Handle scene save request
-        if (app.mode == ED_MODE_EDITOR && app.save_scene_requested) {
-            app.save_scene_requested = false;
-            if (app.scene_path[0]) {
-                ed_save_scene(app.scene_path);
-            } else {
-                char abs_path[512];
-                ed_build_scene_abs_path(abs_path, sizeof(abs_path));
-                if (abs_path[0]) ed_save_scene(abs_path);
-            }
-        }
-
-        // Handle new scene request
-        if (app.mode == ED_MODE_EDITOR && app.new_scene_requested) {
-            app.new_scene_requested = false;
-            ed_new_scene();
-        }
-
-        // Handle undo/redo requests (from menu or hotkey)
-        if (app.mode == ED_MODE_EDITOR && app.undo_requested) {
-            app.undo_requested = false;
-            if (ed_undo_perform(&app.undo, app.scene)) {
-                u32 sel = app.layout.hierarchy_tree.selected_id;
-                if (sel >= ED_ENTITY_NODE_BASE) {
-                    u32 idx = sel - ED_ENTITY_NODE_BASE;
-                    rl_entity e = rl_entity_pack(idx, app.scene->entities.generation[idx]);
-                    ed_inspector_bind(&app.layout.inspector, app.scene, e);
-                }
-                app.scene_dirty = true;
-            }
-        }
-        if (app.mode == ED_MODE_EDITOR && app.redo_requested) {
-            app.redo_requested = false;
-            if (ed_undo_redo(&app.undo, app.scene)) {
-                u32 sel = app.layout.hierarchy_tree.selected_id;
-                if (sel >= ED_ENTITY_NODE_BASE) {
-                    u32 idx = sel - ED_ENTITY_NODE_BASE;
-                    rl_entity e = rl_entity_pack(idx, app.scene->entities.generation[idx]);
-                    ed_inspector_bind(&app.layout.inspector, app.scene, e);
-                }
-                app.scene_dirty = true;
-            }
-        }
-
-        // Handle close project request from menu
-        if (app.mode == ED_MODE_EDITOR && app.close_project_requested) {
-            app.close_project_requested = false;
-            ed_enter_picker_mode();
-        }
-
-        // Check if picker selected a project
-        if (app.mode == ED_MODE_PICKER && app.picker.project_selected) {
-            ed_enter_editor_mode();
-        }
+        ed_handle_requests();
     }
 
     if (app.scene) {

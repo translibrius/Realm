@@ -647,46 +647,43 @@ Visual refinements and missing interactive elements to make the editor feel like
 
 ---
 
-## Phase 14: GUI Architecture Refactor (planned)
+## Phase 14: GUI Architecture Refactor ✓ done
 
-The GUI subsystem has grown organically. Focus management, keyboard routing, and widget interaction patterns are scattered across per-widget and per-editor-panel code. This phase consolidates them into proper subsystems.
+Consolidated keyboard routing into one engine-level dispatcher, standardized widget lifecycle around `gui_focus`, extracted gizmo logic from the main loop, and replaced the pipe cursor with a pixel-rect overlay.
 
-### 14a. Centralized keyboard routing
+### 14a. Centralized keyboard routing ✓ done
 
-Currently each panel (inspector, settings, console, project picker) registers its own `EVENT_KEY_PRESS` / `EVENT_CHAR_INPUT` handlers that check if their widgets are editing. This duplicates the same "find editing widget → forward key" pattern.
+- [x] Created `engine/include/gui/gui_input.h` + `engine/src/gui/gui_input.c` — single KEY_PRESS/CHAR_INPUT dispatcher
+- [x] Extended `gui_focus` with `gui_input_type` enum + `gui_focus_set_input()` for widget registration
+- [x] Widgets register via `gui_focus_set_input()` on click/edit — only the focused widget receives keys
+- [x] Added `submitted` flag to `gui_text_input_state` — set by router on Enter, cleared by caller
+- [x] Internalized Enter confirm in `gui_number_input_handle_key` (parses value, clears focus)
+- [x] Removed per-panel key/char handlers from inspector, settings, console, project picker
+- [x] Console command submission via `submitted` flag in both `ed_console.c` and `app_console.c`
+- [x] Init order: console → picker → `gui_input_init()` → event handler (both editor and game host)
 
-- [ ] Create `engine/include/gui/gui_input.h` + `engine/src/gui/gui_input.c`
-- [ ] Single pair of event handlers registered once at GUI init
-- [ ] Widgets register/unregister themselves as keyboard targets when entering/exiting editing mode
-- [ ] Uses the global focus ID to dispatch — only the focused widget receives keys
-- [ ] Remove per-panel key/char handlers from inspector, settings, console, project picker
+### 14b. Widget lifecycle standardization ✓ done
 
-### 14b. Widget lifecycle standardization
+- [x] All editing widgets (text input, number input) use `gui_focus_set_input()` consistently
+- [x] Removed `focused_input` pointer from `ed_inspector` — `gui_focus_get() != 0` guards editor hotkeys
+- [x] Removed `name_focused` flag — name text input uses `gui_focus_is(name_input._id)` via standard focus
+- [x] Removed `focused_input` from `ed_project_picker` — Tab cycling uses `gui_focus_set(next->_id)`
+- [x] Removed `update_focus()` helper and all 13 call sites from inspector
 
-Widgets use inconsistent patterns: some have `_init/_shutdown`, some use lazy static init, some are pure immediate-mode. The focus system added `_id` to `gui_text_input_state` but not all widgets auto-assign it consistently.
+### 14c. Editor main loop cleanup ✓ done
 
-- [ ] Establish clear lifecycle: all stateful widgets get `_id` auto-assigned on first render
-- [ ] All editing widgets (text input, number input) use `gui_focus_set/is` consistently
-- [ ] Remove `focused_input` pointer from `ed_inspector` — use global focus ID to check if any inspector widget is active
-- [ ] Remove `name_focused` flag — wire name text input click-to-focus via the standard focus system
+- [x] Extracted `ed_gizmo_transform_frame_update()` — encapsulates ray construction, drag update, mouse release, transform delta detection
+- [x] Extracted `ed_handle_requests()` — backend switch, save, new scene, undo/redo, close project, picker transition
+- [x] Main loop body reduced from ~180 to ~50 lines
+- [x] Removed unused `math/ray.h` and `platform/input.h` includes from `ed_application.c`
 
-### 14c. Editor main loop cleanup
+### 14d. Text cursor improvements ✓ done
 
-`ed_application.c` has grown into a monolithic 300+ line update/render function that mixes input handling, gizmo updates, scene management, camera updates, frame data submission, and GUI layout.
-
-- [ ] Extract `ed_frame_update(app, dt)` — input processing, camera, gizmo drag, undo/redo
-- [ ] Extract `ed_frame_render(app, dt)` — scene frame data, overlay submission, GUI layout
-- [ ] Move gizmo drag update logic from `ed_application.c` to `ed_gizmo_transform.c`
-- [ ] Move scene dirty tracking and auto-save logic to a helper
-
-### 14d. Text cursor improvements
-
-The caret is rendered as a `|` character inserted into the display string, which shifts subsequent characters and makes the cursor appear fat (it's a full glyph width).
-
-- [ ] Render caret as a 1-2px wide rect overlay at the cursor pixel position
-- [ ] Compute cursor X from glyph advances up to cursor position
-- [ ] Remove `|` insertion from `gui_text_input_display()` and number input render
-- [ ] Caret color from theme (`t->text` or `t->accent`)
+- [x] Added `gui_measure_text_width()` API to `gui.h`/`gui.c` — sums glyph advances using font table
+- [x] Render caret as a 1.5px wide floating Clay rect overlay at the cursor pixel position
+- [x] Removed `|` insertion from `gui_text_input_display()` and number input editing render
+- [x] Added floating cursor rects in `gui_text_input_render()`, `gui_number_input()`, `ed_console.c`, `app_console.c`
+- [x] Caret color from theme (`t->text`), blinks at 0.5s on/off
 
 ---
 
@@ -765,15 +762,13 @@ Phase 4: Project System & Config    ✓ done
     │       13f. Scrollbar drag            ✓ done
     │       13g. Settings config sync      ✓ done
     │
-    └── Phase 14: GUI Architecture Refactor    ⬜ planned
-            14a. Centralized keyboard routing  ⬜
-            14b. Widget lifecycle standard.    ⬜
-            14c. Editor main loop cleanup      ⬜
-            14d. Text cursor improvements      ⬜
+    └── Phase 14: GUI Architecture Refactor    ✓ done
+            14a. Centralized keyboard routing  ✓ done
+            14b. Widget lifecycle standard.    ✓ done
+            14c. Editor main loop cleanup      ✓ done
+            14d. Text cursor improvements      ✓ done
 ```
 
 Remaining loose ends:
-- Name editing in the inspector is wired for keyboard but not yet clickable (no click-to-focus on the name text). Planned for Phase 14b.
 - Entity create/destroy undo action types exist but the recreation logic for undo isn't wired yet. Context menu delete works but doesn't push undo entries.
 - File browser widget (`gui_file_browser`) exists but isn't wired into project picker's Browse button yet (native dialog preferred long-term).
-- Text cursor renders as a `|` character (fat, shifts text). Planned for Phase 14d.

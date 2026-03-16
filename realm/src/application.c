@@ -11,6 +11,7 @@
 #include "engine.h"
 #include "event_handler.h"
 #include "gui/gui.h"
+#include "gui/gui_input.h"
 #include "host/host_bootstrap.h"
 #include "memory/memory.h"
 #include "profiler/profiler.h"
@@ -56,6 +57,7 @@ b8 create_application(const char *project_path) {
 
     // Console registers events first so it can consume key/char input when visible
     app_console_init(&app.console);
+    gui_input_init();
     app_debug_panel_init(&app.debug_panel);
     app_event_handler_init(&app.event_handler, &app);
 

@@ -1,5 +1,6 @@
 #include "gui/gui_text_input.h"
 
+#include "gui/gui.h"
 #include "gui/gui_focus.h"
 #include "gui/gui_panel.h"
 #include "gui/gui_text.h"
@@ -67,32 +68,18 @@ void gui_text_input_handle_char(gui_text_input_state *s, input_char *ch) {
 }
 
 u16 gui_text_input_display(gui_text_input_state *s, f32 dt, char *out, u16 out_size) {
+    (void)dt;
     if (!s || !out || out_size < 2) {
         return 0;
     }
 
     ensure_id(s);
 
-    // Only blink when this input is focused
-    b8 show_caret = false;
-    if (gui_focus_is(s->_id)) {
-        s->cursor_blink += dt;
-        if (s->cursor_blink > 1.0f) { s->cursor_blink -= 1.0f; }
-        show_caret = s->cursor_blink < 0.5f;
-    }
-
-    u16 pos = 0;
-    for (u16 i = 0; i < s->len && pos < out_size - 2; i++) {
-        if (i == s->cursor && show_caret && pos < out_size - 2) {
-            out[pos++] = '|';
-        }
-        out[pos++] = s->buf[i];
-    }
-    if (s->cursor == s->len && show_caret && pos < out_size - 1) {
-        out[pos++] = '|';
-    }
-    out[pos] = '\0';
-    return pos;
+    u16 copy_len = s->len;
+    if (copy_len >= out_size) copy_len = out_size - 1;
+    memcpy(out, s->buf, copy_len);
+    out[copy_len] = '\0';
+    return copy_len;
 }
 
 void gui_text_input_render(gui_text_input_state *state, f32 dt, const gui_text_input_render_cfg *cfg) {
@@ -138,9 +125,32 @@ void gui_text_input_render(gui_text_input_state *state, f32 dt, const gui_text_i
 
     // Click to focus
     if (Clay_Hovered() && input_mouse_pressed(MOUSE_LEFT)) {
-        gui_focus_set(state->_id);
+        gui_focus_set_input(state->_id, GUI_INPUT_TEXT, state);
     }
 
     gui_textn(display, len, &(gui_text_cfg){.color = text_color, .size = font_size, .font = font});
+
+    // Floating pixel cursor rect (thin blinking line)
+    if (focused) {
+        state->cursor_blink += dt;
+        if (state->cursor_blink > 1.0f) state->cursor_blink -= 1.0f;
+        if (state->cursor_blink < 0.5f) {
+            f32 cursor_x = gui_measure_text_width(state->buf, state->cursor, font, font_size);
+            Clay__OpenElement();
+            Clay__ConfigureOpenElement((Clay_ElementDeclaration){
+                .layout = {.sizing = {.width = CLAY_SIZING_FIXED(1.5f),
+                                      .height = CLAY_SIZING_FIXED((f32)font_size)}},
+                .floating = {.attachTo = CLAY_ATTACH_TO_PARENT,
+                             .attachPoints = {.parent = CLAY_ATTACH_POINT_LEFT_CENTER,
+                                              .element = CLAY_ATTACH_POINT_LEFT_CENTER},
+                             .offset = {padding + cursor_x, 0},
+                             .pointerCaptureMode = CLAY_POINTER_CAPTURE_MODE_PASSTHROUGH,
+                             .zIndex = 10},
+                .backgroundColor = text_color,
+            });
+            Clay__CloseElement();
+        }
+    }
+
     gui_panel_end();
 }

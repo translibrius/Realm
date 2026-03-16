@@ -32,10 +32,6 @@ typedef struct ed_inspector {
     // Light: ambient[0], diffuse[1], specular[2]
     ed_inspector_vec3 light[3];
 
-    // Focus tracking
-    gui_number_input_state *focused_input;
-    b8 name_focused;
-
     // Track bound entity to detect selection changes
     u32 bound_entity_idx;
 

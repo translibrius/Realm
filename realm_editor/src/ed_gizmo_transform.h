@@ -3,6 +3,7 @@
 #include "core/component.h"
 #include "core/entity.h"
 #include "core/scene.h"
+#include "clay.h"
 #include "defines.h"
 #include "math/ray.h"
 #include "renderer/frame_data.h"
@@ -41,3 +42,18 @@ void          ed_gizmo_transform_drag_begin(ed_gizmo_transform *g, rl_scene *sce
 void          ed_gizmo_transform_drag_update(ed_gizmo_transform *g, rl_scene *scene,
                                               const rl_ray *ray);
 b8            ed_gizmo_transform_drag_end(ed_gizmo_transform *g);
+
+typedef struct ed_gizmo_drag_result {
+    b8 scene_dirty;
+    b8 drag_ended;
+    b8 transform_changed;
+    rl_entity drag_entity;
+    rl_transform before;
+    rl_transform after;
+} ed_gizmo_drag_result;
+
+// Per-frame drag update: constructs ray from mouse, updates drag, detects release.
+// Caller handles undo push and inspector rebind when drag_ended && transform_changed.
+ed_gizmo_drag_result ed_gizmo_transform_frame_update(
+    ed_gizmo_transform *g, rl_scene *scene,
+    const rl_frame_camera *fc, const Clay_BoundingBox *vb);

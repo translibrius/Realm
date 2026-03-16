@@ -1,6 +1,7 @@
 #include "gui/gui_number_input.h"
 
 #include "engine.h"
+#include "gui/gui.h"
 #include "gui/gui_focus.h"
 #include "gui/gui_text.h"
 #include "gui/gui_theme.h"
@@ -90,7 +91,7 @@ b8 gui_number_input(gui_number_input_state *state, const gui_number_input_cfg *c
                 snprintf(state->buf, sizeof(state->buf), fmt, (f64)state->value);
                 state->len = (u16)strlen(state->buf);
                 state->cursor = state->len;
-                gui_focus_set(state->_id);
+                gui_focus_set_input(state->_id, GUI_INPUT_NUMBER, state);
             }
             state->dragging = false;
         } else if (ed.found) {
@@ -107,25 +108,34 @@ b8 gui_number_input(gui_number_input_state *state, const gui_number_input_cfg *c
     u16 font = 0;
 
     if (state->editing) {
-        // Show buffer with blinking caret (only blink when focused)
-        b8 show_caret = false;
+        char *display = rl_arena_push(arena, 64, false);
+        u16 dlen = state->len;
+        if (dlen > 62) dlen = 62;
+        memcpy(display, state->buf, dlen);
+        display[dlen] = '\0';
+        gui_textn(display, dlen, &(gui_text_cfg){.color = t->text, .size = 12, .font = font});
+
+        // Floating pixel cursor rect
         if (gui_focus_is(state->_id)) {
             state->cursor_blink += dt;
             if (state->cursor_blink > 1.0f) state->cursor_blink -= 1.0f;
-            show_caret = state->cursor_blink < 0.5f;
+            if (state->cursor_blink < 0.5f) {
+                f32 cursor_x = gui_measure_text_width(state->buf, state->cursor, font, 12);
+                Clay__OpenElement();
+                Clay__ConfigureOpenElement((Clay_ElementDeclaration){
+                    .layout = {.sizing = {.width = CLAY_SIZING_FIXED(1.5f),
+                                          .height = CLAY_SIZING_FIXED(12)}},
+                    .floating = {.attachTo = CLAY_ATTACH_TO_PARENT,
+                                 .attachPoints = {.parent = CLAY_ATTACH_POINT_LEFT_CENTER,
+                                                  .element = CLAY_ATTACH_POINT_LEFT_CENTER},
+                                 .offset = {4 + cursor_x, 0},
+                                 .pointerCaptureMode = CLAY_POINTER_CAPTURE_MODE_PASSTHROUGH,
+                                 .zIndex = 10},
+                    .backgroundColor = t->text,
+                });
+                Clay__CloseElement();
+            }
         }
-
-        char *display = rl_arena_push(arena, 64, false);
-        u16 pos = 0;
-        for (u16 i = 0; i < state->len && pos < 60; i++) {
-            if (i == state->cursor && show_caret) display[pos++] = '|';
-            display[pos++] = state->buf[i];
-        }
-        if (state->cursor == state->len && show_caret && pos < 62) {
-            display[pos++] = '|';
-        }
-        display[pos] = '\0';
-        gui_textn(display, pos, &(gui_text_cfg){.color = t->text, .size = 12, .font = font});
     } else {
         char *display = rl_arena_push(arena, 32, false);
         snprintf(display, 32, fmt, (f64)state->value);
@@ -157,9 +167,14 @@ b8 gui_number_input_handle_key(gui_number_input_state *state, input_key *key) {
     case KEY_RIGHT:
         if (state->cursor < state->len) state->cursor++;
         break;
-    case KEY_ENTER:
-        // Confirm: parse and exit editing
+    case KEY_ENTER: {
+        // Confirm: parse value, exit editing, clear focus
+        f32 parsed = (f32)strtod(state->buf, nullptr);
+        state->value = parsed;
+        state->editing = false;
+        gui_focus_clear();
         return true;
+    }
     case KEY_ESCAPE:
         // Cancel: revert to drag_start_value and exit editing
         state->value = state->drag_start_value;

@@ -3,20 +3,16 @@
 #include "ed_config.h"
 #include "ed_layout.h"
 #include "asset/asset.h"
-#include "core/event.h"
 #include "gui/gui_checkbox.h"
 #include "gui/gui_clay.h"
 #include "gui/gui_dropdown.h"
 #include "gui/gui_field.h"
-#include "gui/gui_focus.h"
 #include "gui/gui_number_input.h"
 #include "gui/gui_panel.h"
 #include "gui/gui_text.h"
 #include "gui/gui_theme.h"
-#include "platform/input.h"
 #include "util/str.h"
 
-#include <stdlib.h>
 #include <string.h>
 
 static const char *s_theme_keys[] = {"dark", "catppuccin"};
@@ -31,41 +27,8 @@ static gui_number_input_state s_cam_fov;
 static gui_number_input_state *s_all_inputs[] = {&s_cam_speed, &s_cam_sens, &s_cam_fov};
 #define SETTINGS_INPUT_COUNT 3
 
-static b8 settings_on_key(void *event, void *user_data) {
-    (void)user_data;
-    input_key *k = event;
-    if (!k || !k->pressed) return false;
-
-    for (u32 i = 0; i < SETTINGS_INPUT_COUNT; i++) {
-        if (s_all_inputs[i]->editing) {
-            if (gui_number_input_handle_key(s_all_inputs[i], k)) {
-                f32 parsed = (f32)strtod(s_all_inputs[i]->buf, nullptr);
-                s_all_inputs[i]->value = parsed;
-                s_all_inputs[i]->editing = false;
-            }
-            return true;
-        }
-    }
-    return false;
-}
-
-static b8 settings_on_char(void *event, void *user_data) {
-    (void)user_data;
-    input_char *ch = event;
-    if (!ch) return false;
-
-    for (u32 i = 0; i < SETTINGS_INPUT_COUNT; i++) {
-        if (s_all_inputs[i]->editing) {
-            gui_number_input_handle_char(s_all_inputs[i], ch);
-            return true;
-        }
-    }
-    return false;
-}
-
 void ed_settings_init(void) {
-    event_register(EVENT_KEY_PRESS, settings_on_key, nullptr);
-    event_register(EVENT_CHAR_INPUT, settings_on_char, nullptr);
+    // Number inputs now handled by centralized gui_input dispatcher.
 }
 
 void ed_settings_apply_theme(const char *theme_key) {

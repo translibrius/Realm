@@ -2,7 +2,6 @@
 
 #include "ed_application.h"
 #include "ed_camera.h"
-#include "ed_inspector.h"
 #include "ed_layout.h"
 #include "ed_gizmo_transform.h"
 #include "ed_picking.h"
@@ -12,6 +11,7 @@
 #include "core/component.h"
 #include "core/config.h"
 #include "core/event.h"
+#include "gui/gui_focus.h"
 #include "core/logger.h"
 #include "core/project.h"
 #include "platform/input.h"
@@ -108,9 +108,8 @@ static b8 ed_on_key(void *event, void *user_data) {
     if (!app || !k || !k->pressed || k->repeat) return false;
     if (app->mode != ED_MODE_EDITOR) return false;
 
-    // Don't intercept when inspector is editing text
-    ed_inspector *insp = &app->layout.inspector;
-    if ((insp->focused_input && insp->focused_input->editing) || insp->name_focused) {
+    // Don't intercept when any widget has focus (text/number input editing)
+    if (gui_focus_get() != 0) {
         return false;
     }
 

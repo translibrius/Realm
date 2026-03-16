@@ -3,65 +3,16 @@
 #include "ed_undo.h"
 #include "asset/asset.h"
 #include "core/component.h"
-#include "core/event.h"
 #include "gui/gui_clay.h"
 #include "gui/gui_field.h"
+#include "gui/gui_focus.h"
 #include "gui/gui_panel.h"
 #include "gui/gui_number_input.h"
 #include "gui/gui_panel.h"
 #include "gui/gui_text.h"
 #include "gui/gui_text_input.h"
 #include "gui/gui_theme.h"
-#include "platform/input.h"
-
-#include <stdlib.h>
 #include <string.h>
-
-// ── Event handlers ──────────────────────────────────────────────────────────
-
-static b8 inspector_on_key(void *event, void *user_data) {
-    ed_inspector *insp = user_data;
-    input_key *k = event;
-    if (!insp || !k || !k->pressed) return false;
-
-    if (insp->focused_input && insp->focused_input->editing) {
-        if (gui_number_input_handle_key(insp->focused_input, k)) {
-            // Enter pressed — confirm: parse value, exit editing
-            f32 parsed = (f32)strtod(insp->focused_input->buf, nullptr);
-            insp->focused_input->value = parsed;
-            insp->focused_input->editing = false;
-        }
-        return true;
-    }
-
-    if (insp->name_focused) {
-        if (gui_text_input_handle_key(&insp->name_input, k)) {
-            // Enter pressed — name confirmed, unfocus handled in render
-            insp->name_focused = false;
-        }
-        return true;
-    }
-
-    return false;
-}
-
-static b8 inspector_on_char(void *event, void *user_data) {
-    ed_inspector *insp = user_data;
-    input_char *ch = event;
-    if (!insp || !ch) return false;
-
-    if (insp->focused_input && insp->focused_input->editing) {
-        gui_number_input_handle_char(insp->focused_input, ch);
-        return true;
-    }
-
-    if (insp->name_focused) {
-        gui_text_input_handle_char(&insp->name_input, ch);
-        return true;
-    }
-
-    return false;
-}
 
 // ── Init / bind ─────────────────────────────────────────────────────────────
 
@@ -71,13 +22,10 @@ void ed_inspector_init(ed_inspector *insp, ed_undo_stack *undo) {
     insp->bound_entity_idx = 0;
     insp->mesh_kind = (gui_dropdown_state){.selected = 0};
     insp->undo = undo;
-    event_register(EVENT_KEY_PRESS, inspector_on_key, insp);
-    event_register(EVENT_CHAR_INPUT, inspector_on_char, insp);
 }
 
 static void cancel_editing(ed_inspector *insp) {
-    insp->focused_input = nullptr;
-    insp->name_focused = false;
+    gui_focus_clear();
 
     // Cancel any active editing on number inputs
     for (u32 t = 0; t < 3; t++) {
@@ -177,10 +125,6 @@ static b8 vec3_row(ed_inspector_vec3 *v, const gui_number_input_cfg *cfg, f32 dt
     return changed;
 }
 
-static void update_focus(ed_inspector *insp, gui_number_input_state *s) {
-    if (s->editing) insp->focused_input = s;
-}
-
 // ── Section header ──────────────────────────────────────────────────────────
 
 static void section_header(const char *label, const gui_theme *t, u16 font) {
@@ -211,14 +155,11 @@ b8 ed_inspector_render(ed_inspector *insp, rl_scene *scene, rl_entity entity,
 
     b8 any_changed = false;
 
-    // Reset focus tracking — will be updated as we render each input
-    insp->focused_input = nullptr;
-
     // ── Name ────────────────────────────────────────────────────────────
     rl_name_component *nc = name_get(cs, entity);
     if (nc) {
-        // Click on name field to start editing
-        if (!insp->name_focused) {
+        b8 name_editing = gui_focus_is(insp->name_input._id);
+        if (!name_editing) {
             gui_text(nc->name, &header_text);
         } else {
             gui_text_input_render(&insp->name_input, dt, &(gui_text_input_render_cfg){
@@ -233,9 +174,8 @@ b8 ed_inspector_render(ed_inspector *insp, rl_scene *scene, rl_entity entity,
             });
         }
 
-        // Check if name editing was just confirmed (name_focused went false after key handler)
-        if (!insp->name_focused && insp->name_input.len > 0) {
-            // Write back name if it changed
+        // When focus leaves the name input, write back if changed
+        if (!name_editing && insp->name_input.len > 0) {
             if (strcmp(nc->name, insp->name_input.buf) != 0) {
                 rl_name_component before = *nc;
                 u16 copy_len = insp->name_input.len;
@@ -287,13 +227,6 @@ b8 ed_inspector_render(ed_inspector *insp, rl_scene *scene, rl_entity entity,
             tr->scale[2]    = insp->transform[2].z.value;
             tr->dirty = true;
             any_changed = true;
-        }
-
-        // Update focus tracking for transform inputs
-        for (u32 i = 0; i < 3; i++) {
-            update_focus(insp, &insp->transform[i].x);
-            update_focus(insp, &insp->transform[i].y);
-            update_focus(insp, &insp->transform[i].z);
         }
 
         gui_separator();
@@ -368,11 +301,6 @@ b8 ed_inspector_render(ed_inspector *insp, rl_scene *scene, rl_entity entity,
             any_changed = true;
         }
 
-        update_focus(insp, &insp->mat_specular.x);
-        update_focus(insp, &insp->mat_specular.y);
-        update_focus(insp, &insp->mat_specular.z);
-        update_focus(insp, &insp->mat_shininess);
-
         gui_separator();
     }
 
@@ -399,9 +327,6 @@ b8 ed_inspector_render(ed_inspector *insp, rl_scene *scene, rl_entity entity,
                 any_changed = true;
             }
 
-            update_focus(insp, &insp->light[i].x);
-            update_focus(insp, &insp->light[i].y);
-            update_focus(insp, &insp->light[i].z);
         }
     }
 
