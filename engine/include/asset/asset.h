@@ -31,6 +31,11 @@ typedef enum ASSET_TYPE {
 #define RL_ASSET_SHADER_VK_GUI_FRAG       "shaders/vulkan/gui.frag"
 #define RL_ASSET_SHADER_VK_LIGHT_FRAG     "shaders/vulkan/light.frag"
 
+#define RL_ASSET_SHADER_GL_GRID_VERT      "shaders/opengl/grid.vert"
+#define RL_ASSET_SHADER_GL_GRID_FRAG      "shaders/opengl/grid.frag"
+#define RL_ASSET_SHADER_VK_GRID_VERT      "shaders/vulkan/grid.vert"
+#define RL_ASSET_SHADER_VK_GRID_FRAG      "shaders/vulkan/grid.frag"
+
 typedef struct rl_asset {
     asset_id id;
     ASSET_TYPE type;

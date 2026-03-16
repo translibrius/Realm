@@ -26,6 +26,10 @@ static asset_table_entry engine_asset_table[] = {
     {ASSET_SHADER,  "shaders/vulkan/gui.vert",         "gui.vert"},
     {ASSET_SHADER,  "shaders/vulkan/gui.frag",         "gui.frag"},
     {ASSET_SHADER,  "shaders/vulkan/light.frag",       "light.frag"},
+    {ASSET_SHADER,  "shaders/opengl/grid.vert",        "grid.vert"},
+    {ASSET_SHADER,  "shaders/opengl/grid.frag",        "grid.frag"},
+    {ASSET_SHADER,  "shaders/vulkan/grid.vert",        "grid.vert"},
+    {ASSET_SHADER,  "shaders/vulkan/grid.frag",        "grid.frag"},
 };
 
 #define ENGINE_ASSET_TABLE_COUNT (sizeof(engine_asset_table) / sizeof(engine_asset_table[0]))

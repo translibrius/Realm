@@ -415,6 +415,56 @@ void vk_wireframe_pipelines_destroy(VK_Context *context) {
     vkDestroyPipeline(context->device, context->wireframe_unlit_pipeline, nullptr);
 }
 
+b8 vk_grid_pipeline_create(VK_Context *context) {
+    VkShaderModule vert_module, frag_module;
+
+    if (!vk_shader_compile_to_module(context, asset_find(RL_ASSET_SHADER_VK_GRID_VERT), &vert_module)) {
+        return false;
+    }
+    if (!vk_shader_compile_to_module(context, asset_find(RL_ASSET_SHADER_VK_GRID_FRAG), &frag_module)) {
+        vkDestroyShaderModule(context->device, vert_module, nullptr);
+        return false;
+    }
+
+    VkPipelineShaderStageCreateInfo stages[2] = {
+        {.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = vert_module, .pName = "main"},
+        {.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = frag_module, .pName = "main"},
+    };
+
+    VK_PipelineConfig cfg = {
+        .stages = stages,
+        .stage_count = 2,
+        .binding_count = 0,
+        .attribute_count = 0,
+        .depth_test = true,
+        .depth_write = true,
+        .cull_mode = VK_CULL_MODE_NONE,
+        .blend_enable = true,
+        .polygon_mode = VK_POLYGON_MODE_FILL,
+        .msaa_samples = context->msaa_samples,
+        .render_pass = context->render_pass,
+        .existing_layout = context->pipeline_layout,
+    };
+
+    VkPipelineLayout reused_layout;
+    b8 ok = vk_pipeline_create_graphics(context, &cfg, &context->grid_pipeline, &reused_layout);
+
+    vkDestroyShaderModule(context->device, vert_module, nullptr);
+    vkDestroyShaderModule(context->device, frag_module, nullptr);
+
+    if (ok) {
+        RL_TRACE("Successfully created grid pipeline");
+    }
+
+    return ok;
+}
+
+void vk_grid_pipeline_destroy(VK_Context *context) {
+    if (context->grid_pipeline) {
+        vkDestroyPipeline(context->device, context->grid_pipeline, nullptr);
+    }
+}
+
 // Private
 
 b8 create_shader_stages(VK_Context *context) {

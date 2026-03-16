@@ -130,6 +130,24 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
+    // --- Grid pass ---
+    if (frame_data->show_grid && frame_data->camera.valid) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDisable(GL_CULL_FACE);
+
+        opengl_shader_use(&context.grid_shader);
+        opengl_shader_set_mat4(&context.grid_shader, "view", context.view);
+        opengl_shader_set_mat4(&context.grid_shader, "projection", context.projection);
+        opengl_shader_set_vec3(&context.grid_shader, "camera_pos", context.pos);
+
+        glBindVertexArray(context.grid_vao);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        glDisable(GL_BLEND);
+        glEnable(GL_CULL_FACE);
+    }
+
     if (!frame_data->meshes || frame_data->mesh_count == 0) {
         goto text_pass;
     }
@@ -365,6 +383,13 @@ b8 opengl_initialize(platform_window *platform_window, b8 vsync) {
 
     context.cube_mesh = gl_mesh_create_cube();
 
+    // Grid pipeline
+    if (!opengl_shader_setup(asset_find(RL_ASSET_SHADER_GL_GRID_VERT), asset_find(RL_ASSET_SHADER_GL_GRID_FRAG), &context.grid_shader)) {
+        RL_ERROR("Grid shader setup failed");
+        return false;
+    }
+    glGenVertexArrays(1, &context.grid_vao);
+
     return true;
 }
 
@@ -380,6 +405,7 @@ void opengl_destroy() {
     context.texture_count = 0;
 
     gl_mesh_destroy(&context.cube_mesh);
+    if (context.grid_vao) glDeleteVertexArrays(1, &context.grid_vao);
     rl_arena_deinit(&context.arena);
 }
 

@@ -248,6 +248,10 @@ typedef struct VK_Context {
     rl_frame_mesh  *world_overlays;
     u32             world_overlay_count;
 
+    // Grid
+    VkPipeline grid_pipeline;
+    b8 show_grid;
+
     // Debug wireframe pipelines
     VkPipeline wireframe_lit_pipeline;
     VkPipeline wireframe_unlit_pipeline;

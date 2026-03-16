@@ -95,12 +95,13 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
         }
 
         // View menu
-        static const char *view_items[] = {"Toggle Console"};
+        static const char *view_items[] = {"Toggle Console", "Toggle Grid"};
         menu_cfg.items = view_items;
-        menu_cfg.item_count = 1;
+        menu_cfg.item_count = 2;
         menu_cfg.label = "View";
         if (gui_dropdown(&layout->menu_view, &menu_cfg)) {
             if (layout->menu_view.selected == 0) ed_console_toggle(&app->console);
+            if (layout->menu_view.selected == 1) app->show_grid = !app->show_grid;
             layout->menu_view.selected = -1;
         }
 

@@ -121,11 +121,19 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
         vkCmdSetViewport(buffer, 0, 1, &viewport);
         vkCmdSetScissor(buffer, 0, 1, &scissor);
 
-        // Shared vertex buffer + descriptors for all 3D meshes
+        // Shared descriptors for all 3D passes
+        vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->pipeline_layout, 0, 1, &context->descriptor_sets[context->current_frame], 0, nullptr);
+
+        // --- Grid pass (no vertex buffer — generated in shader) ---
+        if (context->show_grid && context->grid_pipeline) {
+            vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->grid_pipeline);
+            vkCmdDraw(buffer, 6, 1, 0, 0);
+        }
+
+        // Shared vertex buffer for all mesh passes
         VkBuffer vbufs[] = {context->cube_vertex_buffer};
         VkDeviceSize offsets[] = {0};
         vkCmdBindVertexBuffers(buffer, 0, 1, vbufs, offsets);
-        vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->pipeline_layout, 0, 1, &context->descriptor_sets[context->current_frame], 0, nullptr);
 
         // --- Lit pass ---
         VkPipeline lit_pipe = context->debug_wireframe ? context->wireframe_lit_pipeline : context->graphics_pipeline.handle;

@@ -110,6 +110,7 @@ static void ed_enter_editor_mode(void) {
 
     ed_camera_init(&app.camera);
     ed_gizmo_transform_init(&app.gizmo);
+    app.show_grid = true;
     ed_undo_init(&app.undo);
     ed_layout_init(&app.layout, &app.undo);
     app.layout.theme_dropdown.selected = ed_settings_theme_index(app.ed_cfg.theme);
@@ -212,6 +213,7 @@ b8 create_editor(void) {
             glm_vec3_copy(app.camera.cam.pos, fc.position);
 
             rl_frame_data frame = {0};
+            frame.show_grid = app.show_grid;
             scene_build_frame_data(app.scene, &fc, &frame);
             if (vb.width > 0 && vb.height > 0) {
                 frame.viewport_rect = (rl_viewport_rect){vb.x, vb.y, vb.width, vb.height};
@@ -258,8 +260,10 @@ b8 create_editor(void) {
                     if (ed_gizmo_transform_drag_end(&app.gizmo)) {
                         rl_transform *after = transform_get(&app.scene->components, drag_e);
                         if (after) {
-                            f32 dist = glm_vec3_distance(before.position, after->position);
-                            if (dist > 1e-5f) {
+                            b8 changed = glm_vec3_distance(before.position, after->position) > 1e-5f
+                                      || glm_vec3_distance(before.rotation, after->rotation) > 1e-5f
+                                      || glm_vec3_distance(before.scale,    after->scale)    > 1e-5f;
+                            if (changed) {
                                 ed_undo_entry ue = {
                                     .action = ED_UNDO_TRANSFORM,
                                     .entity = drag_e,

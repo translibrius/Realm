@@ -25,6 +25,7 @@ typedef struct ed_gizmo_transform {
     b8            dragging;
     ED_GIZMO_AXIS drag_axis;
     f32           drag_start_axis_value;
+    f32           drag_start_angle;
     rl_transform  drag_start_transform;
     rl_entity     drag_entity;
 } ed_gizmo_transform;

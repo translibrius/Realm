@@ -157,6 +157,12 @@ static b8 ed_on_key(void *event, void *user_data) {
         }
     }
 
+    // G = Toggle grid
+    if (k->key == KEY_G && !ctrl && !shift && !app->camera.fly_mode) {
+        app->show_grid = !app->show_grid;
+        return true;
+    }
+
     // F = Frame selection
     if (k->key == KEY_F && !ctrl && !shift) {
         u32 sel = app->layout.hierarchy_tree.selected_id;

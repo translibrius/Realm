@@ -178,6 +178,11 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
         return false;
     }
 
+    if (!vk_grid_pipeline_create(&context)) {
+        RL_ERROR("failed to create grid pipeline");
+        return false;
+    }
+
     if (!vk_depth_res_create(&context)) {
         RL_ERROR("failed to create depth resources");
         return false;
@@ -249,6 +254,7 @@ void vulkan_destroy(void) {
     for (u32 i = 0; i < context.texture_count; i++) {
         vk_texture_destroy(&context, &context.textures[i].texture);
     }
+    vk_grid_pipeline_destroy(&context);
     vk_wireframe_pipelines_destroy(&context);
     vk_overlay_pipeline_destroy(&context);
     vk_unlit_pipeline_destroy(&context);
@@ -426,7 +432,8 @@ void vulkan_submit_frame_data(rl_frame_data *frame_data) {
         context.overlay_meshes = nullptr;
     }
 
-    // Store viewport rect for command recording
+    // Store grid + viewport state for command recording
+    context.show_grid = frame_data->show_grid;
     context.scene_viewport = frame_data->viewport_rect;
 
     // Store first point light (or sensible default)

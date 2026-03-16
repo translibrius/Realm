@@ -410,17 +410,18 @@ Colored XYZ axis indicator rendered in a 100x100 px sub-viewport in the bottom-l
 - [x] Light viz cubes now set `material.specular = {1,1,1}` so they remain white with flat_color shader
 - [x] Wired into `ed_application.c` frame loop before `renderer_submit_frame_data`
 
-### 9e. Transform gizmos (translation mode) — DONE
+### 9e. Transform gizmos — DONE
 
 - [x] Added `world_overlays` / `world_overlay_count` to `rl_frame_data` — world-space overlays rendered with main camera, depth test off
 - [x] GL + VK backends: world overlay render pass inserted before axis gizmo overlay pass
 - [x] Created `realm_editor/src/ed_gizmo_transform.h/.c` — `ed_gizmo_transform` struct with mode/drag state
-- [x] Gizmo build: 7 overlay meshes (3 shafts + 3 tips + center cube) at selected entity position, highlighted active drag axis
-- [x] Gizmo pick: ray-AABB test against inflated shaft/tip handles, returns closest axis hit
-- [x] Axis-constrained drag: ray-plane projection (constraint plane normal = cross(A, cross(V, A))), delta applied to start position
-- [x] W/E/R hotkeys switch gizmo mode (translate renders; rotate/scale are stubs that hide the gizmo)
-- [x] Gizmo pick priority: click on handle starts drag instead of changing selection
-- [x] Drag end pushes `ED_UNDO_TRANSFORM` entry; Escape cancels drag and restores original position
+- [x] **Translate mode (W)**: 7 overlay meshes (3 shafts + 3 tips + center cube), AABB picking, axis-constrained drag via ray-plane projection
+- [x] **Rotate mode (E)**: 73 overlay meshes (3 rings × 24 segments + center), analytical ring picking (ray-plane intersection + distance check), atan2 angle drag with [-PI, PI] wrapping, delta applied as degrees to `rotation[axis]`
+- [x] **Scale mode (R)**: Same shaft/tip layout as translate but larger yellow center cube (0.15), reuses AABB picking, additive scale drag with 0.01 min clamp
+- [x] All `_build`/`_pick`/`_drag_begin`/`_drag_update` dispatch via `switch (g->mode)` to static helpers
+- [x] Undo change detection checks position + rotation + scale (was position-only)
+- [x] W/E/R hotkeys switch gizmo mode; gizmo pick priority over entity picking
+- [x] Drag end pushes `ED_UNDO_TRANSFORM` entry; Escape cancels drag and restores original transform
 - [x] Inspector rebound after drag end to resync widget state
 - [x] Fixed macOS ⌘+Z/⌘+Shift+Z: `ctrl` check now includes `KEY_L_SUPER`/`KEY_R_SUPER`
 
@@ -436,11 +437,18 @@ CPU ray casting against entity AABBs. Click in viewport to select/deselect entit
 - [x] Hit → set `hierarchy_tree.selected_id` + `ed_inspector_bind`; miss → deselect
 - [x] 8 unit tests in `tests/cases/test_ray.c` — slab hit/miss/behind/inside, AABB identity/translated/scaled, screen-center ray direction
 
-### 9g. Infinite grid (optional/toggleable)
+### 9g. Infinite grid — DONE
 
-- [ ] Infinite ground plane grid rendered in world space
-- [ ] Fades with distance, major/minor grid lines
-- [ ] Toggle via View menu or hotkey
+- [x] Fullscreen quad technique: 6 verts from `gl_VertexID`/`gl_VertexIndex`, fragment shader ray-casts onto Y=0 plane
+- [x] Procedural grid at two scales (minor 0.1, major 1.0) with `fwidth()` anti-aliasing
+- [x] Red X-axis line (Z=0), blue Z-axis line (X=0)
+- [x] Quadratic distance fade (50–100 unit radius)
+- [x] Writes `gl_FragDepth` for proper object occlusion
+- [x] Both GL (330 core) and VK (450) shader pairs: `assets/shaders/{opengl,vulkan}/grid.{vert,frag}`
+- [x] GL: `grid_shader` + empty `grid_vao` in `GL_Context`, drawn before mesh passes with blending
+- [x] VK: `grid_pipeline` (no vertex input, depth+blend, cull none), drawn before mesh passes
+- [x] `show_grid` flag on `rl_frame_data`, wired from `ed_application.show_grid` (default on)
+- [x] View menu "Toggle Grid" item, G hotkey (guarded by `!fly_mode`)
 
 ---
 
@@ -533,9 +541,9 @@ Phase 4: Project System & Config    ✓ done
     │       9b. Viewport 3D rendering      ✓ done
     │       9c. Viewport tab bar           ✓ done
     │       9d. Origin axis gizmo          ✓ done
-    │       9e. Transform gizmos           ✓ done (translate only; rotate/scale stubs)
+    │       9e. Transform gizmos           ✓ done (translate + rotate + scale)
     │       9f. Entity picking             ✓ done
-    │       9g. Infinite grid
+    │       9g. Infinite grid              ✓ done
     │
     └── Phase 10: Editor Polish & Theme
             10a. Theme compliance          ✓ done
@@ -545,10 +553,11 @@ Phase 4: Project System & Config    ✓ done
             10e. Theme dropdown/settings   ✓ done
 ```
 
-**Next session: Phase 9e rotation/scale gizmo modes, Phase 9g (Infinite Grid), or context menu (Phase 2c) for entity create/delete.**
-Phase 9e added translation gizmos with world-space overlay rendering (new `world_overlays` field on `rl_frame_data`). Rotate and scale modes are enum stubs — they switch the mode but render nothing. The `ed_gizmo_transform_build` / `_pick` / `_drag_*` functions are structured to extend with rotation/scale geometry and math.
+**Next session: Context menu (Phase 2c) for entity create/delete, or start Phase 11 (Play mode / material system / snap-to-grid).**
+Phase 9 is now complete — all viewport interaction features are done:
+- 9e: All three gizmo modes work (W = translate, E = rotate rings with analytical picking, R = scale with min 0.01 clamp). Undo change detection covers position + rotation + scale.
+- 9g: Infinite grid on Y=0 plane with GL + VK shaders, procedural minor/major lines, axis coloring, distance fade, depth write, G hotkey toggle.
 Remaining loose ends:
-- Rotate/scale gizmo modes (9e follow-up): enum values exist, W/E/R hotkeys switch mode, but build/pick/drag only handle `ED_GIZMO_TRANSLATE`.
 - Name editing in the inspector is wired for keyboard but not yet clickable (no click-to-focus on the name text). Could be added as a small follow-up.
 - Entity create/destroy undo action types exist but the recreation logic isn't wired — no UI for entity delete yet. Wire when adding context menu (Phase 2c) or delete hotkey.
 - File browser widget (`gui_file_browser`) exists but isn't wired into project picker's Browse button yet (native dialog preferred long-term).

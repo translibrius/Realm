@@ -39,6 +39,7 @@ typedef struct ed_application {
     b8 undo_requested;
     b8 redo_requested;
     b8 focused;
+    b8 show_grid;
     b8 backend_switch_requested;
     b8 close_project_requested;
     RENDERER_BACKEND requested_backend;

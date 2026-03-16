@@ -86,4 +86,6 @@ typedef struct rl_frame_data {
     rl_frame_camera overlay_camera;
     rl_frame_mesh  *overlay_meshes;
     u32             overlay_count;
+
+    b8 show_grid;
 } rl_frame_data;
