@@ -396,23 +396,37 @@ Replaced centered "Viewport" text with a proper tab strip, matching the VS Code 
 - [x] `EditorViewport` Clay ID remains on the 3D area below the tab bar (not the tab strip), so camera bounds are correct
 - [x] Structure supports adding more tabs later (e.g. Settings, Game View) — inactive tabs would use strip background + dim text
 
-### 9d. Origin axis gizmo
+### 9d. Origin axis gizmo — DONE
 
-- [ ] Colored XYZ axis indicator in viewport corner (red=X, green=Y, blue=Z)
-- [ ] Always visible, shows current camera orientation
-- [ ] Rendered as overlay (not affected by scene depth)
+Colored XYZ axis indicator rendered in a 100x100 px sub-viewport in the bottom-left corner. Uses the overlay render pass infrastructure (separate camera, no depth test).
+
+- [x] Added `flat_color` uniform to GL unlit shader, push constant color to VK unlit shader
+- [x] Extended `rl_frame_data` with `overlay_camera`, `overlay_meshes`, `overlay_count`
+- [x] GL overlay pass: gizmo sub-viewport, `glDisable(GL_DEPTH_TEST)`, draws with light shader + flat_color
+- [x] VK overlay pipeline: `vk_overlay_pipeline_create/destroy` (depth_test=false, depth_write=false)
+- [x] VK overlay pass in `vk_commands.c`: gizmo sub-viewport with negative-height Y-flip, temporary UBO swap
+- [x] Created `realm_editor/src/ed_gizmo.h/.c` — builds 6 overlay meshes (3 shafts + 3 tips, RGB = XYZ)
+- [x] Rotation-only view matrix (zeroed translation column) + small ortho projection
+- [x] Light viz cubes now set `material.specular = {1,1,1}` so they remain white with flat_color shader
+- [x] Wired into `ed_application.c` frame loop before `renderer_submit_frame_data`
 
 ### 9e. Transform gizmos
 
-- [ ] Create `realm_editor/src/ed_gizmo.h/.c`
-- [ ] Translate/rotate/scale handles as overlay geometry
-- [ ] Requires overlay render pass in both GL and Vulkan backends
+- [ ] Translate/rotate/scale handles as overlay geometry (reuses overlay pass from 9d)
 - [ ] W/E/R to switch between translate/rotate/scale modes
+- [ ] Mouse drag on handle axis applies transform + pushes undo entry
 
-### 9f. Entity picking
+### 9f. Entity picking — DONE
 
-- [ ] CPU ray casting against entity bounding boxes
-- [ ] Click in viewport to select entity (syncs with hierarchy panel)
+CPU ray casting against entity AABBs. Click in viewport to select/deselect entities.
+
+- [x] Created `engine/include/math/ray.h` + `engine/src/math/ray.c` — `rl_ray`, `rl_aabb`, `ray_from_screen`, `ray_intersect_aabb`, `aabb_from_unit_cube`
+- [x] Screen→NDC (Y-flip) → unproject through inv_proj + inv_view → world ray
+- [x] Slab method intersection, 8-corner AABB from unit cube × model matrix
+- [x] Created `realm_editor/src/ed_picking.h/.c` — iterates alive entities with transforms, tests mesh + light-only entities
+- [x] `EVENT_MOUSE_CLICK` handler in `ed_event_handler.c`: left button, pressed, viewport hovered, not flying/orbiting
+- [x] Hit → set `hierarchy_tree.selected_id` + `ed_inspector_bind`; miss → deselect
+- [x] 8 unit tests in `tests/cases/test_ray.c` — slab hit/miss/behind/inside, AABB identity/translated/scaled, screen-center ray direction
 
 ### 9g. Infinite grid (optional/toggleable)
 
@@ -422,7 +436,7 @@ Replaced centered "Viewport" text with a proper tab strip, matching the VS Code 
 
 ---
 
-## Phase 10: Editor Polish & Theme System — DONE (partial)
+## Phase 10: Editor Polish & Theme System — DONE
 
 ### 10a. Theme compliance — DONE
 
@@ -457,11 +471,15 @@ All GUI widgets now read colors from `gui_theme_get()` at render time. Swapping 
 - [x] `project_open()` now falls back to `"scenes/default.scene"` when `default_scene` key is missing from project file
 - [x] Fixes `scene_save` error when opening older projects that predate the `default_scene` field
 
-### 10e. Theme dropdown & editor settings tab
+### 10e. Theme dropdown & editor settings tab — DONE
 
-- [ ] Add theme selector dropdown (dark, catppuccin, etc.) in a new "Settings" center tab
-- [ ] Persist selected theme in `editor_state.toml`
-- [ ] Tab switching logic in viewport area (Viewport vs Settings)
+- [x] Added `theme[32]` field to `ed_config`, parsed/saved in `editor_state.toml`, defaults to `"dark"`
+- [x] Added `viewport_tab` (i32) and `theme_dropdown` to `ed_layout`
+- [x] Created `realm_editor/src/ed_settings.h/.c` — settings panel with theme dropdown ("Dark" / "Catppuccin")
+- [x] `ed_settings_apply_theme(key)` maps string → theme pointer → `gui_theme_set()`; `ed_settings_theme_index(key)` for dropdown sync
+- [x] Replaced hardcoded viewport tab with `gui_tabs()` widget: ["Viewport", "Settings"] — tab 0 = 3D viewport, tab 1 = settings
+- [x] Theme applied on startup after `ed_config_load`; dropdown synced after `ed_layout_init`
+- [x] Camera update skipped when settings tab is active (`viewport_tab != 0`)
 
 ---
 
@@ -506,9 +524,9 @@ Phase 4: Project System & Config    ✓ done
     │       9a. Editor camera              ✓ done
     │       9b. Viewport 3D rendering      ✓ done
     │       9c. Viewport tab bar           ✓ done
-    │       9d. Origin axis gizmo          ← next
-    │       9e. Transform gizmos
-    │       9f. Entity picking
+    │       9d. Origin axis gizmo          ✓ done
+    │       9e. Transform gizmos           ← next
+    │       9f. Entity picking             ✓ done
     │       9g. Infinite grid
     │
     └── Phase 10: Editor Polish & Theme
@@ -516,10 +534,12 @@ Phase 4: Project System & Config    ✓ done
             10b. Light visualization       ✓ done
             10c. Asset browser fix         ✓ done
             10d. Project fallback fix      ✓ done
-            10e. Theme dropdown/settings   ← next
+            10e. Theme dropdown/settings   ✓ done
 ```
 
-**Next session: Phase 9d (Origin Axis Gizmo), Phase 9e (Transform Gizmos), Phase 9f (Entity Picking), or Phase 10e (Theme Dropdown & Settings Tab).**
-Phase 9b-c and 10a-d are complete. The editor viewport now renders 3D content correctly within its bounds, light entities have visible markers, asset browser double-click works for directory-based models, and all GUI colors are theme-driven.
-Name editing in the inspector is wired for keyboard but not yet clickable (no click-to-focus on the name text). Could be added as a small follow-up.
-Entity create/destroy undo action types exist but the recreation logic isn't wired — no UI for entity delete yet. Wire when adding context menu (Phase 2c) or delete hotkey.
+**Next session: Phase 9e (Transform Gizmos) and/or Phase 9g (Infinite Grid).**
+Phase 9d (axis gizmo) added overlay render infrastructure to both GL and VK backends — transform gizmos (9e) can reuse the same overlay pass. Entity picking (9f) provides the selection mechanism that gizmos need. Theme settings (10e) is complete with persistence.
+Remaining loose ends:
+- Name editing in the inspector is wired for keyboard but not yet clickable (no click-to-focus on the name text). Could be added as a small follow-up.
+- Entity create/destroy undo action types exist but the recreation logic isn't wired — no UI for entity delete yet. Wire when adding context menu (Phase 2c) or delete hotkey.
+- File browser widget (`gui_file_browser`) exists but isn't wired into project picker's Browse button yet (native dialog preferred long-term).

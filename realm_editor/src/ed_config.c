@@ -78,6 +78,8 @@ static void parse_line(ed_config *cfg, const char *line) {
 
     if (strcmp(fqk, "editor.last_project") == 0) {
         cstr_copy(cfg->last_project, sizeof(cfg->last_project), val);
+    } else if (strcmp(fqk, "editor.theme") == 0) {
+        cstr_copy(cfg->theme, sizeof(cfg->theme), val);
     } else if (strncmp(fqk, "editor.recent_", 14) == 0) {
         u32 idx = (u32)(fqk[14] - '0');
         if (idx < ED_MAX_RECENT_PROJECTS) {
@@ -134,6 +136,11 @@ void ed_config_load(ed_config *cfg) {
     }
     cfg->recent_count = write;
 
+    // Default theme if not set
+    if (!cfg->theme[0]) {
+        cstr_copy(cfg->theme, sizeof(cfg->theme), "dark");
+    }
+
     RL_DEBUG("Editor state loaded: last_project='%s', %u recent", cfg->last_project, cfg->recent_count);
 }
 
@@ -145,8 +152,9 @@ void ed_config_save(const ed_config *cfg) {
 
     offset += snprintf(buf + offset, sizeof(buf) - (u64)offset,
         "[editor]\n"
-        "last_project = \"%s\"\n",
-        cfg->last_project);
+        "last_project = \"%s\"\n"
+        "theme = \"%s\"\n",
+        cfg->last_project, cfg->theme[0] ? cfg->theme : "dark");
 
     for (u32 i = 0; i < cfg->recent_count && i < ED_MAX_RECENT_PROJECTS; i++) {
         if (cfg->recent_projects[i][0]) {

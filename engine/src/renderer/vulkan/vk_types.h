@@ -238,6 +238,12 @@ typedef struct VK_Context {
     // Unlit pipeline (light cubes)
     VkPipeline unlit_pipeline;
 
+    // Overlay pipeline (gizmo axes — no depth test)
+    VkPipeline overlay_pipeline;
+    rl_frame_camera overlay_camera;
+    rl_frame_mesh  *overlay_meshes;
+    u32             overlay_count;
+
     // Debug wireframe pipelines
     VkPipeline wireframe_lit_pipeline;
     VkPipeline wireframe_unlit_pipeline;

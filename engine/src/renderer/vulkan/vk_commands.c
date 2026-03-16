@@ -2,6 +2,8 @@
 #include "vk_gui.h"
 #include "vk_util.h"
 #include "renderer/renderer_backend.h"
+#include "renderer/renderer_types.h"
+#include "memory/memory.h"
 
 b8 vk_command_pool_create(VK_Context *context, VkCommandPool *out_pool, u32 family_index) {
 
@@ -148,6 +150,68 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
             glm_vec4_zero(pc.material_params);
             vkCmdPushConstants(buffer, context->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(VK_MeshPushConstants), &pc);
             vkCmdDraw(buffer, context->cube_vertex_count, 1, 0, 0);
+        }
+
+        // --- Overlay pass (gizmo axes — no depth test) ---
+        if (context->overlay_count > 0 && context->overlay_meshes && context->overlay_camera.valid) {
+            // Compute gizmo sub-viewport: 100x100 in bottom-left of viewport rect, 10px margin
+            f32 gx, gy, gw, gh;
+            gw = 100.0f;
+            gh = 100.0f;
+            if (has_vp) {
+                gx = vr.x + 10.0f;
+                gy = vr.y + vr.h - gh - 10.0f;
+            } else {
+                gx = 10.0f;
+                gy = (f32)context->swapchain.chosen_extent.height - gh - 10.0f;
+            }
+
+            // Negative-height convention for Y-flip
+            VkViewport gizmo_vp = {
+                .x = gx,
+                .y = gy + gh,
+                .width = gw,
+                .height = -gh,
+                .minDepth = 0.0f,
+                .maxDepth = 1.0f,
+            };
+            VkRect2D gizmo_scissor = {
+                .offset = {(i32)gx, (i32)gy},
+                .extent = {(u32)gw, (u32)gh},
+            };
+            vkCmdSetViewport(buffer, 0, 1, &gizmo_vp);
+            vkCmdSetScissor(buffer, 0, 1, &gizmo_scissor);
+
+            vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->overlay_pipeline);
+
+            // Build overlay UBO with overlay camera matrices
+            ubo overlay_ubo = {0};
+            glm_mat4_copy(context->overlay_camera.view, overlay_ubo.view);
+            glm_mat4_copy(context->overlay_camera.projection, overlay_ubo.proj);
+            // Light/camera fields unused by unlit shader, leave zeroed
+
+            // We reuse the same UBO buffer — update it temporarily for overlay
+            mem_copy(context->uniform_buffers_mapped[context->current_frame], &overlay_ubo, sizeof(ubo));
+
+            for (u32 i = 0; i < context->overlay_count; i++) {
+                VK_MeshPushConstants pc;
+                glm_mat4_copy(context->overlay_meshes[i].model, pc.model);
+                glm_vec3_copy(context->overlay_meshes[i].material.specular, pc.material_params);
+                pc.material_params[3] = 0.0f;
+                vkCmdPushConstants(buffer, context->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(VK_MeshPushConstants), &pc);
+                vkCmdDraw(buffer, context->cube_vertex_count, 1, 0, 0);
+            }
+
+            // Restore scene UBO
+            ubo scene_ubo = {0};
+            glm_mat4_copy(context->view, scene_ubo.view);
+            glm_mat4_copy(context->proj, scene_ubo.proj);
+            glm_vec3_copy(context->frame_light.position, scene_ubo.light_pos);
+            glm_vec3_copy(context->frame_light.ambient,  scene_ubo.light_ambient);
+            glm_vec3_copy(context->frame_light.diffuse,  scene_ubo.light_diffuse);
+            glm_vec3_copy(context->frame_light.specular, scene_ubo.light_specular);
+            glm_vec3_copy(context->camera_pos,           scene_ubo.camera_pos);
+            mem_copy(context->uniform_buffers_mapped[context->current_frame], &scene_ubo, sizeof(ubo));
         }
 
         // Restore full-swapchain viewport/scissor for GUI overlay

@@ -130,6 +130,7 @@ void scene_build_frame_data(rl_scene *scene, const rl_frame_camera *camera, rl_f
                     fm->kind       = RL_FRAME_MESH_KIND_UNLIT;
                     fm->wireframe  = false;
                     fm->mesh_asset = 0;
+                    glm_vec3_copy((vec3){1.0f, 1.0f, 1.0f}, fm->material.specular);
                     glm_mat4_copy(t->local_to_world, fm->model);
                     glm_scale_uni(fm->model, 0.15f);
                 }

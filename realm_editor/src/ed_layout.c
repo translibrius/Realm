@@ -4,6 +4,7 @@
 #include "ed_asset_browser.h"
 #include "ed_console.h"
 #include "ed_inspector.h"
+#include "ed_settings.h"
 #include "asset/asset.h"
 #include "core/component.h"
 #include "core/entity.h"
@@ -14,6 +15,7 @@
 #include "gui/gui_panel.h"
 #include "gui/gui_scroll.h"
 #include "gui/gui_splitter.h"
+#include "gui/gui_tabs.h"
 #include "gui/gui_text.h"
 #include "gui/gui_theme.h"
 #include "gui/gui_tree.h"
@@ -31,6 +33,8 @@ void ed_layout_init(ed_layout *layout, ed_undo_stack *undo) {
     layout->menu_file = (gui_dropdown_state){.selected = -1};
     layout->menu_edit = (gui_dropdown_state){.selected = -1};
     layout->menu_view = (gui_dropdown_state){.selected = -1};
+    layout->viewport_tab = 0;
+    layout->theme_dropdown = (gui_dropdown_state){.selected = 0};
     layout->viewport_bounds = (Clay_BoundingBox){0};
 
     ed_inspector_init(&layout->inspector, undo);
@@ -147,61 +151,43 @@ static void ed_layout_panel_hierarchy(ed_layout *layout, rl_scene *scene, f32 he
     }
 }
 
-static void ed_layout_viewport(void) {
+static void ed_layout_viewport(ed_layout *layout, ed_application *app) {
     const gui_theme *t = gui_theme_get();
     u16 font = gui_font_id(asset_find(RL_ASSET_FONT_JETBRAINS_MONO));
 
-    // Outer container: tab strip + viewport area, vertical
+    // Outer container: tab strip + viewport/settings area, vertical
     gui_panel_cfg outer = {
         .color = {0, 0, 0, 0},
         .width_sizing = GUI_SIZE_GROW,
         .height_sizing = GUI_SIZE_GROW,
     };
     GUI_PANEL(&outer) {
-        // Tab strip — thin, dark, with bottom border separator
-        Clay__OpenElement();
-        Clay__ConfigureOpenElement((Clay_ElementDeclaration){
-            .layout = {
-                .sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIT(0)},
-                .padding = {.left = 2, .right = 2},
-                .childAlignment = {.y = CLAY_ALIGN_Y_BOTTOM},
-                .layoutDirection = CLAY_LEFT_TO_RIGHT,
-            },
-            .backgroundColor = t->bg_input,
-            .border = {
-                .color = t->border,
-                .width = {0, 0, 0, 1, 0},
-            },
-        });
-        {
-            // Active tab — accent top line, slightly lifted from strip
-            Clay__OpenElement();
+        // Tab bar
+        static const char *tab_labels[] = {"Viewport", "Settings"};
+        gui_tabs_cfg tcfg = {
+            .color = t->bg_input,
+            .active_color = t->bg_secondary,
+            .hover_color = t->control_hover,
+            .text_color = t->text,
+            .font = font,
+            .font_size = 12,
+        };
+        gui_tabs(&layout->viewport_tab, tab_labels, 2, &tcfg);
+
+        if (layout->viewport_tab == 0) {
+            // 3D viewport area (transparent, with known ID for bounds querying)
+            Clay__OpenElementWithId(CLAY_ID("EditorViewport"));
             Clay__ConfigureOpenElement((Clay_ElementDeclaration){
                 .layout = {
-                    .padding = {.left = 10, .right = 10, .top = 5, .bottom = 5},
+                    .sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0)},
                 },
-                .backgroundColor = t->bg_secondary,
-                .border = {
-                    .color = t->accent,
-                    .width = {0, 0, 2, 0, 0},
-                },
-            });
-            gui_text("Viewport", &(gui_text_cfg){
-                .color = t->text, .size = 12, .font = font,
+                .backgroundColor = {0, 0, 0, 0},
             });
             Clay__CloseElement();
+        } else {
+            // Settings panel
+            ed_settings_render(layout, &app->ed_cfg);
         }
-        Clay__CloseElement();
-
-        // 3D viewport area (transparent, with known ID for bounds querying)
-        Clay__OpenElementWithId(CLAY_ID("EditorViewport"));
-        Clay__ConfigureOpenElement((Clay_ElementDeclaration){
-            .layout = {
-                .sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0)},
-            },
-            .backgroundColor = {0, 0, 0, 0},
-        });
-        Clay__CloseElement();
     }
 }
 
@@ -286,7 +272,7 @@ void ed_layout_render(ed_layout *layout, ed_application *app, f32 dt) {
                                         layout->left_panel_width, 0, dt);
             }
             gui_splitter_v(&layout->splitter_left, &layout->left_panel_width, &splitter_cfg);
-            ed_layout_viewport();
+            ed_layout_viewport(layout, app);
             gui_splitter_v(&layout->splitter_right, &layout->right_panel_width, &splitter_cfg_inv);
             ed_layout_panel_properties(layout, app, dt);
         }

@@ -23,6 +23,7 @@ void register_entity_tests(void);
 void register_project_tests(void);
 void register_scene_io_tests(void);
 void register_file_scan_tests(void);
+void register_ray_tests(void);
 
 int main(int argc, const char **argv) {
     if (!rl_test_runtime_init()) {
@@ -50,6 +51,7 @@ int main(int argc, const char **argv) {
     register_project_tests();
     register_scene_io_tests();
     register_file_scan_tests();
+    register_ray_tests();
 
     i32 result = rl_test_run_from_args(argc, argv);
 

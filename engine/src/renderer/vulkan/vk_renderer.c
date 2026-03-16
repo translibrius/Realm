@@ -168,6 +168,11 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
         return false;
     }
 
+    if (!vk_overlay_pipeline_create(&context)) {
+        RL_ERROR("failed to create overlay pipeline");
+        return false;
+    }
+
     if (!vk_wireframe_pipelines_create(&context)) {
         RL_ERROR("failed to create wireframe pipelines");
         return false;
@@ -245,6 +250,7 @@ void vulkan_destroy(void) {
         vk_texture_destroy(&context, &context.textures[i].texture);
     }
     vk_wireframe_pipelines_destroy(&context);
+    vk_overlay_pipeline_destroy(&context);
     vk_unlit_pipeline_destroy(&context);
     vk_mesh_destroy_cube(&context);
     vk_sync_destroy_transfer(&context);
@@ -395,6 +401,18 @@ void vulkan_submit_frame_data(rl_frame_data *frame_data) {
         mem_copy(context.frame_meshes, frame_data->meshes, sz);
     } else {
         context.frame_meshes = nullptr;
+    }
+
+    // Copy overlay data
+    context.overlay_camera = frame_data->overlay_camera;
+    context.overlay_count = frame_data->overlay_count;
+    if (frame_data->overlay_count > 0 && frame_data->overlay_meshes) {
+        rl_arena *fa = rl_engine_get_frame_arena();
+        u64 osz = (u64)frame_data->overlay_count * sizeof(rl_frame_mesh);
+        context.overlay_meshes = rl_arena_push(fa, osz, alignof(rl_frame_mesh));
+        mem_copy(context.overlay_meshes, frame_data->overlay_meshes, osz);
+    } else {
+        context.overlay_meshes = nullptr;
     }
 
     // Store viewport rect for command recording

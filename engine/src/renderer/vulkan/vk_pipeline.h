@@ -37,5 +37,8 @@ void vk_pipeline_layout_destroy(VK_Context *context);
 b8 vk_unlit_pipeline_create(VK_Context *context);
 void vk_unlit_pipeline_destroy(VK_Context *context);
 
+b8 vk_overlay_pipeline_create(VK_Context *context);
+void vk_overlay_pipeline_destroy(VK_Context *context);
+
 b8 vk_wireframe_pipelines_create(VK_Context *context);
 void vk_wireframe_pipelines_destroy(VK_Context *context);

@@ -77,4 +77,9 @@ typedef struct rl_frame_data {
     u32 text_count;
 
     rl_viewport_rect viewport_rect;
+
+    // Overlay pass (gizmo axes, etc.) — rendered with separate camera, no depth test
+    rl_frame_camera overlay_camera;
+    rl_frame_mesh  *overlay_meshes;
+    u32             overlay_count;
 } rl_frame_data;

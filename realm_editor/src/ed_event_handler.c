@@ -2,14 +2,19 @@
 
 #include "ed_application.h"
 #include "ed_camera.h"
+#include "ed_inspector.h"
 #include "ed_layout.h"
+#include "ed_picking.h"
 #include "asset/asset.h"
+#include "core/camera.h"
 #include "core/component.h"
+#include "core/config.h"
 #include "core/event.h"
 #include "core/logger.h"
 #include "core/project.h"
 #include "platform/input.h"
 #include "platform/io/file_io.h"
+#include "renderer/frame_data.h"
 #include "util/str.h"
 
 #include <stdio.h>
@@ -141,12 +146,50 @@ static b8 ed_on_key(void *event, void *user_data) {
     return false;
 }
 
+static b8 ed_on_click(void *event, void *user_data) {
+    ed_application *app = user_data;
+    input_mouse_button *click = event;
+    if (!app || !click) return false;
+    if (app->mode != ED_MODE_EDITOR) return false;
+    if (click->button != MOUSE_LEFT || !click->pressed) return false;
+    if (app->camera.fly_mode || app->camera.orbiting) return false;
+    if (!app->camera.viewport_hovered) return false;
+    if (app->layout.viewport_tab != 0) return false;
+
+    // Build camera matrices for picking
+    Clay_BoundingBox vb = app->layout.viewport_bounds;
+    if (vb.width <= 0 || vb.height <= 0) return false;
+
+    f32 aspect = vb.width / vb.height;
+    rl_frame_camera fc = {.valid = true};
+    camera_get_view(&app->camera.cam, fc.view);
+    camera_get_projection(&app->camera.cam, aspect, fc.projection, config_get()->renderer_backend);
+    glm_vec3_copy(app->camera.cam.pos, fc.position);
+
+    rl_viewport_rect vp = {vb.x, vb.y, vb.width, vb.height};
+
+    vec2 mouse_pos;
+    input_get_mouse_position(mouse_pos);
+
+    rl_entity hit = ed_pick_entity(app->scene, mouse_pos[0], mouse_pos[1], &vp, &fc);
+    if (hit != RL_ENTITY_INVALID) {
+        u32 idx = rl_entity_index(hit);
+        app->layout.hierarchy_tree.selected_id = ED_ENTITY_NODE_BASE + idx;
+        ed_inspector_bind(&app->layout.inspector, app->scene, hit);
+    } else {
+        app->layout.hierarchy_tree.selected_id = 0;
+    }
+
+    return true;
+}
+
 void ed_event_handler_init(ed_event_handler *handler, ed_application *application) {
     handler->application = application;
 
     // Register editor-specific handlers before host events so they run first (FIFO)
     event_register(EVENT_MOUSE_SCROLL, ed_on_scroll, application);
     event_register(EVENT_KEY_PRESS, ed_on_key, application);
+    event_register(EVENT_MOUSE_CLICK, ed_on_click, application);
 
     handler->host = (host_event_ctx){
         .window = &application->window,

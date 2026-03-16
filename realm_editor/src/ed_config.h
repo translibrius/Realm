@@ -10,6 +10,7 @@ typedef struct ed_config {
     char last_project[ED_PROJECT_PATH_MAX];
     char recent_projects[ED_MAX_RECENT_PROJECTS][ED_PROJECT_PATH_MAX];
     u32 recent_count;
+    char theme[32];
 } ed_config;
 
 void ed_config_load(ed_config *cfg);

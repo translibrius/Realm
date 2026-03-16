@@ -6,10 +6,13 @@
 #include "core/project_assets.h"
 #include "core/scene.h"
 #include "core/scene_io.h"
+#include "ed_gizmo.h"
+#include "ed_settings.h"
 #include "engine.h"
 #include "cglm.h"
 #include "clay.h"
 #include "gui/gui.h"
+#include "gui/gui_theme.h"
 #include "host/host_bootstrap.h"
 #include "host/host_renderer.h"
 #include "platform/io/file_io.h"
@@ -103,6 +106,7 @@ static void ed_enter_editor_mode(void) {
     ed_camera_init(&app.camera);
     ed_undo_init(&app.undo);
     ed_layout_init(&app.layout, &app.undo);
+    app.layout.theme_dropdown.selected = ed_settings_theme_index(app.ed_cfg.theme);
 
     // Update recents + save
     rl_project *proj = project_get();
@@ -149,6 +153,7 @@ b8 create_editor(void) {
 
     // Load editor-only persistent state
     ed_config_load(&app.ed_cfg);
+    ed_settings_apply_theme(app.ed_cfg.theme);
 
     ed_asset_browser_init(&app.asset_browser);
 
@@ -184,8 +189,10 @@ b8 create_editor(void) {
         }
 
         if (app.mode == ED_MODE_EDITOR) {
-            // Update editor camera
-            ed_camera_update(&app.camera, dt, &app.layout.viewport_bounds, &app.window);
+            // Update editor camera (skip when settings tab is active)
+            if (app.layout.viewport_tab == 0) {
+                ed_camera_update(&app.camera, dt, &app.layout.viewport_bounds, &app.window);
+            }
 
             // Build and submit frame data from scene
             Clay_BoundingBox vb = app.layout.viewport_bounds;
@@ -203,6 +210,7 @@ b8 create_editor(void) {
             if (vb.width > 0 && vb.height > 0) {
                 frame.viewport_rect = (rl_viewport_rect){vb.x, vb.y, vb.width, vb.height};
             }
+            ed_gizmo_build_axis_overlay(&app.camera, &vb, &frame);
             renderer_submit_frame_data(&frame);
 
             gui_layout_begin((f32)dt);

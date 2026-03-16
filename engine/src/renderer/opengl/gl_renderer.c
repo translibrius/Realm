@@ -236,6 +236,7 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
             bound_vao = draw_mesh->vao;
         }
 
+        opengl_shader_set_vec3(&context.light_shader, "flat_color", fm->material.specular);
         opengl_shader_set_mat4(&context.light_shader, "model", fm->model);
 
         if (!context.debug_wireframe && fm->wireframe != wireframe_on) {
@@ -250,6 +251,45 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
     if (wireframe_on) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         glEnable(GL_CULL_FACE);
+    }
+
+    // --- Overlay pass (gizmo axes, etc.) ---
+    if (frame_data->overlay_count > 0 && frame_data->overlay_meshes && frame_data->overlay_camera.valid) {
+        // Compute gizmo sub-viewport: 100x100 in bottom-left of viewport rect, 10px margin
+        f32 gx, gy, gw, gh;
+        gw = 100.0f;
+        gh = 100.0f;
+        if (has_viewport) {
+            gx = vr.x + 10.0f;
+            gy = vr.y + vr.h - gh - 10.0f;
+        } else {
+            gx = 10.0f;
+            gy = (f32)context.window->settings.height - gh - 10.0f;
+        }
+        i32 win_h = context.window->settings.height;
+        i32 gl_gy = win_h - (i32)(gy + gh);
+        glViewport((i32)gx, gl_gy, (i32)gw, (i32)gh);
+        glDisable(GL_DEPTH_TEST);
+
+        opengl_shader_use(&context.light_shader);
+        opengl_shader_set_mat4(&context.light_shader, "view", frame_data->overlay_camera.view);
+        opengl_shader_set_mat4(&context.light_shader, "projection", frame_data->overlay_camera.projection);
+
+        glBindVertexArray(context.cube_mesh.vao);
+        for (u32 i = 0; i < frame_data->overlay_count; i++) {
+            rl_frame_mesh *om = &frame_data->overlay_meshes[i];
+            opengl_shader_set_vec3(&context.light_shader, "flat_color", om->material.specular);
+            opengl_shader_set_mat4(&context.light_shader, "model", om->model);
+            gl_mesh_draw(&context.cube_mesh);
+        }
+
+        glEnable(GL_DEPTH_TEST);
+
+        // Restore scene viewport before text pass
+        if (has_viewport) {
+            i32 gl_y = win_h - (i32)(vr.y + vr.h);
+            glViewport((i32)vr.x, gl_y, (i32)vr.w, (i32)vr.h);
+        }
     }
 
 text_pass:

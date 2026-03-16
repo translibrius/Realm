@@ -38,6 +38,10 @@ typedef struct ed_layout {
     gui_dropdown_state menu_edit;
     gui_dropdown_state menu_view;
 
+    // Viewport tab bar (0 = Viewport, 1 = Settings)
+    i32 viewport_tab;
+    gui_dropdown_state theme_dropdown;
+
     // Viewport bounds from previous frame (for camera input)
     Clay_BoundingBox viewport_bounds;
 
