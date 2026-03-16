@@ -2,12 +2,16 @@
 
 #include "core/event.h"
 #include "engine.h"
+#include "gui/gui_focus.h"
 #include "gui/gui_text_input.h"
 #include "gui/gui_theme.h"
 #include "platform/input.h"
 #include <string.h>
 
 #include "clay.h"
+
+// Defined in gui_internal.h (REALM_API)
+extern u32 gui__next_id(void);
 
 static void host_console_log_callback(LOG_LEVEL level, const char *text, u16 len, void *userdata) {
     host_console *c = userdata;
@@ -49,6 +53,9 @@ static b8 host_console_on_key(void *event, void *user_data) {
     if (!c || !c->visible || !k || !k->pressed) return false;
     if (k->key == KEY_GRAVE) return false;
 
+    // Only consume keys when the console input is focused
+    if (!gui_focus_is(c->input._id)) return false;
+
     if (gui_text_input_handle_key(&c->input, k)) {
         c->input.buf[c->input.len] = '\0';
         RL_INFO("> %s", c->input.buf);
@@ -67,6 +74,9 @@ static b8 host_console_on_char(void *event, void *user_data) {
     if (!c || !c->visible || !ch) return false;
     if (ch->codepoint == 96) return false;
 
+    // Only consume chars when the console input is focused
+    if (!gui_focus_is(c->input._id)) return false;
+
     gui_text_input_handle_char(&c->input, ch);
     return true;
 }
@@ -78,6 +88,7 @@ void host_console_init(host_console *c) {
     c->visible = false;
     c->scroll = (gui_scroll_state){.auto_scroll = true};
     c->input = (gui_text_input_state){0};
+    c->input._id = gui__next_id();
     event_register(EVENT_KEY_PRESS, host_console_on_key, c);
     event_register(EVENT_CHAR_INPUT, host_console_on_char, c);
     logger_set_callback(host_console_log_callback, c);
@@ -91,6 +102,13 @@ void host_console_shutdown(host_console *c) {
 b8 host_console_toggle(host_console *c) {
     if (!c) return false;
     c->visible = !c->visible;
+    if (c->visible) {
+        gui_focus_set(c->input._id);
+    } else {
+        if (gui_focus_is(c->input._id)) {
+            gui_focus_clear();
+        }
+    }
     return c->visible;
 }
 

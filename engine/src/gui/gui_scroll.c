@@ -2,6 +2,7 @@
 
 #include "gui/gui_theme.h"
 #include "gui_internal.h"
+#include "platform/input.h"
 
 // Stashed by begin(), read by end(). Single-threaded, non-reentrant (same as Clay).
 static Clay_ElementId scroll_eid;
@@ -39,6 +40,43 @@ void gui_scroll_begin(gui_scroll_state *state, const gui_scroll_cfg *cfg) {
             f32 max_scroll = scd.contentDimensions.height - scd.scrollContainerDimensions.height;
             if (max_scroll > 0 && (max_scroll + scd.scrollPosition->y) < 2.0f) {
                 state->auto_scroll = true;
+            }
+        }
+    }
+
+    // Handle ongoing scrollbar drag (before layout so position is updated this frame)
+    if (state && state->_dragging) {
+        if (!input_is_mouse_down(MOUSE_LEFT)) {
+            state->_dragging = false;
+        } else {
+            Clay_ScrollContainerData scd = Clay_GetScrollContainerData(eid);
+            if (scd.found) {
+                f32 content_h = scd.contentDimensions.height;
+                f32 view_h = scd.scrollContainerDimensions.height;
+                f32 max_scroll = content_h - view_h;
+
+                // Get track element bounds for computing scroll ratio
+                Clay_ElementId track_eid = CLAY_IDI("GuiScrollTrack", state->_id);
+                Clay_ElementData track_data = Clay_GetElementData(track_eid);
+                if (track_data.found && max_scroll > 0) {
+                    f32 track_h = track_data.boundingBox.height - 4; // padding
+                    f32 thumb_h_frac = view_h / content_h;
+                    if (thumb_h_frac < 0.05f) thumb_h_frac = 0.05f;
+                    if (thumb_h_frac > 1.0f) thumb_h_frac = 1.0f;
+                    f32 scroll_range = track_h * (1.0f - thumb_h_frac);
+
+                    if (scroll_range > 0) {
+                        vec2 mouse;
+                        input_get_mouse_position(mouse);
+                        f32 dy = mouse[1] - state->_drag_start_y;
+                        f32 scroll_delta = (dy / scroll_range) * max_scroll;
+                        f32 new_scroll = state->_drag_start_scroll - scroll_delta;
+                        if (new_scroll > 0) new_scroll = 0;
+                        if (new_scroll < -max_scroll) new_scroll = -max_scroll;
+                        *scd.scrollPosition = (Clay_Vector2){0, new_scroll};
+                        state->_offset = *scd.scrollPosition;
+                    }
+                }
             }
         }
     }
@@ -116,6 +154,7 @@ void gui_scroll_end(void) {
 
     // Scrollbar track — stable ID derived from scroll state
     Clay__OpenElementWithId(CLAY_IDI("GuiScrollTrack", scroll_base_id));
+    b8 track_hovered = Clay_Hovered();
     Clay__ConfigureOpenElement((Clay_ElementDeclaration){
         .layout = {
             .sizing = {.width = CLAY_SIZING_FIXED(sb_width), .height = CLAY_SIZING_GROW(0)},
@@ -141,6 +180,45 @@ void gui_scroll_end(void) {
 
     // Close scrollbar track
     Clay__CloseElement();
+
+    // Scrollbar click-to-drag interaction (using track bounds from previous frame)
+    if (scroll_state && !scroll_state->_dragging && show_scrollbar && scd.found && track_hovered) {
+        if (input_mouse_pressed(MOUSE_LEFT)) {
+            f32 content_h = scd.contentDimensions.height;
+            f32 view_h = scd.scrollContainerDimensions.height;
+            f32 max_scroll = content_h - view_h;
+
+            Clay_ElementId track_eid = CLAY_IDI("GuiScrollTrack", scroll_base_id);
+            Clay_ElementData track_data = Clay_GetElementData(track_eid);
+
+            if (track_data.found && max_scroll > 0) {
+                f32 track_y = track_data.boundingBox.y + 2;
+                f32 track_h = track_data.boundingBox.height - 4;
+
+                vec2 mouse;
+                input_get_mouse_position(mouse);
+
+                // Jump scroll position to center thumb at click location
+                f32 click_frac = (mouse[1] - track_y) / track_h;
+                if (click_frac < 0) click_frac = 0;
+                if (click_frac > 1) click_frac = 1;
+
+                f32 effective_frac = thumb_h_frac;
+                f32 scroll_frac_new = (click_frac - effective_frac * 0.5f) / (1.0f - effective_frac);
+                if (scroll_frac_new < 0) scroll_frac_new = 0;
+                if (scroll_frac_new > 1) scroll_frac_new = 1;
+
+                f32 new_scroll = -scroll_frac_new * max_scroll;
+                *scd.scrollPosition = (Clay_Vector2){0, new_scroll};
+                scroll_state->_offset = *scd.scrollPosition;
+
+                scroll_state->_dragging = true;
+                scroll_state->_drag_start_y = mouse[1];
+                scroll_state->_drag_start_scroll = new_scroll;
+                scroll_state->auto_scroll = false;
+            }
+        }
+    }
 
     // Close outer container
     Clay__CloseElement();

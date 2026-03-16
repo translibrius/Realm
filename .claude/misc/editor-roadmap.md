@@ -571,6 +571,125 @@ Visual refinements and missing interactive elements to make the editor feel like
 
 ---
 
+## Phase 12: Renderer Visual Polish — DONE
+
+### 12a. MSDF text weight — DONE
+
+- [x] Added `u_weight` uniform (GL) / push constant float (VK) to GUI shaders
+- [x] Formula: `sd - (0.5 - weight)` with weight = 0.12 — gives subtle "medium" weight
+- [x] Fixed min `screen_px_range` floor to `1/(1 - 2*weight)` — prevents alpha leakage at glyph quad edges
+- [x] Files: `gui.frag` (both backends), `gl_gui.c` (loc_weight), `gl_types.h`, `vk_gui.c` (push constant struct)
+
+### 12b. SDF rounded corners — DONE
+
+- [x] New `GL_GuiVertex` / `VK_GuiVertex` (48 bytes) with `vec4 rect_info` (half_w, half_h, corner_radius, 0)
+- [x] Fragment shader SDF branch: `length(max(abs(uv) - half_size + radius, 0)) - radius` with `smoothstep` AA
+- [x] `push_rect` reads `cornerRadius.topLeft` from Clay `RectangleRenderData`
+- [x] Three-way shader dispatch: `rect_info.z > 0` → rounded SDF, `uv.x < 0` → plain rect, else → MSDF text
+- [x] VK push constant range expanded from 12 → 16 bytes (added weight float)
+- [x] `vk_gui.h` return type updated to `VK_GuiVertex *`, `vk_text.c` updated accordingly
+- [x] Borders remain sharp (rounded border SDF deferred)
+
+### 12c. Menu bar divider — DONE
+
+- [x] Added `gui_separator()` call after `ed_layout_menu_bar()` in `ed_layout.c`
+
+---
+
+## Phase 13: GUI Focus System & Interaction Fixes — DONE
+
+### 13a. Global GUI focus system — DONE
+
+- [x] Created `engine/include/gui/gui_focus.h` + `engine/src/gui/gui_focus.c`
+- [x] Single active widget ID — `gui_focus_set/clear/get/is`
+- [x] `gui_focus_begin_frame()` clears focus on any mouse click (left or right), widgets re-claim during render
+- [x] Hooked into `gui_layout_begin()` in `gui.c`
+
+### 13b. Text input focus-aware blink — DONE
+
+- [x] Added `_id` field to `gui_text_input_state` (auto-assigned via `gui__next_id`)
+- [x] `gui_text_input_display()` only blinks caret when `gui_focus_is(_id)` — no more phantom cursors
+- [x] `gui_text_input_render()` claims focus on click, shows accent border when focused
+
+### 13c. Number input focus integration — DONE
+
+- [x] `gui_number_input()` detects focus loss (`editing && !gui_focus_is`) → auto-confirms edit
+- [x] Entering editing mode calls `gui_focus_set(id)` — previous widget loses focus
+- [x] Blink timer only advances when focused — no fast blinking at high FPS
+- [x] Escape clears global focus via `gui_focus_clear()`
+
+### 13d. Console focus gating — DONE
+
+- [x] `host_console_on_key/on_char` check `gui_focus_is(c->input._id)` instead of `c->visible`
+- [x] Console toggle sets/clears focus — open = focused, close = unfocused
+- [x] Right-click on viewport clears console focus → WASD works while console is visible
+- [x] Console input `_id` assigned in `host_console_init()`
+
+### 13e. Settings number input keyboard support — DONE
+
+- [x] Moved settings number input state to file scope in `ed_settings.c`
+- [x] Added `settings_on_key/on_char` event handlers — route to whichever input is editing
+- [x] `ed_settings_init()` registers handlers, called from `ed_application.c`
+- [x] Fixed hardcoded `0.016f` dt → real frame dt passed through `ed_settings_render(layout, cfg, dt)`
+
+### 13f. Scrollbar drag interaction — DONE
+
+- [x] Added `_dragging`, `_drag_start_y`, `_drag_start_scroll` to `gui_scroll_state`
+- [x] Click on scrollbar track: jumps thumb to click position, starts drag
+- [x] Drag: continuously updates scroll position proportional to mouse delta vs track height
+- [x] Release: ends drag. Auto-scroll disabled during manual scrollbar interaction.
+
+### 13g. Settings config sync — DONE
+
+- [x] Replaced one-time `s_initialized` pattern with per-frame sync from config
+- [x] Number input values always reflect `cfg->camera_*` when not editing/dragging
+- [x] Handles first-run defaults, config reloads, and external changes
+
+---
+
+## Phase 14: GUI Architecture Refactor (planned)
+
+The GUI subsystem has grown organically. Focus management, keyboard routing, and widget interaction patterns are scattered across per-widget and per-editor-panel code. This phase consolidates them into proper subsystems.
+
+### 14a. Centralized keyboard routing
+
+Currently each panel (inspector, settings, console, project picker) registers its own `EVENT_KEY_PRESS` / `EVENT_CHAR_INPUT` handlers that check if their widgets are editing. This duplicates the same "find editing widget → forward key" pattern.
+
+- [ ] Create `engine/include/gui/gui_input.h` + `engine/src/gui/gui_input.c`
+- [ ] Single pair of event handlers registered once at GUI init
+- [ ] Widgets register/unregister themselves as keyboard targets when entering/exiting editing mode
+- [ ] Uses the global focus ID to dispatch — only the focused widget receives keys
+- [ ] Remove per-panel key/char handlers from inspector, settings, console, project picker
+
+### 14b. Widget lifecycle standardization
+
+Widgets use inconsistent patterns: some have `_init/_shutdown`, some use lazy static init, some are pure immediate-mode. The focus system added `_id` to `gui_text_input_state` but not all widgets auto-assign it consistently.
+
+- [ ] Establish clear lifecycle: all stateful widgets get `_id` auto-assigned on first render
+- [ ] All editing widgets (text input, number input) use `gui_focus_set/is` consistently
+- [ ] Remove `focused_input` pointer from `ed_inspector` — use global focus ID to check if any inspector widget is active
+- [ ] Remove `name_focused` flag — wire name text input click-to-focus via the standard focus system
+
+### 14c. Editor main loop cleanup
+
+`ed_application.c` has grown into a monolithic 300+ line update/render function that mixes input handling, gizmo updates, scene management, camera updates, frame data submission, and GUI layout.
+
+- [ ] Extract `ed_frame_update(app, dt)` — input processing, camera, gizmo drag, undo/redo
+- [ ] Extract `ed_frame_render(app, dt)` — scene frame data, overlay submission, GUI layout
+- [ ] Move gizmo drag update logic from `ed_application.c` to `ed_gizmo_transform.c`
+- [ ] Move scene dirty tracking and auto-save logic to a helper
+
+### 14d. Text cursor improvements
+
+The caret is rendered as a `|` character inserted into the display string, which shifts subsequent characters and makes the cursor appear fat (it's a full glyph width).
+
+- [ ] Render caret as a 1-2px wide rect overlay at the cursor pixel position
+- [ ] Compute cursor X from glyph advances up to cursor position
+- [ ] Remove `|` insertion from `gui_text_input_display()` and number input render
+- [ ] Caret color from theme (`t->text` or `t->accent`)
+
+---
+
 ## Future (not scoped)
 
 - Native file/directory picker dialog (`NSOpenPanel` on macOS, `IFileOpenDialog` on Win32, GTK/portal on Linux) — "Browse" button next to path inputs in project picker
@@ -623,17 +742,38 @@ Phase 4: Project System & Config    ✓ done
     │       10d. Project fallback fix      ✓ done
     │       10e. Theme dropdown/settings   ✓ done
     │
-    └── Phase 11: Editor GUI Polish            ✓ done
-            11a. FPS overlay               ✓ done
-            11b. Tree arrow triangles      ✓ done
-            11c. Tree visual polish        ✓ done
-            11d. Viewport toolbar          ✓ done
-            11e. Context menu widget       ✓ done
-            11f. Expanded settings         ✓ done
-            11g. Inspector section headers ✓ done
+    ├── Phase 11: Editor GUI Polish            ✓ done
+    │       11a. FPS overlay               ✓ done
+    │       11b. Tree arrow triangles      ✓ done
+    │       11c. Tree visual polish        ✓ done
+    │       11d. Viewport toolbar          ✓ done
+    │       11e. Context menu widget       ✓ done
+    │       11f. Expanded settings         ✓ done
+    │       11g. Inspector section headers ✓ done
+    │
+    ├── Phase 12: Renderer Visual Polish       ✓ done
+    │       12a. MSDF text weight          ✓ done
+    │       12b. SDF rounded corners       ✓ done
+    │       12c. Menu bar divider          ✓ done
+    │
+    ├── Phase 13: Focus & Interaction Fixes    ✓ done
+    │       13a. Global focus system       ✓ done
+    │       13b. Text input focus blink    ✓ done
+    │       13c. Number input focus        ✓ done
+    │       13d. Console focus gating      ✓ done
+    │       13e. Settings keyboard input   ✓ done
+    │       13f. Scrollbar drag            ✓ done
+    │       13g. Settings config sync      ✓ done
+    │
+    └── Phase 14: GUI Architecture Refactor    ⬜ planned
+            14a. Centralized keyboard routing  ⬜
+            14b. Widget lifecycle standard.    ⬜
+            14c. Editor main loop cleanup      ⬜
+            14d. Text cursor improvements      ⬜
 ```
 
 Remaining loose ends:
-- Name editing in the inspector is wired for keyboard but not yet clickable (no click-to-focus on the name text). Could be added as a small follow-up.
+- Name editing in the inspector is wired for keyboard but not yet clickable (no click-to-focus on the name text). Planned for Phase 14b.
 - Entity create/destroy undo action types exist but the recreation logic for undo isn't wired yet. Context menu delete works but doesn't push undo entries.
 - File browser widget (`gui_file_browser`) exists but isn't wired into project picker's Browse button yet (native dialog preferred long-term).
+- Text cursor renders as a `|` character (fat, shifts text). Planned for Phase 14d.

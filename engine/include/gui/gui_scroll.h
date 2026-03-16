@@ -14,6 +14,9 @@ typedef struct gui_scroll_state {
     b8 auto_scroll;
     u32 _id;              // 0 = uninitialized, auto-generated on first gui_scroll_begin
     Clay_Vector2 _offset; // cached scroll offset — avoids Clay_GetScrollOffset pointer bug
+    b8 _dragging;         // scrollbar thumb drag active
+    f32 _drag_start_y;    // mouse Y at drag start
+    f32 _drag_start_scroll; // scroll position at drag start
 } gui_scroll_state;
 
 // Opens a scrollable container. Place children between begin/end.

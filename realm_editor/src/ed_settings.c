@@ -3,21 +3,70 @@
 #include "ed_config.h"
 #include "ed_layout.h"
 #include "asset/asset.h"
+#include "core/event.h"
 #include "gui/gui_checkbox.h"
 #include "gui/gui_clay.h"
 #include "gui/gui_dropdown.h"
 #include "gui/gui_field.h"
+#include "gui/gui_focus.h"
 #include "gui/gui_number_input.h"
 #include "gui/gui_panel.h"
 #include "gui/gui_text.h"
 #include "gui/gui_theme.h"
+#include "platform/input.h"
 #include "util/str.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 static const char *s_theme_keys[] = {"dark", "catppuccin"};
 static const char *s_theme_labels[] = {"Dark", "Catppuccin"};
 #define THEME_COUNT 2
+
+// File-scope so event handlers can access them
+static gui_number_input_state s_cam_speed;
+static gui_number_input_state s_cam_sens;
+static gui_number_input_state s_cam_fov;
+
+static gui_number_input_state *s_all_inputs[] = {&s_cam_speed, &s_cam_sens, &s_cam_fov};
+#define SETTINGS_INPUT_COUNT 3
+
+static b8 settings_on_key(void *event, void *user_data) {
+    (void)user_data;
+    input_key *k = event;
+    if (!k || !k->pressed) return false;
+
+    for (u32 i = 0; i < SETTINGS_INPUT_COUNT; i++) {
+        if (s_all_inputs[i]->editing) {
+            if (gui_number_input_handle_key(s_all_inputs[i], k)) {
+                f32 parsed = (f32)strtod(s_all_inputs[i]->buf, nullptr);
+                s_all_inputs[i]->value = parsed;
+                s_all_inputs[i]->editing = false;
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
+static b8 settings_on_char(void *event, void *user_data) {
+    (void)user_data;
+    input_char *ch = event;
+    if (!ch) return false;
+
+    for (u32 i = 0; i < SETTINGS_INPUT_COUNT; i++) {
+        if (s_all_inputs[i]->editing) {
+            gui_number_input_handle_char(s_all_inputs[i], ch);
+            return true;
+        }
+    }
+    return false;
+}
+
+void ed_settings_init(void) {
+    event_register(EVENT_KEY_PRESS, settings_on_key, nullptr);
+    event_register(EVENT_CHAR_INPUT, settings_on_char, nullptr);
+}
 
 void ed_settings_apply_theme(const char *theme_key) {
     if (!theme_key || !theme_key[0] || strcmp(theme_key, "dark") == 0) {
@@ -49,7 +98,7 @@ static void section_label(const char *text, const gui_theme *t, u16 font) {
     }
 }
 
-void ed_settings_render(ed_layout *layout, ed_config *cfg) {
+void ed_settings_render(ed_layout *layout, ed_config *cfg, f32 dt) {
     if (!layout || !cfg) return;
 
     const gui_theme *t = gui_theme_get();
@@ -58,17 +107,13 @@ void ed_settings_render(ed_layout *layout, ed_config *cfg) {
 
     gui_field_cfg fcfg = {.label_width = 100, .font = font, .font_size = 13, .label_color = t->text};
 
-    // Persistent state for number inputs
-    static gui_number_input_state s_cam_speed;
-    static gui_number_input_state s_cam_sens;
-    static gui_number_input_state s_cam_fov;
-    static b8 s_initialized = false;
-    if (!s_initialized) {
+    // Sync from config when not editing
+    if (!s_cam_speed.editing && !s_cam_speed.dragging)
         s_cam_speed.value = cfg->camera_speed;
+    if (!s_cam_sens.editing && !s_cam_sens.dragging)
         s_cam_sens.value = cfg->camera_sensitivity;
+    if (!s_cam_fov.editing && !s_cam_fov.dragging)
         s_cam_fov.value = cfg->camera_fov;
-        s_initialized = true;
-    }
 
     gui_panel_cfg panel = {
         .color = t->bg,
@@ -97,7 +142,7 @@ void ed_settings_render(ed_layout *layout, ed_config *cfg) {
 
         gui_number_input_cfg speed_cfg = {.step = 0.1f, .min = 0.5f, .max = 20.0f, .format = "%.1f", .width = 70, .height = 24};
         gui_field_begin("Speed", &fcfg);
-        if (gui_number_input(&s_cam_speed, &speed_cfg, 0.016f)) {
+        if (gui_number_input(&s_cam_speed, &speed_cfg, dt)) {
             cfg->camera_speed = s_cam_speed.value;
             ed_config_save(cfg);
         }
@@ -105,7 +150,7 @@ void ed_settings_render(ed_layout *layout, ed_config *cfg) {
 
         gui_number_input_cfg sens_cfg = {.step = 0.005f, .min = 0.05f, .max = 1.0f, .format = "%.3f", .width = 70, .height = 24};
         gui_field_begin("Sensitivity", &fcfg);
-        if (gui_number_input(&s_cam_sens, &sens_cfg, 0.016f)) {
+        if (gui_number_input(&s_cam_sens, &sens_cfg, dt)) {
             cfg->camera_sensitivity = s_cam_sens.value;
             ed_config_save(cfg);
         }
@@ -113,7 +158,7 @@ void ed_settings_render(ed_layout *layout, ed_config *cfg) {
 
         gui_number_input_cfg fov_cfg = {.step = 0.5f, .min = 30.0f, .max = 120.0f, .format = "%.0f", .width = 70, .height = 24};
         gui_field_begin("FOV", &fcfg);
-        if (gui_number_input(&s_cam_fov, &fov_cfg, 0.016f)) {
+        if (gui_number_input(&s_cam_fov, &fov_cfg, dt)) {
             cfg->camera_fov = s_cam_fov.value;
             ed_config_save(cfg);
         }

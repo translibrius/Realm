@@ -113,6 +113,7 @@ static void ed_enter_editor_mode(void) {
     app.show_grid = true;
     ed_undo_init(&app.undo);
     ed_layout_init(&app.layout, &app.undo);
+    ed_settings_init();
     app.layout.theme_dropdown.selected = ed_settings_theme_index(app.ed_cfg.theme);
 
     // Update recents + save

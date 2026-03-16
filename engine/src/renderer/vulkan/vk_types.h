@@ -103,6 +103,13 @@ typedef struct VK_TextVertex {
     vec4 color;
 } VK_TextVertex;
 
+typedef struct VK_GuiVertex {
+    vec2 pos;
+    vec2 uv;
+    vec4 color;
+    vec4 rect_info; // (half_w, half_h, corner_radius, 0)
+} VK_GuiVertex;
+
 typedef struct VK_Font {
     VkImage atlas_image;
     VkImageView atlas_view;

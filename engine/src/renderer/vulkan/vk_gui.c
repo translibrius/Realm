@@ -55,7 +55,7 @@ static gui_clip_rect *clip_current(void) {
 // Vertex helpers
 // ---------------------------------------------------------------------------
 
-static void push_tri(VK_TextVertex *verts, u32 *count,
+static void push_tri(VK_GuiVertex *verts, u32 *count,
                       f32 x0, f32 y0, f32 x1, f32 y1, f32 x2, f32 y2,
                       f32 r, f32 g, f32 b, f32 a) {
     if (*count + 3 > VK_GUI_MAX_VERTS) return;
@@ -70,21 +70,22 @@ static void push_tri(VK_TextVertex *verts, u32 *count,
         }
     }
 
-    VK_TextVertex *v = &verts[*count];
-    v[0] = (VK_TextVertex){.pos = {x0, y0}, .uv = {-1, -1}, .color = {r, g, b, a}};
-    v[1] = (VK_TextVertex){.pos = {x1, y1}, .uv = {-1, -1}, .color = {r, g, b, a}};
-    v[2] = (VK_TextVertex){.pos = {x2, y2}, .uv = {-1, -1}, .color = {r, g, b, a}};
+    VK_GuiVertex *v = &verts[*count];
+    v[0] = (VK_GuiVertex){.pos = {x0, y0}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
+    v[1] = (VK_GuiVertex){.pos = {x1, y1}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
+    v[2] = (VK_GuiVertex){.pos = {x2, y2}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
     *count += 3;
 }
 
-static void push_rect(VK_TextVertex *verts, u32 *count,
+static void push_rect(VK_GuiVertex *verts, u32 *count,
                        f32 x, f32 y, f32 w, f32 h,
-                       f32 r, f32 g, f32 b, f32 a) {
+                       f32 r, f32 g, f32 b, f32 a,
+                       f32 corner_radius) {
     if (*count + 6 > VK_GUI_MAX_VERTS) return;
 
     f32 x0 = x, y0 = y, x1 = x + w, y1 = y + h;
 
-    if (clip_active()) {
+    if (corner_radius <= 0.0f && clip_active()) {
         gui_clip_rect *c = clip_current();
         if (x0 < c->x0) x0 = c->x0;
         if (y0 < c->y0) y0 = c->y0;
@@ -93,17 +94,30 @@ static void push_rect(VK_TextVertex *verts, u32 *count,
         if (x0 >= x1 || y0 >= y1) return;
     }
 
-    VK_TextVertex *v = &verts[*count];
-    v[0] = (VK_TextVertex){.pos = {x0, y0}, .uv = {-1, -1}, .color = {r, g, b, a}};
-    v[1] = (VK_TextVertex){.pos = {x0, y1}, .uv = {-1, -1}, .color = {r, g, b, a}};
-    v[2] = (VK_TextVertex){.pos = {x1, y1}, .uv = {-1, -1}, .color = {r, g, b, a}};
-    v[3] = (VK_TextVertex){.pos = {x0, y0}, .uv = {-1, -1}, .color = {r, g, b, a}};
-    v[4] = (VK_TextVertex){.pos = {x1, y1}, .uv = {-1, -1}, .color = {r, g, b, a}};
-    v[5] = (VK_TextVertex){.pos = {x1, y0}, .uv = {-1, -1}, .color = {r, g, b, a}};
+    VK_GuiVertex *v = &verts[*count];
+
+    if (corner_radius > 0.0f) {
+        f32 hw = (x1 - x0) * 0.5f;
+        f32 hh = (y1 - y0) * 0.5f;
+        vec4 ri = {hw, hh, corner_radius, 0};
+        v[0] = (VK_GuiVertex){.pos = {x0, y0}, .uv = {-hw, -hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
+        v[1] = (VK_GuiVertex){.pos = {x0, y1}, .uv = {-hw,  hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
+        v[2] = (VK_GuiVertex){.pos = {x1, y1}, .uv = { hw,  hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
+        v[3] = (VK_GuiVertex){.pos = {x0, y0}, .uv = {-hw, -hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
+        v[4] = (VK_GuiVertex){.pos = {x1, y1}, .uv = { hw,  hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
+        v[5] = (VK_GuiVertex){.pos = {x1, y0}, .uv = { hw, -hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
+    } else {
+        v[0] = (VK_GuiVertex){.pos = {x0, y0}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
+        v[1] = (VK_GuiVertex){.pos = {x0, y1}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
+        v[2] = (VK_GuiVertex){.pos = {x1, y1}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
+        v[3] = (VK_GuiVertex){.pos = {x0, y0}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
+        v[4] = (VK_GuiVertex){.pos = {x1, y1}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
+        v[5] = (VK_GuiVertex){.pos = {x1, y0}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
+    }
     *count += 6;
 }
 
-static void push_text_glyphs(VK_TextVertex *verts, u32 *vert_count, u32 max_verts,
+static void push_text_glyphs(VK_GuiVertex *verts, u32 *vert_count, u32 max_verts,
                               VK_Font *vk_font, rl_font *font,
                               const char *chars, i32 len,
                               f32 size_px, f32 x, f32 y, vec4 color) {
@@ -152,13 +166,13 @@ static void push_text_glyphs(VK_TextVertex *verts, u32 *vert_count, u32 max_vert
             }
         }
 
-        VK_TextVertex *v = &verts[*vert_count];
-        v[0] = (VK_TextVertex){.pos = {gx0, gy0}, .uv = {u0, v1}, .color = {color[0], color[1], color[2], color[3]}};
-        v[1] = (VK_TextVertex){.pos = {gx0, gy1}, .uv = {u0, v0}, .color = {color[0], color[1], color[2], color[3]}};
-        v[2] = (VK_TextVertex){.pos = {gx1, gy1}, .uv = {u1, v0}, .color = {color[0], color[1], color[2], color[3]}};
-        v[3] = (VK_TextVertex){.pos = {gx0, gy0}, .uv = {u0, v1}, .color = {color[0], color[1], color[2], color[3]}};
-        v[4] = (VK_TextVertex){.pos = {gx1, gy1}, .uv = {u1, v0}, .color = {color[0], color[1], color[2], color[3]}};
-        v[5] = (VK_TextVertex){.pos = {gx1, gy0}, .uv = {u1, v1}, .color = {color[0], color[1], color[2], color[3]}};
+        VK_GuiVertex *v = &verts[*vert_count];
+        v[0] = (VK_GuiVertex){.pos = {gx0, gy0}, .uv = {u0, v1}, .color = {color[0], color[1], color[2], color[3]}, .rect_info = {0}};
+        v[1] = (VK_GuiVertex){.pos = {gx0, gy1}, .uv = {u0, v0}, .color = {color[0], color[1], color[2], color[3]}, .rect_info = {0}};
+        v[2] = (VK_GuiVertex){.pos = {gx1, gy1}, .uv = {u1, v0}, .color = {color[0], color[1], color[2], color[3]}, .rect_info = {0}};
+        v[3] = (VK_GuiVertex){.pos = {gx0, gy0}, .uv = {u0, v1}, .color = {color[0], color[1], color[2], color[3]}, .rect_info = {0}};
+        v[4] = (VK_GuiVertex){.pos = {gx1, gy1}, .uv = {u1, v0}, .color = {color[0], color[1], color[2], color[3]}, .rect_info = {0}};
+        v[5] = (VK_GuiVertex){.pos = {gx1, gy0}, .uv = {u1, v1}, .color = {color[0], color[1], color[2], color[3]}, .rect_info = {0}};
         *vert_count += 6;
     }
 }
@@ -217,11 +231,11 @@ b8 vk_gui_pipeline_init(VK_Context *ctx) {
         return false;
     }
 
-    // --- Push constant range: vec2 screen_size + float px_range = 12 bytes ---
+    // --- Push constant range: vec2 screen_size + float px_range + float weight = 16 bytes ---
     VkPushConstantRange push_range = {
         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
         .offset = 0,
-        .size = 12
+        .size = 16
     };
 
     VkPipelineShaderStageCreateInfo stages[2] = {
@@ -241,14 +255,15 @@ b8 vk_gui_pipeline_init(VK_Context *ctx) {
 
     VkVertexInputBindingDescription binding_desc = {
         .binding = 0,
-        .stride = sizeof(VK_TextVertex),
+        .stride = sizeof(VK_GuiVertex),
         .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
     };
 
-    VkVertexInputAttributeDescription attr_descs[3] = {
-        { .location = 0, .binding = 0, .format = VK_FORMAT_R32G32_SFLOAT,       .offset = offsetof(VK_TextVertex, pos) },
-        { .location = 1, .binding = 0, .format = VK_FORMAT_R32G32_SFLOAT,       .offset = offsetof(VK_TextVertex, uv) },
-        { .location = 2, .binding = 0, .format = VK_FORMAT_R32G32B32A32_SFLOAT, .offset = offsetof(VK_TextVertex, color) },
+    VkVertexInputAttributeDescription attr_descs[4] = {
+        { .location = 0, .binding = 0, .format = VK_FORMAT_R32G32_SFLOAT,       .offset = offsetof(VK_GuiVertex, pos) },
+        { .location = 1, .binding = 0, .format = VK_FORMAT_R32G32_SFLOAT,       .offset = offsetof(VK_GuiVertex, uv) },
+        { .location = 2, .binding = 0, .format = VK_FORMAT_R32G32B32A32_SFLOAT, .offset = offsetof(VK_GuiVertex, color) },
+        { .location = 3, .binding = 0, .format = VK_FORMAT_R32G32B32A32_SFLOAT, .offset = offsetof(VK_GuiVertex, rect_info) },
     };
 
     // Reuse the text pipeline's descriptor set layout (same: 1 combined image sampler)
@@ -258,7 +273,7 @@ b8 vk_gui_pipeline_init(VK_Context *ctx) {
         .bindings = &binding_desc,
         .binding_count = 1,
         .attributes = attr_descs,
-        .attribute_count = 3,
+        .attribute_count = 4,
         .set_layouts = &tp->descriptor_set_layout,
         .set_layout_count = 1,
         .push_constants = &push_range,
@@ -282,7 +297,7 @@ b8 vk_gui_pipeline_init(VK_Context *ctx) {
     }
 
     // --- Per-frame vertex buffers ---
-    VkDeviceSize vb_size = sizeof(VK_TextVertex) * VK_GUI_MAX_VERTS;
+    VkDeviceSize vb_size = sizeof(VK_GuiVertex) * VK_GUI_MAX_VERTS;
 
     gp->vertex_buffers = rl_arena_push(&ctx->arena, sizeof(VkBuffer) * ctx->max_frames_in_flight, alignof(VkBuffer));
     gp->vertex_buffer_memory = rl_arena_push(&ctx->arena, sizeof(VkDeviceMemory) * ctx->max_frames_in_flight, alignof(VkDeviceMemory));
@@ -324,14 +339,14 @@ void vk_gui_pipeline_destroy(VK_Context *ctx) {
 // Public helpers — let vk_text.c write into the GUI vertex buffer
 // ---------------------------------------------------------------------------
 
-VK_TextVertex *vk_gui_pipeline_get_write_ptr(VK_Context *ctx, u32 *out_remaining) {
+VK_GuiVertex *vk_gui_pipeline_get_write_ptr(VK_Context *ctx, u32 *out_remaining) {
     VK_GuiPipeline *gp = &ctx->gui_pipeline;
     if (gp->vertex_count >= VK_GUI_MAX_VERTS) {
         *out_remaining = 0;
         return nullptr;
     }
     *out_remaining = VK_GUI_MAX_VERTS - gp->vertex_count;
-    VK_TextVertex *base = gp->vertex_buffer_mapped[ctx->current_frame];
+    VK_GuiVertex *base = gp->vertex_buffer_mapped[ctx->current_frame];
     return &base[gp->vertex_count];
 }
 
@@ -355,7 +370,7 @@ void vulkan_render_gui(void *commands, i32 command_count) {
     VK_GuiPipeline *gp = &ctx->gui_pipeline;
     Clay_RenderCommand *cmds = (Clay_RenderCommand *)commands;
 
-    VK_TextVertex *verts = gp->vertex_buffer_mapped[ctx->current_frame];
+    VK_GuiVertex *verts = gp->vertex_buffer_mapped[ctx->current_frame];
     u32 vert_count = gp->vertex_count;       // continue from where text left off
     VK_Font *current_font = nullptr;
     u32 segment_start = vert_count;
@@ -373,7 +388,8 @@ void vulkan_render_gui(void *commands, i32 command_count) {
             f32 g = rect->backgroundColor.g / 255.0f;
             f32 b = rect->backgroundColor.b / 255.0f;
             f32 a = rect->backgroundColor.a / 255.0f;
-            push_rect(verts, &vert_count, bb.x, bb.y, bb.width, bb.height, r, g, b, a);
+            f32 cr = rect->cornerRadius.topLeft;
+            push_rect(verts, &vert_count, bb.x, bb.y, bb.width, bb.height, r, g, b, a, cr);
             break;
         }
 
@@ -385,13 +401,13 @@ void vulkan_render_gui(void *commands, i32 command_count) {
             f32 a = border->color.a / 255.0f;
 
             if (border->width.top > 0)
-                push_rect(verts, &vert_count, bb.x, bb.y, bb.width, (f32)border->width.top, r, g, b, a);
+                push_rect(verts, &vert_count, bb.x, bb.y, bb.width, (f32)border->width.top, r, g, b, a, 0);
             if (border->width.bottom > 0)
-                push_rect(verts, &vert_count, bb.x, bb.y + bb.height - (f32)border->width.bottom, bb.width, (f32)border->width.bottom, r, g, b, a);
+                push_rect(verts, &vert_count, bb.x, bb.y + bb.height - (f32)border->width.bottom, bb.width, (f32)border->width.bottom, r, g, b, a, 0);
             if (border->width.left > 0)
-                push_rect(verts, &vert_count, bb.x, bb.y, (f32)border->width.left, bb.height, r, g, b, a);
+                push_rect(verts, &vert_count, bb.x, bb.y, (f32)border->width.left, bb.height, r, g, b, a, 0);
             if (border->width.right > 0)
-                push_rect(verts, &vert_count, bb.x + bb.width - (f32)border->width.right, bb.y, (f32)border->width.right, bb.height, r, g, b, a);
+                push_rect(verts, &vert_count, bb.x + bb.width - (f32)border->width.right, bb.y, (f32)border->width.right, bb.height, r, g, b, a, 0);
             break;
         }
 
@@ -440,7 +456,7 @@ void vulkan_render_gui(void *commands, i32 command_count) {
 
         case CLAY_RENDER_COMMAND_TYPE_IMAGE: {
             push_rect(verts, &vert_count, bb.x, bb.y, bb.width, bb.height,
-                      0.3f, 0.3f, 0.3f, 1.0f);
+                      0.3f, 0.3f, 0.3f, 1.0f, 0);
             break;
         }
 
@@ -510,15 +526,17 @@ void vulkan_gui_record_commands(VK_Context *ctx, VkCommandBuffer cmd) {
     for (u32 i = 0; i < gp->segment_count; i++) {
         VK_GuiSegment *seg = &gp->segments[i];
 
-        // Push constants with this segment's font's px_range
+        // Push constants with this segment's font's px_range + weight
         struct {
             f32 screen_w;
             f32 screen_h;
             f32 px_range;
+            f32 weight;
         } push = {
             .screen_w = (f32)ctx->swapchain.chosen_extent.width,
             .screen_h = (f32)ctx->swapchain.chosen_extent.height,
-            .px_range = seg->font->font->pixel_range
+            .px_range = seg->font->font->pixel_range,
+            .weight = 0.12f
         };
         vkCmdPushConstants(cmd, gp->layout,
                            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,

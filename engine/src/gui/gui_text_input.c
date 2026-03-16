@@ -1,12 +1,20 @@
 #include "gui/gui_text_input.h"
 
+#include "gui/gui_focus.h"
 #include "gui/gui_panel.h"
 #include "gui/gui_text.h"
 #include "gui/gui_theme.h"
 #include "engine.h"
 #include "memory/arena.h"
+#include "platform/input.h"
+
+#include "gui_internal.h"
 
 #include <string.h>
+
+static void ensure_id(gui_text_input_state *s) {
+    if (s->_id == 0) s->_id = gui__next_id();
+}
 
 b8 gui_text_input_handle_key(gui_text_input_state *s, input_key *key) {
     if (!s || !key || !key->pressed) {
@@ -63,9 +71,15 @@ u16 gui_text_input_display(gui_text_input_state *s, f32 dt, char *out, u16 out_s
         return 0;
     }
 
-    s->cursor_blink += dt;
-    if (s->cursor_blink > 1.0f) { s->cursor_blink -= 1.0f; }
-    b8 show_caret = s->cursor_blink < 0.5f;
+    ensure_id(s);
+
+    // Only blink when this input is focused
+    b8 show_caret = false;
+    if (gui_focus_is(s->_id)) {
+        s->cursor_blink += dt;
+        if (s->cursor_blink > 1.0f) { s->cursor_blink -= 1.0f; }
+        show_caret = s->cursor_blink < 0.5f;
+    }
 
     u16 pos = 0;
     for (u16 i = 0; i < s->len && pos < out_size - 2; i++) {
@@ -83,6 +97,8 @@ u16 gui_text_input_display(gui_text_input_state *s, f32 dt, char *out, u16 out_s
 
 void gui_text_input_render(gui_text_input_state *state, f32 dt, const gui_text_input_render_cfg *cfg) {
     if (!state) return;
+
+    ensure_id(state);
 
     const gui_theme *th     = gui_theme_get();
     Clay_Color bg_color     = th->bg_input;
@@ -105,18 +121,26 @@ void gui_text_input_render(gui_text_input_state *state, f32 dt, const gui_text_i
         if (cfg->font_size > 0)      font_size    = cfg->font_size;
     }
 
+    b8 focused = gui_focus_is(state->_id);
+
     rl_arena *arena = rl_engine_get_frame_arena();
     char *display = rl_arena_push(arena, GUI_TEXT_INPUT_MAX + 2, false);
     u16 len = gui_text_input_display(state, dt, display, GUI_TEXT_INPUT_MAX + 2);
 
     gui_panel_begin(&(gui_panel_cfg){
         .color        = bg_color,
-        .border_color = border_color,
+        .border_color = focused ? th->accent : border_color,
         .border_width = border_width,
         .width_sizing = GUI_SIZE_GROW,
         .height       = height,
         .padding      = padding,
     });
+
+    // Click to focus
+    if (Clay_Hovered() && input_mouse_pressed(MOUSE_LEFT)) {
+        gui_focus_set(state->_id);
+    }
+
     gui_textn(display, len, &(gui_text_cfg){.color = text_color, .size = font_size, .font = font});
     gui_panel_end();
 }

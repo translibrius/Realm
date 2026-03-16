@@ -62,31 +62,36 @@ b8 opengl_gui_pipeline_init(GL_Context *ctx) {
     p->loc_screen_size = glGetUniformLocation(p->shader.program_id, "u_screen_size");
     p->loc_font_atlas = glGetUniformLocation(p->shader.program_id, "u_font_atlas");
     p->loc_px_range = glGetUniformLocation(p->shader.program_id, "u_px_range");
+    p->loc_weight = glGetUniformLocation(p->shader.program_id, "u_weight");
 
     glGenVertexArrays(1, &p->vao);
     glBindVertexArray(p->vao);
 
     glGenBuffers(1, &p->vbo);
     glBindBuffer(GL_ARRAY_BUFFER, p->vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(GL_TextVertex) * GUI_MAX_VERTS, NULL, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GL_GuiVertex) * GUI_MAX_VERTS, NULL, GL_DYNAMIC_DRAW);
 
     // pos (vec2)
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(GL_TextVertex), (void *)0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(GL_GuiVertex), (void *)offsetof(GL_GuiVertex, pos));
     glEnableVertexAttribArray(0);
 
     // uv (vec2)
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(GL_TextVertex), (void *)(2 * sizeof(f32)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(GL_GuiVertex), (void *)offsetof(GL_GuiVertex, uv));
     glEnableVertexAttribArray(1);
 
     // color (vec4)
-    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(GL_TextVertex), (void *)(4 * sizeof(f32)));
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(GL_GuiVertex), (void *)offsetof(GL_GuiVertex, color));
     glEnableVertexAttribArray(2);
+
+    // rect_info (vec4)
+    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(GL_GuiVertex), (void *)offsetof(GL_GuiVertex, rect_info));
+    glEnableVertexAttribArray(3);
 
     glBindVertexArray(0);
     return true;
 }
 
-static void push_tri(GL_TextVertex *verts, u32 *count,
+static void push_tri(GL_GuiVertex *verts, u32 *count,
                       f32 x0, f32 y0, f32 x1, f32 y1, f32 x2, f32 y2,
                       f32 r, f32 g, f32 b, f32 a) {
     if (*count + 3 > GUI_MAX_VERTS) return;
@@ -102,22 +107,23 @@ static void push_tri(GL_TextVertex *verts, u32 *count,
         }
     }
 
-    GL_TextVertex *v = &verts[*count];
-    v[0] = (GL_TextVertex){.pos = {x0, y0}, .uv = {-1, -1}, .color = {r, g, b, a}};
-    v[1] = (GL_TextVertex){.pos = {x1, y1}, .uv = {-1, -1}, .color = {r, g, b, a}};
-    v[2] = (GL_TextVertex){.pos = {x2, y2}, .uv = {-1, -1}, .color = {r, g, b, a}};
+    GL_GuiVertex *v = &verts[*count];
+    v[0] = (GL_GuiVertex){.pos = {x0, y0}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
+    v[1] = (GL_GuiVertex){.pos = {x1, y1}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
+    v[2] = (GL_GuiVertex){.pos = {x2, y2}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
     *count += 3;
 }
 
-static void push_rect(GL_TextVertex *verts, u32 *count,
+static void push_rect(GL_GuiVertex *verts, u32 *count,
                        f32 x, f32 y, f32 w, f32 h,
-                       f32 r, f32 g, f32 b, f32 a) {
+                       f32 r, f32 g, f32 b, f32 a,
+                       f32 corner_radius) {
     if (*count + 6 > GUI_MAX_VERTS) return;
 
     f32 x0 = x, y0 = y, x1 = x + w, y1 = y + h;
 
-    // Software clip
-    if (clip_active()) {
+    // For rounded rects, skip software clipping (SDF handles edges)
+    if (corner_radius <= 0.0f && clip_active()) {
         gui_clip_rect *c = clip_current();
         if (x0 < c->x0) x0 = c->x0;
         if (y0 < c->y0) y0 = c->y0;
@@ -126,14 +132,28 @@ static void push_rect(GL_TextVertex *verts, u32 *count,
         if (x0 >= x1 || y0 >= y1) return; // Fully clipped
     }
 
-    // UV sentinel {-1,-1} tells the fragment shader to use solid color
-    GL_TextVertex *v = &verts[*count];
-    v[0] = (GL_TextVertex){.pos = {x0, y0}, .uv = {-1, -1}, .color = {r, g, b, a}};
-    v[1] = (GL_TextVertex){.pos = {x0, y1}, .uv = {-1, -1}, .color = {r, g, b, a}};
-    v[2] = (GL_TextVertex){.pos = {x1, y1}, .uv = {-1, -1}, .color = {r, g, b, a}};
-    v[3] = (GL_TextVertex){.pos = {x0, y0}, .uv = {-1, -1}, .color = {r, g, b, a}};
-    v[4] = (GL_TextVertex){.pos = {x1, y1}, .uv = {-1, -1}, .color = {r, g, b, a}};
-    v[5] = (GL_TextVertex){.pos = {x1, y0}, .uv = {-1, -1}, .color = {r, g, b, a}};
+    GL_GuiVertex *v = &verts[*count];
+
+    if (corner_radius > 0.0f) {
+        // Rounded rect: UV = local position from center, rect_info = (half_w, half_h, radius, 0)
+        f32 hw = (x1 - x0) * 0.5f;
+        f32 hh = (y1 - y0) * 0.5f;
+        vec4 ri = {hw, hh, corner_radius, 0};
+        v[0] = (GL_GuiVertex){.pos = {x0, y0}, .uv = {-hw, -hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
+        v[1] = (GL_GuiVertex){.pos = {x0, y1}, .uv = {-hw,  hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
+        v[2] = (GL_GuiVertex){.pos = {x1, y1}, .uv = { hw,  hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
+        v[3] = (GL_GuiVertex){.pos = {x0, y0}, .uv = {-hw, -hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
+        v[4] = (GL_GuiVertex){.pos = {x1, y1}, .uv = { hw,  hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
+        v[5] = (GL_GuiVertex){.pos = {x1, y0}, .uv = { hw, -hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
+    } else {
+        // Plain rect: UV sentinel {-1,-1} tells fragment shader to use solid color
+        v[0] = (GL_GuiVertex){.pos = {x0, y0}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
+        v[1] = (GL_GuiVertex){.pos = {x0, y1}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
+        v[2] = (GL_GuiVertex){.pos = {x1, y1}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
+        v[3] = (GL_GuiVertex){.pos = {x0, y0}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
+        v[4] = (GL_GuiVertex){.pos = {x1, y1}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
+        v[5] = (GL_GuiVertex){.pos = {x1, y0}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
+    }
 
     *count += 6;
 }
@@ -153,7 +173,7 @@ static rl_font *gui_get_font(u16 font_id) {
     return nullptr;
 }
 
-static void gui_flush(GL_Context *ctx, GL_TextVertex *verts, u32 *vert_count, GL_Font *font) {
+static void gui_flush(GL_Context *ctx, GL_GuiVertex *verts, u32 *vert_count, GL_Font *font) {
     if (*vert_count == 0) return;
 
     GL_GuiPipeline *p = &ctx->gui_pipeline;
@@ -161,8 +181,9 @@ static void gui_flush(GL_Context *ctx, GL_TextVertex *verts, u32 *vert_count, GL
     glBindVertexArray(p->vao);
     glBindBuffer(GL_ARRAY_BUFFER, p->vbo);
 
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(GL_TextVertex) * (*vert_count), verts);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(GL_GuiVertex) * (*vert_count), verts);
     glUniform2f(p->loc_screen_size, (f32)ctx->window->settings.width, (f32)ctx->window->settings.height);
+    glUniform1f(p->loc_weight, 0.12f);
 
     if (font) {
         glActiveTexture(GL_TEXTURE0);
@@ -178,7 +199,7 @@ static void gui_flush(GL_Context *ctx, GL_TextVertex *verts, u32 *vert_count, GL
 
 // Push text glyphs in top-left coordinate space (gui.vert does Y-flip).
 // Baseline y should be: bb.y + font->ascender * fontSize
-static void push_text_glyphs(GL_TextVertex *verts, u32 *vert_count, u32 max_verts,
+static void push_text_glyphs(GL_GuiVertex *verts, u32 *vert_count, u32 max_verts,
                               GL_Font *gl_font, rl_font *font,
                               const char *chars, i32 len,
                               f32 size_px, f32 x, f32 y, vec4 color) {
@@ -236,14 +257,14 @@ static void push_text_glyphs(GL_TextVertex *verts, u32 *vert_count, u32 max_vert
             }
         }
 
-        GL_TextVertex *v = &verts[*vert_count];
+        GL_GuiVertex *v = &verts[*vert_count];
         // gy0 (top) -> v1, gy1 (bottom) -> v0  (Y-flipped UV mapping)
-        v[0] = (GL_TextVertex){.pos = {gx0, gy0}, .uv = {u0, v1}, .color = {color[0], color[1], color[2], color[3]}};
-        v[1] = (GL_TextVertex){.pos = {gx0, gy1}, .uv = {u0, v0}, .color = {color[0], color[1], color[2], color[3]}};
-        v[2] = (GL_TextVertex){.pos = {gx1, gy1}, .uv = {u1, v0}, .color = {color[0], color[1], color[2], color[3]}};
-        v[3] = (GL_TextVertex){.pos = {gx0, gy0}, .uv = {u0, v1}, .color = {color[0], color[1], color[2], color[3]}};
-        v[4] = (GL_TextVertex){.pos = {gx1, gy1}, .uv = {u1, v0}, .color = {color[0], color[1], color[2], color[3]}};
-        v[5] = (GL_TextVertex){.pos = {gx1, gy0}, .uv = {u1, v1}, .color = {color[0], color[1], color[2], color[3]}};
+        v[0] = (GL_GuiVertex){.pos = {gx0, gy0}, .uv = {u0, v1}, .color = {color[0], color[1], color[2], color[3]}, .rect_info = {0}};
+        v[1] = (GL_GuiVertex){.pos = {gx0, gy1}, .uv = {u0, v0}, .color = {color[0], color[1], color[2], color[3]}, .rect_info = {0}};
+        v[2] = (GL_GuiVertex){.pos = {gx1, gy1}, .uv = {u1, v0}, .color = {color[0], color[1], color[2], color[3]}, .rect_info = {0}};
+        v[3] = (GL_GuiVertex){.pos = {gx0, gy0}, .uv = {u0, v1}, .color = {color[0], color[1], color[2], color[3]}, .rect_info = {0}};
+        v[4] = (GL_GuiVertex){.pos = {gx1, gy1}, .uv = {u1, v0}, .color = {color[0], color[1], color[2], color[3]}, .rect_info = {0}};
+        v[5] = (GL_GuiVertex){.pos = {gx1, gy0}, .uv = {u1, v1}, .color = {color[0], color[1], color[2], color[3]}, .rect_info = {0}};
 
         *vert_count += 6;
     }
@@ -257,7 +278,7 @@ void opengl_render_gui(void *commands, i32 command_count) {
 
     Clay_RenderCommand *cmds = (Clay_RenderCommand *)commands;
 
-    static GL_TextVertex verts[GUI_MAX_VERTS];
+    static GL_GuiVertex verts[GUI_MAX_VERTS];
     u32 vert_count = 0;
     GL_Font *current_font = nullptr;
 
@@ -279,7 +300,8 @@ void opengl_render_gui(void *commands, i32 command_count) {
             f32 g = rect->backgroundColor.g / 255.0f;
             f32 b = rect->backgroundColor.b / 255.0f;
             f32 a = rect->backgroundColor.a / 255.0f;
-            push_rect(verts, &vert_count, bb.x, bb.y, bb.width, bb.height, r, g, b, a);
+            f32 cr = rect->cornerRadius.topLeft;
+            push_rect(verts, &vert_count, bb.x, bb.y, bb.width, bb.height, r, g, b, a, cr);
             break;
         }
 
@@ -291,13 +313,13 @@ void opengl_render_gui(void *commands, i32 command_count) {
             f32 a = border->color.a / 255.0f;
 
             if (border->width.top > 0)
-                push_rect(verts, &vert_count, bb.x, bb.y, bb.width, (f32)border->width.top, r, g, b, a);
+                push_rect(verts, &vert_count, bb.x, bb.y, bb.width, (f32)border->width.top, r, g, b, a, 0);
             if (border->width.bottom > 0)
-                push_rect(verts, &vert_count, bb.x, bb.y + bb.height - (f32)border->width.bottom, bb.width, (f32)border->width.bottom, r, g, b, a);
+                push_rect(verts, &vert_count, bb.x, bb.y + bb.height - (f32)border->width.bottom, bb.width, (f32)border->width.bottom, r, g, b, a, 0);
             if (border->width.left > 0)
-                push_rect(verts, &vert_count, bb.x, bb.y, (f32)border->width.left, bb.height, r, g, b, a);
+                push_rect(verts, &vert_count, bb.x, bb.y, (f32)border->width.left, bb.height, r, g, b, a, 0);
             if (border->width.right > 0)
-                push_rect(verts, &vert_count, bb.x + bb.width - (f32)border->width.right, bb.y, (f32)border->width.right, bb.height, r, g, b, a);
+                push_rect(verts, &vert_count, bb.x + bb.width - (f32)border->width.right, bb.y, (f32)border->width.right, bb.height, r, g, b, a, 0);
             break;
         }
 
@@ -352,7 +374,7 @@ void opengl_render_gui(void *commands, i32 command_count) {
         case CLAY_RENDER_COMMAND_TYPE_IMAGE: {
             // TODO: implement image rendering (textured quad)
             push_rect(verts, &vert_count, bb.x, bb.y, bb.width, bb.height,
-                      0.3f, 0.3f, 0.3f, 1.0f);
+                      0.3f, 0.3f, 0.3f, 1.0f, 0);
             break;
         }
 

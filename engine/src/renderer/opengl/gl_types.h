@@ -33,6 +33,13 @@ typedef struct GL_TextVertex {
     vec4 color;
 } GL_TextVertex;
 
+typedef struct GL_GuiVertex {
+    vec2 pos;
+    vec2 uv;
+    vec4 color;
+    vec4 rect_info; // (half_w, half_h, corner_radius, 0)
+} GL_GuiVertex;
+
 typedef struct GL_GuiPipeline {
     u32 vao;
     u32 vbo;
@@ -40,6 +47,7 @@ typedef struct GL_GuiPipeline {
     i32 loc_screen_size;
     i32 loc_font_atlas;
     i32 loc_px_range;
+    i32 loc_weight;
 } GL_GuiPipeline;
 
 typedef struct GL_Context {

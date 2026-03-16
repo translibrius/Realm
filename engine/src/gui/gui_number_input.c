@@ -1,6 +1,7 @@
 #include "gui/gui_number_input.h"
 
 #include "engine.h"
+#include "gui/gui_focus.h"
 #include "gui/gui_text.h"
 #include "gui/gui_theme.h"
 #include "gui_internal.h"
@@ -39,6 +40,13 @@ b8 gui_number_input(gui_number_input_state *state, const gui_number_input_cfg *c
 
     const gui_theme *t = gui_theme_get();
     f32 old_value = state->value;
+
+    // Detect focus loss — another widget claimed focus while we were editing
+    if (state->editing && !gui_focus_is(state->_id)) {
+        f32 parsed = (f32)strtod(state->buf, nullptr);
+        state->value = clampf(parsed, mn, mx);
+        state->editing = false;
+    }
 
     Clay_ElementId eid = CLAY_IDI("GuiNumberInput", state->_id);
     Clay_ElementData ed = Clay_GetElementData(eid);
@@ -82,6 +90,7 @@ b8 gui_number_input(gui_number_input_state *state, const gui_number_input_cfg *c
                 snprintf(state->buf, sizeof(state->buf), fmt, (f64)state->value);
                 state->len = (u16)strlen(state->buf);
                 state->cursor = state->len;
+                gui_focus_set(state->_id);
             }
             state->dragging = false;
         } else if (ed.found) {
@@ -98,10 +107,13 @@ b8 gui_number_input(gui_number_input_state *state, const gui_number_input_cfg *c
     u16 font = 0;
 
     if (state->editing) {
-        // Show buffer with blinking caret
-        state->cursor_blink += dt;
-        if (state->cursor_blink > 1.0f) state->cursor_blink -= 1.0f;
-        b8 show_caret = state->cursor_blink < 0.5f;
+        // Show buffer with blinking caret (only blink when focused)
+        b8 show_caret = false;
+        if (gui_focus_is(state->_id)) {
+            state->cursor_blink += dt;
+            if (state->cursor_blink > 1.0f) state->cursor_blink -= 1.0f;
+            show_caret = state->cursor_blink < 0.5f;
+        }
 
         char *display = rl_arena_push(arena, 64, false);
         u16 pos = 0;
@@ -152,6 +164,7 @@ b8 gui_number_input_handle_key(gui_number_input_state *state, input_key *key) {
         // Cancel: revert to drag_start_value and exit editing
         state->value = state->drag_start_value;
         state->editing = false;
+        gui_focus_clear();
         return false;
     default:
         break;

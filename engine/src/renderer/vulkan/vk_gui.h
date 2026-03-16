@@ -12,5 +12,5 @@ void vulkan_render_gui(void *commands, i32 command_count);
 void vulkan_gui_record_commands(VK_Context *ctx, VkCommandBuffer cmd);
 
 // Allow vk_text.c to write directly into the GUI vertex buffer.
-VK_TextVertex *vk_gui_pipeline_get_write_ptr(VK_Context *ctx, u32 *out_remaining);
+VK_GuiVertex *vk_gui_pipeline_get_write_ptr(VK_Context *ctx, u32 *out_remaining);
 void vk_gui_pipeline_commit_verts(VK_Context *ctx, VK_Font *font, u32 count);

@@ -227,7 +227,7 @@ static void ed_layout_viewport(ed_layout *layout, ed_application *app, f32 dt) {
             Clay__CloseElement();
         } else {
             // Settings panel
-            ed_settings_render(layout, &app->ed_cfg);
+            ed_settings_render(layout, &app->ed_cfg, dt);
         }
     }
 }
@@ -291,6 +291,7 @@ void ed_layout_render(ed_layout *layout, ed_application *app, f32 dt) {
     GUI_PANEL(&root) {
         // Menu bar
         ed_layout_menu_bar(layout, app);
+        gui_separator();
 
         // Main area: left-to-right
         gui_panel_cfg main_area = {

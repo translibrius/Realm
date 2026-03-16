@@ -1,5 +1,6 @@
 #include "../harness/rl_test.h"
 
+#include "gui/gui_focus.h"
 #include "gui/gui_text_input.h"
 #include "platform/input.h"
 
@@ -112,6 +113,12 @@ RL_TEST(text_input_display_caret) {
     gui_text_input_state s = {0};
     type_char(&s, 'a');
     type_char(&s, 'b');
+
+    // Focus the input so the caret is visible
+    // _id is auto-assigned by display(); call once to assign, then focus
+    char tmp[64];
+    gui_text_input_display(&s, 0.0f, tmp, sizeof(tmp));
+    gui_focus_set(s._id);
 
     char out[64];
     // dt=0 means cursor_blink stays at 0 which is < 0.5, so caret is visible

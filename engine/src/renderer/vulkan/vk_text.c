@@ -200,7 +200,7 @@ void vulkan_render_text(const char *text, f32 size_px, f32 x, f32 y, vec4 color)
     rl_font *font = vk_font->font;
 
     u32 remaining = 0;
-    VK_TextVertex *verts = vk_gui_pipeline_get_write_ptr(ctx, &remaining);
+    VK_GuiVertex *verts = vk_gui_pipeline_get_write_ptr(ctx, &remaining);
     if (!verts || remaining < 6) return;
 
     u32 vert_count = 0;
@@ -231,12 +231,12 @@ void vulkan_render_text(const char *text, f32 size_px, f32 x, f32 y, vec4 color)
         f32 u1 = g->uv_max_x, v1 = g->uv_max_y;
         f32 r = color[0], g_ = color[1], b = color[2], a = color[3];
 
-        verts[vert_count + 0] = (VK_TextVertex){.pos = {x0, y0}, .uv = {u0, v0}, .color = {r, g_, b, a}};
-        verts[vert_count + 1] = (VK_TextVertex){.pos = {x0, y1}, .uv = {u0, v1}, .color = {r, g_, b, a}};
-        verts[vert_count + 2] = (VK_TextVertex){.pos = {x1, y1}, .uv = {u1, v1}, .color = {r, g_, b, a}};
-        verts[vert_count + 3] = (VK_TextVertex){.pos = {x0, y0}, .uv = {u0, v0}, .color = {r, g_, b, a}};
-        verts[vert_count + 4] = (VK_TextVertex){.pos = {x1, y1}, .uv = {u1, v1}, .color = {r, g_, b, a}};
-        verts[vert_count + 5] = (VK_TextVertex){.pos = {x1, y0}, .uv = {u1, v0}, .color = {r, g_, b, a}};
+        verts[vert_count + 0] = (VK_GuiVertex){.pos = {x0, y0}, .uv = {u0, v0}, .color = {r, g_, b, a}, .rect_info = {0}};
+        verts[vert_count + 1] = (VK_GuiVertex){.pos = {x0, y1}, .uv = {u0, v1}, .color = {r, g_, b, a}, .rect_info = {0}};
+        verts[vert_count + 2] = (VK_GuiVertex){.pos = {x1, y1}, .uv = {u1, v1}, .color = {r, g_, b, a}, .rect_info = {0}};
+        verts[vert_count + 3] = (VK_GuiVertex){.pos = {x0, y0}, .uv = {u0, v0}, .color = {r, g_, b, a}, .rect_info = {0}};
+        verts[vert_count + 4] = (VK_GuiVertex){.pos = {x1, y1}, .uv = {u1, v1}, .color = {r, g_, b, a}, .rect_info = {0}};
+        verts[vert_count + 5] = (VK_GuiVertex){.pos = {x1, y0}, .uv = {u1, v0}, .color = {r, g_, b, a}, .rect_info = {0}};
 
         vert_count += 6;
         cursor_x += g->advance * size_px;

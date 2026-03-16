@@ -1,5 +1,6 @@
 #include "gui/gui.h"
 #include "gui/gui_clay.h"
+#include "gui/gui_focus.h"
 
 #define CLAY_IMPLEMENTATION
 #include "clay.h"
@@ -153,6 +154,7 @@ void gui_panel_frame_reset_(void);
 void gui_icon_frame_reset_(void);
 
 void gui_layout_begin(f32 dt) {
+    gui_focus_begin_frame();
     gui_begin_frame(dt);
     gui_button_frame_reset_();
     gui_panel_frame_reset_();
