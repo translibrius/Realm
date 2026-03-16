@@ -7,7 +7,12 @@
 #include "core/scene.h"
 #include "core/scene_io.h"
 #include "ed_gizmo.h"
+#include "ed_gizmo_transform.h"
+#include "ed_inspector.h"
+#include "ed_picking.h"
 #include "ed_settings.h"
+#include "math/ray.h"
+#include "platform/input.h"
 #include "engine.h"
 #include "cglm.h"
 #include "clay.h"
@@ -104,6 +109,7 @@ static void ed_enter_editor_mode(void) {
     }
 
     ed_camera_init(&app.camera);
+    ed_gizmo_transform_init(&app.gizmo);
     ed_undo_init(&app.undo);
     ed_layout_init(&app.layout, &app.undo);
     app.layout.theme_dropdown.selected = ed_settings_theme_index(app.ed_cfg.theme);
@@ -210,6 +216,69 @@ b8 create_editor(void) {
             if (vb.width > 0 && vb.height > 0) {
                 frame.viewport_rect = (rl_viewport_rect){vb.x, vb.y, vb.width, vb.height};
             }
+
+            // Resolve selected entity for gizmo
+            rl_entity gizmo_entity = RL_ENTITY_INVALID;
+            {
+                u32 sel = app.layout.hierarchy_tree.selected_id;
+                if (sel >= ED_ENTITY_NODE_BASE && app.scene) {
+                    u32 idx = sel - ED_ENTITY_NODE_BASE;
+                    rl_entity e = rl_entity_pack(idx, app.scene->entities.generation[idx]);
+                    if (scene_entity_is_alive(app.scene, e)) {
+                        gizmo_entity = e;
+                    }
+                }
+            }
+
+            // Build transform gizmo overlays
+            ed_gizmo_transform_build(&app.gizmo, app.scene, gizmo_entity, &frame);
+
+            // Update drag in progress
+            if (app.gizmo.dragging) {
+                vec2 mpos;
+                input_get_mouse_position(mpos);
+                rl_viewport_rect vp = {vb.x, vb.y, vb.width, vb.height};
+
+                mat4 view_copy, proj_copy, inv_view, inv_proj;
+                glm_mat4_copy(fc.view, view_copy);
+                glm_mat4_copy(fc.projection, proj_copy);
+                glm_mat4_inv(view_copy, inv_view);
+                glm_mat4_inv(proj_copy, inv_proj);
+
+                rl_ray ray = ray_from_screen(mpos[0], mpos[1],
+                                              vp.x, vp.y, vp.w, vp.h,
+                                              inv_view, inv_proj);
+                ed_gizmo_transform_drag_update(&app.gizmo, app.scene, &ray);
+                app.scene_dirty = true;
+
+                // End drag when mouse released
+                if (!input_is_mouse_down(MOUSE_LEFT)) {
+                    rl_entity drag_e = app.gizmo.drag_entity;
+                    rl_transform before = app.gizmo.drag_start_transform;
+                    if (ed_gizmo_transform_drag_end(&app.gizmo)) {
+                        rl_transform *after = transform_get(&app.scene->components, drag_e);
+                        if (after) {
+                            f32 dist = glm_vec3_distance(before.position, after->position);
+                            if (dist > 1e-5f) {
+                                ed_undo_entry ue = {
+                                    .action = ED_UNDO_TRANSFORM,
+                                    .entity = drag_e,
+                                    .transform = {.before = before, .after = *after},
+                                };
+                                ed_undo_push(&app.undo, &ue);
+                            }
+                        }
+                    }
+                    // Rebind inspector
+                    u32 sel = app.layout.hierarchy_tree.selected_id;
+                    if (sel >= ED_ENTITY_NODE_BASE) {
+                        u32 idx = sel - ED_ENTITY_NODE_BASE;
+                        rl_entity e = rl_entity_pack(idx, app.scene->entities.generation[idx]);
+                        ed_inspector_bind(&app.layout.inspector, app.scene, e);
+                    }
+                }
+            }
+
             ed_gizmo_build_axis_overlay(&app.camera, &vb, &frame);
             renderer_submit_frame_data(&frame);
 

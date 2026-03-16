@@ -9,6 +9,7 @@
 #include "ed_event_handler.h"
 #include "ed_layout.h"
 #include "ed_project_picker.h"
+#include "ed_gizmo_transform.h"
 #include "ed_undo.h"
 #include "platform/platform.h"
 #include "renderer/renderer_backend.h"
@@ -29,6 +30,7 @@ typedef struct ed_application {
     ED_MODE mode;
     rl_scene *scene;
     ed_camera camera;
+    ed_gizmo_transform gizmo;
     ed_undo_stack undo;
     char scene_path[512];
     b8 scene_dirty;

@@ -410,11 +410,19 @@ Colored XYZ axis indicator rendered in a 100x100 px sub-viewport in the bottom-l
 - [x] Light viz cubes now set `material.specular = {1,1,1}` so they remain white with flat_color shader
 - [x] Wired into `ed_application.c` frame loop before `renderer_submit_frame_data`
 
-### 9e. Transform gizmos
+### 9e. Transform gizmos (translation mode) — DONE
 
-- [ ] Translate/rotate/scale handles as overlay geometry (reuses overlay pass from 9d)
-- [ ] W/E/R to switch between translate/rotate/scale modes
-- [ ] Mouse drag on handle axis applies transform + pushes undo entry
+- [x] Added `world_overlays` / `world_overlay_count` to `rl_frame_data` — world-space overlays rendered with main camera, depth test off
+- [x] GL + VK backends: world overlay render pass inserted before axis gizmo overlay pass
+- [x] Created `realm_editor/src/ed_gizmo_transform.h/.c` — `ed_gizmo_transform` struct with mode/drag state
+- [x] Gizmo build: 7 overlay meshes (3 shafts + 3 tips + center cube) at selected entity position, highlighted active drag axis
+- [x] Gizmo pick: ray-AABB test against inflated shaft/tip handles, returns closest axis hit
+- [x] Axis-constrained drag: ray-plane projection (constraint plane normal = cross(A, cross(V, A))), delta applied to start position
+- [x] W/E/R hotkeys switch gizmo mode (translate renders; rotate/scale are stubs that hide the gizmo)
+- [x] Gizmo pick priority: click on handle starts drag instead of changing selection
+- [x] Drag end pushes `ED_UNDO_TRANSFORM` entry; Escape cancels drag and restores original position
+- [x] Inspector rebound after drag end to resync widget state
+- [x] Fixed macOS ⌘+Z/⌘+Shift+Z: `ctrl` check now includes `KEY_L_SUPER`/`KEY_R_SUPER`
 
 ### 9f. Entity picking — DONE
 
@@ -525,7 +533,7 @@ Phase 4: Project System & Config    ✓ done
     │       9b. Viewport 3D rendering      ✓ done
     │       9c. Viewport tab bar           ✓ done
     │       9d. Origin axis gizmo          ✓ done
-    │       9e. Transform gizmos           ← next
+    │       9e. Transform gizmos           ✓ done (translate only; rotate/scale stubs)
     │       9f. Entity picking             ✓ done
     │       9g. Infinite grid
     │
@@ -537,9 +545,10 @@ Phase 4: Project System & Config    ✓ done
             10e. Theme dropdown/settings   ✓ done
 ```
 
-**Next session: Phase 9e (Transform Gizmos) and/or Phase 9g (Infinite Grid).**
-Phase 9d (axis gizmo) added overlay render infrastructure to both GL and VK backends — transform gizmos (9e) can reuse the same overlay pass. Entity picking (9f) provides the selection mechanism that gizmos need. Theme settings (10e) is complete with persistence.
+**Next session: Phase 9e rotation/scale gizmo modes, Phase 9g (Infinite Grid), or context menu (Phase 2c) for entity create/delete.**
+Phase 9e added translation gizmos with world-space overlay rendering (new `world_overlays` field on `rl_frame_data`). Rotate and scale modes are enum stubs — they switch the mode but render nothing. The `ed_gizmo_transform_build` / `_pick` / `_drag_*` functions are structured to extend with rotation/scale geometry and math.
 Remaining loose ends:
+- Rotate/scale gizmo modes (9e follow-up): enum values exist, W/E/R hotkeys switch mode, but build/pick/drag only handle `ED_GIZMO_TRANSLATE`.
 - Name editing in the inspector is wired for keyboard but not yet clickable (no click-to-focus on the name text). Could be added as a small follow-up.
 - Entity create/destroy undo action types exist but the recreation logic isn't wired — no UI for entity delete yet. Wire when adding context menu (Phase 2c) or delete hotkey.
 - File browser widget (`gui_file_browser`) exists but isn't wired into project picker's Browse button yet (native dialog preferred long-term).

@@ -244,6 +244,10 @@ typedef struct VK_Context {
     rl_frame_mesh  *overlay_meshes;
     u32             overlay_count;
 
+    // World-space overlays (transform gizmos — main camera, no depth test)
+    rl_frame_mesh  *world_overlays;
+    u32             world_overlay_count;
+
     // Debug wireframe pipelines
     VkPipeline wireframe_lit_pipeline;
     VkPipeline wireframe_unlit_pipeline;

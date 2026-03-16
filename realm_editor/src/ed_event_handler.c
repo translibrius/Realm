@@ -4,8 +4,10 @@
 #include "ed_camera.h"
 #include "ed_inspector.h"
 #include "ed_layout.h"
+#include "ed_gizmo_transform.h"
 #include "ed_picking.h"
 #include "asset/asset.h"
+#include "math/ray.h"
 #include "core/camera.h"
 #include "core/component.h"
 #include "core/config.h"
@@ -112,7 +114,8 @@ static b8 ed_on_key(void *event, void *user_data) {
         return false;
     }
 
-    b8 ctrl = input_is_key_down(KEY_L_CTRL) || input_is_key_down(KEY_R_CTRL);
+    b8 ctrl = input_is_key_down(KEY_L_CTRL) || input_is_key_down(KEY_R_CTRL)
+             || input_is_key_down(KEY_L_SUPER) || input_is_key_down(KEY_R_SUPER);
     b8 shift = input_is_key_down(KEY_L_SHIFT) || input_is_key_down(KEY_R_SHIFT);
 
     // Ctrl+Z = Undo
@@ -125,6 +128,33 @@ static b8 ed_on_key(void *event, void *user_data) {
     if (k->key == KEY_Z && ctrl && shift) {
         app->redo_requested = true;
         return true;
+    }
+
+    // Escape while dragging = cancel
+    if (k->key == KEY_ESCAPE && app->gizmo.dragging) {
+        rl_transform *t = transform_get(&app->scene->components, app->gizmo.drag_entity);
+        if (t) {
+            *t = app->gizmo.drag_start_transform;
+            t->dirty = true;
+        }
+        app->gizmo.dragging = false;
+        return true;
+    }
+
+    // W/E/R = gizmo mode switch (only when not in fly mode)
+    if (!app->camera.fly_mode) {
+        if (k->key == KEY_W && !ctrl && !shift) {
+            app->gizmo.mode = ED_GIZMO_TRANSLATE;
+            return true;
+        }
+        if (k->key == KEY_E && !ctrl && !shift) {
+            app->gizmo.mode = ED_GIZMO_ROTATE;
+            return true;
+        }
+        if (k->key == KEY_R && !ctrl && !shift) {
+            app->gizmo.mode = ED_GIZMO_SCALE;
+            return true;
+        }
     }
 
     // F = Frame selection
@@ -170,6 +200,33 @@ static b8 ed_on_click(void *event, void *user_data) {
 
     vec2 mouse_pos;
     input_get_mouse_position(mouse_pos);
+
+    // Build pick ray
+    mat4 view_copy, proj_copy, inv_view, inv_proj;
+    memcpy(view_copy, fc.view, sizeof(mat4));
+    memcpy(proj_copy, fc.projection, sizeof(mat4));
+    glm_mat4_inv(view_copy, inv_view);
+    glm_mat4_inv(proj_copy, inv_proj);
+
+    rl_ray pick_ray = ray_from_screen(mouse_pos[0], mouse_pos[1],
+                                       vp.x, vp.y, vp.w, vp.h,
+                                       inv_view, inv_proj);
+
+    // Gizmo pick takes priority over entity picking
+    {
+        u32 sel = app->layout.hierarchy_tree.selected_id;
+        if (sel >= ED_ENTITY_NODE_BASE && app->scene) {
+            u32 idx = sel - ED_ENTITY_NODE_BASE;
+            rl_entity sel_e = rl_entity_pack(idx, app->scene->entities.generation[idx]);
+            if (scene_entity_is_alive(app->scene, sel_e)) {
+                ED_GIZMO_AXIS axis = ed_gizmo_transform_pick(&app->gizmo, app->scene, sel_e, &pick_ray);
+                if (axis != ED_GIZMO_AXIS_NONE) {
+                    ed_gizmo_transform_drag_begin(&app->gizmo, app->scene, sel_e, axis, &pick_ray);
+                    return true;
+                }
+            }
+        }
+    }
 
     rl_entity hit = ed_pick_entity(app->scene, mouse_pos[0], mouse_pos[1], &vp, &fc);
     if (hit != RL_ENTITY_INVALID) {

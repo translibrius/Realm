@@ -152,6 +152,20 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
             vkCmdDraw(buffer, context->cube_vertex_count, 1, 0, 0);
         }
 
+        // --- World-space overlays (transform gizmos — main camera, no depth test) ---
+        if (context->world_overlay_count > 0 && context->world_overlays) {
+            vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->overlay_pipeline);
+            for (u32 i = 0; i < context->world_overlay_count; i++) {
+                VK_MeshPushConstants pc;
+                glm_mat4_copy(context->world_overlays[i].model, pc.model);
+                glm_vec3_copy(context->world_overlays[i].material.specular, pc.material_params);
+                pc.material_params[3] = 0.0f;
+                vkCmdPushConstants(buffer, context->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(VK_MeshPushConstants), &pc);
+                vkCmdDraw(buffer, context->cube_vertex_count, 1, 0, 0);
+            }
+            // Rebind scene UBO (overlay pipeline uses same UBO, which is already scene camera)
+        }
+
         // --- Overlay pass (gizmo axes — no depth test) ---
         if (context->overlay_count > 0 && context->overlay_meshes && context->overlay_camera.valid) {
             // Compute gizmo sub-viewport: 100x100 in bottom-left of viewport rect, 10px margin

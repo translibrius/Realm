@@ -403,6 +403,17 @@ void vulkan_submit_frame_data(rl_frame_data *frame_data) {
         context.frame_meshes = nullptr;
     }
 
+    // Copy world overlay data (transform gizmos)
+    context.world_overlay_count = frame_data->world_overlay_count;
+    if (frame_data->world_overlay_count > 0 && frame_data->world_overlays) {
+        rl_arena *fa2 = rl_engine_get_frame_arena();
+        u64 wsz = (u64)frame_data->world_overlay_count * sizeof(rl_frame_mesh);
+        context.world_overlays = rl_arena_push(fa2, wsz, alignof(rl_frame_mesh));
+        mem_copy(context.world_overlays, frame_data->world_overlays, wsz);
+    } else {
+        context.world_overlays = nullptr;
+    }
+
     // Copy overlay data
     context.overlay_camera = frame_data->overlay_camera;
     context.overlay_count = frame_data->overlay_count;

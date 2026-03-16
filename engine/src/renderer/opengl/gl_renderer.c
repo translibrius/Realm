@@ -253,6 +253,27 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
         glEnable(GL_CULL_FACE);
     }
 
+    // --- World-space overlays (transform gizmos — no depth test, main camera) ---
+    if (frame_data->world_overlay_count > 0 && frame_data->world_overlays) {
+        glDisable(GL_DEPTH_TEST);
+
+        // light_shader + scene view/projection already set from unlit pass
+        bound_vao = 0;
+        for (u32 i = 0; i < frame_data->world_overlay_count; i++) {
+            rl_frame_mesh *wm = &frame_data->world_overlays[i];
+            GL_Mesh *draw_mesh = &context.cube_mesh;
+            if (draw_mesh->vao != bound_vao) {
+                glBindVertexArray(draw_mesh->vao);
+                bound_vao = draw_mesh->vao;
+            }
+            opengl_shader_set_vec3(&context.light_shader, "flat_color", wm->material.specular);
+            opengl_shader_set_mat4(&context.light_shader, "model", wm->model);
+            gl_mesh_draw(draw_mesh);
+        }
+
+        glEnable(GL_DEPTH_TEST);
+    }
+
     // --- Overlay pass (gizmo axes, etc.) ---
     if (frame_data->overlay_count > 0 && frame_data->overlay_meshes && frame_data->overlay_camera.valid) {
         // Compute gizmo sub-viewport: 100x100 in bottom-left of viewport rect, 10px margin

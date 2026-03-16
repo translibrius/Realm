@@ -78,6 +78,10 @@ typedef struct rl_frame_data {
 
     rl_viewport_rect viewport_rect;
 
+    // World-space overlays (transform gizmos) — main camera, no depth test
+    rl_frame_mesh  *world_overlays;
+    u32             world_overlay_count;
+
     // Overlay pass (gizmo axes, etc.) — rendered with separate camera, no depth test
     rl_frame_camera overlay_camera;
     rl_frame_mesh  *overlay_meshes;
