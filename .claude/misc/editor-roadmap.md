@@ -23,10 +23,10 @@ Phases 1–14 are complete. The editor and game host share a project system, sce
 
 ### Next priorities
 
-1. **Infrastructure cleanup**: ~~centralized TOML parser~~ ✓, ~~consolidate `game/` project data into `realm/`~~ ✓, string utils consolidation (see `.claude/misc/string-utils-refactor.md`)
-2. **Behavior system**: name-addressed entity update functions — the architectural seam for future scripting language support
-3. **Project scaffolding**: "New Project" generates a buildable game module template
-4. **Binary scenes + export pipeline**: custom binary format for fast loading, editor export for shipping
+1. **Infrastructure cleanup**: ~~centralized TOML parser~~ ✓, ~~consolidate `game/` project data into `realm/`~~ ✓, ~~behavior system~~ ✓, string utils consolidation (see `.claude/misc/string-utils-refactor.md`)
+2. **Project scaffolding**: "New Project" generates a buildable game module template
+3. **Binary scenes + export pipeline**: custom binary format for fast loading, editor export for shipping
+4. **Asset drag-and-drop + entity highlighting**: thumbnail previews, drag assets into scene/onto entities, hover outline shader
 
 ---
 
@@ -96,54 +96,40 @@ Moved `game/` project data into `realm/`, making it a self-contained project dir
 
 ---
 
-## Phase 17: Entity Behavior System
+## Phase 17: Entity Behavior System ✓
 
 The architectural seam that enables future scripting. Behaviors are name-addressed update functions attached to entities as a component. Today they resolve to C function pointers; tomorrow they could resolve to script functions in any language.
 
-### Design
+### 17a. Behavior registry ✓
 
-```c
-// A behavior is a named update function
-typedef void (*behavior_fn)(rl_scene *scene, rl_entity entity, f32 dt);
+- [x] Created `engine/include/core/behavior.h` + `engine/src/core/behavior.c`
+- [x] Static registry (64 entries max), `behavior_register(name, fn)` / `behavior_find(name)` / `behavior_registry_clear()`
+- [x] `behavior_registry_init()` called at engine startup, `behavior_registry_clear()` on hot-reload
+- [x] Added `cstr_eq()` to `str.h`/`str.c` (was missing, needed for registry lookups)
+- [x] 5 unit tests: register+find, find-missing, clear, overwrite-duplicate, capacity
 
-// Registration (game module does this at init)
-behavior_register("patrol", patrol_update);
-behavior_register("rotate", rotate_update);
+### 17b. Behavior component ✓
 
-// Attachment (scene file or editor assigns these)
-behavior_set(scene, entity, "patrol");
+- [x] `rl_behavior_component` (stores `char name[64]`) added to `rl_component_store`
+- [x] `behavior_comp_add/get/remove` accessors (prefixed `_comp_` to avoid collision with registry functions)
+- [x] `behavior_update_all(scene, dt)` iterates entities, resolves name→fn, calls it
+- [x] Unknown behavior names logged once (static warned-name set, cleared on registry clear)
+- [x] `scene_entity_destroy` cleans up behavior component
 
-// Frame update (host calls once per frame)
-behavior_update_all(scene, dt);
-```
+### 17c. Scene I/O integration ✓
 
-### 17a. Behavior registry
+- [x] Serialize `"behavior": "rotate"` as plain string in entity JSON
+- [x] Deserialize and attach behavior component on load
+- [x] Roundtrip test added to `test_scene_io.c`
 
-- [ ] Create `engine/include/core/behavior.h` + `engine/src/core/behavior.c`
-- [ ] `behavior_registry` — name→function_pointer table (fixed capacity, string-keyed)
-- [ ] `behavior_register(name, fn)` / `behavior_find(name)` → `behavior_fn` or NULL
-- [ ] `behavior_registry_clear()` for hot-reload (re-register after module load)
-- [ ] Unit tests: register, find, find-missing, clear
+### 17d. Migrate sandbox game + editor ✓
 
-### 17b. Behavior component
-
-- [ ] Add `rl_behavior_component` to component system — stores behavior name (`char[64]`)
-- [ ] `behavior_set(scene, entity, name)` / `behavior_get(scene, entity)` → name
-- [ ] `behavior_update_all(scene, dt)` — iterates entities with behavior component, looks up function, calls it
-- [ ] Graceful no-op if behavior name not found in registry (log warning once)
-
-### 17c. Scene I/O integration
-
-- [ ] Serialize `"behavior": "rotate"` in scene JSON
-- [ ] Deserialize and attach behavior component on load
-- [ ] Editor inspector shows behavior name as read-only text (or dropdown of registered names)
-
-### 17d. Migrate sandbox game
-
-- [ ] Convert rotating cube logic in `scene_game.c` to a `"rotate"` behavior
-- [ ] Register behaviors in game module `game_init()`
-- [ ] Re-register in hot-reload path so F5 works
-- [ ] Verify: sandbox game works identically, behaviors survive hot-reload
+- [x] `rotate_update` behavior in `scene_game.c` — adds 100*dt to `rotation[1]`, wraps at 360
+- [x] `scene_game_register_behaviors()` called from `game_init()` after `behavior_registry_clear()`
+- [x] `scene_game_update` calls `behavior_update_all` (respects pause/freeze logic)
+- [x] Removed `scene_angle` and `rotating_cube_entity` from `rl_game`, bumped `RL_GAME_STATE_VERSION` to 11
+- [x] `gameplay.scene` has `"behavior": "rotate"` on RotatingCube entity
+- [x] Editor inspector shows "Behavior" section with read-only name when entity has behavior component
 
 ---
 
@@ -210,6 +196,42 @@ Editor "Export" button that produces a standalone game directory — cooked scen
 
 ---
 
+## Phase 21: Asset Drag-and-Drop & Entity Highlighting
+
+Rich asset interaction: thumbnail previews in the asset browser, drag-and-drop assets into the scene or onto entities, and a hover highlight shader for entity feedback.
+
+### 21a. Asset browser thumbnails
+
+- [ ] Generate preview thumbnails for known asset types (textures: downscaled GPU read-back or CPU resize; meshes: rendered preview to FBO; materials: swatch)
+- [ ] Thumbnail cache — store on disk in `.realm_cache/thumbnails/` alongside project, keyed by asset path + mtime
+- [ ] Asset browser grid/list view toggle — grid shows thumbnail + filename, list shows icon + name + type
+- [ ] Lazy loading — generate thumbnails on first view or in background, show placeholder until ready
+
+### 21b. Drag-and-drop assets into scene
+
+- [ ] Drag source: asset browser items — initiate drag on mouse-down + move, show floating thumbnail under cursor
+- [ ] Drop target: viewport empty space — creates new entity with appropriate components (mesh asset → entity with transform + mesh, texture → entity with transform + mesh + applied material)
+- [ ] Drop target: entity in viewport or hierarchy — applies asset contextually (texture → sets diffuse map on existing mesh, mesh → replaces mesh asset, behavior name → assigns behavior component)
+- [ ] Visual feedback during drag: valid/invalid drop zone indication
+- [ ] Undo support for all drop actions
+
+### 21c. Entity highlight on hover (outline shader)
+
+- [ ] Outline/silhouette shader — render selected/hovered entity to stencil buffer, then draw expanded outline in a neon/highlight color
+- [ ] Two modes: **hover** (subtle, e.g. thin white/blue outline) and **selected** (stronger, e.g. bright orange/yellow)
+- [ ] Works in both OpenGL and Vulkan backends — stencil-based approach for portability
+- [ ] Configurable highlight color (per-theme or user setting)
+- [ ] Performance: only re-render the highlighted entity to stencil, not the whole scene
+
+### 21d. Inspector drop targets
+
+- [ ] Texture fields in material section become drop targets — drag texture from asset browser onto "Diffuse" field
+- [ ] Behavior field becomes a dropdown populated from `behavior_registry` (registered names), or accepts drag-and-drop of a behavior name
+- [ ] Mesh asset field becomes a drop target — drag mesh from asset browser to swap mesh
+- [ ] Preview thumbnail shown inline next to texture/mesh fields when assigned
+
+---
+
 ## Future (not scoped)
 
 ### Editor features
@@ -247,19 +269,21 @@ Phase 1–14: Foundation                       ✓ all done
     │
     ├── Phase 16: Project Consolidation      ✓ done
     │
-    └── Phase 17: Entity Behavior System     ○ depends on scene I/O (done)
+    └── Phase 17: Entity Behavior System     ✓ done
             │
             ├── Phase 18: Project Scaffolding        ○ depends on 16 + 17
             │
-            ├── Phase 19: Binary Scene Format        ○ depends on 17 (behaviors in scene I/O)
+            ├── Phase 19: Binary Scene Format        ○ depends on 17
             │       │
             │       └── Phase 20: Export Pipeline    ○ depends on 19
+            │
+            ├── Phase 21: Asset Drag-Drop + Highlight  ○ depends on 17 (behavior drop) + renderer (outline shader)
             │
             └── Future: Scripting Runtime            ○ depends on 17 (behavior seam)
 ```
 
-Phases 15 and 16 are independent and can be done in either order or in parallel.
-Phase 17 is the critical path — it's the architectural seam for everything that follows.
+Phases 18, 19, 21 are independent of each other and can be done in any order.
+Phase 21 is renderer-heavy (outline shader) and GUI-heavy (drag-and-drop) — good candidate for splitting across sessions.
 
 ---
 

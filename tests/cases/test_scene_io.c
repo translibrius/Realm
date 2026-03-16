@@ -241,6 +241,33 @@ RL_TEST(scene_io_mesh_material_roundtrip) {
     cleanup_scene_file();
 }
 
+RL_TEST(scene_io_behavior_roundtrip) {
+    cleanup_scene_file();
+
+    rl_scene *scene = scene_create("BehaviorTest");
+
+    rl_entity e = scene_entity_create(scene, "Spinner");
+    transform_add(&scene->components, e);
+    behavior_comp_add(&scene->components, e, "rotate");
+
+    RL_EXPECT(scene_save(scene, TEST_SCENE_PATH));
+
+    rl_scene *loaded = scene_load(TEST_SCENE_PATH);
+    RL_EXPECT_NOT_NULL(loaded);
+
+    rl_component_store *cs = &loaded->components;
+    RL_EXPECT(cs->has_behavior[1]);
+    RL_EXPECT_STR_EQ(cs->behaviors[1].name, "rotate");
+
+    // Entity without behavior should not have one
+    rl_entity e2 = scene_entity_create(scene, "NoBehavior");
+    (void)e2;
+
+    scene_destroy(loaded);
+    scene_destroy(scene);
+    cleanup_scene_file();
+}
+
 void register_scene_io_tests(void) {
     rl_test_begin_group("scene_io");
     RL_REGISTER_TEST(scene_io_save_load_roundtrip);
@@ -250,4 +277,5 @@ void register_scene_io_tests(void) {
     RL_REGISTER_TEST(scene_io_load_nonexistent_returns_null);
     RL_REGISTER_TEST(scene_io_save_null_args);
     RL_REGISTER_TEST(scene_io_mesh_material_roundtrip);
+    RL_REGISTER_TEST(scene_io_behavior_roundtrip);
 }

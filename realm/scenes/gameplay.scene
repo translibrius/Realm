@@ -4,9 +4,21 @@
     {
       "name": "RotatingCube",
       "transform": {
-        "position": [0.0, 0.0, 0.0],
-        "rotation": [0.0, 0.0, 0.0],
-        "scale": [1.0, 1.0, 1.0]
+        "position": [
+          0.0,
+          1.780738115310669,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
       },
       "mesh": {
         "primitive": "cube",
@@ -14,17 +26,34 @@
         "wireframe": false,
         "material": {
           "diffuse_map_path": "textures/wood_container2.jpg",
-          "specular": [0.5, 0.5, 0.5],
+          "specular": [
+            0.5,
+            0.5,
+            0.5
+          ],
           "shininess": 32.0
         }
-      }
+      },
+      "behavior": "rotate"
     },
     {
       "name": "GroundPlane",
       "transform": {
-        "position": [0.0, -2.0, 0.0],
-        "rotation": [0.0, 0.0, 0.0],
-        "scale": [11.0, 0.2, 11.0]
+        "position": [
+          0.0,
+          0.04810839891433716,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          11.0,
+          0.20000000298023224,
+          11.0
+        ]
       },
       "mesh": {
         "primitive": "cube",
@@ -32,7 +61,11 @@
         "wireframe": false,
         "material": {
           "diffuse_map_path": "textures/wood_container2.jpg",
-          "specular": [0.5, 0.5, 0.5],
+          "specular": [
+            0.5,
+            0.5,
+            0.5
+          ],
           "shininess": 32.0
         }
       }
@@ -40,9 +73,21 @@
     {
       "name": "LionHead",
       "transform": {
-        "position": [3.0, 0.0, 0.0],
-        "rotation": [0.0, 0.0, 0.0],
-        "scale": [5.0, 5.0, 5.0]
+        "position": [
+          3.0,
+          1.1731007099151611,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          5.0,
+          5.0,
+          5.0
+        ]
       },
       "mesh": {
         "primitive": "cube",
@@ -50,7 +95,11 @@
         "wireframe": false,
         "mesh_asset_path": "models/lion_head_4k.gltf/lion_head_4k.gltf",
         "material": {
-          "specular": [0.5, 0.5, 0.5],
+          "specular": [
+            0.5,
+            0.5,
+            0.5
+          ],
           "shininess": 32.0
         }
       }
@@ -58,31 +107,38 @@
     {
       "name": "PointLight",
       "transform": {
-        "position": [1.2, 1.0, 2.0],
-        "rotation": [0.0, 0.0, 0.0],
-        "scale": [1.0, 1.0, 1.0]
+        "position": [
+          -0.024296045303344727,
+          5.289846420288086,
+          3.845306396484375
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
       },
       "light": {
-        "ambient": [0.2, 0.2, 0.2],
-        "diffuse": [0.5, 0.5, 0.5],
-        "specular": [1.0, 1.0, 1.0]
-      }
-    },
-    {
-      "name": "LightCube",
-      "transform": {
-        "position": [1.2, 1.0, 2.0],
-        "rotation": [0.0, 0.0, 0.0],
-        "scale": [0.2, 0.2, 0.2]
-      },
-      "mesh": {
-        "primitive": "cube",
-        "kind": "unlit",
-        "wireframe": false,
-        "material": {
-          "specular": [0.0, 0.0, 0.0],
-          "shininess": 1.0
-        }
+        "ambient": [
+          0.20000000298023224,
+          0.20000000298023224,
+          0.20000000298023224
+        ],
+        "diffuse": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "specular": [
+          1.0,
+          1.0,
+          1.0
+        ]
       }
     }
   ]

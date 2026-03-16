@@ -19,6 +19,9 @@ void component_store_init(rl_component_store *store, u32 capacity, rl_arena *are
 
     store->names    = rl_arena_push(arena, capacity * sizeof(rl_name_component), true);
     store->has_name = rl_arena_push(arena, capacity * sizeof(b8), true);
+
+    store->behaviors    = rl_arena_push(arena, capacity * sizeof(rl_behavior_component), true);
+    store->has_behavior = rl_arena_push(arena, capacity * sizeof(b8), true);
 }
 
 // --- Transform ---
@@ -137,4 +140,28 @@ void name_remove(rl_component_store *s, rl_entity e) {
     u32 idx = rl_entity_index(e);
     if (!s || idx >= s->capacity) return;
     s->has_name[idx] = false;
+}
+
+// --- Behavior ---
+
+rl_behavior_component *behavior_comp_add(rl_component_store *s, rl_entity e, const char *name) {
+    u32 idx = rl_entity_index(e);
+    if (!s || idx >= s->capacity) return nullptr;
+
+    rl_behavior_component *b = &s->behaviors[idx];
+    cstr_copy(b->name, RL_BEHAVIOR_NAME_MAX, name ? name : "");
+    s->has_behavior[idx] = true;
+    return b;
+}
+
+rl_behavior_component *behavior_comp_get(rl_component_store *s, rl_entity e) {
+    u32 idx = rl_entity_index(e);
+    if (!s || idx >= s->capacity || !s->has_behavior[idx]) return nullptr;
+    return &s->behaviors[idx];
+}
+
+void behavior_comp_remove(rl_component_store *s, rl_entity e) {
+    u32 idx = rl_entity_index(e);
+    if (!s || idx >= s->capacity) return;
+    s->has_behavior[idx] = false;
 }

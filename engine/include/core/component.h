@@ -35,12 +35,19 @@ typedef struct rl_name_component {
     char name[RL_NAME_MAX];
 } rl_name_component;
 
+#define RL_BEHAVIOR_NAME_MAX 64
+
+typedef struct rl_behavior_component {
+    char name[RL_BEHAVIOR_NAME_MAX];
+} rl_behavior_component;
+
 typedef struct rl_component_store {
     u32 capacity;
     rl_transform       *transforms;   b8 *has_transform;
     rl_mesh_component  *meshes;       b8 *has_mesh;
     rl_light_component *lights;       b8 *has_light;
-    rl_name_component  *names;        b8 *has_name;
+    rl_name_component     *names;        b8 *has_name;
+    rl_behavior_component *behaviors;    b8 *has_behavior;
 } rl_component_store;
 
 REALM_API void component_store_init(rl_component_store *store, u32 capacity, rl_arena *arena);
@@ -61,3 +68,7 @@ REALM_API void                light_remove(rl_component_store *s, rl_entity e);
 REALM_API rl_name_component  *name_add(rl_component_store *s, rl_entity e, const char *name);
 REALM_API rl_name_component  *name_get(rl_component_store *s, rl_entity e);
 REALM_API void                name_remove(rl_component_store *s, rl_entity e);
+
+REALM_API rl_behavior_component *behavior_comp_add(rl_component_store *s, rl_entity e, const char *name);
+REALM_API rl_behavior_component *behavior_comp_get(rl_component_store *s, rl_entity e);
+REALM_API void                   behavior_comp_remove(rl_component_store *s, rl_entity e);

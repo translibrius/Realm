@@ -166,6 +166,12 @@ char *cstr_format_va(rl_arena *arena, const char *fmt, va_list args) {
     return buffer;
 }
 
+b8 cstr_eq(const char *a, const char *b) {
+    if (a == b) return true;
+    if (!a || !b) return false;
+    return strcmp(a, b) == 0;
+}
+
 b8 cstr_ends_with(const char *str, const char *suffix) {
     u32 len_str = strlen(str);
     u32 len_suf = strlen(suffix);

@@ -24,6 +24,7 @@ add_executable(RealmTests
         cases/test_file_scan.c
         cases/test_ray.c
         cases/test_toml.c
+        cases/test_behavior.c
 )
 
 target_include_directories(RealmTests

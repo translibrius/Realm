@@ -2,11 +2,27 @@
 #include "../../include/game.h"
 #include "../../include/menu_pause.h"
 
+#include "core/behavior.h"
 #include "core/camera.h"
 #include "core/component.h"
 #include "core/scene.h"
 #include "platform/input.h"
 #include "renderer/renderer_frontend.h"
+
+static void rotate_update(rl_scene *scene, rl_entity entity, f32 dt) {
+    rl_transform *t = transform_get(&scene->components, entity);
+    if (!t) return;
+
+    t->rotation[1] += 100.0f * dt;
+    if (t->rotation[1] > 360.0f) {
+        t->rotation[1] -= 360.0f;
+    }
+    t->dirty = true;
+}
+
+void scene_game_register_behaviors(void) {
+    behavior_register("rotate", rotate_update);
+}
 
 void scene_game_update(rl_game *game, const realm_app_context *ctx, realm_app_output *out, f64 dt) {
     (void)ctx;
@@ -25,28 +41,15 @@ void scene_game_update(rl_game *game, const realm_app_context *ctx, realm_app_ou
 
     if (paused) {
         out->wants_cursor_visible = true;
-        if (!game->pause_freezes_sim) {
-            game->scene_angle += 100.0f * (f32)dt;
-            if (game->scene_angle > 360.0f) {
-                game->scene_angle -= 360.0f;
-            }
+        if (!game->pause_freezes_sim && ctx->scene) {
+            behavior_update_all(ctx->scene, (f32)dt);
         }
         return;
     }
 
     out->wants_cursor_visible = false;
-    game->scene_angle += 100.0f * (f32)dt;
-    if (game->scene_angle > 360.0f) {
-        game->scene_angle -= 360.0f;
-    }
-
-    // Update rotating cube transform from scene_angle
-    if (ctx->scene && game->rotating_cube_entity != RL_ENTITY_INVALID) {
-        rl_transform *t = transform_get(&ctx->scene->components, game->rotating_cube_entity);
-        if (t) {
-            t->rotation[1] = game->scene_angle;
-            t->dirty = true;
-        }
+    if (ctx->scene) {
+        behavior_update_all(ctx->scene, (f32)dt);
     }
 
     camera_update(&game->camera, dt);

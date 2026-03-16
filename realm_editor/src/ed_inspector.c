@@ -304,6 +304,14 @@ b8 ed_inspector_render(ed_inspector *insp, rl_scene *scene, rl_entity entity,
         gui_separator();
     }
 
+    // ── Behavior ────────────────────────────────────────────────────────
+    rl_behavior_component *bc = behavior_comp_get(cs, entity);
+    if (bc) {
+        section_header("Behavior", t, font);
+        gui_text(bc->name, &dim_text);
+        gui_separator();
+    }
+
     // ── Light ───────────────────────────────────────────────────────────
     rl_light_component *lc = light_get(cs, entity);
     if (lc) {

@@ -11,7 +11,7 @@
 typedef struct rl_font rl_font;
 typedef struct rl_scene rl_scene;
 
-#define RL_GAME_STATE_VERSION 10
+#define RL_GAME_STATE_VERSION 11
 
 typedef enum game_scene {
     SCENE_MAIN_MENU,
@@ -31,7 +31,6 @@ typedef struct rl_game {
 
     // Game scene state
     rl_camera camera;
-    f32 scene_angle;
     f32 time_elapsed;
 
     // Settings widget state
@@ -42,9 +41,6 @@ typedef struct rl_game {
     gui_dropdown_state settings_theme_dropdown;
     gui_dropdown_state settings_log_level_dropdown;
     gui_dropdown_state settings_msaa_dropdown;
-
-    // Cached entity handle for animation
-    rl_entity rotating_cube_entity;
 
     // Shared
     rl_arena frame_arena;

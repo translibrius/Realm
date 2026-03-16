@@ -189,6 +189,11 @@ b8 scene_save(const rl_scene *scene, const char *path) {
                                    serialize_light(doc, &cs->lights[i]));
         }
 
+        // Behavior
+        if (cs->has_behavior[i]) {
+            yyjson_mut_obj_add_strcpy(doc, ent, "behavior", cs->behaviors[i].name);
+        }
+
         yyjson_mut_arr_add_val(entities_arr, ent);
     }
 
@@ -252,6 +257,12 @@ rl_scene *scene_load(const char *path) {
             if (light_obj) {
                 rl_light_component *l = light_add(&scene->components, e);
                 deserialize_light(light_obj, l);
+            }
+
+            // Behavior
+            const char *behavior_name = yyjson_get_str(yyjson_obj_get(ent_val, "behavior"));
+            if (behavior_name) {
+                behavior_comp_add(&scene->components, e, behavior_name);
             }
         }
     }

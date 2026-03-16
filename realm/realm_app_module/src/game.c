@@ -3,6 +3,7 @@
 #include "../../include/scene_game.h"
 
 #include "asset/asset.h"
+#include "core/behavior.h"
 #include "core/camera.h"
 #include "core/component.h"
 #include "core/logger.h"
@@ -23,7 +24,6 @@ b8 game_init(rl_game *game, const realm_app_context *ctx) {
         game->pause_menu_open = false;
         game->settings_open = false;
         game->pause_freezes_sim = true;
-        game->scene_angle = 0.0f;
         game->time_elapsed = 0.0f;
         game->settings_backend_dropdown = (gui_dropdown_state){.selected = -1};
         camera_init(&game->camera);
@@ -49,11 +49,9 @@ b8 game_init(rl_game *game, const realm_app_context *ctx) {
         return false;
     }
 
-    // Find rotating cube entity in host-owned scene for animation
-    game->rotating_cube_entity = RL_ENTITY_INVALID;
-    if (ctx->scene) {
-        game->rotating_cube_entity = scene_entity_find(ctx->scene, "RotatingCube");
-    }
+    // Register behavior functions (handles both first load and hot-reload)
+    behavior_registry_clear();
+    scene_game_register_behaviors();
 
     return true;
 }

@@ -40,6 +40,7 @@ void scene_entity_destroy(rl_scene *scene, rl_entity e) {
     mesh_remove(&scene->components, e);
     light_remove(&scene->components, e);
     name_remove(&scene->components, e);
+    behavior_comp_remove(&scene->components, e);
 
     entity_destroy(&scene->entities, e);
 }

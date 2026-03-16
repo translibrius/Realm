@@ -1,6 +1,7 @@
 #include "engine.h"
 
 #include "asset/asset_internal.h"
+#include "core/behavior.h"
 #include "core/config.h"
 #include "core/event.h"
 #include "core/logger.h"
@@ -97,6 +98,8 @@ b8 rl_engine_create(const rl_engine_config *config) {
         RL_FATAL("Failed to initialize asset sub-system, exiting...");
         return false;
     }
+
+    behavior_registry_init();
 
     rl_arena_init(&state.frame_arena, KiB(128), KiB(4), MEM_STRING);
     state.frame_count = 0;
