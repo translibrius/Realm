@@ -25,14 +25,16 @@ i32 gui_tabs(i32 *selected, const char **labels, i32 count, const gui_tabs_cfg *
         if (cfg->text_color.a > 0)   text_color     = cfg->text_color;
     }
 
-    // Horizontal row of tabs
+    // Tab strip container
     Clay__OpenElement();
     Clay__ConfigureOpenElement((Clay_ElementDeclaration){
         .layout = {
             .sizing = {.width = CLAY_SIZING_GROW(0)},
             .layoutDirection = CLAY_LEFT_TO_RIGHT,
             .childGap = (u16)gap,
+            .padding = {.left = 4, .right = 4},
         },
+        .backgroundColor = inactive_color,
     });
 
     i32 result = *selected;
@@ -40,14 +42,16 @@ i32 gui_tabs(i32 *selected, const char **labels, i32 count, const gui_tabs_cfg *
     for (i32 i = 0; i < count; i++) {
         b8 is_active = (i == *selected);
 
+        Clay_Color tab_text = is_active ? text_color : (Clay_Color){text_color.r * 0.7f, text_color.g * 0.7f, text_color.b * 0.7f, text_color.a};
+
         gui_button_state btn = gui_button_begin(&(gui_button_cfg){
             .color        = is_active ? active_color : inactive_color,
             .hover_color  = is_active ? active_color : hover_color,
             .press_color  = active_color,
             .padding      = padding,
-            .corner_radius = radius,
+            .corner_radius = is_active ? radius : 0,
         });
-        gui_text(labels[i], &(gui_text_cfg){.color = text_color, .size = font_size, .font = font});
+        gui_text(labels[i], &(gui_text_cfg){.color = tab_text, .size = font_size, .font = font});
         gui_button_end();
 
         if (btn.clicked && !is_active) {

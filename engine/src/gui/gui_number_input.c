@@ -45,15 +45,17 @@ b8 gui_number_input(gui_number_input_state *state, const gui_number_input_cfg *c
 
     Clay__OpenElementWithId(eid);
     b8 hovered = Clay_Hovered();
-    Clay_Color bg = state->editing ? t->bg_input : t->control;
+    Clay_Color bg = state->editing ? t->bg_input : (hovered ? t->control_hover : t->control);
+    Clay_Color border_color = state->editing ? t->accent : (hovered ? t->text_dim : t->border);
     Clay__ConfigureOpenElement((Clay_ElementDeclaration){
         .layout = {
             .sizing = {.width = CLAY_SIZING_FIXED(width), .height = CLAY_SIZING_FIXED(height)},
-            .padding = {4, 4, 0, 0},
+            .padding = {4, 4, 2, 2},
             .childAlignment = {.y = CLAY_ALIGN_Y_CENTER},
         },
         .backgroundColor = bg,
         .cornerRadius = CLAY_CORNER_RADIUS(3),
+        .border = {.color = border_color, .width = {1, 1, 1, 1, 0}},
     });
 
     // Interaction
@@ -116,8 +118,7 @@ b8 gui_number_input(gui_number_input_state *state, const gui_number_input_cfg *c
         char *display = rl_arena_push(arena, 32, false);
         snprintf(display, 32, fmt, (f64)state->value);
         u16 dlen = (u16)strlen(display);
-        Clay_Color tc = hovered ? t->text : t->text_dim;
-        gui_textn(display, dlen, &(gui_text_cfg){.color = tc, .size = 12, .font = font});
+        gui_textn(display, dlen, &(gui_text_cfg){.color = t->text, .size = 12, .font = font});
     }
 
     Clay__CloseElement();

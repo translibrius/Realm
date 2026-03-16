@@ -15,5 +15,7 @@
 #include "gui/gui_tooltip.h"
 #include "gui/gui_splitter.h"
 #include "gui/gui_tree.h"
+#include "gui/gui_icon.h"
+#include "gui/gui_context_menu.h"
 #include "gui/gui_file_browser.h"
 #include "gui/gui_theme.h"

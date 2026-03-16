@@ -2,6 +2,7 @@
 
 #include "defines.h"
 #include "ed_inspector.h"
+#include "gui/gui_context_menu.h"
 #include "gui/gui_dropdown.h"
 #include "gui/gui_scroll.h"
 #include "gui/gui_splitter.h"
@@ -47,6 +48,10 @@ typedef struct ed_layout {
 
     // Property inspector
     ed_inspector inspector;
+
+    // Context menus
+    gui_context_menu_state hierarchy_ctx_menu;
+    gui_context_menu_state viewport_ctx_menu;
 } ed_layout;
 
 void ed_layout_init(ed_layout *layout, ed_undo_stack *undo);

@@ -1,22 +1,22 @@
 #include "gui/gui_theme.h"
 
 static const gui_theme dark_theme = {
-    .bg            = {20, 20, 22, 230},
-    .bg_secondary  = {35, 35, 40, 255},
-    .bg_input      = {15, 15, 17, 255},
-    .bg_overlay    = {0, 0, 0, 100},
+    .bg            = {25, 25, 28, 230},
+    .bg_secondary  = {38, 38, 44, 255},
+    .bg_input      = {18, 18, 22, 255},
+    .bg_overlay    = {10, 10, 12, 180},
 
-    .accent        = {70, 130, 220, 255},
-    .accent_hover  = {90, 150, 240, 255},
+    .accent        = {55, 110, 190, 200},
+    .accent_hover  = {70, 130, 210, 255},
 
-    .text          = {220, 220, 225, 255},
-    .text_dim      = {140, 140, 145, 255},
+    .text          = {235, 235, 240, 255},
+    .text_dim      = {155, 155, 165, 255},
 
-    .border        = {60, 60, 65, 255},
+    .border        = {65, 65, 72, 255},
 
-    .control       = {50, 50, 55, 255},
-    .control_hover = {65, 65, 70, 255},
-    .control_press = {40, 40, 45, 255},
+    .control       = {52, 52, 60, 255},
+    .control_hover = {68, 68, 78, 255},
+    .control_press = {42, 42, 48, 255},
     .control_thumb = {230, 230, 235, 255},
 
     .danger        = {180, 60, 60, 255},
@@ -31,7 +31,7 @@ static const gui_theme dark_theme = {
 
     .debug_highlight = {180, 255, 180, 255},
 
-    .separator     = {60, 60, 65, 255},
+    .separator     = {55, 55, 62, 255},
     .corner_radius = 4,
     .font_size     = 14,
 };
@@ -41,10 +41,10 @@ static const gui_theme catppuccin_theme = {
     .bg            = {30, 30, 46, 230},     // base
     .bg_secondary  = {49, 50, 68, 255},     // surface0
     .bg_input      = {24, 24, 37, 255},     // mantle
-    .bg_overlay    = {17, 17, 27, 120},     // crust with alpha
+    .bg_overlay    = {17, 17, 27, 180},     // crust with alpha
 
-    .accent        = {137, 180, 250, 255},  // blue
-    .accent_hover  = {116, 199, 236, 255},  // sapphire
+    .accent        = {116, 160, 230, 200},  // blue (softened for selection)
+    .accent_hover  = {137, 180, 250, 255},  // blue (full)
 
     .text          = {205, 214, 244, 255},  // text
     .text_dim      = {166, 173, 200, 255},  // subtext0

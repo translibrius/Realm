@@ -5,12 +5,16 @@
 #include "ed_console.h"
 #include "ed_inspector.h"
 #include "ed_settings.h"
+#include "ed_toolbar.h"
+#include "ed_camera.h"
 #include "asset/asset.h"
 #include "core/component.h"
 #include "core/entity.h"
 #include "core/scene.h"
+#include "renderer/frame_data.h"
 #include "engine.h"
 #include "gui/gui_clay.h"
+#include "gui/gui_context_menu.h"
 #include "gui/gui_dropdown.h"
 #include "gui/gui_panel.h"
 #include "gui/gui_scroll.h"
@@ -19,6 +23,7 @@
 #include "gui/gui_text.h"
 #include "gui/gui_theme.h"
 #include "gui/gui_tree.h"
+#include "platform/input.h"
 
 void ed_layout_init(ed_layout *layout, ed_undo_stack *undo) {
     if (!layout) return;
@@ -113,16 +118,20 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
 static void ed_layout_panel_hierarchy(ed_layout *layout, rl_scene *scene, f32 height) {
     const gui_theme *t = gui_theme_get();
     u16 font = gui_font_id(asset_find(RL_ASSET_FONT_JETBRAINS_MONO));
-    gui_text_cfg header_text = {.color = t->text, .size = 13, .font = font};
+    gui_text_cfg header_text = {.color = t->text, .size = 14, .font = font};
 
-    gui_panel_cfg panel = {
-        .color = t->bg,
-        .width_sizing = GUI_SIZE_GROW,
-        .height = height,
-        .padding = 8,
-        .gap = 4,
-    };
-    GUI_PANEL(&panel) {
+    // Wrap in named element for context menu hit-testing
+    Clay__OpenElementWithId(CLAY_ID("HierarchyPanel"));
+    Clay__ConfigureOpenElement((Clay_ElementDeclaration){
+        .layout = {
+            .sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(height)},
+            .layoutDirection = CLAY_TOP_TO_BOTTOM,
+            .padding = CLAY_PADDING_ALL(8),
+            .childGap = 4,
+        },
+        .backgroundColor = t->bg,
+    });
+    {
         gui_text("Scene Hierarchy", &header_text);
         gui_separator();
         gui_scroll_begin(&layout->hierarchy_scroll, &(gui_scroll_cfg){
@@ -150,9 +159,10 @@ static void ed_layout_panel_hierarchy(ed_layout *layout, rl_scene *scene, f32 he
 
         gui_scroll_end();
     }
+    Clay__CloseElement();
 }
 
-static void ed_layout_viewport(ed_layout *layout, ed_application *app) {
+static void ed_layout_viewport(ed_layout *layout, ed_application *app, f32 dt) {
     const gui_theme *t = gui_theme_get();
     u16 font = gui_font_id(asset_find(RL_ASSET_FONT_JETBRAINS_MONO));
 
@@ -166,16 +176,19 @@ static void ed_layout_viewport(ed_layout *layout, ed_application *app) {
         // Tab bar
         static const char *tab_labels[] = {"Viewport", "Settings"};
         gui_tabs_cfg tcfg = {
-            .color = t->bg_input,
-            .active_color = t->bg_secondary,
+            .color = t->bg_secondary,
+            .active_color = t->control,
             .hover_color = t->control_hover,
             .text_color = t->text,
             .font = font,
-            .font_size = 12,
+            .font_size = 13,
         };
         gui_tabs(&layout->viewport_tab, tab_labels, 2, &tcfg);
 
         if (layout->viewport_tab == 0) {
+            // Toolbar
+            ed_toolbar_render(app, dt);
+
             // 3D viewport area (transparent, with known ID for bounds querying)
             Clay__OpenElementWithId(CLAY_ID("EditorViewport"));
             Clay__ConfigureOpenElement((Clay_ElementDeclaration){
@@ -184,6 +197,33 @@ static void ed_layout_viewport(ed_layout *layout, ed_application *app) {
                 },
                 .backgroundColor = {0, 0, 0, 0},
             });
+
+            // FPS overlay — floating in top-right corner of viewport
+            if (app->ed_cfg.show_fps) {
+                rl_engine_stats stats = rl_engine_get_stats();
+                Clay__OpenElementWithId(CLAY_ID("FpsOverlay"));
+                Clay__ConfigureOpenElement((Clay_ElementDeclaration){
+                    .layout = {
+                        .sizing = {.width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_FIT(0)},
+                        .padding = {.left = 8, .right = 8, .top = 4, .bottom = 4},
+                    },
+                    .floating = {
+                        .attachTo = CLAY_ATTACH_TO_PARENT,
+                        .attachPoints = {
+                            .element = CLAY_ATTACH_POINT_RIGHT_TOP,
+                            .parent = CLAY_ATTACH_POINT_RIGHT_TOP,
+                        },
+                        .offset = {-8, 8},
+                        .zIndex = 50,
+                    },
+                    .backgroundColor = GUI_RGBA(0, 0, 0, 140),
+                    .cornerRadius = CLAY_CORNER_RADIUS(4),
+                });
+                gui_textf(&(gui_text_cfg){.color = t->debug_highlight, .size = 12, .font = font},
+                          "%llu FPS  %.1f ms", (unsigned long long)stats.fps, stats.frame_time_ms);
+                Clay__CloseElement();
+            }
+
             Clay__CloseElement();
         } else {
             // Settings panel
@@ -195,7 +235,7 @@ static void ed_layout_viewport(ed_layout *layout, ed_application *app) {
 static void ed_layout_panel_properties(ed_layout *layout, ed_application *app, f32 dt) {
     const gui_theme *t = gui_theme_get();
     u16 font = gui_font_id(asset_find(RL_ASSET_FONT_JETBRAINS_MONO));
-    gui_text_cfg header_text = {.color = t->text, .size = 13, .font = font};
+    gui_text_cfg header_text = {.color = t->text, .size = 14, .font = font};
     gui_text_cfg dim_text = {.color = t->text_dim, .size = 13, .font = font};
 
     rl_scene *scene = app->scene;
@@ -273,7 +313,7 @@ void ed_layout_render(ed_layout *layout, ed_application *app, f32 dt) {
                                         layout->left_panel_width, 0, dt);
             }
             gui_splitter_v(&layout->splitter_left, &layout->left_panel_width, &splitter_cfg);
-            ed_layout_viewport(layout, app);
+            ed_layout_viewport(layout, app, dt);
             gui_splitter_v(&layout->splitter_right, &layout->right_panel_width, &splitter_cfg_inv);
             ed_layout_panel_properties(layout, app, dt);
         }
@@ -283,5 +323,156 @@ void ed_layout_render(ed_layout *layout, ed_application *app, f32 dt) {
             gui_splitter_h(&layout->splitter_bottom, &layout->bottom_panel_height, &splitter_cfg_inv);
             ed_console_render(&app->console, layout->bottom_panel_height, dt);
         }
+
+    // ── Context menus (inside root so CLAY_ATTACH_TO_ROOT works) ────────
+
+    u16 font = gui_font_id(asset_find(RL_ASSET_FONT_JETBRAINS_MONO));
+
+    // Hierarchy context menu — right-click detection
+    if (input_mouse_pressed(MOUSE_RIGHT) && !app->camera.fly_mode) {
+        Clay_ElementData hier_data = Clay_GetElementData(CLAY_ID("HierarchyPanel"));
+        if (hier_data.found) {
+            vec2 mouse;
+            input_get_mouse_position(mouse);
+            Clay_BoundingBox hb = hier_data.boundingBox;
+            if (mouse[0] >= hb.x && mouse[0] <= hb.x + hb.width &&
+                mouse[1] >= hb.y && mouse[1] <= hb.y + hb.height) {
+                gui_context_menu_open(&layout->hierarchy_ctx_menu);
+            }
+        }
+
+        // Viewport context menu
+        if (layout->viewport_tab == 0 && !layout->hierarchy_ctx_menu.open) {
+            Clay_ElementData vp_data = Clay_GetElementData(CLAY_ID("EditorViewport"));
+            if (vp_data.found) {
+                vec2 mouse;
+                input_get_mouse_position(mouse);
+                Clay_BoundingBox vb = vp_data.boundingBox;
+                if (mouse[0] >= vb.x && mouse[0] <= vb.x + vb.width &&
+                    mouse[1] >= vb.y && mouse[1] <= vb.y + vb.height) {
+                    gui_context_menu_open(&layout->viewport_ctx_menu);
+                }
+            }
+        }
     }
+
+    // Hierarchy context menu items
+    {
+        u32 sel = layout->hierarchy_tree.selected_id;
+        b8 has_sel = (sel >= ED_ENTITY_NODE_BASE);
+
+        const char *items_with_sel[] = {"Add Empty Entity", "Add Light", "Duplicate", "Delete"};
+        const char *items_no_sel[]   = {"Add Empty Entity", "Add Light"};
+
+        gui_context_menu_cfg hcfg = {
+            .items      = has_sel ? items_with_sel : items_no_sel,
+            .item_count = has_sel ? 4 : 2,
+            .font       = font,
+        };
+        i32 picked = gui_context_menu(&layout->hierarchy_ctx_menu, &hcfg);
+        if (picked >= 0) {
+            rl_scene *scene = app->scene;
+            if (picked == 0) {
+                // Add empty entity with default transform
+                rl_entity e = scene_entity_create(scene, "Entity");
+                rl_transform *tr = transform_add(&scene->components, e);
+                tr->scale[0] = tr->scale[1] = tr->scale[2] = 1.0f;
+                tr->dirty = true;
+                layout->hierarchy_tree.selected_id = ED_ENTITY_NODE_BASE + rl_entity_index(e);
+                app->scene_dirty = true;
+            } else if (picked == 1) {
+                // Add light with default transform
+                rl_entity e = scene_entity_create(scene, "Light");
+                rl_component_store *cs = &scene->components;
+                rl_transform *tr = transform_add(cs, e);
+                tr->position[1] = 3.0f;
+                tr->scale[0] = tr->scale[1] = tr->scale[2] = 1.0f;
+                tr->dirty = true;
+                rl_light_component *lc = light_add(cs, e);
+                lc->ambient[0] = lc->ambient[1] = lc->ambient[2] = 0.1f;
+                lc->diffuse[0] = lc->diffuse[1] = lc->diffuse[2] = 0.8f;
+                lc->specular[0] = lc->specular[1] = lc->specular[2] = 1.0f;
+                layout->hierarchy_tree.selected_id = ED_ENTITY_NODE_BASE + rl_entity_index(e);
+                app->scene_dirty = true;
+            } else if (picked == 2 && has_sel) {
+                // Duplicate — create entity with same name and copy transform
+                u32 idx = sel - ED_ENTITY_NODE_BASE;
+                rl_entity src = rl_entity_pack(idx, scene->entities.generation[idx]);
+                rl_component_store *cs = &scene->components;
+                const char *name = cs->has_name[idx] ? cs->names[idx].name : "Entity";
+                rl_entity dup = scene_entity_create(scene, name);
+                rl_transform *tr = transform_get(cs, src);
+                if (tr) {
+                    rl_transform *dst = transform_add(cs, dup);
+                    *dst = *tr;
+                    dst->dirty = true;
+                }
+                app->scene_dirty = true;
+                layout->hierarchy_tree.selected_id = ED_ENTITY_NODE_BASE + rl_entity_index(dup);
+            } else if (picked == 3 && has_sel) {
+                // Delete
+                u32 idx = sel - ED_ENTITY_NODE_BASE;
+                rl_entity e = rl_entity_pack(idx, scene->entities.generation[idx]);
+                scene_entity_destroy(scene, e);
+                layout->hierarchy_tree.selected_id = 0;
+                app->scene_dirty = true;
+            }
+        }
+    }
+
+    // Viewport context menu items
+    {
+        static const char *vp_items[] = {"Add Cube", "Add Light", "Frame Selection", "Reset Camera"};
+        gui_context_menu_cfg vcfg = {
+            .items      = vp_items,
+            .item_count = 4,
+            .font       = font,
+        };
+        i32 picked = gui_context_menu(&layout->viewport_ctx_menu, &vcfg);
+        if (picked >= 0) {
+            rl_scene *scene = app->scene;
+            if (picked == 0) {
+                // Add cube with default transform
+                rl_entity e = scene_entity_create(scene, "Cube");
+                rl_component_store *cs = &scene->components;
+                rl_transform *tr = transform_add(cs, e);
+                tr->scale[0] = tr->scale[1] = tr->scale[2] = 1.0f;
+                tr->dirty = true;
+                rl_mesh_component *mc = mesh_add(cs, e);
+                mc->kind = RL_FRAME_MESH_KIND_LIT;
+                mc->primitive = RL_FRAME_PRIMITIVE_CUBE;
+                mc->material.specular[0] = mc->material.specular[1] = mc->material.specular[2] = 0.5f;
+                mc->material.shininess = 32.0f;
+                layout->hierarchy_tree.selected_id = ED_ENTITY_NODE_BASE + rl_entity_index(e);
+                app->scene_dirty = true;
+            } else if (picked == 1) {
+                // Add light with default transform
+                rl_entity e = scene_entity_create(scene, "Light");
+                rl_component_store *cs = &scene->components;
+                rl_transform *tr = transform_add(cs, e);
+                tr->position[1] = 3.0f;
+                tr->scale[0] = tr->scale[1] = tr->scale[2] = 1.0f;
+                tr->dirty = true;
+                rl_light_component *lc = light_add(cs, e);
+                lc->ambient[0] = lc->ambient[1] = lc->ambient[2] = 0.1f;
+                lc->diffuse[0] = lc->diffuse[1] = lc->diffuse[2] = 0.8f;
+                lc->specular[0] = lc->specular[1] = lc->specular[2] = 1.0f;
+                layout->hierarchy_tree.selected_id = ED_ENTITY_NODE_BASE + rl_entity_index(e);
+                app->scene_dirty = true;
+            } else if (picked == 2) {
+                // Frame selection
+                u32 sel = layout->hierarchy_tree.selected_id;
+                if (sel >= ED_ENTITY_NODE_BASE) {
+                    u32 idx = sel - ED_ENTITY_NODE_BASE;
+                    rl_entity e = rl_entity_pack(idx, scene->entities.generation[idx]);
+                    rl_transform *tr = transform_get(&scene->components, e);
+                    if (tr) ed_camera_frame_selection(&app->camera, tr->position);
+                }
+            } else if (picked == 3) {
+                // Reset camera
+                ed_camera_init(&app->camera);
+            }
+        }
+    }
+    } // GUI_PANEL(&root)
 }

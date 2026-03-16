@@ -196,6 +196,11 @@ b8 create_editor(void) {
         }
 
         if (app.mode == ED_MODE_EDITOR) {
+            // Apply camera config
+            app.camera.cam.move_speed = app.ed_cfg.camera_speed;
+            app.camera.cam.look_speed = app.ed_cfg.camera_sensitivity;
+            app.camera.cam.fov = app.ed_cfg.camera_fov;
+
             // Update editor camera (skip when settings tab is active)
             if (app.layout.viewport_tab == 0) {
                 ed_camera_update(&app.camera, dt, &app.layout.viewport_bounds, &app.window);

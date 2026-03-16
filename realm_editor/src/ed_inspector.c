@@ -6,6 +6,7 @@
 #include "core/event.h"
 #include "gui/gui_clay.h"
 #include "gui/gui_field.h"
+#include "gui/gui_panel.h"
 #include "gui/gui_number_input.h"
 #include "gui/gui_panel.h"
 #include "gui/gui_text.h"
@@ -180,6 +181,20 @@ static void update_focus(ed_inspector *insp, gui_number_input_state *s) {
     if (s->editing) insp->focused_input = s;
 }
 
+// ── Section header ──────────────────────────────────────────────────────────
+
+static void section_header(const char *label, const gui_theme *t, u16 font) {
+    gui_panel_cfg hdr = {
+        .color = t->bg_secondary,
+        .width_sizing = GUI_SIZE_GROW,
+        .padding = 4,
+        .corner_radius = 3,
+    };
+    GUI_PANEL(&hdr) {
+        gui_text(label, &(gui_text_cfg){.color = t->text_dim, .size = 12, .font = font});
+    }
+}
+
 // ── Render ──────────────────────────────────────────────────────────────────
 
 b8 ed_inspector_render(ed_inspector *insp, rl_scene *scene, rl_entity entity,
@@ -242,7 +257,7 @@ b8 ed_inspector_render(ed_inspector *insp, rl_scene *scene, rl_entity entity,
     // ── Transform ───────────────────────────────────────────────────────
     rl_transform *tr = transform_get(cs, entity);
     if (tr) {
-        gui_text("Transform", &dim_text);
+        section_header("Transform", t, font);
 
         gui_number_input_cfg pos_cfg = {.step = 0.01f, .format = "%.2f", .width = 50, .height = 18};
         gui_number_input_cfg rot_cfg = {.step = 0.5f, .format = "%.1f", .width = 50, .height = 18};
@@ -287,7 +302,7 @@ b8 ed_inspector_render(ed_inspector *insp, rl_scene *scene, rl_entity entity,
     // ── Mesh ────────────────────────────────────────────────────────────
     rl_mesh_component *mc = mesh_get(cs, entity);
     if (mc) {
-        gui_text("Mesh", &dim_text);
+        section_header("Mesh", t, font);
 
         static const char *kind_items[] = {"Lit", "Unlit"};
         gui_field_begin("Kind", &fcfg);
@@ -329,7 +344,7 @@ b8 ed_inspector_render(ed_inspector *insp, rl_scene *scene, rl_entity entity,
         gui_field_end();
 
         // Material sub-section
-        gui_text("Material", &dim_text);
+        section_header("Material", t, font);
 
         gui_number_input_cfg mat_v3_cfg = {
             .step = 0.005f, .min = 0, .max = 1, .format = "%.3f", .width = 50, .height = 18,
@@ -364,7 +379,7 @@ b8 ed_inspector_render(ed_inspector *insp, rl_scene *scene, rl_entity entity,
     // ── Light ───────────────────────────────────────────────────────────
     rl_light_component *lc = light_get(cs, entity);
     if (lc) {
-        gui_text("Light", &dim_text);
+        section_header("Light", t, font);
 
         gui_number_input_cfg light_cfg = {
             .step = 0.005f, .min = 0, .max = 1, .format = "%.3f", .width = 50, .height = 18,

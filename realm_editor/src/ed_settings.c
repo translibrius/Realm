@@ -3,8 +3,11 @@
 #include "ed_config.h"
 #include "ed_layout.h"
 #include "asset/asset.h"
+#include "gui/gui_checkbox.h"
 #include "gui/gui_clay.h"
 #include "gui/gui_dropdown.h"
+#include "gui/gui_field.h"
+#include "gui/gui_number_input.h"
 #include "gui/gui_panel.h"
 #include "gui/gui_text.h"
 #include "gui/gui_theme.h"
@@ -34,26 +37,92 @@ i32 ed_settings_theme_index(const char *theme_key) {
     return 0;
 }
 
+static void section_label(const char *text, const gui_theme *t, u16 font) {
+    gui_panel_cfg hdr = {
+        .color = t->bg_secondary,
+        .width_sizing = GUI_SIZE_GROW,
+        .padding = 4,
+        .corner_radius = 3,
+    };
+    GUI_PANEL(&hdr) {
+        gui_text(text, &(gui_text_cfg){.color = t->text, .size = 13, .font = font});
+    }
+}
+
 void ed_settings_render(ed_layout *layout, ed_config *cfg) {
     if (!layout || !cfg) return;
 
     const gui_theme *t = gui_theme_get();
     u16 font = gui_font_id(asset_find(RL_ASSET_FONT_JETBRAINS_MONO));
-    gui_text_cfg header = {.color = t->text, .size = 14, .font = font};
-    gui_text_cfg label = {.color = t->text_dim, .size = 13, .font = font};
+    gui_text_cfg header = {.color = t->text, .size = 15, .font = font};
+
+    gui_field_cfg fcfg = {.label_width = 100, .font = font, .font_size = 13, .label_color = t->text};
+
+    // Persistent state for number inputs
+    static gui_number_input_state s_cam_speed;
+    static gui_number_input_state s_cam_sens;
+    static gui_number_input_state s_cam_fov;
+    static b8 s_initialized = false;
+    if (!s_initialized) {
+        s_cam_speed.value = cfg->camera_speed;
+        s_cam_sens.value = cfg->camera_sensitivity;
+        s_cam_fov.value = cfg->camera_fov;
+        s_initialized = true;
+    }
 
     gui_panel_cfg panel = {
         .color = t->bg,
         .width_sizing = GUI_SIZE_GROW,
         .height_sizing = GUI_SIZE_GROW,
         .padding = 16,
-        .gap = 12,
+        .gap = 8,
     };
     GUI_PANEL(&panel) {
         gui_text("Settings", &header);
         gui_separator();
 
-        gui_text("Theme", &label);
+        // ── Display ────────────────────────────────────────────────
+        section_label("Display", t, font);
+
+        gui_field_begin("Show FPS", &fcfg);
+        if (gui_checkbox(&cfg->show_fps, &(gui_checkbox_cfg){.size = 20, .corner_radius = 4})) {
+            ed_config_save(cfg);
+        }
+        gui_field_end();
+
+        gui_separator();
+
+        // ── Camera ─────────────────────────────────────────────────
+        section_label("Camera", t, font);
+
+        gui_number_input_cfg speed_cfg = {.step = 0.1f, .min = 0.5f, .max = 20.0f, .format = "%.1f", .width = 70, .height = 24};
+        gui_field_begin("Speed", &fcfg);
+        if (gui_number_input(&s_cam_speed, &speed_cfg, 0.016f)) {
+            cfg->camera_speed = s_cam_speed.value;
+            ed_config_save(cfg);
+        }
+        gui_field_end();
+
+        gui_number_input_cfg sens_cfg = {.step = 0.005f, .min = 0.05f, .max = 1.0f, .format = "%.3f", .width = 70, .height = 24};
+        gui_field_begin("Sensitivity", &fcfg);
+        if (gui_number_input(&s_cam_sens, &sens_cfg, 0.016f)) {
+            cfg->camera_sensitivity = s_cam_sens.value;
+            ed_config_save(cfg);
+        }
+        gui_field_end();
+
+        gui_number_input_cfg fov_cfg = {.step = 0.5f, .min = 30.0f, .max = 120.0f, .format = "%.0f", .width = 70, .height = 24};
+        gui_field_begin("FOV", &fcfg);
+        if (gui_number_input(&s_cam_fov, &fov_cfg, 0.016f)) {
+            cfg->camera_fov = s_cam_fov.value;
+            ed_config_save(cfg);
+        }
+        gui_field_end();
+
+        gui_separator();
+
+        // ── Theme ──────────────────────────────────────────────────
+        section_label("Theme", t, font);
 
         gui_dropdown_cfg dd_cfg = {
             .items = s_theme_labels,

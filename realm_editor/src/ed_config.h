@@ -11,6 +11,10 @@ typedef struct ed_config {
     char recent_projects[ED_MAX_RECENT_PROJECTS][ED_PROJECT_PATH_MAX];
     u32 recent_count;
     char theme[32];
+    b8  show_fps;
+    f32 camera_speed;
+    f32 camera_sensitivity;
+    f32 camera_fov;
 } ed_config;
 
 void ed_config_load(ed_config *cfg);

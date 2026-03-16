@@ -6,6 +6,7 @@
 #include "util/str.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static char s_current_table[32];
@@ -80,6 +81,14 @@ static void parse_line(ed_config *cfg, const char *line) {
         cstr_copy(cfg->last_project, sizeof(cfg->last_project), val);
     } else if (strcmp(fqk, "editor.theme") == 0) {
         cstr_copy(cfg->theme, sizeof(cfg->theme), val);
+    } else if (strcmp(fqk, "editor.show_fps") == 0) {
+        cfg->show_fps = (strcmp(val, "true") == 0 || strcmp(val, "1") == 0);
+    } else if (strcmp(fqk, "editor.camera_speed") == 0) {
+        cfg->camera_speed = (f32)strtod(val, nullptr);
+    } else if (strcmp(fqk, "editor.camera_sensitivity") == 0) {
+        cfg->camera_sensitivity = (f32)strtod(val, nullptr);
+    } else if (strcmp(fqk, "editor.camera_fov") == 0) {
+        cfg->camera_fov = (f32)strtod(val, nullptr);
     } else if (strncmp(fqk, "editor.recent_", 14) == 0) {
         u32 idx = (u32)(fqk[14] - '0');
         if (idx < ED_MAX_RECENT_PROJECTS) {
@@ -94,6 +103,7 @@ static void parse_line(ed_config *cfg, const char *line) {
 void ed_config_load(ed_config *cfg) {
     if (!cfg) return;
     memset(cfg, 0, sizeof(*cfg));
+    cfg->show_fps = true; // default before file parse
 
     rl_file file = {0};
     if (!platform_file_open(ED_STATE_FILENAME, P_FILE_READ, &file)) {
@@ -141,6 +151,11 @@ void ed_config_load(ed_config *cfg) {
         cstr_copy(cfg->theme, sizeof(cfg->theme), "dark");
     }
 
+    // Defaults for new fields
+    if (cfg->camera_speed <= 0) cfg->camera_speed = 5.0f;
+    if (cfg->camera_sensitivity <= 0) cfg->camera_sensitivity = 0.3f;
+    if (cfg->camera_fov <= 0) cfg->camera_fov = 60.0f;
+
     RL_DEBUG("Editor state loaded: last_project='%s', %u recent", cfg->last_project, cfg->recent_count);
 }
 
@@ -153,8 +168,14 @@ void ed_config_save(const ed_config *cfg) {
     offset += snprintf(buf + offset, sizeof(buf) - (u64)offset,
         "[editor]\n"
         "last_project = \"%s\"\n"
-        "theme = \"%s\"\n",
-        cfg->last_project, cfg->theme[0] ? cfg->theme : "dark");
+        "theme = \"%s\"\n"
+        "show_fps = %s\n"
+        "camera_speed = %.2f\n"
+        "camera_sensitivity = %.3f\n"
+        "camera_fov = %.1f\n",
+        cfg->last_project, cfg->theme[0] ? cfg->theme : "dark",
+        cfg->show_fps ? "true" : "false",
+        (f64)cfg->camera_speed, (f64)cfg->camera_sensitivity, (f64)cfg->camera_fov);
 
     for (u32 i = 0; i < cfg->recent_count && i < ED_MAX_RECENT_PROJECTS; i++) {
         if (cfg->recent_projects[i][0]) {

@@ -1,5 +1,6 @@
 #include "gui/gui_tree.h"
 
+#include "gui/gui_icon.h"
 #include "gui/gui_panel.h"
 #include "gui/gui_text.h"
 #include "gui/gui_theme.h"
@@ -12,6 +13,7 @@ static gui_tree_cfg    tree_cfg;
 static i32             tree_depth;
 static b8              depth_incremented[32];
 static i32             node_stack_top;
+static u32             row_counter;
 
 void gui_tree_begin(gui_tree_state *state, const gui_tree_cfg *cfg) {
     if (state && state->_id == 0) {
@@ -21,11 +23,12 @@ void gui_tree_begin(gui_tree_state *state, const gui_tree_cfg *cfg) {
     tree_state = state;
     tree_depth = 0;
     node_stack_top = -1;
+    row_counter = 0;
 
     // Defaults
     const gui_theme *t = gui_theme_get();
-    tree_cfg.indent     = (cfg && cfg->indent > 0)     ? cfg->indent     : 16;
-    tree_cfg.row_height = (cfg && cfg->row_height > 0) ? cfg->row_height : 22;
+    tree_cfg.indent     = (cfg && cfg->indent > 0)     ? cfg->indent     : 20;
+    tree_cfg.row_height = (cfg && cfg->row_height > 0) ? cfg->row_height : 24;
     tree_cfg.font_size  = (cfg && cfg->font_size > 0)  ? cfg->font_size  : 13;
     tree_cfg.font       = cfg ? cfg->font : 0;
 
@@ -62,8 +65,13 @@ gui_tree_node_result gui_tree_node_begin(u32 node_id, const char *label, b8 *exp
     b8 hovered = Clay_Hovered();
 
     Clay_Color bg = {0};
-    if (is_selected) bg = tree_cfg.select_color;
-    else if (hovered) bg = tree_cfg.hover_color;
+    if (is_selected) {
+        bg = tree_cfg.select_color;
+    } else if (hovered) {
+        bg = tree_cfg.hover_color;
+    } else if (row_counter & 1) {
+        bg = (Clay_Color){255, 255, 255, 10};
+    }
 
     Clay__ConfigureOpenElement((Clay_ElementDeclaration){
         .layout = {
@@ -74,18 +82,30 @@ gui_tree_node_result gui_tree_node_begin(u32 node_id, const char *label, b8 *exp
             .childAlignment = {.y = CLAY_ALIGN_Y_CENTER},
         },
         .backgroundColor = bg,
+        .cornerRadius = is_selected ? CLAY_CORNER_RADIUS(4) : (Clay_CornerRadius){0},
     });
 
+    row_counter++;
+
     // Arrow or spacer
-    gui_text_cfg arrow_cfg = {.color = tree_cfg.arrow_color, .size = tree_cfg.font_size, .font = tree_cfg.font};
+    Clay_Color arrow_c = is_selected ? (Clay_Color){255, 255, 255, 255} : tree_cfg.arrow_color;
     if (leaf) {
         gui_spacer_fixed(tree_cfg.font_size);
     } else {
-        gui_text(is_expanded ? "v" : ">", &arrow_cfg);
+        gui_icon(is_expanded ? GUI_ICON_TRIANGLE_DOWN : GUI_ICON_TRIANGLE_RIGHT,
+                 tree_cfg.font_size, arrow_c);
     }
 
-    // Label
-    gui_text_cfg label_cfg = {.color = tree_cfg.text_color, .size = tree_cfg.font_size, .font = tree_cfg.font};
+    // Label — selected = bright white, parent = normal text, leaf = slightly dimmed
+    Clay_Color label_color;
+    if (is_selected) {
+        label_color = (Clay_Color){255, 255, 255, 255};
+    } else if (leaf) {
+        label_color = tree_cfg.arrow_color;
+    } else {
+        label_color = tree_cfg.text_color;
+    }
+    gui_text_cfg label_cfg = {.color = label_color, .size = tree_cfg.font_size, .font = tree_cfg.font};
     gui_text(label, &label_cfg);
 
     Clay__CloseElement();

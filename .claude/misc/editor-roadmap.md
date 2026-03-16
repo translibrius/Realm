@@ -85,11 +85,9 @@ Add `engine/include/host/` and `engine/src/host/` inside the existing Engine lib
 - [x] `gui_splitter_v` / `gui_splitter_h` — draggable bar with hover highlight, min/max clamping, invert flag
 - [x] Wired into `ed_layout` between hierarchy/viewport/properties panels and above console
 
-### 2c. Context Menu (deferred — useful once entities are editable)
+### 2c. Context Menu (moved to Phase 11e)
 
-- [ ] Create `engine/include/gui/gui_context_menu.h` + `engine/src/gui/gui_context_menu.c`
-- [ ] Right-click popup positioned at mouse cursor, builds on `gui_dropdown` pattern
-- [ ] Test with right-click in hierarchy panel
+- [x] Created in Phase 11e with full editor wiring (hierarchy + viewport context menus)
 
 ### 2d. Wire up menu bar
 
@@ -499,10 +497,83 @@ All GUI widgets now read colors from `gui_theme_get()` at render time. Swapping 
 
 ---
 
+## Phase 11: Editor GUI Polish — DONE
+
+Visual refinements and missing interactive elements to make the editor feel like a real tool.
+
+### 11a. FPS overlay — DONE
+
+- [x] Semi-transparent floating panel in viewport top-right (`{0,0,0,140}` bg, corner radius 4)
+- [x] Shows `FPS` and `ms` from `rl_engine_get_stats()` using `gui_textf` in `debug_highlight` color
+- [x] Gated by `ed_cfg.show_fps` (default true), only when viewport tab active
+- [x] Persisted via `ed_config` (`show_fps` field in `editor_state.toml`)
+
+### 11b. Tree arrow triangles — DONE
+
+- [x] Created `engine/include/gui/gui_icon.h` + `engine/src/gui/gui_icon.c`
+- [x] `gui_icon()` emits Clay custom element with `type` in `customData`, color in `backgroundColor`
+- [x] `push_tri()` helper in both `gl_gui.c` and `vk_gui.c` — 3 vertices, UV sentinel, conservative clip
+- [x] `CLAY_RENDER_COMMAND_TYPE_CUSTOM` case renders `TRIANGLE_RIGHT` and `TRIANGLE_DOWN` with 2px inset
+- [x] `gui_tree.c`: replaced `gui_text("v"/">"...)` with `gui_icon(TRIANGLE_DOWN/RIGHT, ...)`
+- [x] Bumped `row_height` default 22→24, `indent` default 16→20
+
+### 11c. Tree visual polish — DONE
+
+- [x] Alternating row tint: odd rows get `{255,255,255,6}` background
+- [x] Rounded selection highlight: `cornerRadius = 4` on selected row
+- [x] Leaf dimming: leaf nodes use `arrow_color` (text_dim) for label text
+
+### 11d. Viewport toolbar — DONE
+
+- [x] Created `realm_editor/src/ed_toolbar.h/.c`
+- [x] 28px horizontal strip between tab bar and viewport
+- [x] Gizmo mode buttons (W/E/R): active mode = accent bg, others = control bg
+- [x] Grid toggle button: accent bg when `show_grid` active
+- [x] Play placeholder button (non-functional)
+- [x] Vertical dividers (1px × 16px separator color)
+- [x] Tooltips on all buttons via wrapped named elements
+- [x] Button clicks set `gizmo.mode` or toggle `show_grid`
+
+### 11e. Context menu widget — DONE
+
+- [x] Created `engine/include/gui/gui_context_menu.h` + `engine/src/gui/gui_context_menu.c`
+- [x] `gui_context_menu_open()` captures mouse position, `gui_context_menu()` renders floating panel
+- [x] `CLAY_ATTACH_TO_ROOT` with absolute offset, `zIndex = 250`, pointer capture when open
+- [x] Auto-closes on selection or click-outside (left or right click)
+- [x] Added to `gui_widgets.h` umbrella include
+
+#### Hierarchy context menu
+- [x] Right-click detection on "HierarchyPanel" named element
+- [x] Items: "Add Empty Entity", "Add Light", "Duplicate" (when selected), "Delete" (when selected)
+- [x] Handles: `scene_entity_create`, `transform_add`, `light_add`, `scene_entity_destroy`
+- [x] Duplicate copies name and transform from source entity
+
+#### Viewport context menu
+- [x] Right-click in viewport when not in fly mode
+- [x] Items: "Add Cube", "Add Light", "Frame Selection", "Reset Camera"
+- [x] Add Cube: creates entity with transform + lit mesh + default material
+- [x] Frame Selection: calls `ed_camera_frame_selection` on selected entity
+- [x] Reset Camera: calls `ed_camera_init`
+
+### 11f. Expanded settings — DONE
+
+- [x] Added `show_fps`, `camera_speed`, `camera_sensitivity`, `camera_fov` to `ed_config`
+- [x] Parsed/saved in `editor_state.toml` with defaults (true, 5.0, 0.3, 60.0)
+- [x] Settings panel: Display section (Show FPS checkbox), Camera section (Speed/Sensitivity/FOV number inputs), Theme section (dropdown)
+- [x] Section headers with `bg_secondary` background, corner radius 3
+- [x] Camera reads config values each frame (`move_speed`, `look_speed`, `fov`)
+- [x] Auto-saves config on any setting change
+
+### 11g. Inspector section headers — DONE
+
+- [x] Transform, Mesh, Material, Light labels wrapped in `bg_secondary` panel with 4px padding and corner radius 3
+- [x] `section_header()` helper function in `ed_inspector.c`
+
+---
+
 ## Future (not scoped)
 
 - Native file/directory picker dialog (`NSOpenPanel` on macOS, `IFileOpenDialog` on Win32, GTK/portal on Linux) — "Browse" button next to path inputs in project picker
-- Context menu widget (`gui_context_menu`) — right-click in hierarchy/viewport
 - Multi-select, copy/paste entities
 - Transform hierarchy (parent/child relationships)
 - Multiple viewports (offscreen render targets)
@@ -519,7 +590,7 @@ All GUI widgets now read colors from `gui_theme_get()` at render time. Swapping 
 ```
 Phase 1: Deduplication              ✓ done
     │
-Phase 2: GUI Widgets                ✓ done (context menu deferred)
+Phase 2: GUI Widgets                ✓ done (context menu moved to 11e)
     │
 Phase 3: Scene/Entity System        ✓ done
     │
@@ -536,28 +607,33 @@ Phase 4: Project System & Config    ✓ done
     │               8b. Number input widget     ✓ done
     │               8c. Undo/redo system        ✓ done
     │
-    ├── Phase 9: Viewport Interaction
+    ├── Phase 9: Viewport Interaction          ✓ done
     │       9a. Editor camera              ✓ done
     │       9b. Viewport 3D rendering      ✓ done
     │       9c. Viewport tab bar           ✓ done
     │       9d. Origin axis gizmo          ✓ done
-    │       9e. Transform gizmos           ✓ done (translate + rotate + scale)
+    │       9e. Transform gizmos           ✓ done
     │       9f. Entity picking             ✓ done
     │       9g. Infinite grid              ✓ done
     │
-    └── Phase 10: Editor Polish & Theme
-            10a. Theme compliance          ✓ done
-            10b. Light visualization       ✓ done
-            10c. Asset browser fix         ✓ done
-            10d. Project fallback fix      ✓ done
-            10e. Theme dropdown/settings   ✓ done
+    ├── Phase 10: Editor Polish & Theme        ✓ done
+    │       10a. Theme compliance          ✓ done
+    │       10b. Light visualization       ✓ done
+    │       10c. Asset browser fix         ✓ done
+    │       10d. Project fallback fix      ✓ done
+    │       10e. Theme dropdown/settings   ✓ done
+    │
+    └── Phase 11: Editor GUI Polish            ✓ done
+            11a. FPS overlay               ✓ done
+            11b. Tree arrow triangles      ✓ done
+            11c. Tree visual polish        ✓ done
+            11d. Viewport toolbar          ✓ done
+            11e. Context menu widget       ✓ done
+            11f. Expanded settings         ✓ done
+            11g. Inspector section headers ✓ done
 ```
 
-**Next session: Context menu (Phase 2c) for entity create/delete, or start Phase 11 (Play mode / material system / snap-to-grid).**
-Phase 9 is now complete — all viewport interaction features are done:
-- 9e: All three gizmo modes work (W = translate, E = rotate rings with analytical picking, R = scale with min 0.01 clamp). Undo change detection covers position + rotation + scale.
-- 9g: Infinite grid on Y=0 plane with GL + VK shaders, procedural minor/major lines, axis coloring, distance fade, depth write, G hotkey toggle.
 Remaining loose ends:
 - Name editing in the inspector is wired for keyboard but not yet clickable (no click-to-focus on the name text). Could be added as a small follow-up.
-- Entity create/destroy undo action types exist but the recreation logic isn't wired — no UI for entity delete yet. Wire when adding context menu (Phase 2c) or delete hotkey.
+- Entity create/destroy undo action types exist but the recreation logic for undo isn't wired yet. Context menu delete works but doesn't push undo entries.
 - File browser widget (`gui_file_browser`) exists but isn't wired into project picker's Browse button yet (native dialog preferred long-term).
