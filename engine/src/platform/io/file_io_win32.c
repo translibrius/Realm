@@ -56,6 +56,35 @@ b8 platform_dir_create(const char *path) {
     return false;
 }
 
+b8 platform_dir_remove(const char *path) {
+    if (!path || !path[0]) return false;
+
+    char search[MAX_PATH];
+    snprintf(search, sizeof(search), "%s/*", path);
+
+    WIN32_FIND_DATAA fd;
+    HANDLE h = FindFirstFileA(search, &fd);
+    if (h == INVALID_HANDLE_VALUE) {
+        return RemoveDirectoryA(path) != 0;
+    }
+
+    do {
+        if (strcmp(fd.cFileName, ".") == 0 || strcmp(fd.cFileName, "..") == 0) continue;
+
+        char child[MAX_PATH];
+        snprintf(child, sizeof(child), "%s/%s", path, fd.cFileName);
+
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            platform_dir_remove(child);
+        } else {
+            DeleteFileA(child);
+        }
+    } while (FindNextFileA(h, &fd));
+
+    FindClose(h);
+    return RemoveDirectoryA(path) != 0;
+}
+
 b8 platform_file_copy(const char *source_path, const char *dest_path, b8 overwrite) {
     if (!source_path || !dest_path) {
         RL_ERROR("Failed to copy file: invalid path(s)");

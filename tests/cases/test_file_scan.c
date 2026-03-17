@@ -7,11 +7,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifdef PLATFORM_WINDOWS
-#define TEST_SCAN_BASE "realm_test_scan"
-#else
-#define TEST_SCAN_BASE "/tmp/realm_test_scan"
-#endif
+static char s_scan_base[256];
+
+static void init_paths(void) {
+    snprintf(s_scan_base, sizeof(s_scan_base), "%s/realm_test_scan", rl_test_tmp_dir());
+}
 
 static void write_file_at(const char *dir, const char *name) {
     char path[256];
@@ -26,7 +26,8 @@ static void delete_file_at(const char *dir, const char *name) {
 }
 
 RL_TEST(file_scan_empty_dir) {
-    const char *dir = TEST_SCAN_BASE "_empty";
+    char dir[256];
+    snprintf(dir, sizeof(dir), "%s_empty", s_scan_base);
     platform_dir_create(dir);
 
     rl_arena arena;
@@ -39,10 +40,12 @@ RL_TEST(file_scan_empty_dir) {
 
     da_free(&entries);
     rl_arena_deinit(&arena);
+    platform_dir_remove(dir);
 }
 
 RL_TEST(file_scan_lists_files) {
-    const char *dir = TEST_SCAN_BASE "_files";
+    char dir[256];
+    snprintf(dir, sizeof(dir), "%s_files", s_scan_base);
     platform_dir_create(dir);
     write_file_at(dir, "a.txt");
     write_file_at(dir, "b.txt");
@@ -58,14 +61,12 @@ RL_TEST(file_scan_lists_files) {
 
     da_free(&entries);
     rl_arena_deinit(&arena);
-
-    delete_file_at(dir, "a.txt");
-    delete_file_at(dir, "b.txt");
-    delete_file_at(dir, "c.txt");
+    platform_dir_remove(dir);
 }
 
 RL_TEST(file_scan_extension_filter) {
-    const char *dir = TEST_SCAN_BASE "_extfilt";
+    char dir[256];
+    snprintf(dir, sizeof(dir), "%s_extfilt", s_scan_base);
     platform_dir_create(dir);
     write_file_at(dir, "photo.jpg");
     write_file_at(dir, "image.png");
@@ -81,14 +82,12 @@ RL_TEST(file_scan_extension_filter) {
 
     da_free(&entries);
     rl_arena_deinit(&arena);
-
-    delete_file_at(dir, "photo.jpg");
-    delete_file_at(dir, "image.png");
-    delete_file_at(dir, "notes.txt");
+    platform_dir_remove(dir);
 }
 
 RL_TEST(file_scan_skips_hidden) {
-    const char *dir = TEST_SCAN_BASE "_hidden";
+    char dir[256];
+    snprintf(dir, sizeof(dir), "%s_hidden", s_scan_base);
     platform_dir_create(dir);
     write_file_at(dir, ".hidden");
 
@@ -102,12 +101,12 @@ RL_TEST(file_scan_skips_hidden) {
 
     da_free(&entries);
     rl_arena_deinit(&arena);
-
-    delete_file_at(dir, ".hidden");
+    platform_dir_remove(dir);
 }
 
 RL_TEST(file_scan_reports_subdirs) {
-    const char *dir = TEST_SCAN_BASE "_subdirs";
+    char dir[256];
+    snprintf(dir, sizeof(dir), "%s_subdirs", s_scan_base);
     platform_dir_create(dir);
     char subdir[256];
     snprintf(subdir, sizeof(subdir), "%s/subdir", dir);
@@ -127,6 +126,7 @@ RL_TEST(file_scan_reports_subdirs) {
 
     da_free(&entries);
     rl_arena_deinit(&arena);
+    platform_dir_remove(dir);
 }
 
 RL_TEST(file_scan_nonexistent_returns_false) {
@@ -135,13 +135,16 @@ RL_TEST(file_scan_nonexistent_returns_false) {
     DirEntries entries;
     da_init(&entries);
 
-    RL_EXPECT(!platform_dir_scan("/tmp/realm_no_such_dir_12345", nullptr, &arena, &entries));
+    char dir[256];
+    snprintf(dir, sizeof(dir), "%s/realm_no_such_dir_12345", rl_test_tmp_dir());
+    RL_EXPECT(!platform_dir_scan(dir, nullptr, &arena, &entries));
 
     da_free(&entries);
     rl_arena_deinit(&arena);
 }
 
 void register_file_scan_tests(void) {
+    init_paths();
     rl_test_begin_group("file_scan");
     RL_REGISTER_TEST(file_scan_empty_dir);
     RL_REGISTER_TEST(file_scan_lists_files);

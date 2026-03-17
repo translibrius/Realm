@@ -6,6 +6,8 @@
 
 typedef void (*rl_test_fn)(void);
 
+const char *rl_test_tmp_dir(void);
+
 void rl_test_begin_group(const char *name);
 void rl_test_register(const char *name, rl_test_fn fn);
 i32 rl_test_run_from_args(i32 argc, const char **argv);

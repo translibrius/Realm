@@ -3,6 +3,7 @@
 #include "util/toml.h"
 #include "platform/io/file_io.h"
 
+#include <stdio.h>
 #include <string.h>
 
 RL_TEST(toml_basic_types) {
@@ -194,11 +195,11 @@ RL_TEST(toml_has_key_check) {
     toml_free(t);
 }
 
-#ifdef PLATFORM_WINDOWS
-#define TEST_TOML_PATH "realm_test_toml_tmp.toml"
-#else
-#define TEST_TOML_PATH "/tmp/realm_test_toml_tmp.toml"
-#endif
+static char s_toml_path[256];
+
+static void init_paths(void) {
+    snprintf(s_toml_path, sizeof(s_toml_path), "%s/realm_test_toml_tmp.toml", rl_test_tmp_dir());
+}
 
 RL_TEST(toml_file_round_trip) {
     const char *content =
@@ -206,19 +207,20 @@ RL_TEST(toml_file_round_trip) {
         "name = \"Test Game\"\n"
         "version = 42\n";
 
-    platform_file_write_all(TEST_TOML_PATH, content, strlen(content));
+    platform_file_write_all(s_toml_path, content, strlen(content));
 
-    toml_table *t = toml_parse_file(TEST_TOML_PATH);
+    toml_table *t = toml_parse_file(s_toml_path);
     RL_EXPECT(t != nullptr);
 
     RL_EXPECT_STR_EQ(toml_get_string(t, "project", "name", ""), "Test Game");
     RL_EXPECT_EQ_I32(toml_get_int(t, "project", "version", 0), 42);
 
     toml_free(t);
-    platform_file_delete(TEST_TOML_PATH);
+    platform_file_delete(s_toml_path);
 }
 
 void register_toml_tests(void) {
+    init_paths();
     rl_test_begin_group("toml");
     RL_REGISTER_TEST(toml_basic_types);
     RL_REGISTER_TEST(toml_sections);

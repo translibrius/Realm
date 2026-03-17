@@ -32,6 +32,7 @@ REALM_API b8 platform_file_copy(const char *source_path, const char *dest_path, 
 REALM_API b8 platform_file_delete(const char *path);
 
 REALM_API b8 platform_dir_create(const char *path);
+REALM_API b8 platform_dir_remove(const char *path);
 
 REALM_API b8 platform_file_open(const char *path, FILE_PERM perms, rl_file *out_file);
 REALM_API b8 platform_file_read_all(rl_file *file);

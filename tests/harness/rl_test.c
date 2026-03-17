@@ -5,6 +5,7 @@
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifdef _WIN32
@@ -38,6 +39,19 @@ typedef struct rl_test_options {
     b8 quiet;
     const char *filter;
 } rl_test_options;
+
+const char *rl_test_tmp_dir(void) {
+#ifdef PLATFORM_WINDOWS
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    const char *tmp = getenv("TEMP");
+#pragma clang diagnostic pop
+    if (tmp && tmp[0]) return tmp;
+    return ".";
+#else
+    return "/tmp";
+#endif
+}
 
 static rl_test_case g_cases[RL_TEST_MAX_CASES];
 static u32 g_case_count;

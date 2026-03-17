@@ -6,16 +6,17 @@
 #include "core/scene_io.h"
 #include "platform/io/file_io.h"
 
+#include <stdio.h>
 #include <string.h>
 
-#ifdef PLATFORM_WINDOWS
-#define TEST_SCENE_PATH "realm_test_scene.scene"
-#else
-#define TEST_SCENE_PATH "/tmp/realm_test_scene.scene"
-#endif
+static char s_scene_path[256];
+
+static void init_paths(void) {
+    snprintf(s_scene_path, sizeof(s_scene_path), "%s/realm_test_scene.scene", rl_test_tmp_dir());
+}
 
 static void cleanup_scene_file(void) {
-    platform_file_delete(TEST_SCENE_PATH);
+    platform_file_delete(s_scene_path);
 }
 
 RL_TEST(scene_io_save_load_roundtrip) {
@@ -40,9 +41,9 @@ RL_TEST(scene_io_save_load_roundtrip) {
     l->diffuse[0] = 0.4f;  l->diffuse[1] = 0.5f;  l->diffuse[2] = 0.6f;
     l->specular[0] = 0.7f; l->specular[1] = 0.8f; l->specular[2] = 0.9f;
 
-    RL_EXPECT(scene_save(scene, TEST_SCENE_PATH));
+    RL_EXPECT(scene_save(scene, s_scene_path));
 
-    rl_scene *loaded = scene_load(TEST_SCENE_PATH);
+    rl_scene *loaded = scene_load(s_scene_path);
     RL_EXPECT_NOT_NULL(loaded);
 
     RL_EXPECT_STR_EQ(loaded->name, "Roundtrip Test");
@@ -95,9 +96,9 @@ RL_TEST(scene_io_empty_scene) {
     cleanup_scene_file();
 
     rl_scene *scene = scene_create("Empty");
-    RL_EXPECT(scene_save(scene, TEST_SCENE_PATH));
+    RL_EXPECT(scene_save(scene, s_scene_path));
 
-    rl_scene *loaded = scene_load(TEST_SCENE_PATH);
+    rl_scene *loaded = scene_load(s_scene_path);
     RL_EXPECT_NOT_NULL(loaded);
     RL_EXPECT_STR_EQ(loaded->name, "Empty");
     RL_EXPECT_EQ_U32(loaded->entities.count, 0);
@@ -127,9 +128,9 @@ RL_TEST(scene_io_multiple_entities) {
     transform_add(&scene->components, e3);
     mesh_add(&scene->components, e3);
 
-    RL_EXPECT(scene_save(scene, TEST_SCENE_PATH));
+    RL_EXPECT(scene_save(scene, s_scene_path));
 
-    rl_scene *loaded = scene_load(TEST_SCENE_PATH);
+    rl_scene *loaded = scene_load(s_scene_path);
     RL_EXPECT_NOT_NULL(loaded);
     RL_EXPECT_EQ_U32(loaded->entities.count, 3);
 
@@ -171,9 +172,9 @@ RL_TEST(scene_io_transform_dirty_on_load) {
     rl_transform *t = transform_add(&scene->components, e);
     t->dirty = false; // clear before save
 
-    RL_EXPECT(scene_save(scene, TEST_SCENE_PATH));
+    RL_EXPECT(scene_save(scene, s_scene_path));
 
-    rl_scene *loaded = scene_load(TEST_SCENE_PATH);
+    rl_scene *loaded = scene_load(s_scene_path);
     RL_EXPECT_NOT_NULL(loaded);
     RL_EXPECT(loaded->components.has_transform[1]);
     RL_EXPECT(loaded->components.transforms[1].dirty);
@@ -184,14 +185,16 @@ RL_TEST(scene_io_transform_dirty_on_load) {
 }
 
 RL_TEST(scene_io_load_nonexistent_returns_null) {
-    rl_scene *loaded = scene_load("/tmp/realm_no_such_file_12345.scene");
+    char no_such[256];
+    snprintf(no_such, sizeof(no_such), "%s/realm_no_such_file_12345.scene", rl_test_tmp_dir());
+    rl_scene *loaded = scene_load(no_such);
     RL_EXPECT_NULL(loaded);
 }
 
 RL_TEST(scene_io_save_null_args) {
     rl_scene *scene = scene_create("NullTest");
 
-    RL_EXPECT(!scene_save(nullptr, TEST_SCENE_PATH));
+    RL_EXPECT(!scene_save(nullptr, s_scene_path));
     RL_EXPECT(!scene_save(scene, nullptr));
 
     scene_destroy(scene);
@@ -217,10 +220,10 @@ RL_TEST(scene_io_mesh_material_roundtrip) {
     m->material.specular[2] = 0.7f;
     m->material.shininess = 32.0f;
 
-    RL_EXPECT(scene_save(scene, TEST_SCENE_PATH));
+    RL_EXPECT(scene_save(scene, s_scene_path));
 
     // Verify the JSON contains material fields by loading and checking
-    rl_scene *loaded = scene_load(TEST_SCENE_PATH);
+    rl_scene *loaded = scene_load(s_scene_path);
     RL_EXPECT_NOT_NULL(loaded);
 
     rl_component_store *cs = &loaded->components;
@@ -250,9 +253,9 @@ RL_TEST(scene_io_behavior_roundtrip) {
     transform_add(&scene->components, e);
     behavior_comp_add(&scene->components, e, "rotate");
 
-    RL_EXPECT(scene_save(scene, TEST_SCENE_PATH));
+    RL_EXPECT(scene_save(scene, s_scene_path));
 
-    rl_scene *loaded = scene_load(TEST_SCENE_PATH);
+    rl_scene *loaded = scene_load(s_scene_path);
     RL_EXPECT_NOT_NULL(loaded);
 
     rl_component_store *cs = &loaded->components;
@@ -269,6 +272,7 @@ RL_TEST(scene_io_behavior_roundtrip) {
 }
 
 void register_scene_io_tests(void) {
+    init_paths();
     rl_test_begin_group("scene_io");
     RL_REGISTER_TEST(scene_io_save_load_roundtrip);
     RL_REGISTER_TEST(scene_io_empty_scene);

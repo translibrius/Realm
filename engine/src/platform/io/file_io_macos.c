@@ -3,6 +3,7 @@
 #ifdef PLATFORM_MACOS
 
 #include <copyfile.h>
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
@@ -65,6 +66,31 @@ b8 platform_dir_create(const char *path) {
     if (errno == EEXIST) return true;
     RL_ERROR("Failed to create directory '%s'. Error: %d", path, errno);
     return false;
+}
+
+b8 platform_dir_remove(const char *path) {
+    if (!path || !path[0]) return false;
+
+    DIR *d = opendir(path);
+    if (!d) return rmdir(path) == 0;
+
+    struct dirent *entry;
+    while ((entry = readdir(d))) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+
+        char child[4096];
+        snprintf(child, sizeof(child), "%s/%s", path, entry->d_name);
+
+        struct stat st;
+        if (stat(child, &st) == 0 && S_ISDIR(st.st_mode)) {
+            platform_dir_remove(child);
+        } else {
+            unlink(child);
+        }
+    }
+
+    closedir(d);
+    return rmdir(path) == 0;
 }
 
 b8 platform_file_copy(const char *source_path, const char *dest_path, b8 overwrite) {
