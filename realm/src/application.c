@@ -32,7 +32,7 @@ b8 create_application(const char *project_path) {
     app.backend_switch_requested = false;
     app.requested_backend = BACKEND_OPENGL;
 
-    host_bootstrap_result boot = host_bootstrap("../../../assets/", "Realm", "config.toml", false);
+    host_bootstrap_result boot = host_bootstrap("../../../assets/", "Realm", "config.toml", false, 0);
     if (!boot.success) return false;
     app.window = boot.window;
 

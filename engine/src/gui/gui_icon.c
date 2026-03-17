@@ -37,6 +37,7 @@ static const u32 icon_codepoints[GUI_ICON_COUNT] = {
     [GUI_ICON_EYE]           = 57530,
     [GUI_ICON_TRASH]         = 57741,
     [GUI_ICON_COPY]          = 57502,
+    [GUI_ICON_SQUARE]        = 57803,
 };
 
 void gui_icon_init_(void) {

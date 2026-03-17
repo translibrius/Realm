@@ -38,6 +38,8 @@ typedef enum gui_icon_type {
     GUI_ICON_EYE,
     GUI_ICON_TRASH,
     GUI_ICON_COPY,
+    // Window controls
+    GUI_ICON_SQUARE,
     GUI_ICON_COUNT,
 } gui_icon_type;
 

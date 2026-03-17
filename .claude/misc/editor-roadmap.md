@@ -203,6 +203,52 @@ Semantic theme system overhaul and cross-cutting UI polish.
 
 ---
 
+## Interlude: Custom Title Bar & Application Icon (WIP)
+
+Windows-only custom title bar (editor) and application icon infrastructure. macOS/Linux stubs in place, full implementation deferred.
+
+### Platform API additions ✓
+
+- [x] `WINDOW_FLAG_CUSTOM_TITLEBAR` flag (1 << 4)
+- [x] `platform_window_minimize/maximize/restore`, `platform_window_is_maximized`
+- [x] `platform_titlebar_layout` struct (`height`, `drag_start_x`, `drag_end_x`) + `platform_set_titlebar_layout`
+- [x] `host_bootstrap` gains `extra_window_flags` param — editor passes `WINDOW_FLAG_CUSTOM_TITLEBAR`, game host passes `0`
+- [x] macOS/Linux stubs (no-op)
+
+### Win32 implementation ✓
+
+- [x] `WM_NCCALCSIZE` — returns 0 to remove non-client area; clamps to work area when maximized
+- [x] `WM_NCHITTEST` — resize borders (6px), draggable caption between menus and window buttons, DwmDefWindowProc passthrough
+- [x] `DwmExtendFrameIntoClientArea` with `MARGINS {0,0,0,1}` for DWM shadow
+- [x] Service thread messages: `MINIMIZE_WINDOW`, `MAXIMIZE_WINDOW`, `RESTORE_WINDOW`
+- [x] `WM_NCMOUSEMOVE` → client coords forwarding so Clay hover stays in sync over HTCAPTION
+- [x] `WM_MOUSELEAVE` / `WM_NCMOUSELEAVE` tracking for hover cleanup
+- [x] Resize handler guard: reject minimized sentinel position (-32000,-32000) and zero-size client rects to prevent config poisoning
+- [x] Linked `dwmapi` on Win32
+
+### Editor UI ✓
+
+- [x] Window control buttons (minimize, maximize/restore, close) in menu bar with Lucide icons
+- [x] Close button: red hover (#E81123), rounded top-right corner (6px)
+- [x] `GUI_ICON_SQUARE` added (Lucide codepoint 57803) for maximize; reuses `MINUS`/`COPY`/`X` for others
+- [x] Titlebar layout communication: `Clay_GetElementData` on MenuBarMenus + WindowControls → `platform_set_titlebar_layout`
+- [x] `gui_button_cfg` gains `Clay_CornerRadius corners` for per-corner radius control
+
+### Application icon ✓
+
+- [x] `assets/icons/realm.ico` — multi-size Windows icon
+- [x] `realm_editor/realm_editor.rc` + `realm/realm.rc` — embed icon via resource file
+- [x] Window class loads icon from exe module handle (`LoadIconA` + `MAKEINTRESOURCEA(1)`)
+- [x] CMake wires `.rc` files for both executables
+
+### Deferred
+
+- [ ] macOS custom title bar (`NSWindow titlebarAppearsTransparent`, traffic light repositioning)
+- [ ] Linux custom title bar (X11 `_MOTIF_WM_HINTS` or client-side decorations)
+- [ ] `platform_set_window_icon` runtime API (RGBA buffer → icon, for non-resource-embedded icons)
+
+---
+
 ## Phase 19: Binary Scene Format
 
 Custom binary format for fast loading and opaque shipping. Editor always saves JSON (human-readable, diffable). Export/runtime prefers binary.
@@ -287,6 +333,7 @@ Rich asset interaction: thumbnail previews in the asset browser, drag-and-drop a
 ## Future (not scoped)
 
 ### Editor features
+- Custom title bar on macOS/Linux (stubs exist, implementation deferred)
 - Native file/directory picker dialog (`NSOpenPanel` on macOS, `IFileOpenDialog` on Win32, GTK/portal on Linux)
 - Multi-select, copy/paste entities
 - Transform hierarchy (parent/child relationships)

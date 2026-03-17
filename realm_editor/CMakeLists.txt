@@ -3,8 +3,14 @@ file(GLOB_RECURSE EDITOR_C_SOURCES
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
 )
 
+# Windows application icon
+if (WIN32)
+    set(EDITOR_RC "${CMAKE_CURRENT_SOURCE_DIR}/realm_editor.rc")
+endif ()
+
 add_executable(RealmEditor
         ${EDITOR_C_SOURCES}
+        ${EDITOR_RC}
 )
 
 target_include_directories(RealmEditor

@@ -150,6 +150,19 @@ static void ed_enter_picker_mode(void) {
 }
 
 static void ed_handle_requests(void) {
+    if (app.minimize_requested) {
+        app.minimize_requested = false;
+        platform_window_minimize(&app.window);
+    }
+
+    if (app.maximize_requested) {
+        app.maximize_requested = false;
+        if (platform_window_is_maximized(&app.window))
+            platform_window_restore(&app.window);
+        else
+            platform_window_maximize(&app.window);
+    }
+
     if (app.backend_switch_requested) {
         app.backend_switch_requested = false;
         ed_switch_backend(app.requested_backend);
@@ -212,7 +225,7 @@ b8 create_editor(void) {
     app.backend_switch_requested = false;
     app.requested_backend = BACKEND_OPENGL;
 
-    host_bootstrap_result boot = host_bootstrap("../../../assets/", "Realm Editor", "editor.toml", true);
+    host_bootstrap_result boot = host_bootstrap("../../../assets/", "Realm Editor", "editor.toml", true, WINDOW_FLAG_CUSTOM_TITLEBAR);
     if (!boot.success) return false;
     app.window = boot.window;
 

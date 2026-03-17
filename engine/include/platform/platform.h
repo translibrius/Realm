@@ -13,6 +13,7 @@ enum platform_window_flag {
     WINDOW_FLAG_NO_INPUT = 1 << 1,
     WINDOW_FLAG_ON_TOP = 1 << 2,
     WINDOW_FLAG_TRANSPARENT = 1 << 3,
+    WINDOW_FLAG_CUSTOM_TITLEBAR = 1 << 4,
 };
 
 typedef enum PLATFORM_WINDOW_MODE {
@@ -79,6 +80,21 @@ REALM_API b8 platform_create_window(platform_window *window);
 REALM_API b8 platform_destroy_window(u16 id);
 REALM_API b8 platform_set_window_mode(platform_window *window, PLATFORM_WINDOW_MODE mode);
 REALM_API b8 platform_window_should_close(u16 id);
+
+// Window control (minimize/maximize/restore)
+REALM_API void platform_window_minimize(platform_window *window);
+REALM_API void platform_window_maximize(platform_window *window);
+REALM_API void platform_window_restore(platform_window *window);
+REALM_API b8   platform_window_is_maximized(platform_window *window);
+
+// Custom title bar — tells the platform layer where the title bar and
+// its control buttons are so hit-testing works correctly.
+typedef struct platform_titlebar_layout {
+    f32 height;          // title bar height in client pixels
+    f32 drag_start_x;    // x where draggable caption area begins (after menus)
+    f32 drag_end_x;      // x where draggable caption area ends (before window buttons)
+} platform_titlebar_layout;
+REALM_API void platform_set_titlebar_layout(platform_window *window, platform_titlebar_layout layout);
 
 // Graphics context stuff
 REALM_API b8 platform_create_opengl_context(platform_window *window);

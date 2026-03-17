@@ -15,7 +15,8 @@ typedef struct gui_button_cfg {
     Clay_Color hover_color; // hovered background
     Clay_Color press_color; // pressed background
     f32 padding;
-    f32 corner_radius;
+    f32 corner_radius;          // uniform corner radius (shorthand)
+    Clay_CornerRadius corners;   // per-corner radius (overrides corner_radius if any > 0)
     f32 width;  // 0 = fit
     f32 height; // 0 = fit
     b8 grow_width;  // true = expand to fill parent width

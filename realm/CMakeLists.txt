@@ -3,8 +3,14 @@ file(GLOB_RECURSE REALM_C_SOURCES
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
 )
 
+# Windows application icon
+if (WIN32)
+    set(REALM_RC "${CMAKE_CURRENT_SOURCE_DIR}/realm.rc")
+endif ()
+
 add_executable(Realm
         ${REALM_C_SOURCES}
+        ${REALM_RC}
 )
 
 target_include_directories(Realm

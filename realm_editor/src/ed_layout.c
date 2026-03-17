@@ -15,6 +15,7 @@
 #include "engine.h"
 #include "gui/gui_clay.h"
 #include "gui/gui_context_menu.h"
+#include "gui/gui_button.h"
 #include "gui/gui_icon.h"
 #include "gui/gui_dropdown.h"
 #include "gui/gui_panel.h"
@@ -25,6 +26,7 @@
 #include "gui/gui_theme.h"
 #include "gui/gui_tree.h"
 #include "platform/input.h"
+#include "platform/platform.h"
 
 void ed_layout_init(ed_layout *layout, ed_undo_stack *undo) {
     if (!layout) return;
@@ -71,6 +73,17 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
         .align_y = CLAY_ALIGN_Y_CENTER,
     };
     GUI_PANEL(&bar) {
+        // Menu group — wrapped so we can query its right edge for hit-testing
+        Clay__OpenElementWithId(CLAY_ID("MenuBarMenus"));
+        Clay__ConfigureOpenElement((Clay_ElementDeclaration){
+            .layout = {
+                .sizing = {.width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_FIT(0)},
+                .layoutDirection = CLAY_LEFT_TO_RIGHT,
+                .childGap = 4,
+                .childAlignment = {.y = CLAY_ALIGN_Y_CENTER},
+            },
+        });
+
         // File menu
         static const char *file_items[] = {
             "New Scene", "Save Scene",
@@ -125,8 +138,64 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
             }
         }
 
+        Clay__CloseElement(); // MenuBarMenus
+
         gui_spacer();
         gui_text(app->scene_dirty ? "Realm Editor *" : "Realm Editor", &dim_text);
+        gui_spacer();
+
+        // Window control buttons (minimize, maximize/restore, close)
+        gui_button_cfg wbtn = {
+            .hover_color = t->control_hover,
+            .press_color = t->control_hover,
+            .width = 46,
+            .height = layout->menu_bar_height,
+            .no_bg = true,
+        };
+
+        Clay__OpenElementWithId(CLAY_ID("WindowControls"));
+        Clay__ConfigureOpenElement((Clay_ElementDeclaration){
+            .layout = {
+                .sizing = {.width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_FIT(0)},
+                .layoutDirection = CLAY_LEFT_TO_RIGHT,
+            },
+        });
+        {
+            // Minimize
+            gui_button_state min_s = gui_button_begin(&wbtn);
+            gui_icon(GUI_ICON_MINUS, 16, t->text);
+            gui_button_end();
+            if (min_s.clicked) app->minimize_requested = true;
+
+            // Maximize / Restore
+            b8 maximized = platform_window_is_maximized(&app->window);
+            gui_button_state max_s = gui_button_begin(&wbtn);
+            gui_icon(maximized ? GUI_ICON_COPY : GUI_ICON_SQUARE, 16, t->text);
+            gui_button_end();
+            if (max_s.clicked) app->maximize_requested = true;
+
+            // Close (red hover, rounded top-right corner)
+            gui_button_cfg close_btn = wbtn;
+            close_btn.hover_color = (Clay_Color){232, 17, 35, 255};
+            close_btn.press_color = (Clay_Color){200, 10, 25, 255};
+            close_btn.corners = (Clay_CornerRadius){0, 6, 0, 0};
+            gui_button_state cls_s = gui_button_begin(&close_btn);
+            gui_icon(GUI_ICON_X, 16, t->text);
+            gui_button_end();
+            if (cls_s.clicked) rl_engine_stop();
+        }
+        Clay__CloseElement();
+
+        // Tell platform where the draggable caption area is for hit testing
+        Clay_ElementData menu_data = Clay_GetElementData(CLAY_ID("MenuBarMenus"));
+        Clay_ElementData btn_data = Clay_GetElementData(CLAY_ID("WindowControls"));
+        if (menu_data.found && btn_data.found) {
+            platform_set_titlebar_layout(&app->window, (platform_titlebar_layout){
+                .height = layout->menu_bar_height,
+                .drag_start_x = menu_data.boundingBox.x + menu_data.boundingBox.width,
+                .drag_end_x = btn_data.boundingBox.x,
+            });
+        }
     }
 }
 

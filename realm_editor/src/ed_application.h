@@ -42,6 +42,8 @@ typedef struct ed_application {
     b8 show_grid;
     b8 backend_switch_requested;
     b8 close_project_requested;
+    b8 minimize_requested;
+    b8 maximize_requested;
     RENDERER_BACKEND requested_backend;
 } ed_application;
 

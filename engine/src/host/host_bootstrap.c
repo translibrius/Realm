@@ -7,7 +7,7 @@
 #include "host/host_renderer.h"
 #include "renderer/renderer_frontend.h"
 
-host_bootstrap_result host_bootstrap(const char *asset_root, const char *window_title, const char *config_filename, b8 skip_splash) {
+host_bootstrap_result host_bootstrap(const char *asset_root, const char *window_title, const char *config_filename, b8 skip_splash, u32 extra_window_flags) {
     host_bootstrap_result result = {0};
 
     rl_engine_config engine_config = rl_engine_config_default();
@@ -22,6 +22,7 @@ host_bootstrap_result host_bootstrap(const char *asset_root, const char *window_
 
     rl_config *cfg = config_get();
     platform_window_settings win_settings = config_to_window_settings(cfg, window_title);
+    win_settings.window_flags |= extra_window_flags;
 
     if (!host_window_create(&result.window, &win_settings, window_title)) {
         return result;

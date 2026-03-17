@@ -1019,6 +1019,15 @@ platform_info *platform_get_info() {
     return &state.platform_info;
 }
 
+// Custom title bar stubs (Windows-only for now)
+void platform_window_minimize(platform_window *window) { (void)window; }
+void platform_window_maximize(platform_window *window) { (void)window; }
+void platform_window_restore(platform_window *window)  { (void)window; }
+b8   platform_window_is_maximized(platform_window *window) { (void)window; return false; }
+void platform_set_titlebar_layout(platform_window *window, platform_titlebar_layout layout) {
+    (void)window; (void)layout;
+}
+
 i32 platform_system(const char *command) {
     if (!command) {
         return -1;

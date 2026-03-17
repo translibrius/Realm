@@ -163,7 +163,7 @@ endif ()
 
 # OpenGL link
 if (WIN32)
-    target_link_libraries(Engine PRIVATE opengl32)
+    target_link_libraries(Engine PRIVATE opengl32 dwmapi)
 elseif (UNIX)
     find_package(OpenGL REQUIRED)
     target_link_libraries(Engine PRIVATE OpenGL::GL)

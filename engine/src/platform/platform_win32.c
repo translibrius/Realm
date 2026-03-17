@@ -20,6 +20,7 @@
 #include <winternl.h>
 #include <winuser.h>
 #include <shellapi.h>
+#include <dwmapi.h>
 
 #include "core/config.h"
 #include "core/event.h"
@@ -35,6 +36,9 @@
 #define SHOW_DANGEROUS_WINDOW (WM_USER + 0x1400)
 #define SET_CURSOR_MODE (WM_USER + 0x2001)
 #define SET_RAW_INPUT (WM_USER + 0x2002)
+#define MINIMIZE_WINDOW (WM_USER + 0x2003)
+#define MAXIMIZE_WINDOW (WM_USER + 0x2004)
+#define RESTORE_WINDOW  (WM_USER + 0x2005)
 
 // Window messages
 #define MSG_RESIZE (WM_USER + 0x1339)
@@ -86,6 +90,12 @@ typedef struct win32_window {
     DWORD saved_ex_style;
     RECT saved_rect;
     b8 is_borderless;
+
+    // Custom title bar
+    b8 custom_titlebar;
+    b8 tracking_mouse;      // TrackMouseEvent active for WM_MOUSELEAVE
+    b8 tracking_ncmouse;    // TrackMouseEvent active for WM_NCMOUSELEAVE
+    platform_titlebar_layout titlebar;
 } win32_window;
 
 typedef struct platform_state {
@@ -189,6 +199,13 @@ b8 platform_system_start() {
     wc.lpszClassName = state.window_class_name;
     wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
 
+    // Try to load icon from the exe's embedded resource (set via .rc file)
+    HICON icon = LoadIconA(state.handle, MAKEINTRESOURCEA(1));
+    if (icon) {
+        wc.hIcon = icon;
+        wc.hIconSm = icon;
+    }
+
     if (!RegisterClassExA(&wc)) {
         const DWORD err = GetLastError();
         if (err != ERROR_CLASS_ALREADY_EXISTS) {
@@ -272,10 +289,17 @@ b8 platform_pump_messages() {
                 win32_window window = state.windows[i];
                 if (window.hwnd == p->hwnd) {
                     found_window = window.window;
-                    found_window->settings.x = p->x;
-                    found_window->settings.y = p->y;
-                    found_window->settings.width = client_rect.right - client_rect.left;
-                    found_window->settings.height = client_rect.bottom - client_rect.top;
+                    // Don't save the minimized sentinel position (-32000,-32000)
+                    if ((i32)p->x > -30000 && (i32)p->y > -30000) {
+                        found_window->settings.x = p->x;
+                        found_window->settings.y = p->y;
+                    }
+                    i32 cw = client_rect.right - client_rect.left;
+                    i32 ch = client_rect.bottom - client_rect.top;
+                    if (cw > 0 && ch > 0) {
+                        found_window->settings.width = cw;
+                        found_window->settings.height = ch;
+                    }
                     break;
                 }
             }
@@ -473,6 +497,17 @@ b8 platform_create_window(platform_window *window) {
     w->alive = true;
     w->window = window;
 
+    // Custom title bar: extend frame into client area for DWM shadow,
+    // then WM_NCCALCSIZE + WM_NCHITTEST handle the rest.
+    if (window->settings.window_flags & WINDOW_FLAG_CUSTOM_TITLEBAR) {
+        w->custom_titlebar = true;
+        MARGINS margins = {0, 0, 0, 1};
+        DwmExtendFrameIntoClientArea(hwnd, &margins);
+        // Force a frame change so WM_NCCALCSIZE fires immediately
+        SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
+                     SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+
     DragAcceptFiles(hwnd, TRUE);
 
     window->id = id;
@@ -650,6 +685,41 @@ b8 platform_center_cursor(platform_window *window) {
 
 b8 platform_get_raw_input() {
     return state.raw_mouse_enabled;
+}
+
+void platform_window_minimize(platform_window *window) {
+    if (!window || window->id >= MAX_WINDOWS) return;
+    win32_window *w = &state.windows[window->id];
+    if (!w->alive) return;
+    PostMessageA(state.service_window, MINIMIZE_WINDOW, (WPARAM)w->hwnd, 0);
+}
+
+void platform_window_maximize(platform_window *window) {
+    if (!window || window->id >= MAX_WINDOWS) return;
+    win32_window *w = &state.windows[window->id];
+    if (!w->alive) return;
+    PostMessageA(state.service_window, MAXIMIZE_WINDOW, (WPARAM)w->hwnd, 0);
+}
+
+void platform_window_restore(platform_window *window) {
+    if (!window || window->id >= MAX_WINDOWS) return;
+    win32_window *w = &state.windows[window->id];
+    if (!w->alive) return;
+    PostMessageA(state.service_window, RESTORE_WINDOW, (WPARAM)w->hwnd, 0);
+}
+
+b8 platform_window_is_maximized(platform_window *window) {
+    if (!window || window->id >= MAX_WINDOWS) return false;
+    win32_window *w = &state.windows[window->id];
+    if (!w->alive) return false;
+    return IsZoomed(w->hwnd);
+}
+
+void platform_set_titlebar_layout(platform_window *window, platform_titlebar_layout layout) {
+    if (!window || window->id >= MAX_WINDOWS) return;
+    win32_window *w = &state.windows[window->id];
+    if (!w->alive) return;
+    w->titlebar = layout;
 }
 
 b8 platform_set_window_mode(platform_window *window, PLATFORM_WINDOW_MODE mode) {
@@ -1252,6 +1322,21 @@ static LRESULT CALLBACK ServiceWndProc(HWND Window, UINT Message, WPARAM WParam,
         Result = 1;
     } break;
 
+    case MINIMIZE_WINDOW: {
+        ShowWindow((HWND)WParam, SW_MINIMIZE);
+        Result = 1;
+    } break;
+
+    case MAXIMIZE_WINDOW: {
+        ShowWindow((HWND)WParam, SW_MAXIMIZE);
+        Result = 1;
+    } break;
+
+    case RESTORE_WINDOW: {
+        ShowWindow((HWND)WParam, SW_RESTORE);
+        Result = 1;
+    } break;
+
     default: {
         Result = DefWindowProcA(Window, Message, WParam, LParam);
     } break;
@@ -1260,9 +1345,71 @@ static LRESULT CALLBACK ServiceWndProc(HWND Window, UINT Message, WPARAM WParam,
     return Result;
 }
 
+// Helper: find win32_window by HWND
+static win32_window *win32_find_by_hwnd(HWND hwnd) {
+    for (u16 i = 0; i < MAX_WINDOWS; i++) {
+        if (state.windows[i].alive && state.windows[i].hwnd == hwnd)
+            return &state.windows[i];
+    }
+    return nullptr;
+}
+
 /* Forward messages to the main thread */
 static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam) {
     LRESULT Result = 0;
+
+    // Custom title bar: handle hit-testing and non-client area removal
+    {
+        win32_window *w = win32_find_by_hwnd(Window);
+        if (w && w->custom_titlebar) {
+            switch (Message) {
+            case WM_NCCALCSIZE: {
+                if (!WParam) break;
+                NCCALCSIZE_PARAMS *params = (NCCALCSIZE_PARAMS *)LParam;
+                if (IsZoomed(Window)) {
+                    HMONITOR mon = MonitorFromWindow(Window, MONITOR_DEFAULTTONEAREST);
+                    MONITORINFO mi = {.cbSize = sizeof(mi)};
+                    GetMonitorInfoA(mon, &mi);
+                    params->rgrc[0] = mi.rcWork;
+                }
+                return 0; // remove all non-client area
+            }
+            case WM_NCHITTEST: {
+                LRESULT dwm_result;
+                if (DwmDefWindowProc(Window, Message, WParam, LParam, &dwm_result))
+                    return dwm_result;
+
+                POINT pt = {GET_X_LPARAM(LParam), GET_Y_LPARAM(LParam)};
+                ScreenToClient(Window, &pt);
+                RECT rc;
+                GetClientRect(Window, &rc);
+
+                // Resize borders (6px) — not when maximized
+                const int border = 6;
+                if (!IsZoomed(Window)) {
+                    if (pt.y < border && pt.x < border)                        return HTTOPLEFT;
+                    if (pt.y < border && pt.x > rc.right - border)             return HTTOPRIGHT;
+                    if (pt.y > rc.bottom - border && pt.x < border)            return HTBOTTOMLEFT;
+                    if (pt.y > rc.bottom - border && pt.x > rc.right - border) return HTBOTTOMRIGHT;
+                    if (pt.y < border)              return HTTOP;
+                    if (pt.y > rc.bottom - border)  return HTBOTTOM;
+                    if (pt.x < border)              return HTLEFT;
+                    if (pt.x > rc.right - border)   return HTRIGHT;
+                }
+
+                // Title bar area: only the gap between menus and window buttons is draggable
+                if (pt.y < (int)w->titlebar.height) {
+                    if (pt.x >= (int)w->titlebar.drag_start_x &&
+                        pt.x <  (int)w->titlebar.drag_end_x)
+                        return HTCAPTION; // draggable gap
+                    return HTCLIENT;      // menus or window buttons — let client handle
+                }
+
+                return HTCLIENT;
+            }
+            }
+        }
+    }
 
     switch (Message) {
     /*
@@ -1302,9 +1449,58 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
     case WM_SYSKEYDOWN:
     case WM_KEYUP:
     case WM_SYSKEYUP:
-    case WM_MOUSEWHEEL:
-    case WM_MOUSEMOVE: {
+    case WM_MOUSEWHEEL: {
         PostThreadMessageA(state.main_thread_id, Message, WParam, LParam);
+        break;
+    }
+
+    case WM_MOUSEMOVE: {
+        // Request WM_MOUSELEAVE if not already tracking
+        win32_window *mw = win32_find_by_hwnd(Window);
+        if (mw && mw->custom_titlebar && !mw->tracking_mouse) {
+            TRACKMOUSEEVENT tme = {.cbSize = sizeof(tme), .dwFlags = TME_LEAVE, .hwndTrack = Window};
+            TrackMouseEvent(&tme);
+            mw->tracking_mouse = true;
+        }
+        PostThreadMessageA(state.main_thread_id, Message, WParam, LParam);
+        break;
+    }
+
+    // Custom titlebar: when cursor is over HTCAPTION, Windows sends
+    // WM_NCMOUSEMOVE instead of WM_MOUSEMOVE. Convert to client coords
+    // and forward so Clay hover state stays in sync.
+    case WM_NCMOUSEMOVE: {
+        win32_window *ncw = win32_find_by_hwnd(Window);
+        if (ncw && ncw->custom_titlebar) {
+            // Request WM_NCMOUSELEAVE if not already tracking
+            if (!ncw->tracking_ncmouse) {
+                TRACKMOUSEEVENT tme = {.cbSize = sizeof(tme), .dwFlags = TME_LEAVE | TME_NONCLIENT, .hwndTrack = Window};
+                TrackMouseEvent(&tme);
+                ncw->tracking_ncmouse = true;
+            }
+            POINT pt = {GET_X_LPARAM(LParam), GET_Y_LPARAM(LParam)};
+            ScreenToClient(Window, &pt);
+            PostThreadMessageA(state.main_thread_id, WM_MOUSEMOVE, 0,
+                               MAKELPARAM(pt.x, pt.y));
+        }
+        Result = DefWindowProcA(Window, Message, WParam, LParam);
+        break;
+    }
+
+    // When cursor leaves the window entirely, send an off-screen position
+    // so Clay clears all hover states.
+    case WM_MOUSELEAVE: {
+        win32_window *mlw = win32_find_by_hwnd(Window);
+        if (mlw) mlw->tracking_mouse = false;
+        PostThreadMessageA(state.main_thread_id, WM_MOUSEMOVE, 0,
+                           MAKELPARAM(-1, -1));
+        break;
+    }
+    case WM_NCMOUSELEAVE: {
+        win32_window *nclw = win32_find_by_hwnd(Window);
+        if (nclw) nclw->tracking_ncmouse = false;
+        PostThreadMessageA(state.main_thread_id, WM_MOUSEMOVE, 0,
+                           MAKELPARAM(-1, -1));
         break;
     }
 

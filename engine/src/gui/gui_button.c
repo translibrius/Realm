@@ -72,7 +72,10 @@ gui_button_state gui_button_begin(const gui_button_cfg *cfg) {
     };
     if (cfg) {
         decl.layout.padding = CLAY_PADDING_ALL((u16)cfg->padding);
-        if (cfg->corner_radius > 0) {
+        if (cfg->corners.topLeft > 0 || cfg->corners.topRight > 0 ||
+            cfg->corners.bottomLeft > 0 || cfg->corners.bottomRight > 0) {
+            decl.cornerRadius = cfg->corners;
+        } else if (cfg->corner_radius > 0) {
             decl.cornerRadius = CLAY_CORNER_RADIUS(cfg->corner_radius);
         }
         if (cfg->gap > 0) {
