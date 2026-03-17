@@ -137,12 +137,16 @@ The architectural seam that enables future scripting. Behaviors are name-address
 
 Editor "New Project" should generate a buildable game module, not just empty directories. Users get a working starting point.
 
-### 18a. Project template
+### 18a. Project template ✓
 
-- [ ] "New Project" creates: `project.realm`, `assets/`, `scenes/default.scene`, `src/game.c`, `CMakeLists.txt`
-- [ ] Template `game.c`: skeleton with `game_init`/`game_update`/`game_shutdown`, one example behavior registration
-- [ ] Template `CMakeLists.txt`: builds game module DLL, links against engine headers
-- [ ] Template `scenes/default.scene`: single light + camera setup
+- [x] "New Project" creates: `project.realm`, `assets/`, `scenes/default.scene`, `src/game.c`, `src/game.h`, `src/realm_app_api.c`, `CMakeLists.txt`
+- [x] Template `game.c`: skeleton with `game_init`/`game_update`/`game_render`/`game_destroy`, one "rotate" behavior
+- [x] Template `CMakeLists.txt`: builds `realm_app` shared library, links against Engine
+- [x] Template `scenes/default.scene`: single Light entity with ambient/diffuse/specular
+- [x] `cstr_sanitize_identifier()` in `str.h`/`str.c` — project name → C/CMake identifier
+- [x] `project_template.h`/`project_template.c` — template generation (5 file writers)
+- [x] Wired into `project_create()` — non-fatal on failure
+- [x] 5 sanitizer tests + 2 template tests (file existence + scene loadable)
 
 ### 18b. Build integration
 

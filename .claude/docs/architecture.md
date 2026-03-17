@@ -22,6 +22,10 @@ Identified by `ASSET_ID` enum only — no string lookups. Registry lives in `eng
 
 `realm/realm_app_module/`: only game-specific logic — scene, camera, gameplay, GUI layout. Host-level concerns (input capture, pause/focus, window management) belong in `realm/src/`. Module reads shared state through `realm_app_context`; prefer expanding `realm_app_context` over adding new DLL-exported functions.
 
+## Project templates
+
+`engine/src/core/project_template.c` generates a starter game module when "New Project" runs. The templates mirror `realm/realm_app_module/` patterns. **When changing the game module API or build system, update the templates too** — see [project-templates.md](project-templates.md) for the full sync checklist.
+
 ## Memory
 
 Use `mem_alloc(size, MEM_TYPE)` / `mem_free` / `mem_zero` — not `malloc`. Use `rl_arena` for frame-local scratch; cleared at `rl_engine_end_frame()`. For per-frame temp data, use `rl_engine_get_frame_arena()` or `cstr_format(arena, ...)` — never `static char` buffers (hidden globals, hurt reentrancy).

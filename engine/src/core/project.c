@@ -2,6 +2,7 @@
 
 #include "asset/asset.h"
 #include "core/logger.h"
+#include "core/project_template.h"
 #include "memory/arena.h"
 #include "platform/io/file_io.h"
 #include "util/str.h"
@@ -78,6 +79,11 @@ b8 project_create(const char *path, const char *name) {
         RL_ERROR("project_create: failed to write '%s'", project_file.cstr);
         arena_scratch_release(scratch);
         return false;
+    }
+
+    if (!project_template_generate(root, name)) {
+        RL_ERROR("project_create: template generation failed");
+        // Non-fatal: project.realm and dirs still valid
     }
 
     arena_scratch_release(scratch);

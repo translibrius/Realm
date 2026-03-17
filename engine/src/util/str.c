@@ -189,3 +189,44 @@ char *cstr_format(rl_arena *arena, const char *fmt, ...) {
     va_end(args);
     return result;
 }
+
+void cstr_sanitize_identifier(char *dst, u32 dst_size, const char *src) {
+    if (!dst || dst_size == 0) return;
+
+    u32 out = 0;
+    u32 src_len = src ? (u32)strlen(src) : 0;
+
+    b8 has_alnum = false;
+    for (u32 i = 0; i < src_len && out < dst_size - 1; i++) {
+        char c = src[i];
+        if (c >= 'A' && c <= 'Z') {
+            dst[out++] = c + ('a' - 'A');
+            has_alnum = true;
+        } else if (c >= 'a' && c <= 'z') {
+            dst[out++] = c;
+            has_alnum = true;
+        } else if (c >= '0' && c <= '9') {
+            dst[out++] = c;
+            has_alnum = true;
+        } else if (c == '_' || c == ' ' || c == '-') {
+            dst[out++] = '_';
+        }
+        // drop all other characters
+    }
+
+    dst[out] = '\0';
+
+    // Fallback to "game" if no alphanumeric characters
+    if (!has_alnum) {
+        cstr_copy(dst, dst_size, "game");
+        return;
+    }
+
+    // Prepend '_' if starts with digit
+    if (out > 0 && dst[0] >= '0' && dst[0] <= '9') {
+        if (out + 1 < dst_size) {
+            memmove(dst + 1, dst, out + 1);
+            dst[0] = '_';
+        }
+    }
+}

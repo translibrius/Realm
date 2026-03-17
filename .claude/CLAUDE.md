@@ -65,6 +65,16 @@ Key rules:
 
 Three-section pattern (state sync → layout → apply changes) with scoped macros. See [.claude/docs/gui-style.md](.claude/docs/gui-style.md) for layout patterns and **Clay rules** (element tree structure, stable IDs, floating elements, pointer capture). Violating Clay rules causes silent breakage — read the rules before adding or modifying GUI widgets.
 
+## Tools
+
+Recommended CLI tools for dev and AI agent workflows. See [.claude/docs/tools.md](.claude/docs/tools.md).
+
+## Project templates
+
+"New Project" scaffolds a buildable game module via `project_template_generate()`. See [.claude/docs/project-templates.md](.claude/docs/project-templates.md) for details.
+
+**Sync rule:** any change to the game module API, `realm_app_api.h`, camera/scene/behavior APIs, or the build system **must** also update the corresponding template writer in `engine/src/core/project_template.c`. Templates mirror `realm/realm_app_module/` — if the real module changes, the template must follow.
+
 ## Gotchas
 
 - Vulkan swapchain changes must handle resize/recreation.

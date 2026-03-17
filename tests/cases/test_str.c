@@ -157,6 +157,36 @@ RL_TEST(str_replace_all_no_match) {
     rl_arena_deinit(&arena);
 }
 
+RL_TEST(str_sanitize_identifier_basic) {
+    char dst[64];
+    cstr_sanitize_identifier(dst, sizeof(dst), "My Cool Game");
+    RL_EXPECT_STR_EQ(dst, "my_cool_game");
+}
+
+RL_TEST(str_sanitize_identifier_leading_digit) {
+    char dst[64];
+    cstr_sanitize_identifier(dst, sizeof(dst), "123abc");
+    RL_EXPECT_STR_EQ(dst, "_123abc");
+}
+
+RL_TEST(str_sanitize_identifier_all_invalid) {
+    char dst[64];
+    cstr_sanitize_identifier(dst, sizeof(dst), "---!@#");
+    RL_EXPECT_STR_EQ(dst, "game");
+}
+
+RL_TEST(str_sanitize_identifier_empty) {
+    char dst[64];
+    cstr_sanitize_identifier(dst, sizeof(dst), "");
+    RL_EXPECT_STR_EQ(dst, "game");
+}
+
+RL_TEST(str_sanitize_identifier_already_valid) {
+    char dst[64];
+    cstr_sanitize_identifier(dst, sizeof(dst), "already_valid");
+    RL_EXPECT_STR_EQ(dst, "already_valid");
+}
+
 void register_str_tests(void) {
     rl_test_begin_group("str");
     RL_REGISTER_TEST(str_cstr_ends_with_handles_basic_cases);
@@ -174,4 +204,9 @@ void register_str_tests(void) {
     RL_REGISTER_TEST(str_cstr_format_arena);
     RL_REGISTER_TEST(str_split_empty_string);
     RL_REGISTER_TEST(str_replace_all_no_match);
+    RL_REGISTER_TEST(str_sanitize_identifier_basic);
+    RL_REGISTER_TEST(str_sanitize_identifier_leading_digit);
+    RL_REGISTER_TEST(str_sanitize_identifier_all_invalid);
+    RL_REGISTER_TEST(str_sanitize_identifier_empty);
+    RL_REGISTER_TEST(str_sanitize_identifier_already_valid);
 }

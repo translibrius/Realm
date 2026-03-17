@@ -1,6 +1,9 @@
 #include "../harness/rl_test.h"
 
+#include "core/component.h"
 #include "core/project.h"
+#include "core/scene.h"
+#include "core/scene_io.h"
 #include "platform/io/file_io.h"
 #include "util/str.h"
 
@@ -17,16 +20,26 @@
 static void cleanup_project(void) {
     char buf[256];
 
-    snprintf(buf, sizeof(buf), "%s/%s", TEST_PROJECT_DIR, RL_PROJECT_FILENAME);
+    cstr_format_buf(buf, sizeof(buf), "%s/%s", TEST_PROJECT_DIR, RL_PROJECT_FILENAME);
     platform_file_delete(buf);
+
+    // Template files
+    const char *template_files[] = {
+        "src/game.c", "src/game.h", "src/realm_app_api.c",
+        "CMakeLists.txt", "scenes/default.scene", nullptr
+    };
+    for (i32 i = 0; template_files[i]; i++) {
+        cstr_format_buf(buf, sizeof(buf), "%s/%s", TEST_PROJECT_DIR, template_files[i]);
+        platform_file_delete(buf);
+    }
 
     // Remove leaf dirs first (rmdir only works on empty dirs)
     const char *dirs[] = {
         "assets/textures", "assets/models", "assets/materials",
-        "assets", "scenes", nullptr
+        "assets", "scenes", "src", nullptr
     };
     for (i32 i = 0; dirs[i]; i++) {
-        snprintf(buf, sizeof(buf), "%s/%s", TEST_PROJECT_DIR, dirs[i]);
+        cstr_format_buf(buf, sizeof(buf), "%s/%s", TEST_PROJECT_DIR, dirs[i]);
         // rmdir is not in our API, but we can just leave dirs — they don't affect tests
         (void)buf;
     }
@@ -103,10 +116,63 @@ RL_TEST(project_open_nonexistent_returns_null) {
     RL_EXPECT(!project_is_open());
 }
 
+RL_TEST(project_create_generates_template_files) {
+    cleanup_project();
+
+    RL_EXPECT(project_create(TEST_PROJECT_DIR, "Template Test"));
+
+    char buf[256];
+
+    cstr_format_buf(buf, sizeof(buf), "%s/src/game.c", TEST_PROJECT_DIR);
+    RL_EXPECT_MSG(platform_file_exists(buf), "src/game.c should exist");
+
+    cstr_format_buf(buf, sizeof(buf), "%s/src/game.h", TEST_PROJECT_DIR);
+    RL_EXPECT_MSG(platform_file_exists(buf), "src/game.h should exist");
+
+    cstr_format_buf(buf, sizeof(buf), "%s/src/realm_app_api.c", TEST_PROJECT_DIR);
+    RL_EXPECT_MSG(platform_file_exists(buf), "src/realm_app_api.c should exist");
+
+    cstr_format_buf(buf, sizeof(buf), "%s/CMakeLists.txt", TEST_PROJECT_DIR);
+    RL_EXPECT_MSG(platform_file_exists(buf), "CMakeLists.txt should exist");
+
+    cstr_format_buf(buf, sizeof(buf), "%s/scenes/default.scene", TEST_PROJECT_DIR);
+    RL_EXPECT_MSG(platform_file_exists(buf), "scenes/default.scene should exist");
+
+    cleanup_project();
+}
+
+RL_TEST(project_create_scene_is_loadable) {
+    cleanup_project();
+
+    RL_EXPECT(project_create(TEST_PROJECT_DIR, "Scene Test"));
+
+    char scene_path[256];
+    cstr_format_buf(scene_path, sizeof(scene_path), "%s/scenes/default.scene", TEST_PROJECT_DIR);
+
+    rl_scene *scene = scene_load(scene_path);
+    RL_EXPECT_NOT_NULL(scene);
+
+    RL_EXPECT_STR_EQ(scene->name, "Default Scene");
+    RL_EXPECT_EQ_U32(scene->entities.count, 1);
+
+    RL_EXPECT(scene->components.has_name[1]);
+    RL_EXPECT_STR_EQ(scene->components.names[1].name, "Light");
+
+    RL_EXPECT(scene->components.has_light[1]);
+    RL_EXPECT_NEAR_F32(scene->components.lights[1].ambient[0], 0.2f, 0.01f);
+    RL_EXPECT_NEAR_F32(scene->components.lights[1].diffuse[0], 0.5f, 0.01f);
+    RL_EXPECT_NEAR_F32(scene->components.lights[1].specular[0], 1.0f, 0.01f);
+
+    scene_destroy(scene);
+    cleanup_project();
+}
+
 void register_project_tests(void) {
     rl_test_begin_group("project");
     RL_REGISTER_TEST(project_create_makes_dirs_and_file);
     RL_REGISTER_TEST(project_open_reads_fields);
     RL_REGISTER_TEST(project_close_resets_state);
     RL_REGISTER_TEST(project_open_nonexistent_returns_null);
+    RL_REGISTER_TEST(project_create_generates_template_files);
+    RL_REGISTER_TEST(project_create_scene_is_loadable);
 }
