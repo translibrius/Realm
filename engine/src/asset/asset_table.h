@@ -11,6 +11,7 @@ typedef struct asset_table_entry {
 // Engine assets: fonts + shaders (loaded at bootstrap)
 static asset_table_entry engine_asset_table[] = {
     {ASSET_FONT,    "fonts/JetBrainsMono-Regular.ttf", "JetBrainsMono-Regular.ttf"},
+    {ASSET_FONT,    "fonts/lucide.ttf",                "lucide.ttf"},
 
     {ASSET_SHADER,  "shaders/opengl/default.vert",     "default.vert"},
     {ASSET_SHADER,  "shaders/opengl/text.vert",        "text.vert"},

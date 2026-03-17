@@ -13,6 +13,8 @@
 #include "platform/input.h"
 #include "renderer/renderer_frontend.h"
 
+#include "util/str.h"
+
 #include <string.h>
 
 #define GUI_MAX_FONTS 8
@@ -32,6 +34,11 @@ typedef struct gui_state {
 } gui_state;
 
 static gui_state state;
+
+// Internal — defined in gui_button.c / gui_panel.c / gui_icon.c
+void gui_button_frame_reset_(void);
+void gui_panel_frame_reset_(void);
+void gui_icon_init_(void);
 
 static void clay_error_handler(Clay_ErrorData error_data) {
     RL_ERROR("GUI Error (Clay): %s", error_data.errorText.chars);
@@ -62,18 +69,19 @@ static Clay_Dimensions measure_text(Clay_StringSlice text, Clay_TextElementConfi
     f32 size_px = (f32)config->fontSize;
     f32 width = 0;
 
-    for (i32 i = 0; i < text.length; i++) {
-        u32 cp = (u32)(unsigned char)text.chars[i];
+    const char *ptr = text.chars;
+    const char *end = text.chars + text.length;
+    while (ptr < end) {
+        u32 cp = utf8_decode(&ptr);
         const rl_glyph *g = (cp < 256) ? font->glyph_map[cp] : nullptr;
         if (!g) {
-            // Fallback: linear scan for non-ASCII
             for (u32 j = 0; j < font->glyph_count; j++) {
                 if ((u32)font->glyphs[j].codepoint == cp) { g = &font->glyphs[j]; break; }
             }
         }
         if (!g) continue;
         width += g->advance * size_px;
-        if (i < text.length - 1) {
+        if (ptr < end) {
             width += (f32)config->letterSpacing;
         }
     }
@@ -108,6 +116,8 @@ void init_gui(f32 width, f32 height) {
     }
 
     Clay_SetMeasureTextFunction(measure_text, nullptr);
+
+    gui_icon_init_();
 
     event_register(EVENT_MOUSE_SCROLL, on_mouse_scroll, nullptr);
 
@@ -148,11 +158,6 @@ u16 gui_font_id(asset_id id) {
     return 0;
 }
 
-// Internal — defined in gui_button.c / gui_panel.c / gui_icon.c
-void gui_button_frame_reset_(void);
-void gui_panel_frame_reset_(void);
-void gui_icon_frame_reset_(void);
-
 f32 gui_measure_text_width(const char *text, u16 len, u16 font_id, u16 font_size) {
     if (!text || len == 0) return 0;
 
@@ -167,9 +172,12 @@ f32 gui_measure_text_width(const char *text, u16 len, u16 font_id, u16 font_size
 
     f32 size_px = (f32)font_size;
     f32 width = 0;
-    for (u16 i = 0; i < len; i++) {
-        u32 cp = (u32)(unsigned char)text[i];
+    const char *ptr = text;
+    const char *end = text + len;
+    while (ptr < end) {
+        u32 cp = utf8_decode(&ptr);
         const rl_glyph *g = (cp < 256) ? font->glyph_map[cp] : nullptr;
+        if (!g) g = rl_font_find_glyph(font, cp);
         if (!g) continue;
         width += g->advance * size_px;
     }
@@ -181,7 +189,6 @@ void gui_layout_begin(f32 dt) {
     gui_begin_frame(dt);
     gui_button_frame_reset_();
     gui_panel_frame_reset_();
-    gui_icon_frame_reset_();
     Clay_BeginLayout();
 }
 

@@ -50,7 +50,7 @@ void gui_tree_end(void) {
     node_stack_top = -1;
 }
 
-gui_tree_node_result gui_tree_node_begin(u32 node_id, const char *label, b8 *expanded, b8 leaf) {
+gui_tree_node_result gui_tree_node_begin(u32 node_id, const char *label, b8 *expanded, b8 leaf, gui_icon_type icon) {
     gui_tree_node_result result = {0};
     if (!tree_state) return result;
 
@@ -92,7 +92,7 @@ gui_tree_node_result gui_tree_node_begin(u32 node_id, const char *label, b8 *exp
     if (leaf) {
         gui_spacer_fixed(tree_cfg.font_size);
     } else {
-        gui_icon(is_expanded ? GUI_ICON_TRIANGLE_DOWN : GUI_ICON_TRIANGLE_RIGHT,
+        gui_icon(is_expanded ? GUI_ICON_CHEVRON_DOWN : GUI_ICON_CHEVRON_RIGHT,
                  tree_cfg.font_size, arrow_c);
     }
 
@@ -105,6 +105,11 @@ gui_tree_node_result gui_tree_node_begin(u32 node_id, const char *label, b8 *exp
     } else {
         label_color = tree_cfg.text_color;
     }
+
+    if (icon != GUI_ICON_NONE) {
+        gui_icon(icon, tree_cfg.font_size, label_color);
+    }
+
     gui_text_cfg label_cfg = {.color = label_color, .size = tree_cfg.font_size, .font = tree_cfg.font};
     gui_text(label, &label_cfg);
 

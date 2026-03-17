@@ -14,14 +14,41 @@ void gui_text(const char *str, const gui_text_cfg *cfg) {
     u16 font = 0;
     u16 size = 14;
     Clay_Color color = gui_theme_get()->text;
+    u16 max_chars = 0;
+    b8 truncate_head = false;
 
     if (cfg) {
         if (cfg->size > 0) size = cfg->size;
         font = cfg->font;
         if (cfg->color.a > 0) color = cfg->color;
+        max_chars = cfg->max_chars;
+        truncate_head = cfg->truncate_head;
     }
 
-    Clay_String text = {.length = (i32)strlen(str), .chars = str};
+    const char *display = str;
+    u32 len = (u32)strlen(str);
+
+    if (max_chars > 3 && len > max_chars) {
+        rl_arena *frame = rl_engine_get_frame_arena();
+        if (truncate_head) {
+            // "...tail"
+            u32 tail_len = max_chars - 3;
+            display = cstr_format(frame, "...%s", str + len - tail_len);
+            len = max_chars;
+        } else {
+            // "head..."
+            char *buf = rl_arena_push(frame, max_chars + 1, 1);
+            mem_copy(buf, str, max_chars - 3);
+            buf[max_chars - 3] = '.';
+            buf[max_chars - 2] = '.';
+            buf[max_chars - 1] = '.';
+            buf[max_chars] = '\0';
+            display = buf;
+            len = max_chars;
+        }
+    }
+
+    Clay_String text = {.length = (i32)len, .chars = display};
     CLAY_TEXT(text, CLAY_TEXT_CONFIG({.textColor = color, .fontSize = size, .fontId = font}));
 }
 

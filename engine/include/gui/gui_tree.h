@@ -2,6 +2,7 @@
 
 #include "clay.h"
 #include "defines.h"
+#include "gui/gui_icon.h"
 
 typedef struct gui_tree_state {
     u32 selected_id; // 0 = none
@@ -26,5 +27,5 @@ typedef struct gui_tree_node_result {
 
 REALM_API void gui_tree_begin(gui_tree_state *state, const gui_tree_cfg *cfg);
 REALM_API void gui_tree_end(void);
-REALM_API gui_tree_node_result gui_tree_node_begin(u32 node_id, const char *label, b8 *expanded, b8 leaf);
+REALM_API gui_tree_node_result gui_tree_node_begin(u32 node_id, const char *label, b8 *expanded, b8 leaf, gui_icon_type icon);
 REALM_API void gui_tree_node_end(void);

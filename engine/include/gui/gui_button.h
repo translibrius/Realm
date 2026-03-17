@@ -18,7 +18,10 @@ typedef struct gui_button_cfg {
     f32 corner_radius;
     f32 width;  // 0 = fit
     f32 height; // 0 = fit
-    b8 grow_width; // true = expand to fill parent width
+    b8 grow_width;  // true = expand to fill parent width
+    b8 align_left;  // true = left-align children instead of center
+    b8 no_bg;       // true = transparent background in normal state
+    f32 gap;        // child gap (for icon+text buttons)
 } gui_button_cfg;
 
 // Opens a button element. Returns interaction state for this frame.

@@ -15,6 +15,7 @@
 #include "engine.h"
 #include "gui/gui_clay.h"
 #include "gui/gui_context_menu.h"
+#include "gui/gui_icon.h"
 #include "gui/gui_dropdown.h"
 #include "gui/gui_panel.h"
 #include "gui/gui_scroll.h"
@@ -141,7 +142,7 @@ static void ed_layout_panel_hierarchy(ed_layout *layout, rl_scene *scene, f32 he
         gui_tree_cfg tcfg = {.font = font};
         gui_tree_begin(&layout->hierarchy_tree, &tcfg);
         {
-            gui_tree_node_result r = gui_tree_node_begin(1, scene->name, &layout->scene_root_expanded, false);
+            gui_tree_node_result r = gui_tree_node_begin(1, scene->name, &layout->scene_root_expanded, false, GUI_ICON_NONE);
             if (r.expanded) {
                 rl_entity_store *es = &scene->entities;
                 rl_component_store *cs = &scene->components;
@@ -149,7 +150,11 @@ static void ed_layout_panel_hierarchy(ed_layout *layout, rl_scene *scene, f32 he
                     if (!es->alive[i]) continue;
                     const char *label = "Entity";
                     if (cs->has_name[i]) label = cs->names[i].name;
-                    gui_tree_node_begin(ED_ENTITY_NODE_BASE + i, label, nullptr, true);
+                    rl_entity eh = rl_entity_pack(i, es->generation[i]);
+                    gui_icon_type eicon = GUI_ICON_NONE;
+                    if (mesh_get(cs, eh))       eicon = GUI_ICON_BOX;
+                    else if (light_get(cs, eh)) eicon = GUI_ICON_SUN;
+                    gui_tree_node_begin(ED_ENTITY_NODE_BASE + i, label, nullptr, true, eicon);
                     gui_tree_node_end();
                 }
             }

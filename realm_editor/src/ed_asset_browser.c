@@ -8,6 +8,7 @@
 #include "core/project.h"
 #include "core/scene.h"
 #include "gui/gui_clay.h"
+#include "gui/gui_icon.h"
 #include "gui/gui_panel.h"
 #include "gui/gui_scroll.h"
 #include "gui/gui_text.h"
@@ -132,12 +133,12 @@ void ed_asset_browser_render(ed_asset_browser *browser, ed_application *app, f32
             // Textures node
             static b8 tex_expanded = true;
             gui_tree_node_result tex_r = gui_tree_node_begin(
-                ED_ASSET_NODE_BASE, "Textures", &tex_expanded, false);
+                ED_ASSET_NODE_BASE, "Textures", &tex_expanded, false, GUI_ICON_IMAGE);
             if (tex_r.expanded) {
                 for (u64 i = 0; i < browser->textures.count; i++) {
                     if (browser->textures.items[i].is_dir) continue;
                     u32 node_id = ED_ASSET_TEX_BASE + (u32)i;
-                    gui_tree_node_begin(node_id, browser->textures.items[i].name, nullptr, true);
+                    gui_tree_node_begin(node_id, browser->textures.items[i].name, nullptr, true, GUI_ICON_FILE);
                     gui_tree_node_end();
                 }
             }
@@ -146,14 +147,14 @@ void ed_asset_browser_render(ed_asset_browser *browser, ed_application *app, f32
             // Models node
             static b8 mdl_expanded = true;
             gui_tree_node_result mdl_r = gui_tree_node_begin(
-                ED_ASSET_MDL_BASE - 1, "Models", &mdl_expanded, false);
+                ED_ASSET_MDL_BASE - 1, "Models", &mdl_expanded, false, GUI_ICON_BOX);
             if (mdl_r.expanded) {
                 for (u64 i = 0; i < browser->models.count; i++) {
                     u32 node_id = ED_ASSET_MDL_BASE + (u32)i;
                     const char *name = browser->models.items[i].name;
                     b8 is_dir = browser->models.items[i].is_dir;
 
-                    gui_tree_node_result nr = gui_tree_node_begin(node_id, name, nullptr, true);
+                    gui_tree_node_result nr = gui_tree_node_begin(node_id, name, nullptr, true, GUI_ICON_FILE);
                     gui_tree_node_end();
 
                     // Double-click on a mesh entry: create entity in scene

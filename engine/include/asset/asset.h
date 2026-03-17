@@ -14,6 +14,7 @@ typedef enum ASSET_TYPE {
 
 // Well-known built-in asset paths (used with asset_find)
 #define RL_ASSET_FONT_JETBRAINS_MONO      "fonts/JetBrainsMono-Regular.ttf"
+#define RL_ASSET_FONT_LUCIDE              "fonts/lucide.ttf"
 
 #define RL_ASSET_SHADER_GL_DEFAULT_VERT   "shaders/opengl/default.vert"
 #define RL_ASSET_SHADER_GL_DEFAULT_FRAG   "shaders/opengl/default.frag"

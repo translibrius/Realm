@@ -8,6 +8,7 @@ extern "C" {
 #endif
 
 b32 msdf_load_font_ascii(const char *path, rl_font *out_font);
+b32 msdf_load_font_codepoints(const char *path, const u32 *codepoints, u32 count, rl_font *out_font);
 
 #ifdef __cplusplus
 }

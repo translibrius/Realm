@@ -8,6 +8,8 @@
 #include "glad.h"
 #include "renderer/renderer_types.h"
 
+#include "util/str.h"
+
 #include <string.h>
 
 GL_Font *gl_find_font(GL_Context *ctx, rl_font *font) {
@@ -123,17 +125,18 @@ void opengl_render_text(const char *text, f32 size_px, f32 x, f32 y, vec4 color)
     f32 cursor_x = x;
     f32 cursor_y = y;
 
-    for (const unsigned char *c = (const unsigned char *)text; *c; c++) {
+    for (const char *c = text; *c; ) {
         if (*c == '\n') {
             cursor_x = x;
             cursor_y += font->line_height * size_px;
+            c++;
             continue;
         }
 
         if (vert_count + 6 > 6 * MAX_TEXT_GLYPHS)
             break;
 
-        u32 cp = *c;
+        u32 cp = utf8_decode(&c);
         const rl_glyph *g = (cp < 256) ? gl_font->glyph_map[cp] : rl_font_find_glyph(font, cp);
         if (!g)
             continue;
@@ -220,17 +223,18 @@ void opengl_render_text_batch(rl_frame_text *texts, u32 text_count) {
         f32 cursor_y = entry->y;
         f32 size_px = entry->size_px;
 
-        for (const unsigned char *c = (const unsigned char *)entry->text; *c; c++) {
+        for (const char *c = entry->text; *c; ) {
             if (*c == '\n') {
                 cursor_x = entry->x;
                 cursor_y += font->line_height * size_px;
+                c++;
                 continue;
             }
 
             if (vert_count + 6 > 6 * MAX_TEXT_GLYPHS)
                 break;
 
-            u32 cp = *c;
+            u32 cp = utf8_decode(&c);
             const rl_glyph *g = (cp < 256) ? entry_gl_font->glyph_map[cp] : rl_font_find_glyph(font, cp);
             if (!g)
                 continue;

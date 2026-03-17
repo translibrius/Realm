@@ -42,7 +42,8 @@ gui_button_state gui_button_begin(const gui_button_cfg *cfg) {
     Clay_Color color_press  = t->control_press;
 
     if (cfg) {
-        if (cfg->color.a > 0)       color_normal = cfg->color;
+        if (cfg->no_bg)                  color_normal = (Clay_Color){0, 0, 0, 0};
+        else if (cfg->color.a > 0)       color_normal = cfg->color;
         if (cfg->hover_color.a > 0) color_hover  = cfg->hover_color;
         if (cfg->press_color.a > 0) color_press  = cfg->press_color;
     }
@@ -62,7 +63,10 @@ gui_button_state gui_button_begin(const gui_button_cfg *cfg) {
     Clay_ElementDeclaration decl = {
         .layout = {
             .sizing = {.width = w_sizing, .height = h_sizing},
-            .childAlignment = {.x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER},
+            .childAlignment = {
+                .x = (cfg && cfg->align_left) ? CLAY_ALIGN_X_LEFT : CLAY_ALIGN_X_CENTER,
+                .y = CLAY_ALIGN_Y_CENTER,
+            },
         },
         .backgroundColor = bg,
     };
@@ -70,6 +74,9 @@ gui_button_state gui_button_begin(const gui_button_cfg *cfg) {
         decl.layout.padding = CLAY_PADDING_ALL((u16)cfg->padding);
         if (cfg->corner_radius > 0) {
             decl.cornerRadius = CLAY_CORNER_RADIUS(cfg->corner_radius);
+        }
+        if (cfg->gap > 0) {
+            decl.layout.childGap = (u16)cfg->gap;
         }
     }
 

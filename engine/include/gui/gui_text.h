@@ -7,6 +7,8 @@ typedef struct gui_text_cfg {
     Clay_Color color; // default: white (255,255,255,255)
     u16 size;         // font size in px (default: 14)
     u16 font;         // Clay font index (default: 0)
+    u16 max_chars;    // 0 = unlimited, >0 = truncate with "..." (from end or start)
+    b8  truncate_head; // false = "long te..." (default), true = "...ng text"
 } gui_text_cfg;
 
 // Null-terminated string.

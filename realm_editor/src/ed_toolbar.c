@@ -4,6 +4,7 @@
 #include "asset/asset.h"
 #include "gui/gui_button.h"
 #include "gui/gui_clay.h"
+#include "gui/gui_icon.h"
 #include "gui/gui_panel.h"
 #include "gui/gui_text.h"
 #include "gui/gui_theme.h"
@@ -11,7 +12,7 @@
 
 static gui_tooltip_state s_tips[5];
 
-static gui_button_state toolbar_button(const char *label, b8 active, const gui_theme *t,
+static gui_button_state toolbar_button(gui_icon_type icon, b8 active, const gui_theme *t,
                                        u16 font, f32 width, u32 id) {
     Clay_ElementId eid = CLAY_IDI("ToolbarBtn", id);
     Clay__OpenElementWithId(eid);
@@ -21,10 +22,12 @@ static gui_button_state toolbar_button(const char *label, b8 active, const gui_t
     Clay_Color bg = active ? t->accent : t->control;
     Clay_Color hover = active ? t->accent_hover : t->control_hover;
     Clay_Color text_color = active ? (Clay_Color){255, 255, 255, 255} : t->text;
-    gui_button_state btn = gui_text_button(label, &(gui_button_cfg){
+    gui_button_state btn = gui_button_begin(&(gui_button_cfg){
         .color = bg, .hover_color = hover, .press_color = bg,
         .padding = 5, .corner_radius = 4, .width = width, .height = 22,
-    }, &(gui_text_cfg){.color = text_color, .size = 12, .font = font});
+    });
+    gui_icon(icon, 14, text_color);
+    gui_button_end();
     Clay__CloseElement();
     return btn;
 }
@@ -48,11 +51,11 @@ void ed_toolbar_render(ed_application *app, f32 dt) {
         gui_spacer_fixed(2);
 
         // Gizmo mode buttons
-        static const char *labels[] = {"W", "E", "R"};
+        static const gui_icon_type icons[] = {GUI_ICON_MOVE, GUI_ICON_ROTATE, GUI_ICON_SCALE};
         static const char *tips[]   = {"Translate (W)", "Rotate (E)", "Scale (R)"};
         for (i32 i = 0; i < 3; i++) {
             b8 active = ((i32)app->gizmo.mode == i);
-            gui_button_state btn = toolbar_button(labels[i], active, t, font, 26, (u32)(i + 1));
+            gui_button_state btn = toolbar_button(icons[i], active, t, font, 26, (u32)(i + 1));
             gui_tooltip(&s_tips[i], &(gui_tooltip_cfg){.text = tips[i], .font = font, .font_size = 12},
                         CLAY_IDI("ToolbarBtn", (u32)(i + 1)), dt);
             if (btn.clicked) app->gizmo.mode = (ED_GIZMO_MODE)i;
@@ -65,7 +68,7 @@ void ed_toolbar_render(ed_application *app, f32 dt) {
         gui_spacer_fixed(6);
 
         // Grid toggle
-        gui_button_state grid_btn = toolbar_button("Grid", app->show_grid, t, font, 0, 4);
+        gui_button_state grid_btn = toolbar_button(GUI_ICON_GRID, app->show_grid, t, font, 0, 4);
         gui_tooltip(&s_tips[3], &(gui_tooltip_cfg){.text = "Toggle Grid (G)", .font = font, .font_size = 12},
                     CLAY_IDI("ToolbarBtn", 4), dt);
         if (grid_btn.clicked) app->show_grid = !app->show_grid;
@@ -77,7 +80,7 @@ void ed_toolbar_render(ed_application *app, f32 dt) {
         gui_spacer_fixed(6);
 
         // Play placeholder
-        toolbar_button("Play", false, t, font, 0, 5);
+        toolbar_button(GUI_ICON_PLAY, false, t, font, 0, 5);
         gui_tooltip(&s_tips[4], &(gui_tooltip_cfg){.text = "Play (future)", .font = font, .font_size = 12},
                     CLAY_IDI("ToolbarBtn", 5), dt);
 

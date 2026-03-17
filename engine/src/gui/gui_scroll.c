@@ -33,17 +33,6 @@ void gui_scroll_begin(gui_scroll_state *state, const gui_scroll_cfg *cfg) {
         }
     }
 
-    // Re-enable auto-scroll when user scrolls back to the bottom
-    if (state && !state->auto_scroll) {
-        Clay_ScrollContainerData scd = Clay_GetScrollContainerData(eid);
-        if (scd.found) {
-            f32 max_scroll = scd.contentDimensions.height - scd.scrollContainerDimensions.height;
-            if (max_scroll > 0 && (max_scroll + scd.scrollPosition->y) < 2.0f) {
-                state->auto_scroll = true;
-            }
-        }
-    }
-
     // Handle ongoing scrollbar drag (before layout so position is updated this frame)
     if (state && state->_dragging) {
         if (!input_is_mouse_down(MOUSE_LEFT)) {

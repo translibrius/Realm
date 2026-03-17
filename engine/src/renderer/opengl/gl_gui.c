@@ -11,6 +11,8 @@
 #include "renderer/opengl/gl_text.h"
 #include "renderer/opengl/gl_types.h"
 
+#include "util/str.h"
+
 #include <string.h>
 
 #define GUI_MAX_VERTS (6 * 8192)
@@ -89,29 +91,6 @@ b8 opengl_gui_pipeline_init(GL_Context *ctx) {
 
     glBindVertexArray(0);
     return true;
-}
-
-static void push_tri(GL_GuiVertex *verts, u32 *count,
-                      f32 x0, f32 y0, f32 x1, f32 y1, f32 x2, f32 y2,
-                      f32 r, f32 g, f32 b, f32 a) {
-    if (*count + 3 > GUI_MAX_VERTS) return;
-
-    // Conservative clip: skip if all 3 points outside clip rect
-    if (clip_active()) {
-        gui_clip_rect *c = clip_current();
-        if ((x0 < c->x0 && x1 < c->x0 && x2 < c->x0) ||
-            (x0 > c->x1 && x1 > c->x1 && x2 > c->x1) ||
-            (y0 < c->y0 && y1 < c->y0 && y2 < c->y0) ||
-            (y0 > c->y1 && y1 > c->y1 && y2 > c->y1)) {
-            return;
-        }
-    }
-
-    GL_GuiVertex *v = &verts[*count];
-    v[0] = (GL_GuiVertex){.pos = {x0, y0}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
-    v[1] = (GL_GuiVertex){.pos = {x1, y1}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
-    v[2] = (GL_GuiVertex){.pos = {x2, y2}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
-    *count += 3;
 }
 
 static void push_rect(GL_GuiVertex *verts, u32 *count,
@@ -206,20 +185,19 @@ static void push_text_glyphs(GL_GuiVertex *verts, u32 *vert_count, u32 max_verts
     gui_clip_rect *clip = clip_current();
 
     f32 cursor_x = x;
-    for (i32 i = 0; i < len; i++) {
+    const char *ptr = chars;
+    const char *end = chars + len;
+    while (ptr < end) {
         if (*vert_count + 6 > max_verts) break;
 
-        u32 cp = (u32)(unsigned char)chars[i];
+        u32 cp = utf8_decode(&ptr);
         const rl_glyph *g = (cp < 256) ? gl_font->glyph_map[cp] : rl_font_find_glyph(font, cp);
         if (!g) continue;
 
-        // Top-left coordinates: Y increases downward.
-        // plane_max_y is the top of the glyph (ascender), plane_min_y is the bottom (descender).
-        // In top-left space, subtract plane values to flip Y.
         f32 gx0 = cursor_x + g->plane_min_x * size_px;
         f32 gx1 = cursor_x + g->plane_max_x * size_px;
-        f32 gy0 = y - g->plane_max_y * size_px;  // top of glyph (smaller Y = higher on screen)
-        f32 gy1 = y - g->plane_min_y * size_px;  // bottom of glyph
+        f32 gy0 = y - g->plane_max_y * size_px;
+        f32 gy1 = y - g->plane_min_y * size_px;
 
         cursor_x += g->advance * size_px;
 
@@ -378,23 +356,6 @@ void opengl_render_gui(void *commands, i32 command_count) {
             break;
         }
 
-        case CLAY_RENDER_COMMAND_TYPE_CUSTOM: {
-            Clay_CustomRenderData *custom = &cmd->renderData.custom;
-            u32 icon_type = (u32)(uintptr_t)custom->customData;
-            Clay_Color c = custom->backgroundColor;
-            f32 cr = c.r / 255.0f, cg = c.g / 255.0f, cb = c.b / 255.0f, ca = c.a / 255.0f;
-            f32 x = bb.x, y = bb.y, w = bb.width, h = bb.height;
-            if (icon_type == 1) { // TRIANGLE_RIGHT
-                push_tri(verts, &vert_count,
-                         x + 3, y + 2,  x + 3, y + h - 2,  x + w - 2, y + h / 2,
-                         cr, cg, cb, ca);
-            } else if (icon_type == 2) { // TRIANGLE_DOWN
-                push_tri(verts, &vert_count,
-                         x + 2, y + 3,  x + w - 2, y + 3,  x + w / 2, y + h - 2,
-                         cr, cg, cb, ca);
-            }
-            break;
-        }
         default:
             break;
         }
