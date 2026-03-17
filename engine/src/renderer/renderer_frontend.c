@@ -138,6 +138,12 @@ void renderer_toggle_wireframe(void) {
     RL_INFO("Wireframe mode %s", state.wireframe ? "ON" : "OFF");
 }
 
+void renderer_set_clear_color(f32 r, f32 g, f32 b, f32 a) {
+    if (!state.initialized || !interface.set_clear_color)
+        return;
+    interface.set_clear_color(r, g, b, a);
+}
+
 void prepare_interface(RENDERER_BACKEND backend) {
     switch (backend) {
     case BACKEND_OPENGL:
@@ -156,6 +162,7 @@ void prepare_interface(RENDERER_BACKEND backend) {
         interface.submit_frame_data = &opengl_submit_frame_data;
         interface.submit_gui_data = &opengl_render_gui;
         interface.set_wireframe = &opengl_set_wireframe;
+        interface.set_clear_color = &opengl_set_clear_color;
         break;
     case BACKEND_VULKAN:
         interface.initialize = &vulkan_initialize;
@@ -173,5 +180,6 @@ void prepare_interface(RENDERER_BACKEND backend) {
         interface.submit_frame_data = &vulkan_submit_frame_data;
         interface.submit_gui_data = &vulkan_render_gui;
         interface.set_wireframe = &vulkan_set_wireframe;
+        interface.set_clear_color = &vulkan_set_clear_color;
     }
 }

@@ -65,7 +65,7 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
     }
 
     VkClearValue clear_values[2] = {
-        (VkClearValue) {.color = {RL_CLEAR_COLOR_R, RL_CLEAR_COLOR_G, RL_CLEAR_COLOR_B, RL_CLEAR_COLOR_A}},
+        (VkClearValue) {.color = {context->clear_color[0], context->clear_color[1], context->clear_color[2], context->clear_color[3]}},
         (VkClearValue) {.depthStencil = {1.0f, 0.0f}}
     };
 

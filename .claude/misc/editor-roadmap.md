@@ -155,6 +155,27 @@ Editor "New Project" should generate a buildable game module, not just empty dir
 
 ---
 
+## Interlude: Input, Scroll & Theme Polish ✓
+
+Cross-cutting bugfixes and UX improvements that don't belong to a specific feature phase.
+
+### Input & drag fixes ✓
+
+- [x] **Mouse capture on drag** — `SetCapture`/`ReleaseCapture` in Win32 window proc so drags continue seamlessly outside the OS window, with proper `WM_LBUTTONUP` delivery on release
+- [x] **Per-frame mouse state sync** — `GetAsyncKeyState` (Win32), `[NSEvent pressedMouseButtons]` (macOS), `XQueryPointer` (Linux) poll real button state every frame as safety net for missed release events
+- [x] **Focus-loss button reset** — all platforms release mouse buttons on window focus loss (`WM_KILLFOCUS`, `windowDidResignKey`, `FocusOut`)
+- [x] **Clay scroll drag outside bounds** — patched `Clay_UpdateScrollContainers` to continue tracking active content drags when pointer leaves the scroll element, with force-clear on release
+- [x] **Clay swapback iteration fix** — `RemoveSwapback` in scroll container cleanup loop skipped swapped elements; added `i--` to re-check
+
+### Settings & theme ✓
+
+- [x] **Slider widgets in settings** — camera Speed, Sensitivity, FOV all have sliders alongside number inputs, synced bidirectionally
+- [x] **Viewport clear color from theme** — added `viewport_bg` to `gui_theme`, `renderer_set_clear_color()` API on frontend + both backends, applied on theme switch
+- [x] **6 new themes** — Dracula, Gruvbox, Nord, Tokyo Night, One Dark, Rose Pine (all with full semantic color mapping including viewport bg)
+- [x] Theme dropdown expanded to 8 entries, `ed_settings_apply_theme` uses table-driven lookup
+
+---
+
 ## Phase 19: Binary Scene Format
 
 Custom binary format for fast loading and opaque shipping. Editor always saves JSON (human-readable, diffable). Export/runtime prefers binary.

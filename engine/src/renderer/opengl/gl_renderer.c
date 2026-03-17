@@ -345,6 +345,10 @@ text_pass:
 
 b8 opengl_initialize(platform_window *platform_window, b8 vsync) {
     context.window = platform_window;
+    context.clear_color[0] = RL_CLEAR_COLOR_R;
+    context.clear_color[1] = RL_CLEAR_COLOR_G;
+    context.clear_color[2] = RL_CLEAR_COLOR_B;
+    context.clear_color[3] = RL_CLEAR_COLOR_A;
 
     da_init(&context.fonts);
     rl_arena_init(&context.arena, MiB(100), MiB(25), MEM_SUBSYSTEM_RENDERER);
@@ -412,7 +416,7 @@ void opengl_destroy() {
 void opengl_begin_frame(f64 delta_time) {
     (void)delta_time;
 
-    glClearColor(RL_CLEAR_COLOR_R, RL_CLEAR_COLOR_G, RL_CLEAR_COLOR_B, RL_CLEAR_COLOR_A);
+    glClearColor(context.clear_color[0], context.clear_color[1], context.clear_color[2], context.clear_color[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
@@ -437,4 +441,11 @@ void opengl_set_active_window(platform_window *window) {
 
 void opengl_set_wireframe(b8 enabled) {
     context.debug_wireframe = enabled;
+}
+
+void opengl_set_clear_color(f32 r, f32 g, f32 b, f32 a) {
+    context.clear_color[0] = r;
+    context.clear_color[1] = g;
+    context.clear_color[2] = b;
+    context.clear_color[3] = a;
 }

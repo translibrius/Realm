@@ -80,6 +80,9 @@ typedef struct GL_Context {
     struct { asset_id asset_id; GL_Mesh mesh; } mesh_cache[64];
     u32 mesh_cache_count;
 
+    // Clear color (default from RL_CLEAR_COLOR_*)
+    f32 clear_color[4];
+
     // Debug
     b8 debug_wireframe;
 

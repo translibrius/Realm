@@ -87,6 +87,10 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
 
     context.max_frames_in_flight = 2;
     context.window = window;
+    context.clear_color[0] = RL_CLEAR_COLOR_R;
+    context.clear_color[1] = RL_CLEAR_COLOR_G;
+    context.clear_color[2] = RL_CLEAR_COLOR_B;
+    context.clear_color[3] = RL_CLEAR_COLOR_A;
     glm_mat4_identity(context.view);
     glm_mat4_identity(context.proj);
 
@@ -472,4 +476,11 @@ void vulkan_set_active_window(platform_window *window) {
 
 void vulkan_set_wireframe(b8 enabled) {
     context.debug_wireframe = enabled && context.has_wireframe_pipelines;
+}
+
+void vulkan_set_clear_color(f32 r, f32 g, f32 b, f32 a) {
+    context.clear_color[0] = r;
+    context.clear_color[1] = g;
+    context.clear_color[2] = b;
+    context.clear_color[3] = a;
 }

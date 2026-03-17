@@ -352,6 +352,11 @@ static KEYBOARD_KEY mac_map_keycode(u16 keycode) {
 - (void)windowDidResignKey:(NSNotification *)notification {
     (void)notification;
     if (_window_state) {
+        // Release all mouse buttons — the window won't receive button-up
+        // events after losing focus, which leaves drag state stuck.
+        for (MOUSE_BUTTON b = 0; b < MOUSE_MAX_BUTTONS; b++) {
+            input_process_mouse_button(b, false);
+        }
         event_fire(EVENT_WINDOW_FOCUS_LOST, _window_state->platform_window);
     }
 }
@@ -592,6 +597,19 @@ b8 platform_pump_messages() {
 
             [state.app sendEvent:event];
         }
+    }
+
+    // Sync mouse button state with actual OS state.
+    // Catches releases that happen outside the window where we never get MouseUp.
+    NSUInteger buttons = [NSEvent pressedMouseButtons];
+    if (input_is_mouse_down(MOUSE_LEFT) && !(buttons & (1 << 0))) {
+        input_process_mouse_button(MOUSE_LEFT, false);
+    }
+    if (input_is_mouse_down(MOUSE_RIGHT) && !(buttons & (1 << 1))) {
+        input_process_mouse_button(MOUSE_RIGHT, false);
+    }
+    if (input_is_mouse_down(MOUSE_MIDDLE) && !(buttons & (1 << 2))) {
+        input_process_mouse_button(MOUSE_MIDDLE, false);
     }
 
     if (!mac_any_window_alive()) {

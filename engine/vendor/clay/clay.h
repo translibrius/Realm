@@ -4757,10 +4757,12 @@ void Clay_UpdateScrollContainers(bool enableDragScrolling, Clay_Vector2 scrollDe
     // Don't apply scroll events to ancestors of the inner element
     int32_t highestPriorityElementIndex = -1;
     Clay__ScrollContainerDataInternal *highestPriorityScrollData = CLAY__NULL;
+    Clay__ScrollContainerDataInternal *activeDragData = CLAY__NULL;
     for (int32_t i = 0; i < context->scrollContainerDatas.length; i++) {
         Clay__ScrollContainerDataInternal *scrollData = Clay__ScrollContainerDataInternalArray_Get(&context->scrollContainerDatas, i);
         if (!scrollData->openThisFrame) {
             Clay__ScrollContainerDataInternalArray_RemoveSwapback(&context->scrollContainerDatas, i);
+            i--; // Re-check this index — swapback moved a new element here
             continue;
         }
         scrollData->openThisFrame = false;
@@ -4768,6 +4770,7 @@ void Clay_UpdateScrollContainers(bool enableDragScrolling, Clay_Vector2 scrollDe
         // Element isn't rendered this frame but scroll offset has been retained
         if (!hashMapItem) {
             Clay__ScrollContainerDataInternalArray_RemoveSwapback(&context->scrollContainerDatas, i);
+            i--; // Re-check this index — swapback moved a new element here
             continue;
         }
 
@@ -4794,6 +4797,11 @@ void Clay_UpdateScrollContainers(bool enableDragScrolling, Clay_Vector2 scrollDe
             scrollData->momentumTime = 0;
         }
 
+        // Track the container with an active drag for fallback below
+        if (scrollData->pointerScrollActive) {
+            activeDragData = scrollData;
+        }
+
         // Apply existing momentum
         scrollData->scrollPosition.x += scrollData->scrollMomentum.x;
         scrollData->scrollMomentum.x *= 0.95f;
@@ -4816,6 +4824,20 @@ void Clay_UpdateScrollContainers(bool enableDragScrolling, Clay_Vector2 scrollDe
                 highestPriorityElementIndex = j;
                 highestPriorityScrollData = scrollData;
             }
+        }
+    }
+
+    // If pointer left all scroll elements but a drag is still active, keep tracking it
+    if (highestPriorityElementIndex == -1 && activeDragData) {
+        if (isPointerActive) {
+            highestPriorityScrollData = activeDragData;
+            highestPriorityElementIndex = 0;
+        } else {
+            // Pointer released outside all scroll elements — force-clear the drag
+            activeDragData->pointerScrollActive = false;
+            activeDragData->pointerOrigin = CLAY__INIT(Clay_Vector2) { 0, 0 };
+            activeDragData->scrollOrigin = CLAY__INIT(Clay_Vector2) { 0, 0 };
+            activeDragData->momentumTime = 0;
         }
     }
 

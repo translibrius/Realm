@@ -435,6 +435,11 @@ b8 platform_pump_messages() {
 
         case FocusOut: {
             if (lw && lw->platform_window) {
+                // Release all mouse buttons — the window won't receive button-up
+                // events after losing focus, which leaves drag state stuck.
+                for (MOUSE_BUTTON b = 0; b < MOUSE_MAX_BUTTONS; b++) {
+                    input_process_mouse_button(b, false);
+                }
                 event_fire(EVENT_WINDOW_FOCUS_LOST, lw->platform_window);
             }
         } break;
@@ -491,6 +496,26 @@ b8 platform_pump_messages() {
 
         default:
             break;
+        }
+    }
+
+    // Sync mouse button state with actual OS state.
+    // Catches releases that happen outside the window where we never get ButtonRelease.
+    {
+        Window root_ret, child_ret;
+        int rx, ry, wx, wy;
+        unsigned int mask;
+        if (XQueryPointer(state.display, DefaultRootWindow(state.display),
+                          &root_ret, &child_ret, &rx, &ry, &wx, &wy, &mask)) {
+            if (input_is_mouse_down(MOUSE_LEFT) && !(mask & Button1Mask)) {
+                input_process_mouse_button(MOUSE_LEFT, false);
+            }
+            if (input_is_mouse_down(MOUSE_RIGHT) && !(mask & Button3Mask)) {
+                input_process_mouse_button(MOUSE_RIGHT, false);
+            }
+            if (input_is_mouse_down(MOUSE_MIDDLE) && !(mask & Button2Mask)) {
+                input_process_mouse_button(MOUSE_MIDDLE, false);
+            }
         }
     }
 

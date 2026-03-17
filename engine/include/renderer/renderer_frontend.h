@@ -28,3 +28,4 @@ REALM_API void renderer_submit_frame_data(rl_frame_data *frame_data);
 REALM_API void renderer_submit_gui_data(void *commands, i32 command_count);
 
 REALM_API void renderer_toggle_wireframe(void);
+REALM_API void renderer_set_clear_color(f32 r, f32 g, f32 b, f32 a);

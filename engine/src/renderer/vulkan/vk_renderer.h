@@ -21,3 +21,4 @@ void vulkan_set_active_window(platform_window* window);
 void vulkan_resize_framebuffer(i32 w, i32 h);
 void vulkan_submit_frame_data(rl_frame_data *frame_data);
 void vulkan_set_wireframe(b8 enabled);
+void vulkan_set_clear_color(f32 r, f32 g, f32 b, f32 a);

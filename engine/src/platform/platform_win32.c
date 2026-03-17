@@ -356,6 +356,19 @@ b8 platform_pump_messages() {
             break;
         }
     }
+
+    // Sync mouse button state with actual OS state.
+    // Catches releases that happen outside the window where we never get WM_LBUTTONUP.
+    if (input_is_mouse_down(MOUSE_LEFT) && !(GetAsyncKeyState(VK_LBUTTON) & 0x8000)) {
+        input_process_mouse_button(MOUSE_LEFT, false);
+    }
+    if (input_is_mouse_down(MOUSE_RIGHT) && !(GetAsyncKeyState(VK_RBUTTON) & 0x8000)) {
+        input_process_mouse_button(MOUSE_RIGHT, false);
+    }
+    if (input_is_mouse_down(MOUSE_MIDDLE) && !(GetAsyncKeyState(VK_MBUTTON) & 0x8000)) {
+        input_process_mouse_button(MOUSE_MIDDLE, false);
+    }
+
     return true;
 }
 
@@ -1289,14 +1302,33 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
     case WM_SYSKEYDOWN:
     case WM_KEYUP:
     case WM_SYSKEYUP:
-    case WM_LBUTTONDOWN:
-    case WM_MBUTTONDOWN:
-    case WM_RBUTTONDOWN:
-    case WM_LBUTTONUP:
-    case WM_MBUTTONUP:
-    case WM_RBUTTONUP:
     case WM_MOUSEWHEEL:
     case WM_MOUSEMOVE: {
+        PostThreadMessageA(state.main_thread_id, Message, WParam, LParam);
+        break;
+    }
+
+    // Mouse buttons: capture the mouse on press so we receive move/release
+    // events even when the pointer leaves the window. Release capture when
+    // all buttons are up. Skip when cursor mode is locked (already captured).
+    case WM_LBUTTONDOWN:
+    case WM_MBUTTONDOWN:
+    case WM_RBUTTONDOWN: {
+        if (state.cursor_mode != CURSOR_MODE_LOCKED) {
+            SetCapture(Window);
+        }
+        PostThreadMessageA(state.main_thread_id, Message, WParam, LParam);
+        break;
+    }
+    case WM_LBUTTONUP:
+    case WM_MBUTTONUP:
+    case WM_RBUTTONUP: {
+        // Release capture only when no buttons are still held.
+        // wParam carries MK_* flags for buttons that are still down.
+        if (state.cursor_mode != CURSOR_MODE_LOCKED &&
+            !(WParam & (MK_LBUTTON | MK_RBUTTON | MK_MBUTTON))) {
+            ReleaseCapture();
+        }
         PostThreadMessageA(state.main_thread_id, Message, WParam, LParam);
         break;
     }
@@ -1355,6 +1387,12 @@ static LRESULT CALLBACK DisplayWndProc(HWND Window, UINT Message, WPARAM WParam,
     } break;
 
     case WM_KILLFOCUS: {
+        // Release all mouse buttons — the window won't receive button-up
+        // events after losing focus, which leaves drag state stuck.
+        PostThreadMessageA(state.main_thread_id, WM_LBUTTONUP, 0, 0);
+        PostThreadMessageA(state.main_thread_id, WM_MBUTTONUP, 0, 0);
+        PostThreadMessageA(state.main_thread_id, WM_RBUTTONUP, 0, 0);
+
         platform_window *pw = nullptr;
         for (u16 i = 0; i < MAX_WINDOWS; i++) {
             if (state.windows[i].alive && state.windows[i].hwnd == Window) {

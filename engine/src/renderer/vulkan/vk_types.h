@@ -287,4 +287,5 @@ typedef struct VK_Context {
     mat4 view;
     mat4 proj;
 
+    f32 clear_color[4];
 } VK_Context;

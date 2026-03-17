@@ -20,3 +20,4 @@ void opengl_set_active_window(platform_window *window);
 void opengl_resize_framebuffer(i32 w, i32 h);
 void opengl_submit_frame_data(rl_frame_data *frame_data);
 void opengl_set_wireframe(b8 enabled);
+void opengl_set_clear_color(f32 r, f32 g, f32 b, f32 a);
