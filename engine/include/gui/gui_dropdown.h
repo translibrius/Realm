@@ -4,9 +4,10 @@
 #include "defines.h"
 
 typedef struct gui_dropdown_state {
-    i32 selected;  // currently selected index (-1 = none)
-    b8 open;       // dropdown list is visible
-    u32 _id;       // 0 = auto-generated on first use
+    i32 selected;          // currently selected index (-1 = none)
+    b8 open;               // dropdown list is visible
+    b8 _trigger_hovered;   // true if trigger button was hovered this frame
+    u32 _id;               // 0 = auto-generated on first use
 } gui_dropdown_state;
 
 typedef struct gui_dropdown_cfg {
@@ -14,7 +15,8 @@ typedef struct gui_dropdown_cfg {
     i32 item_count;
     const char *label;  // override trigger text (NULL = show selected item)
     f32 width;          // dropdown width (default: 200)
-    Clay_Color color;        // closed dropdown background
+    Clay_Color color;        // trigger button background
+    Clay_Color list_color;   // dropdown list background (default: theme bg_elevated)
     Clay_Color hover_color;  // hovered item background
     Clay_Color text_color;   // text color
     f32 corner_radius;

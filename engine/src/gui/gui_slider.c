@@ -67,22 +67,33 @@ b8 gui_slider(gui_slider_state *state, const gui_slider_cfg *cfg) {
         if (state->value > 1) state->value = 1;
     }
 
-    // Fill portion
-    f32 fill_width = state->value * (width - thumb_size);
-    if (fill_width < 0) fill_width = 0;
+    // Fill — extends to thumb center for visual continuity
+    f32 thumb_center_x = thumb_size * 0.5f + state->value * (width - thumb_size);
+    f32 fill_width = thumb_center_x;
+    if (fill_width < 1) fill_width = 1;
 
     CLAY_AUTO_ID({
         .layout = {.sizing = {.width = CLAY_SIZING_FIXED(fill_width), .height = CLAY_SIZING_GROW(0)}},
         .backgroundColor = fill_color,
-        .cornerRadius = {radius, 0, radius, 0},
+        .cornerRadius = CLAY_CORNER_RADIUS(radius),
     }) {}
 
-    // Thumb
-    CLAY_AUTO_ID({
+    // Thumb — floating circle at value position, overlapping fill edge
+    f32 thumb_offset_x = thumb_center_x - thumb_size * 0.5f;
+    Clay_ElementId thumb_eid = CLAY_IDI("GuiSliderThumb", state->_id);
+    Clay__OpenElementWithId(thumb_eid);
+    Clay__ConfigureOpenElement((Clay_ElementDeclaration){
         .layout = {.sizing = {.width = CLAY_SIZING_FIXED(thumb_size), .height = CLAY_SIZING_FIXED(thumb_size)}},
+        .floating = {
+            .attachTo = CLAY_ATTACH_TO_PARENT,
+            .attachPoints = {.element = CLAY_ATTACH_POINT_LEFT_CENTER, .parent = CLAY_ATTACH_POINT_LEFT_CENTER},
+            .offset = {thumb_offset_x, 0},
+            .pointerCaptureMode = CLAY_POINTER_CAPTURE_MODE_PASSTHROUGH,
+        },
         .backgroundColor = thumb_color,
         .cornerRadius = CLAY_CORNER_RADIUS(thumb_size * 0.5f),
-    }) {}
+    });
+    Clay__CloseElement();
 
     Clay__CloseElement();
 

@@ -7,6 +7,8 @@ typedef struct gui_theme {
     // Backgrounds
     Clay_Color bg;           // primary panel/window background
     Clay_Color bg_secondary; // secondary/raised surface (headers, active tabs)
+    Clay_Color bg_titlebar;  // title/menu bar chrome (typically darkest or equal to bg)
+    Clay_Color bg_elevated;  // floating surfaces (context menus, dropdown lists, tooltips)
     Clay_Color bg_input;     // input field background
     Clay_Color bg_overlay;   // dim overlay backdrop (pause menu)
 

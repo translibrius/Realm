@@ -176,6 +176,33 @@ Cross-cutting bugfixes and UX improvements that don't belong to a specific featu
 
 ---
 
+## Interlude: Theme Architecture & Editor Polish ✓
+
+Semantic theme system overhaul and cross-cutting UI polish.
+
+### Theme surface hierarchy ✓
+
+- [x] **`bg_titlebar` + `bg_elevated` color roles** — added to `gui_theme` for proper visual hierarchy (title bar chrome vs floating surfaces)
+- [x] **Menu bar, tab strip, toolbar** now use `bg_titlebar` (darkest chrome) instead of `bg_secondary`
+- [x] **Context menus, dropdown lists** now default to `bg_elevated` for floating-surface depth
+- [x] **`list_color` on dropdown cfg** — trigger button and floating list can have different backgrounds
+- [x] **Tokyo Night** — completely remapped (`bg_secondary` was `#414868` comment color, now `#1f2335` sidebar; border/separator/controls all corrected from canonical palette)
+- [x] **Nord** — `text_dim` bumped from nearly-invisible nord3 to readable `{129,140,160}`; `control` differentiated from `bg_secondary` (were identical); `control_hover` bumped above `bg_elevated`
+- [x] **Rose Pine** — `control_hover` bumped above `bg_elevated` for visible hover feedback
+- [x] All 8 themes verified with correct `bg_titlebar`/`bg_elevated` values from canonical palettes
+
+### Editor UI polish ✓
+
+- [x] **Inspector section headers** — more padding, spacers above/below, white text instead of dim, consistent with settings sections
+- [x] **Properties panel** — increased padding for breathing room
+- [x] **Slider thumb** — now floats over fill bar; fill extends to thumb center for visual continuity (no gap)
+- [x] **Menu bar hover-switch** — click to open first menu, then hover to switch between File/Edit/View (standard menu bar UX)
+- [x] **Menu bar item padding** — doubled (4→8px) so items feel interactive
+- [x] **Scrollbar auto-hide** — track collapses to 0 width when content doesn't overflow
+- [x] **`_trigger_hovered`** exposed on `gui_dropdown_state` for menu bar hover logic
+
+---
+
 ## Phase 19: Binary Scene Format
 
 Custom binary format for fast loading and opaque shipping. Editor always saves JSON (human-readable, diffable). Export/runtime prefers binary.

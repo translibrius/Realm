@@ -39,7 +39,7 @@ void ed_toolbar_render(ed_application *app, f32 dt) {
     u16 font = gui_font_id(asset_find(RL_ASSET_FONT_JETBRAINS_MONO));
 
     gui_panel_cfg bar = {
-        .color = t->bg_secondary,
+        .color = t->bg_titlebar,
         .width_sizing = GUI_SIZE_GROW,
         .height = 32,
         .padding = 4,

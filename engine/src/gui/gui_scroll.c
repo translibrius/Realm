@@ -141,16 +141,17 @@ void gui_scroll_end(void) {
         if (scroll_cfg->thumb_radius > 0) thumb_radius = scroll_cfg->thumb_radius;
     }
 
-    // Scrollbar track — stable ID derived from scroll state
+    // Scrollbar track — only visible when content overflows
     Clay__OpenElementWithId(CLAY_IDI("GuiScrollTrack", scroll_base_id));
     b8 track_hovered = Clay_Hovered();
     Clay__ConfigureOpenElement((Clay_ElementDeclaration){
         .layout = {
-            .sizing = {.width = CLAY_SIZING_FIXED(sb_width), .height = CLAY_SIZING_GROW(0)},
-            .padding = {.top = 2, .bottom = 2},
+            .sizing = {.width = CLAY_SIZING_FIXED(show_scrollbar ? sb_width : 0),
+                        .height = CLAY_SIZING_GROW(0)},
+            .padding = show_scrollbar ? (Clay_Padding){.top = 2, .bottom = 2} : (Clay_Padding){0},
             .layoutDirection = CLAY_TOP_TO_BOTTOM,
         },
-        .backgroundColor = track_color,
+        .backgroundColor = show_scrollbar ? track_color : (Clay_Color){0},
     });
 
     if (show_scrollbar) {

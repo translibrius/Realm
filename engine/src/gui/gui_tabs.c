@@ -14,7 +14,7 @@ i32 gui_tabs(i32 *selected, const char **labels, i32 count, const gui_tabs_cfg *
     u16 font_size = (cfg && cfg->font_size > 0)      ? cfg->font_size     : 14;
 
     const gui_theme *t = gui_theme_get();
-    Clay_Color inactive_color = t->control;
+    Clay_Color inactive_color = t->bg_titlebar;
     Clay_Color active_color   = t->bg_secondary;
     Clay_Color hover_color    = t->control_hover;
     Clay_Color text_color     = t->text;

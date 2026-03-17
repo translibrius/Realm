@@ -128,15 +128,17 @@ static b8 vec3_row(ed_inspector_vec3 *v, const gui_number_input_cfg *cfg, f32 dt
 // ── Section header ──────────────────────────────────────────────────────────
 
 static void section_header(const char *label, const gui_theme *t, u16 font) {
+    gui_spacer_fixed(4);
     gui_panel_cfg hdr = {
         .color = t->bg_secondary,
         .width_sizing = GUI_SIZE_GROW,
-        .padding = 4,
+        .padding = 5,
         .corner_radius = 3,
     };
     GUI_PANEL(&hdr) {
-        gui_text(label, &(gui_text_cfg){.color = t->text_dim, .size = 12, .font = font});
+        gui_text(label, &(gui_text_cfg){.color = t->text, .size = 12, .font = font});
     }
+    gui_spacer_fixed(2);
 }
 
 // ── Render ──────────────────────────────────────────────────────────────────

@@ -76,15 +76,17 @@ i32 ed_settings_theme_index(const char *theme_key) {
 }
 
 static void section_label(const char *text, const gui_theme *t, u16 font) {
+    gui_spacer_fixed(4);
     gui_panel_cfg hdr = {
         .color = t->bg_secondary,
         .width_sizing = GUI_SIZE_GROW,
-        .padding = 4,
+        .padding = 5,
         .corner_radius = 3,
     };
     GUI_PANEL(&hdr) {
-        gui_text(text, &(gui_text_cfg){.color = t->text, .size = 13, .font = font});
+        gui_text(text, &(gui_text_cfg){.color = t->text, .size = 12, .font = font});
     }
+    gui_spacer_fixed(2);
 }
 
 void ed_settings_render(ed_layout *layout, ed_config *cfg, f32 dt) {

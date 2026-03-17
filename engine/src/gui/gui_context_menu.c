@@ -27,7 +27,7 @@ i32 gui_context_menu(gui_context_menu_state *state, const gui_context_menu_cfg *
     f32 width      = cfg->width > 0      ? cfg->width      : 180;
     u16 font       = cfg->font;
     u16 font_size  = cfg->font_size > 0  ? cfg->font_size  : 13;
-    Clay_Color bg    = cfg->color.a > 0      ? cfg->color       : t->bg_secondary;
+    Clay_Color bg    = cfg->color.a > 0      ? cfg->color       : t->bg_elevated;
     Clay_Color hover = cfg->hover_color.a > 0 ? cfg->hover_color : t->control_hover;
     Clay_Color text  = cfg->text_color.a > 0  ? cfg->text_color  : t->text;
 

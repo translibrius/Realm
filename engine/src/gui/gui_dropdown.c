@@ -20,9 +20,11 @@ b8 gui_dropdown(gui_dropdown_state *state, const gui_dropdown_cfg *cfg) {
 
     const gui_theme *t = gui_theme_get();
     Clay_Color bg_color    = t->control;
+    Clay_Color list_color  = t->bg_elevated;
     Clay_Color hover_color = t->control_hover;
     Clay_Color text_color  = t->text;
     if (cfg->color.a > 0)      bg_color    = cfg->color;
+    if (cfg->list_color.a > 0) list_color  = cfg->list_color;
     if (cfg->hover_color.a > 0) hover_color = cfg->hover_color;
     if (cfg->text_color.a > 0) text_color  = cfg->text_color;
 
@@ -47,13 +49,15 @@ b8 gui_dropdown(gui_dropdown_state *state, const gui_dropdown_cfg *cfg) {
         .hover_color  = hover_color,
         .press_color  = bg_color,
         .width        = cfg->label ? 0 : width,
-        .padding      = cfg->label ? 4 : 8,
+        .padding      = cfg->label ? 8 : 8,
         .corner_radius = radius,
     });
     gui_text(display, &(gui_text_cfg){.color = text_color, .size = font_size, .font = font});
     gui_button_end();
 
     Clay__CloseElement(); // wrapper
+
+    state->_trigger_hovered = btn.hovered;
 
     if (btn.clicked) {
         state->open = !state->open;
@@ -81,7 +85,7 @@ b8 gui_dropdown(gui_dropdown_state *state, const gui_dropdown_cfg *cfg) {
             .pointerCaptureMode = state->open ? CLAY_POINTER_CAPTURE_MODE_CAPTURE
                                               : CLAY_POINTER_CAPTURE_MODE_PASSTHROUGH,
         },
-        .backgroundColor = state->open ? bg_color : (Clay_Color){0},
+        .backgroundColor = state->open ? list_color : (Clay_Color){0},
         .cornerRadius = CLAY_CORNER_RADIUS(radius),
         .border = state->open ? (Clay_BorderElementConfig){.color = t->border, .width = {1, 1, 1, 1, 0}}
                               : (Clay_BorderElementConfig){0},
@@ -90,7 +94,7 @@ b8 gui_dropdown(gui_dropdown_state *state, const gui_dropdown_cfg *cfg) {
     if (state->open) {
         for (i32 i = 0; i < cfg->item_count; i++) {
             gui_button_state item_btn = gui_button_begin(&(gui_button_cfg){
-                .color       = bg_color,
+                .color       = list_color,
                 .hover_color = hover_color,
                 .press_color = hover_color,
                 .padding     = 6,

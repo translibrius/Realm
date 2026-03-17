@@ -14,7 +14,7 @@ typedef struct gui_context_menu_cfg {
     const char **items;
     i32 item_count;
     f32 width;            // default: 180
-    Clay_Color color;     // default: t->bg_secondary
+    Clay_Color color;     // default: t->bg_elevated
     Clay_Color hover_color;
     Clay_Color text_color;
     u16 font;

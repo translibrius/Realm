@@ -53,7 +53,8 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
 
     gui_dropdown_cfg menu_cfg = {
         .width = 140,
-        .color = t->bg_secondary,
+        .color = t->bg_titlebar,
+        .list_color = t->bg_elevated,
         .hover_color = t->control_hover,
         .text_color = t->text,
         .font = font,
@@ -61,7 +62,7 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
     };
 
     gui_panel_cfg bar = {
-        .color = t->bg_secondary,
+        .color = t->bg_titlebar,
         .width_sizing = GUI_SIZE_GROW,
         .height = layout->menu_bar_height,
         .padding = 6,
@@ -109,6 +110,19 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
             if (layout->menu_view.selected == 0) ed_console_toggle(&app->console);
             if (layout->menu_view.selected == 1) app->show_grid = !app->show_grid;
             layout->menu_view.selected = -1;
+        }
+
+        // Menu bar hover-switch: once any menu is open, hovering another opens it
+        b8 any_open = layout->menu_file.open || layout->menu_edit.open || layout->menu_view.open;
+        if (any_open) {
+            gui_dropdown_state *menus[] = {&layout->menu_file, &layout->menu_edit, &layout->menu_view};
+            for (i32 i = 0; i < 3; i++) {
+                if (menus[i]->_trigger_hovered && !menus[i]->open) {
+                    for (i32 j = 0; j < 3; j++) menus[j]->open = false;
+                    menus[i]->open = true;
+                    break;
+                }
+            }
         }
 
         gui_spacer();
@@ -181,8 +195,8 @@ static void ed_layout_viewport(ed_layout *layout, ed_application *app, f32 dt) {
         // Tab bar
         static const char *tab_labels[] = {"Viewport", "Settings"};
         gui_tabs_cfg tcfg = {
-            .color = t->bg_secondary,
-            .active_color = t->control,
+            .color = t->bg_titlebar,
+            .active_color = t->bg_secondary,
             .hover_color = t->control_hover,
             .text_color = t->text,
             .font = font,
@@ -249,8 +263,8 @@ static void ed_layout_panel_properties(ed_layout *layout, ed_application *app, f
         .color = t->bg,
         .width = layout->right_panel_width,
         .height_sizing = GUI_SIZE_GROW,
-        .padding = 8,
-        .gap = 4,
+        .padding = 10,
+        .gap = 3,
     };
     GUI_PANEL(&panel) {
         gui_text("Properties", &header_text);

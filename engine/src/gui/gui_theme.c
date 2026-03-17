@@ -3,6 +3,8 @@
 static const gui_theme dark_theme = {
     .bg            = {25, 25, 28, 230},
     .bg_secondary  = {38, 38, 44, 255},
+    .bg_titlebar   = {20, 20, 23, 255},
+    .bg_elevated   = {42, 42, 48, 255},
     .bg_input      = {18, 18, 22, 255},
     .bg_overlay    = {10, 10, 12, 180},
 
@@ -41,6 +43,8 @@ static const gui_theme dark_theme = {
 static const gui_theme catppuccin_theme = {
     .bg            = {30, 30, 46, 230},     // base
     .bg_secondary  = {49, 50, 68, 255},     // surface0
+    .bg_titlebar   = {24, 24, 37, 255},     // mantle
+    .bg_elevated   = {49, 50, 68, 255},     // surface0
     .bg_input      = {24, 24, 37, 255},     // mantle
     .bg_overlay    = {17, 17, 27, 180},     // crust with alpha
 
@@ -79,6 +83,8 @@ static const gui_theme catppuccin_theme = {
 static const gui_theme dracula_theme = {
     .bg            = {40, 42, 54, 230},     // background #282a36
     .bg_secondary  = {68, 71, 90, 255},     // current line #44475a
+    .bg_titlebar   = {33, 34, 44, 255},     // #21222c
+    .bg_elevated   = {55, 57, 72, 255},     // between bg and current line
     .bg_input      = {33, 34, 44, 255},     // darker bg
     .bg_overlay    = {22, 23, 36, 180},     // deep bg
 
@@ -117,6 +123,8 @@ static const gui_theme dracula_theme = {
 static const gui_theme gruvbox_theme = {
     .bg            = {40, 40, 40, 230},     // bg0 #282828
     .bg_secondary  = {60, 56, 54, 255},     // bg1 #3c3836
+    .bg_titlebar   = {29, 32, 33, 255},     // bg0_h (hard dark)
+    .bg_elevated   = {60, 56, 54, 255},     // bg1 #3c3836
     .bg_input      = {29, 32, 33, 255},     // bg0_h (hard)
     .bg_overlay    = {22, 22, 22, 180},     // deep bg
 
@@ -155,6 +163,8 @@ static const gui_theme gruvbox_theme = {
 static const gui_theme nord_theme = {
     .bg            = {46, 52, 64, 230},     // nord0 #2e3440
     .bg_secondary  = {59, 66, 82, 255},     // nord1 #3b4252
+    .bg_titlebar   = {39, 44, 54, 255},     // darker polar night
+    .bg_elevated   = {67, 76, 94, 255},     // nord2 #434c5e
     .bg_input      = {39, 44, 54, 255},     // darker than nord0
     .bg_overlay    = {30, 34, 42, 180},     // deep bg
 
@@ -162,13 +172,13 @@ static const gui_theme nord_theme = {
     .accent_hover  = {136, 192, 208, 255},  // nord8 full
 
     .text          = {216, 222, 233, 255},  // nord4 #d8dee9
-    .text_dim      = {76, 86, 106, 255},    // nord3 #4c566a
+    .text_dim      = {129, 140, 160, 255},  // lightened nord3 for readability
 
     .border        = {67, 76, 94, 255},     // nord2 #434c5e
 
-    .control       = {59, 66, 82, 255},     // nord1 #3b4252
-    .control_hover = {67, 76, 94, 255},     // nord2 #434c5e
-    .control_press = {50, 56, 70, 255},     // between nord0 and nord1
+    .control       = {52, 59, 73, 255},     // between nord0 and nord1
+    .control_hover = {76, 86, 106, 255},    // nord3 #4c566a
+    .control_press = {46, 52, 64, 255},     // nord0
     .control_thumb = {229, 233, 240, 255},  // nord5 #e5e9f0
 
     .danger        = {191, 97, 106, 255},   // nord11 #bf616a
@@ -178,8 +188,8 @@ static const gui_theme nord_theme = {
     .log_warn      = {235, 203, 139, 255},  // nord13 #ebcb8b
     .log_error     = {191, 97, 106, 255},   // nord11 #bf616a
     .log_fatal     = {180, 142, 173, 255},  // nord15 #b48ead
-    .log_debug     = {76, 86, 106, 255},    // nord3 #4c566a
-    .log_trace     = {67, 76, 94, 255},     // nord2 #434c5e
+    .log_debug     = {129, 140, 160, 255},  // lightened nord3
+    .log_trace     = {97, 110, 136, 255},   // mid nord3
 
     .debug_highlight = {163, 190, 140, 255}, // nord14 #a3be8c
 
@@ -192,7 +202,9 @@ static const gui_theme nord_theme = {
 // Tokyo Night — https://github.com/enkia/tokyo-night-vscode-theme
 static const gui_theme tokyonight_theme = {
     .bg            = {26, 27, 38, 230},     // bg #1a1b26
-    .bg_secondary  = {65, 72, 104, 255},    // terminal black #414868
+    .bg_secondary  = {31, 35, 53, 255},     // dark bg #1f2335 (sidebar/panels)
+    .bg_titlebar   = {22, 22, 30, 255},     // bg_dark #16161e
+    .bg_elevated   = {41, 46, 66, 255},     // bg_highlight #292e42
     .bg_input      = {22, 22, 30, 255},     // bg_dark #16161e
     .bg_overlay    = {16, 16, 24, 180},     // deep bg
 
@@ -202,11 +214,11 @@ static const gui_theme tokyonight_theme = {
     .text          = {192, 202, 245, 255},  // fg #c0caf5
     .text_dim      = {86, 95, 137, 255},    // comment #565f89
 
-    .border        = {65, 72, 104, 255},    // #414868
+    .border        = {41, 46, 66, 255},     // bg_highlight #292e42
 
-    .control       = {41, 46, 66, 255},     // bg_highlight #292e42
-    .control_hover = {65, 72, 104, 255},    // #414868
-    .control_press = {33, 37, 54, 255},     // between bg and highlight
+    .control       = {36, 40, 58, 255},     // between sidebar and highlight
+    .control_hover = {45, 50, 72, 255},     // above bg_highlight
+    .control_press = {28, 31, 46, 255},     // darker
     .control_thumb = {192, 202, 245, 255},  // fg
 
     .danger        = {247, 118, 142, 255},  // red #f7768e
@@ -217,11 +229,11 @@ static const gui_theme tokyonight_theme = {
     .log_error     = {247, 118, 142, 255},  // red #f7768e
     .log_fatal     = {187, 154, 247, 255},  // magenta #bb9af7
     .log_debug     = {86, 95, 137, 255},    // comment #565f89
-    .log_trace     = {65, 72, 104, 255},    // #414868
+    .log_trace     = {65, 72, 104, 255},    // terminal_black #414868
 
     .debug_highlight = {158, 206, 106, 255}, // green #9ece6a
 
-    .separator     = {65, 72, 104, 255},    // #414868
+    .separator     = {36, 40, 58, 255},     // subtle divider
     .viewport_bg   = {22, 22, 30, 255},     // bg_dark
     .corner_radius = 4,
     .font_size     = 14,
@@ -231,6 +243,8 @@ static const gui_theme tokyonight_theme = {
 static const gui_theme onedark_theme = {
     .bg            = {40, 44, 52, 230},     // bg #282c34
     .bg_secondary  = {53, 59, 69, 255},     // gutter/raised
+    .bg_titlebar   = {33, 37, 43, 255},     // darker bg #21252b
+    .bg_elevated   = {53, 59, 69, 255},     // gutter level
     .bg_input      = {33, 37, 43, 255},     // darker bg
     .bg_overlay    = {24, 26, 32, 180},     // deep bg
 
@@ -269,6 +283,8 @@ static const gui_theme onedark_theme = {
 static const gui_theme rosepine_theme = {
     .bg            = {25, 23, 36, 230},     // base #191724
     .bg_secondary  = {31, 29, 46, 255},     // surface #1f1d2e
+    .bg_titlebar   = {21, 19, 30, 255},     // darker base
+    .bg_elevated   = {38, 35, 58, 255},     // overlay #26233a
     .bg_input      = {21, 19, 30, 255},     // darker than base
     .bg_overlay    = {16, 15, 24, 180},     // deep bg
 
@@ -281,7 +297,7 @@ static const gui_theme rosepine_theme = {
     .border        = {38, 35, 58, 255},     // overlay #26233a
 
     .control       = {31, 29, 46, 255},     // surface #1f1d2e
-    .control_hover = {38, 35, 58, 255},     // overlay #26233a
+    .control_hover = {48, 45, 72, 255},     // above overlay for visible hover
     .control_press = {26, 24, 38, 255},     // between base and surface
     .control_thumb = {144, 140, 170, 255},  // subtle #908caa
 
