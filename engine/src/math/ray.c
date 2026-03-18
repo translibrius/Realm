@@ -1,5 +1,8 @@
 #include "math/ray.h"
 
+#include "asset/asset.h"
+#include "asset/mesh.h"
+
 #include <math.h>
 
 rl_ray ray_from_screen(f32 sx, f32 sy,
@@ -91,6 +94,37 @@ void aabb_from_unit_cube(mat4 model, rl_aabb *out) {
         corner[3] = 1.0f;
         glm_mat4_mulv(model, corner, transformed);
 
+        glm_vec3_minv(out->min, transformed, out->min);
+        glm_vec3_maxv(out->max, transformed, out->max);
+    }
+}
+
+void aabb_from_mesh_asset(asset_id mesh_id, mat4 model, rl_aabb *out) {
+    rl_asset *asset = asset_get(mesh_id);
+    if (!asset || asset->type != ASSET_MESH || !asset->data) {
+        aabb_from_unit_cube(model, out);
+        return;
+    }
+
+    rl_mesh *mesh = (rl_mesh *)asset->data;
+    if (mesh->primitive_count == 0 || mesh->primitives[0].vertex_count == 0) {
+        aabb_from_unit_cube(model, out);
+        return;
+    }
+
+    rl_mesh_primitive *prim = &mesh->primitives[0];
+    vec4 transformed;
+    vec4 v = {prim->vertices[0].pos[0], prim->vertices[0].pos[1], prim->vertices[0].pos[2], 1.0f};
+    glm_mat4_mulv(model, v, transformed);
+    glm_vec3_copy(transformed, out->min);
+    glm_vec3_copy(transformed, out->max);
+
+    for (u32 i = 1; i < prim->vertex_count; i++) {
+        v[0] = prim->vertices[i].pos[0];
+        v[1] = prim->vertices[i].pos[1];
+        v[2] = prim->vertices[i].pos[2];
+        v[3] = 1.0f;
+        glm_mat4_mulv(model, v, transformed);
         glm_vec3_minv(out->min, transformed, out->min);
         glm_vec3_maxv(out->max, transformed, out->max);
     }

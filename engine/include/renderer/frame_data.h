@@ -2,6 +2,7 @@
 
 #include "asset/asset.h"
 #include "cglm.h"
+#include "core/entity.h"
 #include "defines.h"
 
 typedef struct rl_font rl_font;
@@ -31,6 +32,12 @@ typedef enum rl_frame_mesh_kind {
     RL_FRAME_MESH_KIND_UNLIT = 1,
 } rl_frame_mesh_kind;
 
+typedef enum rl_highlight_mode {
+    RL_HIGHLIGHT_NONE     = 0,
+    RL_HIGHLIGHT_HOVER    = 1,
+    RL_HIGHLIGHT_SELECTED = 2,
+} rl_highlight_mode;
+
 typedef struct rl_material {
     asset_id diffuse_map;
     vec3 specular;
@@ -43,7 +50,9 @@ typedef struct rl_frame_mesh {
     mat4 model;
     rl_material material;
     b8 wireframe;
-    asset_id mesh_asset; // 0 = use primitive (cube), non-zero = loaded mesh
+    asset_id mesh_asset;          // 0 = use primitive (cube), non-zero = loaded mesh
+    rl_entity source_entity;      // originating entity (for highlight matching)
+    rl_highlight_mode highlight;  // outline mode (set by editor after build)
 } rl_frame_mesh;
 
 typedef struct rl_frame_point_light {
@@ -88,4 +97,10 @@ typedef struct rl_frame_data {
     u32             overlay_count;
 
     b8 show_grid;
+
+    // Entity highlight config (outline colors as 0-1 floats)
+    vec3 highlight_hover_color;
+    vec3 highlight_selected_color;
+    f32 outline_hover_thickness;     // world-space units, e.g. 0.03
+    f32 outline_selected_thickness;  // world-space units, e.g. 0.05
 } rl_frame_data;

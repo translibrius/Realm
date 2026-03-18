@@ -363,13 +363,19 @@ Rich asset interaction: thumbnail previews in the asset browser, drag-and-drop a
 - [ ] Visual feedback during drag: valid/invalid drop zone indication
 - [ ] Undo support for all drop actions
 
-### 21c. Entity highlight on hover (outline shader)
+### 21c. Entity highlight on hover (outline shader) ✓
 
-- [ ] Outline/silhouette shader — render selected/hovered entity to stencil buffer, then draw expanded outline in a neon/highlight color
-- [ ] Two modes: **hover** (subtle, e.g. thin white/blue outline) and **selected** (stronger, e.g. bright orange/yellow)
-- [ ] Works in both OpenGL and Vulkan backends — stencil-based approach for portability
-- [ ] Configurable highlight color (per-theme or user setting)
-- [ ] Performance: only re-render the highlighted entity to stencil, not the whole scene
+- [x] Stencil-based outline — stencil write pass stamps entity silhouette, outline draw pass expands in clip space with stencil NOT_EQUAL test
+- [x] Two modes: **hover** (thin blue outline, 0.012 NDC) and **selected** (thicker orange outline, 0.020 NDC) — colors per-theme
+- [x] Works in both OpenGL and Vulkan backends — stencil write pipeline + outline draw pipeline on VK, GL state machine on GL
+- [x] Configurable highlight color via `highlight_hover` / `highlight_selected` on `gui_theme` — all 8 themes have palette-appropriate values
+- [x] Performance: only re-render highlighted entities to stencil (1–2 entities max), not the whole scene
+- [x] Screen-space consistent outline width — clip-space expansion from mesh center, uniform from all angles and distances
+- [x] Vulkan depth format reordered to prefer depth+stencil (`D32_SFLOAT_S8_UINT` > `D24_UNORM_S8_UINT` > `D32_SFLOAT`)
+- [x] Hover picking via `EVENT_MOUSE_MOVE` — only fires within viewport bounds, not per-frame
+- [x] Imported mesh AABB picking — `aabb_from_mesh_asset()` uses actual vertex bounds instead of unit cube for imported meshes
+- [x] `source_entity` field on `rl_frame_mesh` for editor highlight matching after `scene_build_frame_data`
+- [x] Outline vertex shaders (`outline.vert`) compute obj-space AABB center for correct expansion on non-origin-centered imported meshes
 
 ### 21d. Inspector drop targets
 
@@ -426,13 +432,13 @@ Phase 1–14: Foundation                       ✓ all done
             │       │
             │       └── Phase 20: Export Pipeline    ✓ done
             │
-            ├── Phase 21: Asset Drag-Drop + Highlight  ○ depends on 17 (behavior drop) + renderer (outline shader)
+            ├── Phase 21: Asset Drag-Drop + Highlight  ◐ 21c done, 21a/21b/21d remaining
             │
             └── Future: Scripting Runtime            ○ depends on 17 (behavior seam)
 ```
 
-Phases 18, 19, 21 are independent of each other and can be done in any order.
-Phase 21 is renderer-heavy (outline shader) and GUI-heavy (drag-and-drop) — good candidate for splitting across sessions.
+Phases 18, 21 are independent of each other and can be done in any order.
+Phase 21c (outline shader) is complete. Remaining 21a/21b/21d are GUI-heavy (thumbnails, drag-and-drop) — good candidate for a dedicated session.
 
 ---
 

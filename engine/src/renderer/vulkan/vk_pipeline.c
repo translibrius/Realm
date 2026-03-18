@@ -9,13 +9,15 @@ VkVertexInputBindingDescription vk_vertex_get_binding_desc();
 void vk_vertex_get_attr_desc(VkVertexInputAttributeDescription *out_attrs);
 
 b8 vk_pipeline_create_graphics(VK_Context *ctx, VK_PipelineConfig *cfg, VkPipeline *out_pipeline, VkPipelineLayout *out_layout) {
-    VkDynamicState dynamic_states[2] = {
+    VkDynamicState dynamic_states[3] = {
         VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_SCISSOR
+        VK_DYNAMIC_STATE_SCISSOR,
+        VK_DYNAMIC_STATE_STENCIL_REFERENCE,
     };
+    u32 dynamic_state_count = cfg->stencil_test ? 3 : 2;
     VkPipelineDynamicStateCreateInfo dynamic_state_ci = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-        .dynamicStateCount = 2,
+        .dynamicStateCount = dynamic_state_count,
         .pDynamicStates = dynamic_states,
     };
 
@@ -56,17 +58,22 @@ b8 vk_pipeline_create_graphics(VK_Context *ctx, VK_PipelineConfig *cfg, VkPipeli
         .sampleShadingEnable = VK_FALSE,
     };
 
+    VkCompareOp depth_cmp = cfg->depth_compare_op ? cfg->depth_compare_op : VK_COMPARE_OP_LESS;
+
     VkPipelineDepthStencilStateCreateInfo depth_stencil_ci = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
         .depthTestEnable = cfg->depth_test ? VK_TRUE : VK_FALSE,
         .depthWriteEnable = cfg->depth_write ? VK_TRUE : VK_FALSE,
-        .depthCompareOp = VK_COMPARE_OP_LESS,
+        .depthCompareOp = depth_cmp,
         .depthBoundsTestEnable = VK_FALSE,
-        .stencilTestEnable = VK_FALSE,
+        .stencilTestEnable = cfg->stencil_test ? VK_TRUE : VK_FALSE,
+        .front = cfg->stencil_op,
+        .back = cfg->stencil_op,
     };
 
     VkPipelineColorBlendAttachmentState blend_attachment = {
-        .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
+        .colorWriteMask = cfg->color_write_disable ? 0
+            : (VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT),
     };
 
     if (cfg->blend_enable) {
@@ -463,6 +470,141 @@ void vk_grid_pipeline_destroy(VK_Context *context) {
     if (context->grid_pipeline) {
         vkDestroyPipeline(context->device, context->grid_pipeline, nullptr);
     }
+}
+
+b8 vk_outline_pipelines_create(VK_Context *context) {
+    if (!context->has_stencil) {
+        RL_WARN("No stencil buffer — outline highlight disabled");
+        context->has_outline_pipelines = false;
+        return true;
+    }
+
+    VkShaderModule default_vert, outline_vert, frag_module;
+    if (!vk_shader_compile_to_module(context, asset_find(RL_ASSET_SHADER_VK_DEFAULT_VERT), &default_vert)) return false;
+    if (!vk_shader_compile_to_module(context, asset_find(RL_ASSET_SHADER_VK_OUTLINE_VERT), &outline_vert)) {
+        vkDestroyShaderModule(context->device, default_vert, nullptr);
+        return false;
+    }
+    if (!vk_shader_compile_to_module(context, asset_find(RL_ASSET_SHADER_VK_LIGHT_FRAG), &frag_module)) {
+        vkDestroyShaderModule(context->device, default_vert, nullptr);
+        vkDestroyShaderModule(context->device, outline_vert, nullptr);
+        return false;
+    }
+
+    // Stencil write uses default vertex shader (exact mesh position for silhouette)
+    VkPipelineShaderStageCreateInfo stencil_stages[2] = {
+        {.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = default_vert, .pName = "main"},
+        {.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = frag_module, .pName = "main"},
+    };
+
+    // Outline draw uses outline vertex shader (normal-push expansion)
+    VkPipelineShaderStageCreateInfo outline_stages[2] = {
+        {.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = outline_vert, .pName = "main"},
+        {.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = frag_module, .pName = "main"},
+    };
+
+    VkVertexInputBindingDescription binding = vk_vertex_get_binding_desc();
+    VkVertexInputAttributeDescription attrs[3];
+    vk_vertex_get_attr_desc(attrs);
+
+    VkPushConstantRange push_range = {
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+        .offset = 0,
+        .size = sizeof(VK_MeshPushConstants),
+    };
+
+    // --- Stencil write pipeline: no depth test (avoids z-fighting), stencil write, no color ---
+    VK_PipelineConfig stencil_cfg = {
+        .stages = stencil_stages,
+        .stage_count = 2,
+        .bindings = &binding,
+        .binding_count = 1,
+        .attributes = attrs,
+        .attribute_count = 3,
+        .set_layouts = &context->descriptor_set_layout,
+        .set_layout_count = 1,
+        .push_constants = &push_range,
+        .push_constant_count = 1,
+        .depth_test = false,
+        .depth_write = false,
+        .cull_mode = VK_CULL_MODE_NONE,
+        .polygon_mode = VK_POLYGON_MODE_FILL,
+        .msaa_samples = context->msaa_samples,
+        .stencil_test = true,
+        .stencil_op = {
+            .failOp = VK_STENCIL_OP_KEEP,
+            .passOp = VK_STENCIL_OP_REPLACE,
+            .depthFailOp = VK_STENCIL_OP_KEEP,
+            .compareOp = VK_COMPARE_OP_ALWAYS,
+            .compareMask = 0xFF,
+            .writeMask = 0xFF,
+            .reference = 1,
+        },
+        .color_write_disable = true,
+        .render_pass = context->render_pass,
+        .existing_layout = context->pipeline_layout,
+    };
+
+    VkPipelineLayout reused;
+    if (!vk_pipeline_create_graphics(context, &stencil_cfg, &context->outline_stencil_pipeline, &reused)) {
+        vkDestroyShaderModule(context->device, default_vert, nullptr);
+        vkDestroyShaderModule(context->device, outline_vert, nullptr);
+        vkDestroyShaderModule(context->device, frag_module, nullptr);
+        return false;
+    }
+
+    // --- Outline draw pipeline: no depth test, stencil test NOT_EQUAL, color ON ---
+    VK_PipelineConfig draw_cfg = {
+        .stages = outline_stages,
+        .stage_count = 2,
+        .bindings = &binding,
+        .binding_count = 1,
+        .attributes = attrs,
+        .attribute_count = 3,
+        .set_layouts = &context->descriptor_set_layout,
+        .set_layout_count = 1,
+        .push_constants = &push_range,
+        .push_constant_count = 1,
+        .depth_test = false,
+        .depth_write = false,
+        .cull_mode = VK_CULL_MODE_NONE,
+        .polygon_mode = VK_POLYGON_MODE_FILL,
+        .msaa_samples = context->msaa_samples,
+        .stencil_test = true,
+        .stencil_op = {
+            .failOp = VK_STENCIL_OP_KEEP,
+            .passOp = VK_STENCIL_OP_KEEP,
+            .depthFailOp = VK_STENCIL_OP_KEEP,
+            .compareOp = VK_COMPARE_OP_NOT_EQUAL,
+            .compareMask = 0xFF,
+            .writeMask = 0x00,
+            .reference = 1,
+        },
+        .render_pass = context->render_pass,
+        .existing_layout = context->pipeline_layout,
+    };
+
+    if (!vk_pipeline_create_graphics(context, &draw_cfg, &context->outline_draw_pipeline, &reused)) {
+        vkDestroyPipeline(context->device, context->outline_stencil_pipeline, nullptr);
+        vkDestroyShaderModule(context->device, default_vert, nullptr);
+        vkDestroyShaderModule(context->device, outline_vert, nullptr);
+        vkDestroyShaderModule(context->device, frag_module, nullptr);
+        return false;
+    }
+
+    vkDestroyShaderModule(context->device, default_vert, nullptr);
+    vkDestroyShaderModule(context->device, outline_vert, nullptr);
+    vkDestroyShaderModule(context->device, frag_module, nullptr);
+
+    context->has_outline_pipelines = true;
+    RL_TRACE("Successfully created outline pipelines");
+    return true;
+}
+
+void vk_outline_pipelines_destroy(VK_Context *context) {
+    if (!context->has_outline_pipelines) return;
+    vkDestroyPipeline(context->device, context->outline_stencil_pipeline, nullptr);
+    vkDestroyPipeline(context->device, context->outline_draw_pipeline, nullptr);
 }
 
 // Private

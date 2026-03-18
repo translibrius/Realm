@@ -19,10 +19,18 @@ typedef struct VK_PipelineConfig {
 
     b8 depth_test;
     b8 depth_write;
+    VkCompareOp depth_compare_op; // 0 (VK_COMPARE_OP_NEVER) = default to VK_COMPARE_OP_LESS
     VkCullModeFlags cull_mode;
     b8 blend_enable;
     VkPolygonMode polygon_mode;
     VkSampleCountFlagBits msaa_samples;
+
+    // Stencil (disabled by default)
+    b8 stencil_test;
+    VkStencilOpState stencil_op; // applied to front and back
+
+    // Color write mask override
+    b8 color_write_disable; // if true, mask off all color writes
 
     VkRenderPass render_pass;
     VkPipelineLayout existing_layout; // non-null = reuse this layout instead of creating one
@@ -45,3 +53,6 @@ void vk_wireframe_pipelines_destroy(VK_Context *context);
 
 b8 vk_grid_pipeline_create(VK_Context *context);
 void vk_grid_pipeline_destroy(VK_Context *context);
+
+b8 vk_outline_pipelines_create(VK_Context *context);
+void vk_outline_pipelines_destroy(VK_Context *context);

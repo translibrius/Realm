@@ -37,7 +37,12 @@ rl_entity ed_pick_entity(rl_scene *scene, f32 screen_x, f32 screen_y,
         rl_aabb aabb;
 
         if (cs->has_mesh[i]) {
-            aabb_from_unit_cube(t->local_to_world, &aabb);
+            asset_id mesh_id = cs->meshes[i].mesh_asset;
+            if (mesh_id) {
+                aabb_from_mesh_asset(mesh_id, t->local_to_world, &aabb);
+            } else {
+                aabb_from_unit_cube(t->local_to_world, &aabb);
+            }
         } else if (cs->has_light[i]) {
             // Light-only entities use a small cube matching the viz size (0.15)
             mat4 scaled;

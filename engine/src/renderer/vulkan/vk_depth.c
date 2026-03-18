@@ -22,21 +22,35 @@ b8 vk_depth_res_create(VK_Context* ctx) {
         return false;
     }
 
-    if (!vk_image_view_create(ctx, VK_IMAGE_ASPECT_DEPTH_BIT, ctx->depth_image, depth_format, &ctx->depth_image_view)) {
+    VkImageAspectFlags aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
+    if (vk_depth_format_has_stencil(depth_format)) {
+        aspect |= VK_IMAGE_ASPECT_STENCIL_BIT;
+    }
+
+    if (!vk_image_view_create(ctx, aspect, ctx->depth_image, depth_format, &ctx->depth_image_view)) {
         RL_ERROR("Failed to create depth image view");
         return false;
     }
+
+    ctx->has_stencil = vk_depth_format_has_stencil(depth_format);
 
     // Render pass handles UNDEFINED → DEPTH_STENCIL_ATTACHMENT_OPTIMAL automatically
     return true;
 }
 
 VkFormat find_depth_format(VK_Context *ctx) {
+    // Prefer depth+stencil formats so stencil-based outline rendering works
     VkFormat candidates[3] = {
-        VK_FORMAT_D32_SFLOAT,
         VK_FORMAT_D32_SFLOAT_S8_UINT,
-        VK_FORMAT_D24_UNORM_S8_UINT
+        VK_FORMAT_D24_UNORM_S8_UINT,
+        VK_FORMAT_D32_SFLOAT
     };
 
     return find_supported_format(ctx, candidates, 3, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+}
+
+b8 vk_depth_format_has_stencil(VkFormat format) {
+    return format == VK_FORMAT_D32_SFLOAT_S8_UINT ||
+           format == VK_FORMAT_D24_UNORM_S8_UINT  ||
+           format == VK_FORMAT_D16_UNORM_S8_UINT;
 }

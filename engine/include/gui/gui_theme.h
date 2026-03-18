@@ -44,6 +44,10 @@ typedef struct gui_theme {
     // Debug overlay
     Clay_Color debug_highlight; // bright value text (FPS, frame time)
 
+    // Entity highlights (3D viewport outlines)
+    Clay_Color highlight_hover;    // hovered entity outline color
+    Clay_Color highlight_selected; // selected entity outline color
+
     // Misc
     Clay_Color separator;    // separator line color
     Clay_Color viewport_bg;  // 3D viewport clear color (0-255, converted to float for renderer)

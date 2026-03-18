@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/entity.h"
 #include "core/scene.h"
 #include "defines.h"
 #include "ed_asset_browser.h"
@@ -33,6 +34,7 @@ typedef struct ed_application {
     ed_camera camera;
     ed_gizmo_transform gizmo;
     ed_undo_stack undo;
+    rl_entity hovered_entity; // entity under mouse cursor in viewport
     char scene_path[512];
     b8 scene_dirty;
     b8 new_scene_requested;

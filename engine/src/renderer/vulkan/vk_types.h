@@ -167,6 +167,7 @@ typedef struct {
 typedef struct VK_MeshPushConstants {
     mat4 model;           // 64 bytes
     vec4 material_params; // 16 bytes: xyz = specular, w = shininess
+    vec4 obj_center;      // 16 bytes: xyz = object-space mesh center (outline only)
 } VK_MeshPushConstants;
 
 typedef struct VK_Pipeline {
@@ -259,6 +260,18 @@ typedef struct VK_Context {
     // Grid
     VkPipeline grid_pipeline;
     b8 show_grid;
+
+    // Outline highlight pipelines (stencil-based entity outlines)
+    VkPipeline outline_stencil_pipeline;  // stencil write, no color
+    VkPipeline outline_draw_pipeline;     // stencil test, draws outline color
+    b8 has_outline_pipelines;
+    b8 has_stencil;
+
+    // Highlight frame data (set by submit_frame_data)
+    vec3 highlight_hover_color;
+    vec3 highlight_selected_color;
+    f32 outline_hover_thickness;
+    f32 outline_selected_thickness;
 
     // Debug wireframe pipelines
     VkPipeline wireframe_lit_pipeline;

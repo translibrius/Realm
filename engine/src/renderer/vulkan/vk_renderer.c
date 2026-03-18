@@ -187,8 +187,14 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
         return false;
     }
 
+
     if (!vk_depth_res_create(&context)) {
         RL_ERROR("failed to create depth resources");
+        return false;
+    }
+
+    if (!vk_outline_pipelines_create(&context)) {
+        RL_ERROR("failed to create outline pipelines");
         return false;
     }
 
@@ -258,6 +264,7 @@ void vulkan_destroy(void) {
     for (u32 i = 0; i < context.texture_count; i++) {
         vk_texture_destroy(&context, &context.textures[i].texture);
     }
+    vk_outline_pipelines_destroy(&context);
     vk_grid_pipeline_destroy(&context);
     vk_wireframe_pipelines_destroy(&context);
     vk_overlay_pipeline_destroy(&context);
@@ -439,6 +446,12 @@ void vulkan_submit_frame_data(rl_frame_data *frame_data) {
     // Store grid + viewport state for command recording
     context.show_grid = frame_data->show_grid;
     context.scene_viewport = frame_data->viewport_rect;
+
+    // Store highlight config
+    glm_vec3_copy(frame_data->highlight_hover_color, context.highlight_hover_color);
+    glm_vec3_copy(frame_data->highlight_selected_color, context.highlight_selected_color);
+    context.outline_hover_thickness = frame_data->outline_hover_thickness;
+    context.outline_selected_thickness = frame_data->outline_selected_thickness;
 
     // Store first point light (or sensible default)
     if (frame_data->point_light_count > 0 && frame_data->point_lights) {

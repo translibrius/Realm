@@ -1,6 +1,5 @@
 #include "vk_renderpass.h"
 #include "vk_depth.h"
-#include <vulkan/vulkan_core.h>
 
 b8 vk_renderpass_create(VK_Context *context) {
     b8 msaa = context->msaa_samples != VK_SAMPLE_COUNT_1_BIT;
@@ -19,12 +18,15 @@ b8 vk_renderpass_create(VK_Context *context) {
         .finalLayout = msaa ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
     };
 
+    VkFormat depth_format = find_depth_format(context);
+    b8 has_stencil = vk_depth_format_has_stencil(depth_format);
+
     VkAttachmentDescription depth_attachment = {
-        .format = find_depth_format(context),
+        .format = depth_format,
         .samples = context->msaa_samples,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .stencilLoadOp = has_stencil ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE,
         .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
         .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,

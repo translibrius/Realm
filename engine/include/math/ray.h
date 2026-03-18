@@ -1,5 +1,6 @@
 #pragma once
 
+#include "asset/asset.h"
 #include "cglm.h"
 #include "defines.h"
 
@@ -24,3 +25,6 @@ REALM_API b8 ray_intersect_aabb(const rl_ray *ray, const rl_aabb *aabb, f32 *out
 
 // Compute a world-space AABB from a unit cube (-0.5..+0.5) transformed by a model matrix.
 REALM_API void aabb_from_unit_cube(mat4 model, rl_aabb *out);
+
+// Compute a world-space AABB from a mesh asset's vertex positions + model matrix.
+REALM_API void aabb_from_mesh_asset(asset_id mesh_id, mat4 model, rl_aabb *out);

@@ -7,5 +7,5 @@
 
 b8 vk_depth_res_create(VK_Context* ctx);
 
-
 VkFormat find_depth_format(VK_Context *ctx);
+b8 vk_depth_format_has_stencil(VkFormat format);

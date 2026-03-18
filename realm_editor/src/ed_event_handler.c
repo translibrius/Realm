@@ -90,6 +90,40 @@ static void ed_on_file_drop(void *userdata, const e_file_drop_payload *drop) {
     app->asset_browser.needs_refresh = true;
 }
 
+static b8 ed_on_mouse_move(void *event, void *user_data) {
+    ed_application *app = user_data;
+    input_mouse_move *move = event;
+    if (!app || !move || app->mode != ED_MODE_EDITOR) return false;
+    if (app->layout.viewport_tab != 0) return false;
+    if (app->camera.fly_mode || app->camera.orbiting || app->gizmo.dragging) {
+        app->hovered_entity = RL_ENTITY_INVALID;
+        return false;
+    }
+
+    // Check if mouse is within viewport bounds
+    Clay_BoundingBox vb = app->layout.viewport_bounds;
+    if (vb.width <= 0 || vb.height <= 0) return false;
+
+    f32 mx = (f32)move->x;
+    f32 my = (f32)move->y;
+    if (mx < vb.x || mx > vb.x + vb.width || my < vb.y || my > vb.y + vb.height) {
+        app->hovered_entity = RL_ENTITY_INVALID;
+        return false;
+    }
+
+    // Build camera for picking
+    f32 aspect = vb.width / vb.height;
+    rl_frame_camera fc = {.valid = true};
+    camera_get_view(&app->camera.cam, fc.view);
+    camera_get_projection(&app->camera.cam, aspect, fc.projection, config_get()->renderer_backend);
+    glm_vec3_copy(app->camera.cam.pos, fc.position);
+
+    rl_viewport_rect vp = {vb.x, vb.y, vb.width, vb.height};
+    app->hovered_entity = ed_pick_entity(app->scene, mx, my, &vp, &fc);
+
+    return false; // don't consume — other handlers may need mouse move
+}
+
 static b8 ed_on_scroll(void *event, void *user_data) {
     ed_application *app = user_data;
     input_mouse_scroll *scroll = event;
@@ -249,6 +283,7 @@ void ed_event_handler_init(ed_event_handler *handler, ed_application *applicatio
     handler->application = application;
 
     // Register editor-specific handlers before host events so they run first (FIFO)
+    event_register(EVENT_MOUSE_MOVE, ed_on_mouse_move, application);
     event_register(EVENT_MOUSE_SCROLL, ed_on_scroll, application);
     event_register(EVENT_KEY_PRESS, ed_on_key, application);
     event_register(EVENT_MOUSE_CLICK, ed_on_click, application);
