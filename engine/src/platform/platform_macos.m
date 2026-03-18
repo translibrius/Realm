@@ -11,6 +11,7 @@
 #include "platform/input.h"
 #include "platform/splash/splash.h"
 #include "util/assert.h"
+#include "util/str.h"
 
 #import <Cocoa/Cocoa.h>
 #import <CoreGraphics/CoreGraphics.h>
@@ -1274,11 +1275,73 @@ b8 platform_window_is_maximized(platform_window *window) {
     return [mw->window isZoomed];
 }
 
+void platform_set_app_icon(platform_window *window, const u8 *rgba, i32 width, i32 height) {
+    (void)window;
+    if (!rgba || width <= 0 || height <= 0) return;
+
+    @autoreleasepool {
+        NSBitmapImageRep *rep = [[NSBitmapImageRep alloc]
+            initWithBitmapDataPlanes:NULL
+            pixelsWide:width
+            pixelsHigh:height
+            bitsPerSample:8
+            samplesPerPixel:4
+            hasAlpha:YES
+            isPlanar:NO
+            colorSpaceName:NSCalibratedRGBColorSpace
+            bytesPerRow:width * 4
+            bitsPerPixel:32];
+        memcpy([rep bitmapData], rgba, (size_t)(width * height * 4));
+
+        NSImage *icon = [[NSImage alloc] initWithSize:NSMakeSize(width, height)];
+        [icon addRepresentation:rep];
+        [NSApp setApplicationIconImage:icon];
+    }
+}
+
 void platform_set_titlebar_layout(platform_window *window, platform_titlebar_layout layout) {
     if (!window || window->id >= MAX_WINDOWS) return;
     mac_window *mw = &state.windows[window->id];
     if (!mw->alive) return;
     mw->titlebar = layout;
+}
+
+b8 platform_get_executable_dir(char *out_path, u32 buf_size) {
+    if (!out_path || buf_size < 2) return false;
+
+    @autoreleasepool {
+        NSString *exe_path = [[NSBundle mainBundle] executablePath];
+        if (!exe_path) return false;
+
+        // Check if we're inside a .app bundle (path contains .app/Contents/MacOS/)
+        NSRange app_range = [exe_path rangeOfString:@".app/Contents/MacOS/"];
+        if (app_range.location != NSNotFound) {
+            // Get the .app bundle path, then go up one level to get the directory containing it
+            NSString *app_path = [exe_path substringToIndex:app_range.location + 4]; // include ".app"
+            NSString *dir = [app_path stringByDeletingLastPathComponent];
+            const char *cdir = [dir fileSystemRepresentation];
+            u32 len = cstr_len(cdir);
+            if (len == 0) return false;
+            if (cdir[len - 1] == '/') {
+                cstr_copy(out_path, buf_size, cdir);
+            } else {
+                cstr_format_buf(out_path, buf_size, "%s/", cdir);
+            }
+            return true;
+        }
+
+        // Not a bundle — just get the directory containing the executable
+        NSString *dir = [exe_path stringByDeletingLastPathComponent];
+        const char *cdir = [dir fileSystemRepresentation];
+        u32 len = cstr_len(cdir);
+        if (len == 0) return false;
+        if (cdir[len - 1] == '/') {
+            cstr_copy(out_path, buf_size, cdir);
+        } else {
+            cstr_format_buf(out_path, buf_size, "%s/", cdir);
+        }
+        return true;
+    }
 }
 
 i32 platform_system(const char *command) {

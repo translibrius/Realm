@@ -30,6 +30,7 @@
 #include "renderer/vulkan/vk_types.h"
 #include "renderer/vulkan/vk_util.h"
 #include "util/assert.h"
+#include "util/str.h"
 
 #define CREATE_DANGEROUS_WINDOW (WM_USER + 0x1337)
 #define DESTROY_DANGEROUS_WINDOW (WM_USER + 0x1338)
@@ -713,6 +714,57 @@ b8 platform_window_is_maximized(platform_window *window) {
     win32_window *w = &state.windows[window->id];
     if (!w->alive) return false;
     return IsZoomed(w->hwnd);
+}
+
+void platform_set_app_icon(platform_window *window, const u8 *rgba, i32 width, i32 height) {
+    if (!window || !rgba || width <= 0 || height <= 0) return;
+    if (window->id >= MAX_WINDOWS) return;
+    win32_window *w = &state.windows[window->id];
+    if (!w->alive || !w->hwnd) return;
+
+    // Create a 32-bit BGRA bitmap from RGBA
+    BITMAPV5HEADER bi = {0};
+    bi.bV5Size = sizeof(bi);
+    bi.bV5Width = width;
+    bi.bV5Height = -height; // top-down
+    bi.bV5Planes = 1;
+    bi.bV5BitCount = 32;
+    bi.bV5Compression = BI_BITFIELDS;
+    bi.bV5RedMask   = 0x00FF0000;
+    bi.bV5GreenMask = 0x0000FF00;
+    bi.bV5BlueMask  = 0x000000FF;
+    bi.bV5AlphaMask = 0xFF000000;
+
+    HDC dc = GetDC(NULL);
+    u8 *bits = NULL;
+    HBITMAP color_bmp = CreateDIBSection(dc, (BITMAPINFO *)&bi, DIB_RGB_COLORS, (void **)&bits, NULL, 0);
+    ReleaseDC(NULL, dc);
+    if (!color_bmp || !bits) return;
+
+    // Convert RGBA -> BGRA
+    i32 count = width * height;
+    for (i32 i = 0; i < count; i++) {
+        bits[i * 4 + 0] = rgba[i * 4 + 2]; // B
+        bits[i * 4 + 1] = rgba[i * 4 + 1]; // G
+        bits[i * 4 + 2] = rgba[i * 4 + 0]; // R
+        bits[i * 4 + 3] = rgba[i * 4 + 3]; // A
+    }
+
+    HBITMAP mask_bmp = CreateBitmap(width, height, 1, 1, NULL);
+
+    ICONINFO ii = {0};
+    ii.fIcon = TRUE;
+    ii.hbmMask = mask_bmp;
+    ii.hbmColor = color_bmp;
+    HICON icon = CreateIconIndirect(&ii);
+
+    DeleteObject(color_bmp);
+    DeleteObject(mask_bmp);
+
+    if (icon) {
+        SendMessage(w->hwnd, WM_SETICON, ICON_BIG, (LPARAM)icon);
+        SendMessage(w->hwnd, WM_SETICON, ICON_SMALL, (LPARAM)icon);
+    }
 }
 
 void platform_set_titlebar_layout(platform_window *window, platform_titlebar_layout layout) {
@@ -1848,6 +1900,25 @@ KEYBOARD_KEY map_keycode_to_key(u16 keycode, u32 lparam) {
     default:
         return KEY_MAX_KEYS;
     }
+}
+
+b8 platform_get_executable_dir(char *out_path, u32 buf_size) {
+    if (!out_path || buf_size < 2) return false;
+
+    char exe[512];
+    DWORD n = GetModuleFileNameA(NULL, exe, sizeof(exe));
+    if (n == 0 || n >= sizeof(exe)) return false;
+
+    // Truncate to directory (keep trailing separator)
+    for (i32 i = (i32)n - 1; i >= 0; i--) {
+        if (exe[i] == '\\' || exe[i] == '/') {
+            exe[i + 1] = '\0';
+            break;
+        }
+    }
+
+    cstr_copy(out_path, buf_size, exe);
+    return true;
 }
 
 i32 platform_system(const char *command) {

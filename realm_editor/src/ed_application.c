@@ -20,6 +20,7 @@
 #include "host/host_bootstrap.h"
 #include "host/host_renderer.h"
 #include "platform/io/file_io.h"
+#include "platform/platform.h"
 #include "renderer/renderer_frontend.h"
 #include "util/str.h"
 
@@ -225,7 +226,16 @@ b8 create_editor(void) {
     app.backend_switch_requested = false;
     app.requested_backend = BACKEND_OPENGL;
 
-    host_bootstrap_result boot = host_bootstrap("../../../assets/", "Realm Editor", "editor.toml", true, WINDOW_FLAG_CUSTOM_TITLEBAR);
+    // Derive asset root from executable location so it works inside .app bundles too
+    char exe_dir[512];
+    const char *asset_root = "../../../assets/";
+    char asset_root_buf[512];
+    if (platform_get_executable_dir(exe_dir, sizeof(exe_dir))) {
+        cstr_format_buf(asset_root_buf, sizeof(asset_root_buf), "%s../../../assets/", exe_dir);
+        asset_root = asset_root_buf;
+    }
+
+    host_bootstrap_result boot = host_bootstrap(asset_root, "Realm Editor", "editor.toml", true, WINDOW_FLAG_CUSTOM_TITLEBAR);
     if (!boot.success) return false;
     app.window = boot.window;
 

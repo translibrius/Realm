@@ -10,7 +10,7 @@
 b8 load_texture(rl_arena *asset_arena, rl_asset *asset) {
     rl_temp_arena scratch = rl_arena_scratch_get();
 
-    rl_string path = rl_string_format(scratch.arena, "%s%s", asset_get_resolve_root(ASSET_TEXTURE), asset->source_path);
+    rl_string path = rl_str_format(scratch.arena, "%s%s", asset_get_resolve_root(ASSET_TEXTURE), asset->source_path);
 
     i32 width, height, channels;
     u8 *data = stbi_load(path.cstr, &width, &height, &channels, STBI_rgb_alpha);

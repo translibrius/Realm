@@ -16,6 +16,7 @@ typedef struct rl_project {
     char asset_path[RL_PROJECT_PATH_MAX];
     char scenes_path[RL_PROJECT_PATH_MAX];
     char default_scene[RL_PROJECT_PATH_MAX];
+    char icon_path[RL_PROJECT_PATH_MAX]; // relative to project root
     b8 open;
 } rl_project;
 

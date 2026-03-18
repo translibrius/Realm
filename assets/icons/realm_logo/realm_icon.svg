@@ -1,0 +1,123 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#1e0a3c"/>
+      <stop offset="100%" stop-color="#08030f"/>
+    </radialGradient>
+
+    <!-- Purple gem facet gradients -->
+    <linearGradient id="faceTL" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e879f9"/>
+      <stop offset="100%" stop-color="#9333ea"/>
+    </linearGradient>
+    <linearGradient id="faceTR" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#c026d3"/>
+      <stop offset="100%" stop-color="#6d28d9"/>
+    </linearGradient>
+    <linearGradient id="faceBL" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4c1d95"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="faceBR" x1="100%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#2e1065"/>
+      <stop offset="100%" stop-color="#5b21b6"/>
+    </linearGradient>
+    <linearGradient id="faceTop" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#f0abfc"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+    <linearGradient id="faceBot" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#6d28d9"/>
+      <stop offset="100%" stop-color="#1e0a3c"/>
+    </linearGradient>
+
+    <!-- Glow for the gem -->
+    <filter id="gemGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="22" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Outer soft glow bloom -->
+    <filter id="bloom" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="40" result="blur"/>
+    </filter>
+  </defs>
+
+  <!-- Background: rounded square -->
+  <rect width="1024" height="1024" rx="200" ry="200" fill="url(#bg)"/>
+
+  <!-- Soft bloom behind gem -->
+  <polygon points="512,180 512,180 512,180" fill="#9333ea" filter="url(#bloom)" opacity="0.7"/>
+  <circle cx="512" cy="510" r="260" fill="#7c3aed" opacity="0.18" filter="url(#bloom)"/>
+
+  <!-- 
+    GEM / CRYSTAL SHAPE
+    A bold octahedral/diamond gem: 
+    - top point, bottom point
+    - wide middle girdle
+    This reads perfectly at 16x16: just a diamond shape with 2 tones
+    
+    Girdle center: 512, 510
+    Top apex: 512, 155
+    Bottom apex: 512, 865
+    Left: 235, 455
+    Right: 789, 455
+    Upper-left: 340, 265
+    Upper-right: 684, 265
+    Lower-left: 235, 600
+    Lower-right: 789, 600
+  -->
+
+  <g filter="url(#gemGlow)">
+    <!-- Top facets (bright) -->
+    <!-- Top-left upper facet -->
+    <polygon points="512,155 340,265 235,455 512,455" fill="url(#faceTL)" opacity="0.97"/>
+    <!-- Top-right upper facet -->
+    <polygon points="512,155 684,265 789,455 512,455" fill="url(#faceTR)" opacity="0.97"/>
+
+    <!-- Girdle row (middle band) -->
+    <!-- Left mid -->
+    <polygon points="235,455 512,455 512,560 235,600" fill="url(#faceBL)" opacity="0.95"/>
+    <!-- Right mid -->
+    <polygon points="789,455 512,455 512,560 789,600" fill="url(#faceTR)" opacity="0.85"/>
+
+    <!-- Bottom facets (dark) -->
+    <!-- Bottom-left -->
+    <polygon points="235,600 512,560 512,865" fill="url(#faceBL)" opacity="0.9"/>
+    <!-- Bottom-right -->
+    <polygon points="789,600 512,560 512,865" fill="url(#faceBR)" opacity="0.9"/>
+
+    <!-- Top crown cap (very bright, the "table") -->
+    <polygon points="512,155 340,265 512,300 684,265" fill="url(#faceTop)" opacity="0.95"/>
+
+    <!-- Inner table reflection line -->
+    <line x1="340" y1="265" x2="512" y2="455" stroke="#e9d5ff" stroke-width="1.5" opacity="0.25"/>
+    <line x1="684" y1="265" x2="512" y2="455" stroke="#e9d5ff" stroke-width="1.5" opacity="0.25"/>
+    <line x1="235" y1="455" x2="512" y2="560" stroke="#6d28d9" stroke-width="1.5" opacity="0.3"/>
+    <line x1="789" y1="455" x2="512" y2="560" stroke="#6d28d9" stroke-width="1.5" opacity="0.3"/>
+
+    <!-- Outline to unify facets -->
+    <polygon
+      points="512,155 684,265 789,455 789,600 512,865 235,600 235,455 340,265"
+      fill="none"
+      stroke="#c084fc"
+      stroke-width="3"
+      stroke-linejoin="round"
+      opacity="0.6"
+    />
+    <!-- Girdle line -->
+    <line x1="235" y1="455" x2="789" y2="455" stroke="#e9d5ff" stroke-width="2" opacity="0.2"/>
+    <line x1="235" y1="600" x2="789" y2="600" stroke="#4c1d95" stroke-width="2" opacity="0.25"/>
+    <!-- Vertical center -->
+    <line x1="512" y1="155" x2="512" y2="455" stroke="#f0abfc" stroke-width="2" opacity="0.15"/>
+    <line x1="512" y1="455" x2="512" y2="865" stroke="#4c1d95" stroke-width="2" opacity="0.2"/>
+  </g>
+
+  <!-- Top specular spark -->
+  <circle cx="512" cy="185" r="18" fill="white" opacity="0.55"/>
+  <circle cx="512" cy="185" r="8" fill="white" opacity="0.7"/>
+</svg>

@@ -96,6 +96,15 @@ typedef struct platform_titlebar_layout {
 } platform_titlebar_layout;
 REALM_API void platform_set_titlebar_layout(platform_window *window, platform_titlebar_layout layout);
 
+// Application icon — set from RGBA pixel data (call after window creation)
+REALM_API void platform_set_app_icon(platform_window *window, const u8 *rgba, i32 width, i32 height);
+
+// Returns the directory containing the running executable.
+// On macOS .app bundles this returns the directory containing the .app bundle,
+// not the binary inside Contents/MacOS/.
+// Buffer must be at least 512 bytes. Returns false on failure.
+REALM_API b8 platform_get_executable_dir(char *out_path, u32 buf_size);
+
 // Graphics context stuff
 REALM_API b8 platform_create_opengl_context(platform_window *window);
 REALM_API b8 platform_context_make_current(platform_window *window);

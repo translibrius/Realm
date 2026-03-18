@@ -44,20 +44,23 @@ b8 project_create(const char *path, const char *name) {
 
     rl_temp_arena scratch = rl_arena_scratch_get();
 
-    rl_string assets_dir = rl_string_format(scratch.arena, "%sassets", root);
+    rl_string assets_dir = rl_str_format(scratch.arena, "%sassets", root);
     if (!platform_dir_create(assets_dir.cstr)) { arena_scratch_release(scratch); return false; }
 
-    rl_string tex_dir = rl_string_format(scratch.arena, "%sassets/textures", root);
+    rl_string tex_dir = rl_str_format(scratch.arena, "%sassets/textures", root);
     if (!platform_dir_create(tex_dir.cstr)) { arena_scratch_release(scratch); return false; }
 
-    rl_string models_dir = rl_string_format(scratch.arena, "%sassets/models", root);
+    rl_string models_dir = rl_str_format(scratch.arena, "%sassets/models", root);
     if (!platform_dir_create(models_dir.cstr)) { arena_scratch_release(scratch); return false; }
 
-    rl_string mat_dir = rl_string_format(scratch.arena, "%sassets/materials", root);
+    rl_string mat_dir = rl_str_format(scratch.arena, "%sassets/materials", root);
     if (!platform_dir_create(mat_dir.cstr)) { arena_scratch_release(scratch); return false; }
 
-    rl_string scenes_dir = rl_string_format(scratch.arena, "%sscenes", root);
+    rl_string scenes_dir = rl_str_format(scratch.arena, "%sscenes", root);
     if (!platform_dir_create(scenes_dir.cstr)) { arena_scratch_release(scratch); return false; }
+
+    rl_string icons_dir = rl_str_format(scratch.arena, "%sicons", root);
+    if (!platform_dir_create(icons_dir.cstr)) { arena_scratch_release(scratch); return false; }
 
     // Write project.realm
     char buf[512];
@@ -65,7 +68,8 @@ b8 project_create(const char *path, const char *name) {
         "[project]\n"
         "name = \"%s\"\n"
         "engine_version = \"0.1\"\n"
-        "default_scene = \"scenes/default.scene\"\n",
+        "default_scene = \"scenes/default.scene\"\n"
+        "icon = \"icons/icon.png\"\n",
         name);
 
     if (len < 0 || len >= (i32)sizeof(buf)) {
@@ -74,7 +78,7 @@ b8 project_create(const char *path, const char *name) {
         return false;
     }
 
-    rl_string project_file = rl_string_format(scratch.arena, "%s%s", root, RL_PROJECT_FILENAME);
+    rl_string project_file = rl_str_format(scratch.arena, "%s%s", root, RL_PROJECT_FILENAME);
     if (!platform_file_write_all(project_file.cstr, buf, (u64)len)) {
         RL_ERROR("project_create: failed to write '%s'", project_file.cstr);
         arena_scratch_release(scratch);
@@ -102,7 +106,7 @@ rl_project *project_open(const char *path) {
 
     // Check project.realm exists
     rl_temp_arena scratch = rl_arena_scratch_get();
-    rl_string project_file = rl_string_format(scratch.arena, "%s%s", root, RL_PROJECT_FILENAME);
+    rl_string project_file = rl_str_format(scratch.arena, "%s%s", root, RL_PROJECT_FILENAME);
 
     if (!platform_file_exists(project_file.cstr)) {
         RL_ERROR("project_open: '%s' not found", project_file.cstr);
@@ -125,6 +129,7 @@ rl_project *project_open(const char *path) {
 
     cstr_copy(state.name, sizeof(state.name), toml_get_string(t, "project", "name", "Untitled"));
     cstr_copy(state.default_scene, sizeof(state.default_scene), toml_get_string(t, "project", "default_scene", ""));
+    cstr_copy(state.icon_path, sizeof(state.icon_path), toml_get_string(t, "project", "icon", "icons/icon.png"));
 
     toml_free(t);
     arena_scratch_release(scratch);

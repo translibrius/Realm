@@ -198,11 +198,22 @@ static b8 write_api_c(const char *root) {
     return platform_file_write_all(path, content, cstr_len(content));
 }
 
+static b8 write_resource_rc(const char *root) {
+    char path[512];
+    cstr_format_buf(path, sizeof(path), "%sresource.rc", root);
+
+    static const char content[] =
+        "// Application icon — resource ID 1\n"
+        "1 ICON \"icons/icon.ico\"\n";
+
+    return platform_file_write_all(path, content, cstr_len(content));
+}
+
 static b8 write_cmake(const char *root, const char *project_name) {
     char path[512];
     cstr_format_buf(path, sizeof(path), "%sCMakeLists.txt", root);
 
-    char content[1024];
+    char content[2048];
     cstr_format_buf(content, sizeof(content),
         "# %s — game module\n"
         "add_library(realm_app SHARED\n"
@@ -230,10 +241,15 @@ b8 project_template_generate(const char *root, const char *project_name) {
     cstr_format_buf(src_dir, sizeof(src_dir), "%ssrc", root);
     if (!platform_dir_create(src_dir)) return false;
 
+    char icons_dir[512];
+    cstr_format_buf(icons_dir, sizeof(icons_dir), "%sicons", root);
+    if (!platform_dir_create(icons_dir)) return false;
+
     if (!write_default_scene(root)) return false;
     if (!write_game_h(root)) return false;
     if (!write_game_c(root)) return false;
     if (!write_api_c(root)) return false;
+    if (!write_resource_rc(root)) return false;
     if (!write_cmake(root, project_name)) return false;
 
     return true;

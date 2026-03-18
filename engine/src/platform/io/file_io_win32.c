@@ -144,11 +144,11 @@ b8 platform_file_open(const char *path, FILE_PERM perms, rl_file *out_file) {
     }
     SetFilePointer(h, 0, nullptr, FILE_BEGIN);
 
-    rl_string path_str = rl_path_sanitize(scratch.arena, path);
+    rl_string path_str = rl_path_normalize(scratch.arena, rl_str(path));
 
     Strings split;
     da_init(&split);
-    rl_string_split(scratch.arena, &path_str, "/", &split);
+    rl_str_split(path_str, rl_str("/"), &split);
     RL_ASSERT(split.count > 0);
 
     out_file->path = path;

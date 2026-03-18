@@ -2,10 +2,45 @@
 
 #include "core/config.h"
 #include "core/logger.h"
+#include "core/project.h"
 #include "engine.h"
 #include "gui/gui.h"
 #include "host/host_renderer.h"
+#include "memory/arena.h"
 #include "renderer/renderer_frontend.h"
+#include "stb_image.h"
+#include "util/str.h"
+
+static void load_app_icon(platform_window *window, const char *asset_root) {
+    // Try project icon first
+    rl_project *proj = project_get();
+    if (proj && proj->icon_path[0]) {
+        char path[512];
+        cstr_format_buf(path, sizeof(path), "%s%s", proj->root_path, proj->icon_path);
+
+        i32 w, h, channels;
+        u8 *rgba = stbi_load(path, &w, &h, &channels, STBI_rgb_alpha);
+        if (rgba) {
+            platform_set_app_icon(window, rgba, w, h);
+            stbi_image_free(rgba);
+            return;
+        }
+    }
+
+    // Fall back to engine icon
+    char path[512];
+    cstr_format_buf(path, sizeof(path), "%sicons/realm.png", asset_root);
+
+    i32 w, h, channels;
+    u8 *rgba = stbi_load(path, &w, &h, &channels, STBI_rgb_alpha);
+    if (!rgba) {
+        RL_DEBUG("No app icon found at '%s'", path);
+        return;
+    }
+
+    platform_set_app_icon(window, rgba, w, h);
+    stbi_image_free(rgba);
+}
 
 host_bootstrap_result host_bootstrap(const char *asset_root, const char *window_title, const char *config_filename, b8 skip_splash, u32 extra_window_flags) {
     host_bootstrap_result result = {0};
@@ -28,6 +63,7 @@ host_bootstrap_result host_bootstrap(const char *asset_root, const char *window_
         return result;
     }
 
+    load_app_icon(&result.window, asset_root);
     config_track_window(&result.window);
 
     if (!renderer_init(&result.window, cfg->renderer_backend, cfg->vsync)) {

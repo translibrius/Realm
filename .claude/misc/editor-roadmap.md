@@ -23,7 +23,7 @@ Phases 1–14 are complete. The editor and game host share a project system, sce
 
 ### Next priorities
 
-1. **Infrastructure cleanup**: ~~centralized TOML parser~~ ✓, ~~consolidate `game/` project data into `realm/`~~ ✓, ~~behavior system~~ ✓, string utils consolidation (see `.claude/misc/string-utils-refactor.md`)
+1. **Infrastructure cleanup**: ~~centralized TOML parser~~ ✓, ~~consolidate `game/` project data into `realm/`~~ ✓, ~~behavior system~~ ✓, ~~string utils consolidation~~ ✓
 2. **Project scaffolding**: "New Project" generates a buildable game module template
 3. **Binary scenes + export pipeline**: custom binary format for fast loading, editor export for shipping
 4. **Asset drag-and-drop + entity highlighting**: thumbnail previews, drag assets into scene/onto entities, hover outline shader
@@ -251,12 +251,21 @@ Windows-only custom title bar (editor) and application icon infrastructure. macO
 - [x] `realm_editor/realm_editor.rc` + `realm/realm.rc` — embed icon via resource file
 - [x] Window class loads icon from exe module handle (`LoadIconA` + `MAKEINTRESOURCEA(1)`)
 - [x] CMake wires `.rc` files for both executables
+- [x] `assets/icons/realm.png` — 1024x1024 master PNG (source of truth)
+- [x] `assets/icons/realm.icns` — macOS icon via iconutil
+- [x] `tools/gen_icons.py` — generates .ico + .icns from master PNG (Pillow + iconutil)
+- [x] macOS .app bundles — `MACOSX_BUNDLE` in CMake, .icns embedded in Resources, no icon flash on launch
+- [x] `platform_get_executable_dir()` — all 3 platforms, handles .app bundle path resolution
+- [x] Application path resolution via `platform_get_executable_dir()` instead of hardcoded relative paths
+- [x] `icon` field in `project.realm` + `rl_project.icon_path` — project-specific icon support
+- [x] `host_bootstrap` loads project icon if available, falls back to engine icon
+- [x] Win32 `platform_set_app_icon` upgraded from no-op to `WM_SETICON` (runtime icon updates for editor project switching)
+- [x] Project template generates `icons/` directory + `resource.rc`
 
 ### Deferred
 
 - [ ] macOS custom title bar (`NSWindow titlebarAppearsTransparent`, traffic light repositioning)
 - [ ] Linux custom title bar (X11 `_MOTIF_WM_HINTS` or client-side decorations)
-- [ ] `platform_set_window_icon` runtime API (RGBA buffer → icon, for non-resource-embedded icons)
 
 ---
 

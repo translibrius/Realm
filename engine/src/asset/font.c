@@ -14,7 +14,7 @@ b8 rl_font_load(rl_arena *asset_arena, rl_asset *asset) {
 
     RL_DEBUG("Initializing font: %s", asset->filename);
 
-    rl_string path = rl_string_format(scratch.arena, "%s%s", get_asset_root(), asset->source_path);
+    rl_string path = rl_str_format(scratch.arena, "%s%s", get_asset_root(), asset->source_path);
 
     rl_font *font = rl_arena_push(asset_arena, sizeof(rl_font), alignof(rl_font));
     font->name = asset->filename;

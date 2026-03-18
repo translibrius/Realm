@@ -116,7 +116,7 @@ static b8 load_primitive(rl_arena *asset_arena, const cgltf_primitive *prim, con
 b8 load_mesh(rl_arena *asset_arena, rl_asset *asset) {
     rl_temp_arena scratch = rl_arena_scratch_get();
 
-    rl_string path = rl_string_format(scratch.arena, "%s%s", asset_get_resolve_root(ASSET_MESH), asset->source_path);
+    rl_string path = rl_str_format(scratch.arena, "%s%s", asset_get_resolve_root(ASSET_MESH), asset->source_path);
 
     // Read file into memory
     rl_file model_file = {0};
@@ -201,7 +201,7 @@ b8 load_mesh(rl_arena *asset_arena, rl_asset *asset) {
                         const char *last_slash = strrchr(asset->source_path, '/');
                         if (last_slash) {
                             u64 dir_len = (u64)(last_slash - asset->source_path + 1);
-                            rl_string tex_path = rl_string_format(scratch.arena, "%.*s%s",
+                            rl_string tex_path = rl_str_format(scratch.arena, "%.*s%s",
                                                                   (int)dir_len, asset->source_path, img->uri);
                             out_mat->base_color_texture = asset_load(ASSET_TEXTURE, tex_path.cstr);
                         }

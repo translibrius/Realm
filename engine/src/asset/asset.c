@@ -54,7 +54,7 @@ static b8 asset_compute_source_hash(rl_asset *asset) {
 
     rl_temp_arena scratch = rl_arena_scratch_get();
     const char *root = asset_get_resolve_root(asset->type);
-    rl_string absolute_path = rl_string_format(scratch.arena, "%s%s", root, asset->source_path);
+    rl_string absolute_path = rl_str_format(scratch.arena, "%s%s", root, asset->source_path);
 
     rl_file source_file = {0};
     if (!platform_file_open(absolute_path.cstr, P_FILE_READ, &source_file)) {

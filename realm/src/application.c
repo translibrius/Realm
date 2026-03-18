@@ -14,6 +14,7 @@
 #include "gui/gui_input.h"
 #include "host/host_bootstrap.h"
 #include "memory/memory.h"
+#include "platform/platform.h"
 #include "profiler/profiler.h"
 #include "renderer/renderer_frontend.h"
 #include "util/str.h"
@@ -32,7 +33,16 @@ b8 create_application(const char *project_path) {
     app.backend_switch_requested = false;
     app.requested_backend = BACKEND_OPENGL;
 
-    host_bootstrap_result boot = host_bootstrap("../../../assets/", "Realm", "config.toml", false, 0);
+    // Derive asset root from executable location so it works inside .app bundles too
+    char exe_dir[512];
+    const char *asset_root = "../../../assets/";
+    char asset_root_buf[512];
+    if (platform_get_executable_dir(exe_dir, sizeof(exe_dir))) {
+        cstr_format_buf(asset_root_buf, sizeof(asset_root_buf), "%s../../../assets/", exe_dir);
+        asset_root = asset_root_buf;
+    }
+
+    host_bootstrap_result boot = host_bootstrap(asset_root, "Realm", "config.toml", false, 0);
     if (!boot.success) return false;
     app.window = boot.window;
 

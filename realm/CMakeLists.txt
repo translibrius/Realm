@@ -8,9 +8,15 @@ if (WIN32)
     set(REALM_RC "${CMAKE_CURRENT_SOURCE_DIR}/realm.rc")
 endif ()
 
+# macOS application icon
+if (APPLE)
+    set(REALM_ICNS "${CMAKE_SOURCE_DIR}/assets/icons/realm.icns")
+endif ()
+
 add_executable(Realm
         ${REALM_C_SOURCES}
         ${REALM_RC}
+        ${REALM_ICNS}
 )
 
 target_include_directories(Realm
@@ -26,6 +32,18 @@ endif ()
 
 # Engine contains C++ objects; use C++ linker so sanitizer runtimes resolve.
 set_target_properties(Realm PROPERTIES LINKER_LANGUAGE CXX)
+
+if (APPLE)
+    set_target_properties(Realm PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_ICON_FILE realm.icns
+        MACOSX_BUNDLE_BUNDLE_NAME "Realm"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.realm.game"
+    )
+    set_source_files_properties(${REALM_ICNS} PROPERTIES
+        MACOSX_PACKAGE_LOCATION "Resources"
+    )
+endif ()
 
 # Engine last
 target_link_libraries(Realm PRIVATE Engine)

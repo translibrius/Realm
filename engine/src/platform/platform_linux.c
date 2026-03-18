@@ -9,6 +9,7 @@
 #include "platform/input.h"
 #include "platform/splash/splash.h"
 #include "util/assert.h"
+#include "util/str.h"
 
 #include <dlfcn.h>
 #include <errno.h>
@@ -1019,6 +1020,37 @@ platform_info *platform_get_info() {
     return &state.platform_info;
 }
 
+void platform_set_app_icon(platform_window *window, const u8 *rgba, i32 width, i32 height) {
+    if (!window || !rgba || width <= 0 || height <= 0) return;
+    if (window->id >= MAX_WINDOWS) return;
+    linux_window *lw = linux_get_window(window->id);
+    if (!lw || !lw->alive) return;
+
+    // _NET_WM_ICON format: [width, height, argb_pixels...]
+    // Each element is an unsigned long (may be 8 bytes on 64-bit)
+    u32 pixel_count = (u32)(width * height);
+    u32 data_len = 2 + pixel_count;
+    unsigned long *data = malloc(sizeof(unsigned long) * data_len);
+    if (!data) return;
+
+    data[0] = (unsigned long)width;
+    data[1] = (unsigned long)height;
+    for (u32 i = 0; i < pixel_count; i++) {
+        u8 r = rgba[i * 4 + 0];
+        u8 g = rgba[i * 4 + 1];
+        u8 b = rgba[i * 4 + 2];
+        u8 a = rgba[i * 4 + 3];
+        data[2 + i] = ((unsigned long)a << 24) | ((unsigned long)r << 16) |
+                       ((unsigned long)g << 8) | (unsigned long)b;
+    }
+
+    Atom net_wm_icon = XInternAtom(state.display, "_NET_WM_ICON", False);
+    XChangeProperty(state.display, lw->xwindow, net_wm_icon, XA_CARDINAL, 32,
+                    PropModeReplace, (unsigned char *)data, (int)data_len);
+    XFlush(state.display);
+    free(data);
+}
+
 // Custom title bar stubs (Windows-only for now)
 void platform_window_minimize(platform_window *window) { (void)window; }
 void platform_window_maximize(platform_window *window) { (void)window; }
@@ -1026,6 +1058,26 @@ void platform_window_restore(platform_window *window)  { (void)window; }
 b8   platform_window_is_maximized(platform_window *window) { (void)window; return false; }
 void platform_set_titlebar_layout(platform_window *window, platform_titlebar_layout layout) {
     (void)window; (void)layout;
+}
+
+b8 platform_get_executable_dir(char *out_path, u32 buf_size) {
+    if (!out_path || buf_size < 2) return false;
+
+    char exe[512];
+    ssize_t n = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
+    if (n <= 0) return false;
+    exe[n] = '\0';
+
+    // Truncate to directory (keep trailing slash)
+    for (i32 i = (i32)n - 1; i >= 0; i--) {
+        if (exe[i] == '/') {
+            exe[i + 1] = '\0';
+            break;
+        }
+    }
+
+    cstr_copy(out_path, buf_size, exe);
+    return true;
 }
 
 i32 platform_system(const char *command) {

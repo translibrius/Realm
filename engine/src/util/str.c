@@ -1,88 +1,141 @@
 #include "util/str.h"
 
-#include <stdarg.h> // For variadic functions
-#include <stdio.h>  // vsnprintf, sscanf, sprintf
+#include <ctype.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "memory/arena.h"
 #include "memory/containers/dynamic_array.h"
-#include <string.h>
 
 #define FORMAT_STRING_MAX 512
 
-rl_string rl_string_create(rl_arena *arena, const char *cstr) {
-    u32 len = strlen(cstr);
-    void *data = rl_arena_push(arena, len + 1, alignof(char));
-    memcpy(data, cstr, len + 1);
+// ---------------------------------------------------------------------------
+// rl_string — non-allocating (has loops)
+// ---------------------------------------------------------------------------
 
-    return (rl_string){data, len};
+rl_string rl_str_trim(rl_string s) {
+    u32 start = 0;
+    while (start < s.len && (u8)s.cstr[start] <= ' ') start++;
+    u32 end = s.len;
+    while (end > start && (u8)s.cstr[end - 1] <= ' ') end--;
+    return rl_str_range(s.cstr + start, end - start);
 }
 
-void rl_string_split(rl_arena *arena, rl_string *source, const char *separator, Strings *out_strings) {
-    u32 last_split_index = 0;
-    u32 separator_len = cstr_len(separator);
-    for (u32 i = 0; i + separator_len <= source->len;) {
-        if (memcmp(source->cstr + i, separator, separator_len) == 0) {
-            rl_string split_slice = rl_string_slice(arena, source, last_split_index, i - last_split_index);
-            da_append(out_strings, split_slice);
+// ---------------------------------------------------------------------------
+// rl_string — query operations
+// ---------------------------------------------------------------------------
 
-            //RL_DEBUG("Split index=%d, content=%s, size=%d", out_strings->count-1, split_slice.cstr, split_slice.len);
-            i += separator_len;
-            last_split_index = i;
-        } else {
-            i++;
-        }
+b8 rl_str_eq_nocase(rl_string a, rl_string b) {
+    if (a.len != b.len) return false;
+    for (u32 i = 0; i < a.len; i++) {
+        if (tolower((u8)a.cstr[i]) != tolower((u8)b.cstr[i])) return false;
     }
+    return true;
+}
 
-    // tail
-    if (last_split_index <= source->len) {
-        rl_string tail = rl_string_slice(arena, source, last_split_index, source->len - last_split_index);
-        da_append(out_strings, tail);
+i32 rl_str_find_char(rl_string s, char c) {
+    for (u32 i = 0; i < s.len; i++) {
+        if (s.cstr[i] == c) return (i32)i;
     }
+    return -1;
 }
 
-rl_string rl_string_slice(rl_arena *arena, rl_string *source, u32 start, u32 length) {
-    char *slice = rl_arena_push(arena, length + 1, 1);
-    mem_copy(slice, source->cstr + start, length);
-    slice[length] = '\0';
-
-    return (rl_string){slice, length};
+i32 rl_str_find_last_char(rl_string s, char c) {
+    for (i32 i = (i32)s.len - 1; i >= 0; i--) {
+        if (s.cstr[i] == c) return i;
+    }
+    return -1;
 }
 
-rl_string rl_string_format(rl_arena *arena, const char *fmt, ...) {
+i32 rl_str_find(rl_string s, rl_string needle) {
+    if (needle.len == 0) return 0;
+    if (needle.len > s.len) return -1;
+    u32 limit = s.len - needle.len;
+    for (u32 i = 0; i <= limit; i++) {
+        if (memcmp(s.cstr + i, needle.cstr, needle.len) == 0) return (i32)i;
+    }
+    return -1;
+}
+
+b8 rl_str_contains(rl_string s, rl_string needle) {
+    return rl_str_find(s, needle) >= 0;
+}
+
+// ---------------------------------------------------------------------------
+// Path operations — non-allocating views
+// ---------------------------------------------------------------------------
+
+rl_string rl_path_dir(rl_string path) {
+    i32 idx = rl_str_find_last_char(path, '/');
+    if (idx < 0) return rl_str_range(path.cstr, 0);
+    return rl_str_range(path.cstr, (u32)idx + 1);
+}
+
+rl_string rl_path_filename(rl_string path) {
+    i32 idx = rl_str_find_last_char(path, '/');
+    if (idx < 0) return path;
+    return rl_str_range(path.cstr + idx + 1, path.len - (u32)idx - 1);
+}
+
+rl_string rl_path_ext(rl_string path) {
+    rl_string name = rl_path_filename(path);
+    // Find last dot, but not at position 0 (e.g. ".gitignore" has no extension)
+    i32 dot = -1;
+    for (u32 i = 1; i < name.len; i++) {
+        if (name.cstr[i] == '.') dot = (i32)i;
+    }
+    if (dot < 0) return rl_str_range(path.cstr + path.len, 0);
+    return rl_str_range(name.cstr + dot, name.len - (u32)dot);
+}
+
+rl_string rl_path_stem(rl_string path) {
+    rl_string name = rl_path_filename(path);
+    rl_string ext = rl_path_ext(path);
+    return rl_str_range(name.cstr, name.len - ext.len);
+}
+
+// ---------------------------------------------------------------------------
+// Arena-allocating operations
+// ---------------------------------------------------------------------------
+
+rl_string rl_str_copy(rl_arena *arena, rl_string s) {
+    char *data = rl_arena_push(arena, s.len + 1, 1);
+    if (s.len > 0) memcpy(data, s.cstr, s.len);
+    data[s.len] = '\0';
+    return (rl_string){.cstr = data, .len = s.len};
+}
+
+rl_string rl_str_concat(rl_arena *arena, rl_string a, rl_string b) {
+    u32 total = a.len + b.len;
+    char *data = rl_arena_push(arena, total + 1, 1);
+    if (a.len > 0) memcpy(data, a.cstr, a.len);
+    if (b.len > 0) memcpy(data + a.len, b.cstr, b.len);
+    data[total] = '\0';
+    return (rl_string){.cstr = data, .len = total};
+}
+
+rl_string rl_str_format_va(rl_arena *arena, const char *fmt, va_list args) {
     char tmp[FORMAT_STRING_MAX];
+    int len = vsnprintf(tmp, FORMAT_STRING_MAX, fmt, args);
+    if (len < 0) len = 0;
+    if (len >= FORMAT_STRING_MAX) len = FORMAT_STRING_MAX - 1;
+    tmp[len] = '\0';
+    return rl_str_copy(arena, rl_str_range(tmp, (u32)len));
+}
 
+rl_string rl_str_format(rl_arena *arena, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    int len = vsnprintf(tmp, FORMAT_STRING_MAX, fmt, args);
+    rl_string result = rl_str_format_va(arena, fmt, args);
     va_end(args);
-
-    if (len < 0)
-        len = 0;
-    if (len >= FORMAT_STRING_MAX)
-        len = FORMAT_STRING_MAX - 1;
-    tmp[len] = '\0';
-
-    return rl_string_create(arena, tmp);
+    return result;
 }
 
-rl_string rl_path_sanitize(rl_arena *arena, const char *raw) {
-    // Step 1: copy string into arena
-    rl_string out = rl_string_create(arena, raw);
+rl_string rl_str_replace(rl_arena *arena, rl_string src, rl_string search, rl_string replace) {
+    if (search.len == 0) return rl_str_copy(arena, src);
 
-    // Step 2: replace all '\' → '/'
-    rl_string slash = rl_string_create(arena, "\\");
-    rl_string fslash = rl_string_create(arena, "/");
-    out = rl_string_replace_all(arena, out, slash, fslash);
-
-    // Step 3: collapse double slashes
-    rl_string dbl = rl_string_create(arena, "//");
-    out = rl_string_replace_all(arena, out, dbl, fslash);
-
-    return out;
-}
-
-rl_string rl_string_replace_all(rl_arena *arena, rl_string src, rl_string search, rl_string replace) {
-    // Count occurences
+    // Count occurrences
     u32 count = 0;
     for (u32 i = 0; i + search.len <= src.len;) {
         if (memcmp(src.cstr + i, search.cstr, search.len) == 0) {
@@ -93,38 +146,83 @@ rl_string rl_string_replace_all(rl_arena *arena, rl_string src, rl_string search
         }
     }
 
-    // Alloc new string
     u32 out_len = src.len + count * (replace.len - search.len);
-    char *out = rl_arena_push(arena, out_len + 1, alignof(char));
-    u32 out_index = 0;
+    char *out = rl_arena_push(arena, out_len + 1, 1);
+    u32 out_i = 0;
 
     for (u32 i = 0; i < src.len;) {
-        if (memcmp(src.cstr + i, search.cstr, search.len) == 0) {
-            // Found search str
-            memcpy(out + out_index, replace.cstr, replace.len);
+        if (i + search.len <= src.len && memcmp(src.cstr + i, search.cstr, search.len) == 0) {
+            if (replace.len > 0) memcpy(out + out_i, replace.cstr, replace.len);
+            out_i += replace.len;
             i += search.len;
-            out_index += replace.len;
         } else {
-            // Copy src char
-            out[out_index] = src.cstr[i];
-            i++;
-            out_index++;
+            out[out_i++] = src.cstr[i++];
         }
     }
-    out[out_index] = '\0';
-
-    return (rl_string){out, out_len};
+    out[out_i] = '\0';
+    return (rl_string){.cstr = out, .len = out_len};
 }
 
+rl_string rl_str_to_cstr(rl_arena *arena, rl_string s) {
+    // Already null-terminated?
+    if (s.len > 0 && s.cstr[s.len] == '\0') return s;
+    return rl_str_copy(arena, s);
+}
+
+rl_string rl_path_join(rl_arena *arena, rl_string a, rl_string b) {
+    // Strip trailing slash from a, leading slash from b
+    if (a.len > 0 && a.cstr[a.len - 1] == '/') a.len--;
+    if (b.len > 0 && b.cstr[0] == '/') { b.cstr++; b.len--; }
+
+    u32 total = a.len + 1 + b.len;
+    char *data = rl_arena_push(arena, total + 1, 1);
+    if (a.len > 0) memcpy(data, a.cstr, a.len);
+    data[a.len] = '/';
+    if (b.len > 0) memcpy(data + a.len + 1, b.cstr, b.len);
+    data[total] = '\0';
+    return (rl_string){.cstr = data, .len = total};
+}
+
+rl_string rl_path_normalize(rl_arena *arena, rl_string path) {
+    // \ → /, then collapse //
+    rl_string out = rl_str_replace(arena, path, rl_str_range("\\", 1), rl_str_range("/", 1));
+    // Collapse double slashes (iterate since replace is single-pass)
+    rl_string dbl = rl_str_range("//", 2);
+    rl_string single = rl_str_range("/", 1);
+    while (rl_str_contains(out, dbl)) {
+        out = rl_str_replace(arena, out, dbl, single);
+    }
+    return out;
+}
+
+// Split — returns views into source (no arena needed).
+void rl_str_split(rl_string src, rl_string sep, Strings *out) {
+    u32 last = 0;
+    for (u32 i = 0; i + sep.len <= src.len;) {
+        if (memcmp(src.cstr + i, sep.cstr, sep.len) == 0) {
+            da_append(out, rl_str_range(src.cstr + last, i - last));
+            i += sep.len;
+            last = i;
+        } else {
+            i++;
+        }
+    }
+    // Tail
+    if (last <= src.len) {
+        da_append(out, rl_str_range(src.cstr + last, src.len - last));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// cstr_* helpers — raw C strings
+// ---------------------------------------------------------------------------
 
 u32 cstr_len(const char *str) {
-    return strlen(str);
+    return (u32)strlen(str);
 }
 
 i32 cstr_format_buf(char *buf, u32 buf_size, const char *fmt, ...) {
-    if (!buf || buf_size == 0) {
-        return 0;
-    }
+    if (!buf || buf_size == 0) return 0;
 
     va_list args;
     va_start(args, fmt);
@@ -137,15 +235,10 @@ i32 cstr_format_buf(char *buf, u32 buf_size, const char *fmt, ...) {
 }
 
 void cstr_copy(char *dst, u32 dst_size, const char *src) {
-    if (!dst || dst_size == 0) {
-        return;
-    }
-    if (!src) {
-        dst[0] = '\0';
-        return;
-    }
+    if (!dst || dst_size == 0) return;
+    if (!src) { dst[0] = '\0'; return; }
 
-    u32 src_len = strlen(src);
+    u32 src_len = (u32)strlen(src);
     u32 copy_len = src_len < dst_size - 1 ? src_len : dst_size - 1;
     memcpy(dst, src, copy_len);
     dst[copy_len] = '\0';
@@ -155,13 +248,8 @@ char *cstr_format_va(rl_arena *arena, const char *fmt, va_list args) {
     char *buffer = rl_arena_push(arena, FORMAT_STRING_MAX, 1);
 
     i32 len = vsnprintf(buffer, FORMAT_STRING_MAX, fmt, args);
-    if (len < 0) {
-        len = 0;
-    }
-    if (len >= FORMAT_STRING_MAX) {
-        len = FORMAT_STRING_MAX - 1;
-    }
-
+    if (len < 0) len = 0;
+    if (len >= FORMAT_STRING_MAX) len = FORMAT_STRING_MAX - 1;
     buffer[len] = '\0';
     return buffer;
 }
@@ -173,12 +261,9 @@ b8 cstr_eq(const char *a, const char *b) {
 }
 
 b8 cstr_ends_with(const char *str, const char *suffix) {
-    u32 len_str = strlen(str);
-    u32 len_suf = strlen(suffix);
-
-    if (len_suf > len_str) {
-        return false;
-    }
+    u32 len_str = (u32)strlen(str);
+    u32 len_suf = (u32)strlen(suffix);
+    if (len_suf > len_str) return false;
     return memcmp(str + (len_str - len_suf), suffix, len_suf) == 0;
 }
 
@@ -211,22 +296,37 @@ void cstr_sanitize_identifier(char *dst, u32 dst_size, const char *src) {
         } else if (c == '_' || c == ' ' || c == '-') {
             dst[out++] = '_';
         }
-        // drop all other characters
     }
 
     dst[out] = '\0';
 
-    // Fallback to "game" if no alphanumeric characters
     if (!has_alnum) {
         cstr_copy(dst, dst_size, "game");
         return;
     }
 
-    // Prepend '_' if starts with digit
     if (out > 0 && dst[0] >= '0' && dst[0] <= '9') {
         if (out + 1 < dst_size) {
             memmove(dst + 1, dst, out + 1);
             dst[0] = '_';
         }
     }
+}
+
+b8 cstr_starts_with(const char *str, const char *prefix) {
+    if (!str || !prefix) return false;
+    u32 len_str = (u32)strlen(str);
+    u32 len_pre = (u32)strlen(prefix);
+    if (len_pre > len_str) return false;
+    return memcmp(str, prefix, len_pre) == 0;
+}
+
+const char *cstr_find_char(const char *str, char c) {
+    if (!str) return nullptr;
+    return strchr(str, c);
+}
+
+const char *cstr_find_last_char(const char *str, char c) {
+    if (!str) return nullptr;
+    return strrchr(str, c);
 }
