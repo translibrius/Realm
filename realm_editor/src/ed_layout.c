@@ -88,10 +88,11 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
         static const char *file_items[] = {
             "New Scene", "Save Scene",
             "New Project", "Open Project", "Close Project",
+            "Export Project...",
             "Quit"
         };
         menu_cfg.items = file_items;
-        menu_cfg.item_count = 6;
+        menu_cfg.item_count = 7;
         menu_cfg.label = "File";
         menu_cfg.trigger_corners = (Clay_CornerRadius){6, 0, 0, 0};
         if (gui_dropdown(&layout->menu_file, &menu_cfg)) {
@@ -99,7 +100,8 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
             if (sel == 0) app->new_scene_requested = true;
             if (sel == 1) app->save_scene_requested = true;
             if (sel == 2 || sel == 3 || sel == 4) app->close_project_requested = true;
-            if (sel == 5) rl_engine_stop();
+            if (sel == 5) app->export_requested = true;
+            if (sel == 6) rl_engine_stop();
             layout->menu_file.selected = -1;
         }
 

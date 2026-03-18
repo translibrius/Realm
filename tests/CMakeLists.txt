@@ -1,30 +1,10 @@
+file(GLOB TEST_CASES cases/*.c)
+
 add_executable(RealmTests
         main.c
         harness/rl_test.c
         support/test_runtime.c
-        cases/test_camera.c
-        cases/test_config.c
-        cases/test_str.c
-        cases/test_memory.c
-        cases/test_arena.c
-        cases/test_dynamic_array.c
-        cases/test_event.c
-        cases/test_input.c
-        cases/test_logger.c
-        cases/test_file_io.c
-        cases/test_clock.c
-        cases/test_rand.c
-        cases/test_gui_id.c
-        cases/test_text_input.c
-        cases/test_asset.c
-        cases/test_profiler.c
-        cases/test_entity.c
-        cases/test_project.c
-        cases/test_scene_io.c
-        cases/test_file_scan.c
-        cases/test_ray.c
-        cases/test_toml.c
-        cases/test_behavior.c
+        ${TEST_CASES}
 )
 
 target_include_directories(RealmTests

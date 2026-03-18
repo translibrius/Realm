@@ -4,6 +4,7 @@
 #include "core/logger.h"
 #include "core/project.h"
 #include "core/project_assets.h"
+#include "core/project_export.h"
 #include "core/scene.h"
 #include "core/scene_io.h"
 #include "ed_gizmo.h"
@@ -216,6 +217,15 @@ static void ed_handle_requests(void) {
         ed_enter_picker_mode();
     }
 
+    if (app.mode == ED_MODE_EDITOR && app.export_requested) {
+        app.export_requested = false;
+        rl_project *proj = project_get();
+        if (proj) {
+            gui_file_browser_open(&app.export_browser, GUI_FILE_BROWSER_DIRECTORY,
+                                  proj->root_path, NULL);
+        }
+    }
+
     if (app.mode == ED_MODE_PICKER && app.picker.project_selected) {
         ed_enter_editor_mode();
     }
@@ -244,6 +254,7 @@ b8 create_editor(void) {
     ed_settings_apply_theme(app.ed_cfg.theme);
 
     ed_asset_browser_init(&app.asset_browser);
+    gui_file_browser_init(&app.export_browser);
 
     // Console registers events first so it can consume key/char input when visible
     ed_console_init(&app.console);
@@ -355,6 +366,19 @@ b8 create_editor(void) {
 
             gui_layout_begin((f32)dt);
             ed_layout_render(&app.layout, &app, (f32)dt);
+
+            // Export file browser overlay
+            if (app.export_browser.status == GUI_FILE_BROWSER_OPEN) {
+                gui_file_browser_render(&app.export_browser, (f32)dt, NULL);
+            }
+            if (app.export_browser.status == GUI_FILE_BROWSER_CONFIRMED) {
+                project_export(project_get(), app.export_browser.result_path);
+                app.export_browser.status = GUI_FILE_BROWSER_IDLE;
+            }
+            if (app.export_browser.status == GUI_FILE_BROWSER_CANCELLED) {
+                app.export_browser.status = GUI_FILE_BROWSER_IDLE;
+            }
+
             gui_layout_end();
 
             // Update viewport bounds for next frame's camera input
@@ -380,6 +404,7 @@ b8 create_editor(void) {
         }
         scene_destroy(app.scene);
     }
+    gui_file_browser_shutdown(&app.export_browser);
     ed_asset_browser_shutdown(&app.asset_browser);
     ed_console_shutdown(&app.console);
     rl_engine_destroy();

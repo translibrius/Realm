@@ -9,6 +9,7 @@
 #include "ed_event_handler.h"
 #include "ed_layout.h"
 #include "ed_project_picker.h"
+#include "gui/gui_file_browser.h"
 #include "ed_gizmo_transform.h"
 #include "ed_undo.h"
 #include "platform/platform.h"
@@ -44,7 +45,9 @@ typedef struct ed_application {
     b8 close_project_requested;
     b8 minimize_requested;
     b8 maximize_requested;
+    b8 export_requested;
     RENDERER_BACKEND requested_backend;
+    gui_file_browser_state export_browser;
 } ed_application;
 
 b8 create_editor(void);

@@ -26,6 +26,7 @@ void register_file_scan_tests(void);
 void register_ray_tests(void);
 void register_toml_tests(void);
 void register_behavior_tests(void);
+void register_project_export_tests(void);
 
 int main(int argc, const char **argv) {
     if (!rl_test_runtime_init()) {
@@ -56,6 +57,7 @@ int main(int argc, const char **argv) {
     register_ray_tests();
     register_toml_tests();
     register_behavior_tests();
+    register_project_export_tests();
 
     i32 result = rl_test_run_from_args(argc, argv);
 

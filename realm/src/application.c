@@ -14,6 +14,7 @@
 #include "gui/gui_input.h"
 #include "host/host_bootstrap.h"
 #include "memory/memory.h"
+#include "platform/io/file_io.h"
 #include "platform/platform.h"
 #include "profiler/profiler.h"
 #include "renderer/renderer_frontend.h"
@@ -54,12 +55,21 @@ b8 create_application(const char *project_path) {
     RL_INFO("Opened project '%s' at %s", proj->name, proj->root_path);
     project_load_assets();
 
-    // Load default scene from project
+    // Load default scene from project — prefer binary if available
     app.scene = nullptr;
     if (proj->default_scene[0]) {
         char path[512];
         cstr_format_buf(path, sizeof(path), "%s%s", proj->root_path, proj->default_scene);
-        app.scene = scene_load(path);
+
+        char bin_path[512];
+        cstr_format_buf(bin_path, sizeof(bin_path), "%s.bin", path);
+
+        if (platform_file_exists(bin_path)) {
+            app.scene = scene_load(bin_path);
+        } else {
+            app.scene = scene_load(path);
+        }
+
         if (!app.scene) {
             RL_ERROR("Failed to load default scene: %s", path);
         }

@@ -25,7 +25,7 @@ Phases 1–14 are complete. The editor and game host share a project system, sce
 
 1. **Infrastructure cleanup**: ~~centralized TOML parser~~ ✓, ~~consolidate `game/` project data into `realm/`~~ ✓, ~~behavior system~~ ✓, ~~string utils consolidation~~ ✓
 2. **Project scaffolding**: "New Project" generates a buildable game module template
-3. **Binary scenes + export pipeline**: ~~custom binary format for fast loading~~ ✓ (19a+19b), editor export for shipping (19c + Phase 20)
+3. **Binary scenes + export pipeline**: ~~custom binary format for fast loading~~ ✓ (19a+19b), ~~editor export for shipping~~ ✓ (19c + Phase 20)
 4. **Asset drag-and-drop + entity highlighting**: thumbnail previews, drag assets into scene/onto entities, hover outline shader
 
 ---
@@ -297,11 +297,11 @@ Custom binary format for fast loading and opaque shipping. Editor always saves J
 - [x] Null argument handling
 - [x] String deduplication (two entities with same name share one string table entry)
 
-### 19c. Wire into pipeline
+### 19c. Wire into pipeline ✓
 
-- [ ] Editor saves `.scene` as JSON (authoring format, unchanged)
-- [ ] Export step converts `.scene` → `.scene.bin` (Phase 20)
-- [ ] Game host prefers `.scene.bin` if present, falls back to `.scene`
+- [x] Editor saves `.scene` as JSON (authoring format, unchanged)
+- [x] Export step converts `.scene` → `.scene.bin` (Phase 20)
+- [x] Game host prefers `.scene.bin` if present, falls back to `.scene` (`realm/src/application.c`)
 
 ### Format reference
 
@@ -320,23 +320,27 @@ Custom binary format for fast loading and opaque shipping. Editor always saves J
 
 ---
 
-## Phase 20: Build/Export Pipeline (skeleton)
+## Phase 20: Build/Export Pipeline ✓
 
 Editor "Export" button that produces a standalone game directory — cooked scenes, copied assets, ready to ship alongside a Realm executable + game module DLL.
 
-### 20a. Export function
+### 20a. Export function ✓
 
-- [ ] `project_export(project, output_path)` in engine
-- [ ] Cooks all scenes: JSON → binary
-- [ ] Copies asset directory
-- [ ] Copies `project.realm` (with paths adjusted for export layout)
-- [ ] Output: flat directory ready to zip/distribute
+- [x] `project_export(project, output_path)` in `engine/include/core/project_export.h` + `engine/src/core/project_export.c`
+- [x] Cooks all scenes: JSON → binary (scans `scenes_path` for `.scene` files, `scene_load` → `scene_save_binary`)
+- [x] Copies asset directory recursively (`copy_dir_recursive` using `platform_dir_scan` + `platform_file_copy`)
+- [x] Rewrites `project.realm` with `default_scene` pointing to `.scene.bin`
+- [x] Output: flat directory ready to zip/distribute
+- [x] 6 unit tests: output structure, RLSC magic verification, data roundtrip, asset copy, project file rewrite, null args
+- [x] Tests CMakeLists switched to `file(GLOB)` — new test files picked up automatically
 
-### 20b. Editor wiring
+### 20b. Editor wiring ✓
 
-- [ ] File menu → "Export Project..." → path input → export
-- [ ] Progress feedback (log messages or simple status text)
-- [ ] Error handling: missing assets, write failures
+- [x] File menu → "Export Project..." (between "Close Project" and "Quit")
+- [x] `gui_file_browser` in `GUI_FILE_BROWSER_DIRECTORY` mode for output path selection
+- [x] `export_requested` flag + `export_browser` state on `ed_application`
+- [x] Progress/error feedback via `RL_INFO`/`RL_ERROR` log messages (visible in editor console)
+- [x] Error handling: validates inputs, logs specific failure at each step, returns false on first error
 
 ---
 
@@ -418,9 +422,9 @@ Phase 1–14: Foundation                       ✓ all done
             │
             ├── Phase 18: Project Scaffolding        ○ depends on 16 + 17
             │
-            ├── Phase 19: Binary Scene Format        ◐ 19a+19b done, 19c depends on Phase 20
+            ├── Phase 19: Binary Scene Format        ✓ done (19a+19b+19c)
             │       │
-            │       └── Phase 20: Export Pipeline    ○ depends on 19
+            │       └── Phase 20: Export Pipeline    ✓ done
             │
             ├── Phase 21: Asset Drag-Drop + Highlight  ○ depends on 17 (behavior drop) + renderer (outline shader)
             │
@@ -435,4 +439,4 @@ Phase 21 is renderer-heavy (outline shader) and GUI-heavy (drag-and-drop) — go
 ## Loose Ends
 
 - Entity create/destroy undo action types exist but the recreation logic for undo isn't wired yet. Context menu delete works but doesn't push undo entries.
-- File browser widget (`gui_file_browser`) exists but isn't wired into project picker's Browse button yet (native dialog preferred long-term).
+- File browser widget (`gui_file_browser`) is wired for export (directory picker) but not yet for project picker's Browse button (native dialog preferred long-term).
