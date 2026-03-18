@@ -11,6 +11,7 @@ typedef enum gui_icon_type {
     // File browser
     GUI_ICON_FOLDER,
     GUI_ICON_FOLDER_OPEN,
+    GUI_ICON_FOLDER_PLUS,
     GUI_ICON_FILE,
     // Common UI
     GUI_ICON_SEARCH,

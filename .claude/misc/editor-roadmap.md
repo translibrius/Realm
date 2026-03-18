@@ -440,3 +440,5 @@ Phase 21 is renderer-heavy (outline shader) and GUI-heavy (drag-and-drop) — go
 
 - Entity create/destroy undo action types exist but the recreation logic for undo isn't wired yet. Context menu delete works but doesn't push undo entries.
 - File browser widget (`gui_file_browser`) is wired for export (directory picker) but not yet for project picker's Browse button (native dialog preferred long-term).
+- File browser has inline "New Folder" creation (nav bar button, Enter/Escape, auto-select after create). Mkdir logic is duplicated between Enter key handler and button click — could extract into a helper.
+- Dropdown `min_width` field added for auto-fit menus — used by editor menu bar (140px floor).

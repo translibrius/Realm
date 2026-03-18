@@ -14,7 +14,8 @@ typedef struct gui_dropdown_cfg {
     const char **items; // array of null-terminated strings
     i32 item_count;
     const char *label;  // override trigger text (NULL = show selected item)
-    f32 width;          // dropdown width (default: 200)
+    f32 width;          // dropdown width (default: 200). When label is set, list auto-fits content instead.
+    f32 min_width;      // minimum list width when auto-fitting (0 = no minimum)
     Clay_Color color;        // trigger button background
     Clay_Color list_color;   // dropdown list background (default: theme bg_elevated)
     Clay_Color hover_color;  // hovered item background

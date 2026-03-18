@@ -16,6 +16,7 @@
 #include "memory/arena.h"
 #include "memory/memory.h"
 #include "platform/input.h"
+#include "platform/io/file_io.h"
 #include "platform/io/file_scan.h"
 #include "util/hash.h"
 #include "util/str.h"
@@ -531,6 +532,9 @@ gui_file_browser_status gui_file_browser_render(gui_file_browser_state *state,
     b8 ok_clicked = false;
     b8 cancel_clicked = false;
     b8 confirmed = false;
+    b8 new_folder_clicked = false;
+    b8 new_folder_confirm = false;
+    b8 new_folder_cancel = false;
 
     const char *title = (state->mode == GUI_FILE_BROWSER_DIRECTORY)
                             ? "Browse for Directory"
@@ -600,7 +604,35 @@ gui_file_browser_status gui_file_browser_render(gui_file_browser_state *state,
                 gui_button_end();
                 if (up_state.clicked) up_clicked = true;
             }
+            {
+                gui_button_cfg nf_btn = btn_cfg;
+                nf_btn.gap = 6;
+                gui_button_state nf_state = gui_button_begin(&nf_btn);
+                gui_icon(GUI_ICON_FOLDER_PLUS, font_size, label_text.color);
+                gui_text("New Folder", &label_text);
+                gui_button_end();
+                if (nf_state.clicked) new_folder_clicked = true;
+            }
             gui_text_input_render(&state->path_input, dt, &input_cfg);
+        }
+
+        // Inline new-folder name input
+        if (state->new_folder_active) {
+            gui_panel_cfg nf_row = {
+                .horizontal = true, .gap = 6,
+                .width_sizing = GUI_SIZE_GROW,
+                .padding = 8,
+            };
+            GUI_PANEL(&nf_row) {
+                gui_text("Name:", &label_text);
+                gui_text_input_render(&state->new_folder_input, dt, &input_cfg);
+                if (gui_text_button("Create", &btn_cfg, &label_text).clicked) {
+                    new_folder_confirm = true;
+                }
+                if (gui_text_button("Cancel", &btn_cfg, &dim_text).clicked) {
+                    new_folder_cancel = true;
+                }
+            }
         }
 
         gui_separator();
@@ -711,6 +743,51 @@ gui_file_browser_status gui_file_browser_render(gui_file_browser_state *state,
         fb_navigate_up(state);
     }
 
+    // New folder: toggle input
+    if (new_folder_clicked) {
+        state->new_folder_active = !state->new_folder_active;
+        if (state->new_folder_active) {
+            memset(&state->new_folder_input, 0, sizeof(state->new_folder_input));
+        }
+    }
+
+    if (new_folder_cancel) {
+        state->new_folder_active = false;
+    }
+
+    // New folder: create directory
+    if (new_folder_confirm && state->new_folder_input.len > 0) {
+        const char *parent = state->selected_path[0] && state->selected_is_dir
+                                 ? state->selected_path
+                                 : state->root_path;
+        if (parent[0]) {
+            char new_path[512];
+            fb_build_child_path(new_path, sizeof(new_path), parent, state->new_folder_input.buf);
+
+            if (platform_dir_create(new_path)) {
+                RL_INFO("Created folder: %s", new_path);
+
+                // Rescan the parent so the new folder appears in the tree
+                fb_tree_node *parent_node = fb_pool_find(&state->pool, parent);
+                if (parent_node) {
+                    fb_node_free_children(parent_node);
+                    parent_node->scanned = false;
+                }
+
+                // Select the new folder
+                cstr_copy(state->selected_path, sizeof(state->selected_path), new_path);
+                state->selected_is_dir = true;
+                cstr_copy(state->path_input.buf, sizeof(state->path_input.buf), new_path);
+                state->path_input.len = (u16)cstr_len(state->path_input.buf);
+                state->path_input.cursor = state->path_input.len;
+                state->tree.selected_id = fb_path_id(new_path);
+            } else {
+                RL_ERROR("Failed to create folder: %s", new_path);
+            }
+        }
+        state->new_folder_active = false;
+    }
+
     // Double-click on file confirms immediately
     if (confirmed && state->selected_path[0] && !state->selected_is_dir) {
         cstr_copy(state->result_path, sizeof(state->result_path), state->selected_path);
@@ -747,12 +824,54 @@ b8 gui_file_browser_handle_key(gui_file_browser_state *state, void *key_data) {
     input_key *key = key_data;
     if (!key->pressed) return false;
 
-    // Escape -> cancel
+    // Escape -> dismiss new-folder input first, then cancel browser
     if (key->key == KEY_ESCAPE) {
+        if (state->new_folder_active) {
+            state->new_folder_active = false;
+            return true;
+        }
         state->status = GUI_FILE_BROWSER_CANCELLED;
         state->window.visible = false;
         state->result_path[0] = '\0';
         return true;
+    }
+
+    // When new-folder input is active, route keys there
+    if (state->new_folder_active) {
+        if (key->key == KEY_ENTER) {
+            // Trigger creation — handled in render's apply section next frame
+            // We set a flag by simulating a confirm click via the input length check
+            // Actually, just return true to consume — the button click handles it.
+            // But we want Enter to also work, so we need to create the folder here.
+            if (state->new_folder_input.len > 0) {
+                const char *parent = state->selected_path[0] && state->selected_is_dir
+                                         ? state->selected_path
+                                         : state->root_path;
+                if (parent[0]) {
+                    char new_path[512];
+                    fb_build_child_path(new_path, sizeof(new_path), parent, state->new_folder_input.buf);
+                    if (platform_dir_create(new_path)) {
+                        RL_INFO("Created folder: %s", new_path);
+                        fb_tree_node *parent_node = fb_pool_find(&state->pool, parent);
+                        if (parent_node) {
+                            fb_node_free_children(parent_node);
+                            parent_node->scanned = false;
+                        }
+                        cstr_copy(state->selected_path, sizeof(state->selected_path), new_path);
+                        state->selected_is_dir = true;
+                        cstr_copy(state->path_input.buf, sizeof(state->path_input.buf), new_path);
+                        state->path_input.len = (u16)cstr_len(state->path_input.buf);
+                        state->path_input.cursor = state->path_input.len;
+                        state->tree.selected_id = fb_path_id(new_path);
+                    } else {
+                        RL_ERROR("Failed to create folder: %s", new_path);
+                    }
+                }
+                state->new_folder_active = false;
+            }
+            return true;
+        }
+        return gui_text_input_handle_key(&state->new_folder_input, key);
     }
 
     // Enter -> navigate to typed path, or confirm selection
@@ -803,6 +922,10 @@ b8 gui_file_browser_handle_key(gui_file_browser_state *state, void *key_data) {
 b8 gui_file_browser_handle_char(gui_file_browser_state *state, void *char_data) {
     if (!state || state->status != GUI_FILE_BROWSER_OPEN) return false;
 
-    gui_text_input_handle_char(&state->path_input, char_data);
+    if (state->new_folder_active) {
+        gui_text_input_handle_char(&state->new_folder_input, char_data);
+    } else {
+        gui_text_input_handle_char(&state->path_input, char_data);
+    }
     return true;
 }

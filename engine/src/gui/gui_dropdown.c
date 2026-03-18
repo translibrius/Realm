@@ -71,7 +71,9 @@ b8 gui_dropdown(gui_dropdown_state *state, const gui_dropdown_cfg *cfg) {
     Clay__OpenElementWithId(list_eid);
     Clay__ConfigureOpenElement((Clay_ElementDeclaration){
         .layout = {
-            .sizing = {.width = state->open ? CLAY_SIZING_FIXED(width) : CLAY_SIZING_FIT(0)},
+            .sizing = {.width = state->open
+                           ? (cfg->label ? CLAY_SIZING_FIT(cfg->min_width) : CLAY_SIZING_FIXED(width))
+                           : CLAY_SIZING_FIT(0)},
             .layoutDirection = CLAY_TOP_TO_BOTTOM,
             .padding = state->open ? (Clay_Padding){.top = 2, .bottom = 2} : (Clay_Padding){0},
         },

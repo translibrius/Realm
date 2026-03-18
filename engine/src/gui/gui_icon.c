@@ -18,6 +18,7 @@ static const u32 icon_codepoints[GUI_ICON_COUNT] = {
     [GUI_ICON_CHEVRON_DOWN]  = 0xE06D, // chevron-down
     [GUI_ICON_FOLDER]        = 0xE0D7, // folder
     [GUI_ICON_FOLDER_OPEN]   = 0xE247, // folder-open
+    [GUI_ICON_FOLDER_PLUS]   = 0xE0D9, // folder-plus
     [GUI_ICON_FILE]          = 0xE0C0, // file
     [GUI_ICON_SEARCH]        = 0xE151, // search
     [GUI_ICON_SETTINGS]      = 0xE154, // settings

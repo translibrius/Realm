@@ -49,6 +49,8 @@ typedef struct gui_file_browser_state {
     gui_text_input_state path_input;
     gui_tree_state tree;
     fb_tree_pool pool;
+    gui_text_input_state new_folder_input;
+    b8 new_folder_active;
     f32 time_acc;
     f32 last_click_time;
     u32 last_click_node_id;

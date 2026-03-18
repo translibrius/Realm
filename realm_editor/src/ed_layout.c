@@ -55,6 +55,7 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
 
     gui_dropdown_cfg menu_cfg = {
         .width = 140,
+        .min_width = 140,
         .color = t->bg_titlebar,
         .list_color = t->bg_elevated,
         .hover_color = t->control_hover,
