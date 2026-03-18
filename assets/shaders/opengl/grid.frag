@@ -15,7 +15,7 @@ vec4 grid(vec3 pos, float scale) {
     vec2 grid_lines = abs(fract(coord - 0.5) - 0.5) / deriv;
     float line = min(grid_lines.x, grid_lines.y);
     float alpha = 1.0 - min(line, 1.0);
-    return vec4(0.5, 0.5, 0.5, alpha * 0.3);
+    return vec4(0.5, 0.5, 0.5, alpha * 0.4);
 }
 
 void main() {
@@ -25,7 +25,7 @@ void main() {
     vec3 world_pos = near_point + t * (far_point - near_point);
 
     float dist = length(world_pos - camera_pos);
-    float fade = 1.0 - smoothstep(50.0, 100.0, dist);
+    float fade = 1.0 - smoothstep(150.0, 400.0, dist);
     if (fade <= 0.0) discard;
 
     vec4 minor = grid(world_pos, 0.1);

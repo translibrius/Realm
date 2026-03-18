@@ -39,6 +39,20 @@ ICNS_SIZES = {
 }
 
 
+def apply_padding(src: Image.Image, fraction: float) -> Image.Image:
+    """Paste src centered onto a transparent canvas, scaled down by fraction.
+
+    A fraction of 0.15 means the icon occupies 70% of the canvas (15% margin
+    on each side), matching macOS HIG guidelines for dock icon sizing.
+    """
+    canvas = Image.new("RGBA", (src.width, src.height), (0, 0, 0, 0))
+    margin = int(src.width * fraction)
+    inner = src.width - 2 * margin
+    resized = src.resize((inner, inner), Image.LANCZOS)
+    canvas.paste(resized, (margin, margin))
+    return canvas
+
+
 def generate_ico(src: Image.Image, output_path: str) -> None:
     sizes = [(s, s) for s in ICO_SIZES]
     src.save(output_path, format="ICO", sizes=sizes)
@@ -74,6 +88,8 @@ def main() -> None:
     parser.add_argument("input", help="Path to 1024x1024 master PNG")
     parser.add_argument("--output", "-o", default=".", help="Output directory")
     parser.add_argument("--name", "-n", default=None, help="Base name for output files (default: input filename)")
+    parser.add_argument("--macos-padding", type=float, default=0.15,
+                        help="Fractional margin for macOS icons (default: 0.15 = 15%% per side)")
     args = parser.parse_args()
 
     src = Image.open(args.input).convert("RGBA")
@@ -89,9 +105,11 @@ def main() -> None:
     ico_path = os.path.join(args.output, f"{name}.ico")
     icns_path = os.path.join(args.output, f"{name}.icns")
 
+    macos_src = apply_padding(src, args.macos_padding) if args.macos_padding > 0 else src
+
     print(f"Generating icons from {args.input} ({src.width}x{src.height}):")
     generate_ico(src, ico_path)
-    generate_icns(src, icns_path)
+    generate_icns(macos_src, icns_path)
     print("Done.")
 
 

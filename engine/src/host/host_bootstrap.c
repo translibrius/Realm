@@ -12,7 +12,7 @@
 #include "util/str.h"
 
 static void load_app_icon(platform_window *window, const char *asset_root) {
-    // Try project icon first
+    // Try project icon first (runtime override for project-specific branding)
     rl_project *proj = project_get();
     if (proj && proj->icon_path[0]) {
         char path[512];
@@ -27,7 +27,10 @@ static void load_app_icon(platform_window *window, const char *asset_root) {
         }
     }
 
-    // Fall back to engine icon
+    // If the platform provides a native icon (e.g. macOS .app bundle .icns),
+    // skip runtime loading — the OS icon already has proper native treatment.
+    if (platform_has_native_app_icon()) return;
+
     char path[512];
     cstr_format_buf(path, sizeof(path), "%sicons/realm.png", asset_root);
 

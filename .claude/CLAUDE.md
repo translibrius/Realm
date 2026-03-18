@@ -49,7 +49,8 @@ Key rules:
   - `cstr_find_char` / `cstr_find_last_char` not `strchr` / `strrchr`. `cstr_contains` not `strstr`. `cstr_starts_with` not `strncmp`. `cstr_cmp_nocase` for case-insensitive compare.
   - For view-first strings: `rl_str("hello")`, `rl_str_format(arena, ...)`, `rl_str_eq`, `rl_str_contains`, `rl_path_*` for path ops.
   - If the needed utility doesn't exist, add it to `str.h` rather than using raw C.
-- Platform code stays in `engine/src/platform/`.
+- Platform code stays in `engine/src/platform/`. **No `#ifdef PLATFORM_*` / `#ifdef __APPLE__` guards outside the platform layer** — if behavior differs per OS, expose a `platform_*` API and let each platform implementation handle it.
+- **Platform resource hygiene**: every OS handle/resource created in platform code (`HICON`, `HBITMAP`, `GC`, `NSImage`, file descriptors, etc.) must have a matching cleanup path — in the destroy/shutdown function and on replacement. Guard allocations with NULL checks, guard cleanup with non-NULL checks. No leaks, no double-frees. If a resource is stored on a struct, the struct's destroy path must release it.
 - Straight C with explicit structs and function tables. No unnecessary abstraction layers.
 - Don't change global build flags silently.
 
