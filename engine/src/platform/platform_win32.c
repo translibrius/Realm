@@ -97,6 +97,10 @@ typedef struct win32_window {
     b8 tracking_mouse;      // TrackMouseEvent active for WM_MOUSELEAVE
     b8 tracking_ncmouse;    // TrackMouseEvent active for WM_NCMOUSELEAVE
     platform_titlebar_layout titlebar;
+
+    // Runtime icon (must be destroyed on replacement or window close)
+    HICON icon_big;
+    HICON icon_small;
 } win32_window;
 
 typedef struct platform_state {
@@ -555,6 +559,9 @@ b8 platform_destroy_window(u16 id) {
     if (w->hwnd)
         SendMessageA(state.service_window, DESTROY_DANGEROUS_WINDOW, (WPARAM)w->hwnd, 0);
 
+    if (w->icon_big)   { DestroyIcon(w->icon_big);   w->icon_big   = NULL; }
+    if (w->icon_small) { DestroyIcon(w->icon_small); w->icon_small = NULL; }
+
     w->gl = nullptr;
     w->hdc = nullptr;
     w->hwnd = nullptr;
@@ -716,30 +723,25 @@ b8 platform_window_is_maximized(platform_window *window) {
     return IsZoomed(w->hwnd);
 }
 
-void platform_set_app_icon(platform_window *window, const u8 *rgba, i32 width, i32 height) {
-    if (!window || !rgba || width <= 0 || height <= 0) return;
-    if (window->id >= MAX_WINDOWS) return;
-    win32_window *w = &state.windows[window->id];
-    if (!w->alive || !w->hwnd) return;
-
-    // Create a 32-bit BGRA bitmap from RGBA
+// Create an HICON from RGBA pixel data at the given dimensions.
+static HICON create_icon_from_rgba(const u8 *rgba, i32 width, i32 height) {
     BITMAPV5HEADER bi = {0};
-    bi.bV5Size = sizeof(bi);
-    bi.bV5Width = width;
-    bi.bV5Height = -height; // top-down
-    bi.bV5Planes = 1;
-    bi.bV5BitCount = 32;
+    bi.bV5Size        = sizeof(bi);
+    bi.bV5Width       = width;
+    bi.bV5Height      = -height; // top-down
+    bi.bV5Planes      = 1;
+    bi.bV5BitCount    = 32;
     bi.bV5Compression = BI_BITFIELDS;
-    bi.bV5RedMask   = 0x00FF0000;
-    bi.bV5GreenMask = 0x0000FF00;
-    bi.bV5BlueMask  = 0x000000FF;
-    bi.bV5AlphaMask = 0xFF000000;
+    bi.bV5RedMask     = 0x00FF0000;
+    bi.bV5GreenMask   = 0x0000FF00;
+    bi.bV5BlueMask    = 0x000000FF;
+    bi.bV5AlphaMask   = 0xFF000000;
 
     HDC dc = GetDC(NULL);
     u8 *bits = NULL;
     HBITMAP color_bmp = CreateDIBSection(dc, (BITMAPINFO *)&bi, DIB_RGB_COLORS, (void **)&bits, NULL, 0);
     ReleaseDC(NULL, dc);
-    if (!color_bmp || !bits) return;
+    if (!color_bmp || !bits) return NULL;
 
     // Convert RGBA -> BGRA
     i32 count = width * height;
@@ -753,18 +755,68 @@ void platform_set_app_icon(platform_window *window, const u8 *rgba, i32 width, i
     HBITMAP mask_bmp = CreateBitmap(width, height, 1, 1, NULL);
 
     ICONINFO ii = {0};
-    ii.fIcon = TRUE;
-    ii.hbmMask = mask_bmp;
+    ii.fIcon    = TRUE;
+    ii.hbmMask  = mask_bmp;
     ii.hbmColor = color_bmp;
-    HICON icon = CreateIconIndirect(&ii);
+    HICON icon  = CreateIconIndirect(&ii);
 
     DeleteObject(color_bmp);
     DeleteObject(mask_bmp);
+    return icon;
+}
 
-    if (icon) {
-        SendMessage(w->hwnd, WM_SETICON, ICON_BIG, (LPARAM)icon);
-        SendMessage(w->hwnd, WM_SETICON, ICON_SMALL, (LPARAM)icon);
+// Nearest-neighbor downscale of RGBA data to target_size x target_size.
+// Caller must free the returned buffer.
+static u8 *downscale_rgba(const u8 *rgba, i32 src_w, i32 src_h, i32 target_size) {
+    u8 *out = (u8 *)malloc((size_t)(target_size * target_size * 4));
+    if (!out) return NULL;
+    for (i32 y = 0; y < target_size; y++) {
+        i32 sy = y * src_h / target_size;
+        for (i32 x = 0; x < target_size; x++) {
+            i32 sx = x * src_w / target_size;
+            i32 di = (y * target_size + x) * 4;
+            i32 si = (sy * src_w + sx) * 4;
+            out[di + 0] = rgba[si + 0];
+            out[di + 1] = rgba[si + 1];
+            out[di + 2] = rgba[si + 2];
+            out[di + 3] = rgba[si + 3];
+        }
     }
+    return out;
+}
+
+void platform_set_app_icon(platform_window *window, const u8 *rgba, i32 width, i32 height) {
+    if (!window || !rgba || width <= 0 || height <= 0) return;
+    if (window->id >= MAX_WINDOWS) return;
+    win32_window *w = &state.windows[window->id];
+    if (!w->alive || !w->hwnd) return;
+
+    // Destroy previous runtime icons to prevent leaks
+    if (w->icon_big)   { DestroyIcon(w->icon_big);   w->icon_big   = NULL; }
+    if (w->icon_small) { DestroyIcon(w->icon_small);  w->icon_small = NULL; }
+
+    // ICON_BIG: system metric (usually 32), ICON_SMALL: system metric (usually 16)
+    i32 big_size   = GetSystemMetrics(SM_CXICON);
+    i32 small_size = GetSystemMetrics(SM_CXSMICON);
+
+    u8 *big_rgba   = downscale_rgba(rgba, width, height, big_size);
+    u8 *small_rgba = downscale_rgba(rgba, width, height, small_size);
+
+    if (big_rgba) {
+        w->icon_big = create_icon_from_rgba(big_rgba, big_size, big_size);
+        free(big_rgba);
+    }
+    if (small_rgba) {
+        w->icon_small = create_icon_from_rgba(small_rgba, small_size, small_size);
+        free(small_rgba);
+    }
+
+    if (w->icon_big)   SendMessage(w->hwnd, WM_SETICON, ICON_BIG,   (LPARAM)w->icon_big);
+    if (w->icon_small) SendMessage(w->hwnd, WM_SETICON, ICON_SMALL, (LPARAM)w->icon_small);
+}
+
+b8 platform_has_native_app_icon(void) {
+    return false; // .rc-embedded .ico only covers compile-time — runtime WM_SETICON still needed
 }
 
 void platform_set_titlebar_layout(platform_window *window, platform_titlebar_layout layout) {
@@ -852,6 +904,41 @@ platform_info *platform_get_info() {
     }
 
     return &state.platform_info;
+}
+
+// ---- Vulkan platform capabilities ----
+
+b8 platform_vulkan_loader_init(void) {
+    VkResult result = volkInitialize();
+    if (result != VK_SUCCESS) {
+        RL_ERROR("Failed to initialize Vulkan loader (VkResult=%s)", string_VkResult(result));
+        return false;
+    }
+    return true;
+}
+
+void platform_vulkan_loader_shutdown(void) {}
+
+u32 platform_vulkan_get_api_version(void) {
+    return VK_API_VERSION_1_4;
+}
+
+u32 platform_vulkan_get_instance_create_flags(void) {
+    return 0;
+}
+
+b8 platform_vulkan_validation_required(void) {
+    return true;
+}
+
+platform_vulkan_device_requirements platform_vulkan_get_device_requirements(void) {
+    return (platform_vulkan_device_requirements){
+        .geometry_shader = true,
+        .dynamic_rendering = true,
+        .maintenance4 = true,
+        .maintenance5 = true,
+        .maintenance6 = true,
+    };
 }
 
 u32 platform_get_required_vulkan_extensions(const char ***names_out, b8 enable_validation) {

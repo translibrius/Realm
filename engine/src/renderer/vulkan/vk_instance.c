@@ -28,68 +28,6 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
     return VK_FALSE;
 }
 
-#if defined(PLATFORM_MACOS)
-#include <dlfcn.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-static void *vk_loader_handle;
-
-static PFN_vkGetInstanceProcAddr vk_try_load_proc_addr_path(const char *path) {
-    void *handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
-    if (!handle) {
-        return nullptr;
-    }
-    void *symbol = dlsym(handle, "vkGetInstanceProcAddr");
-    if (!symbol) {
-        dlclose(handle);
-        return nullptr;
-    }
-    vk_loader_handle = handle;
-    return (PFN_vkGetInstanceProcAddr)symbol;
-}
-
-static PFN_vkGetInstanceProcAddr vk_try_load_proc_addr() {
-    const char *candidates[] = {
-        "libvulkan.1.dylib",
-        "libvulkan.dylib",
-        "libMoltenVK.dylib",
-        "/opt/homebrew/lib/libvulkan.1.dylib",
-        "/opt/homebrew/lib/libvulkan.dylib",
-        "/opt/homebrew/lib/libMoltenVK.dylib",
-        "/usr/local/lib/libvulkan.1.dylib",
-        "/usr/local/lib/libvulkan.dylib",
-        "/usr/local/lib/libMoltenVK.dylib"
-    };
-
-    for (u32 i = 0; i < (u32)(sizeof(candidates) / sizeof(candidates[0])); i++) {
-        PFN_vkGetInstanceProcAddr proc = vk_try_load_proc_addr_path(candidates[i]);
-        if (proc) {
-            return proc;
-        }
-    }
-
-    const char *sdk_root = getenv("VULKAN_SDK");
-    if (!sdk_root || sdk_root[0] == '\0') {
-        return nullptr;
-    }
-
-    char path[1024];
-    for (u32 i = 0; i < (u32)(sizeof(candidates) / sizeof(candidates[0])); i++) {
-        int written = snprintf(path, sizeof(path), "%s/lib/%s", sdk_root, candidates[i]);
-        if (written <= 0 || written >= (int)sizeof(path)) {
-            continue;
-        }
-        PFN_vkGetInstanceProcAddr proc = vk_try_load_proc_addr_path(path);
-        if (proc) {
-            return proc;
-        }
-    }
-
-    return nullptr;
-}
-#endif
-
 b8 vk_instance_create(VK_Context *context) {
     ARENA_SCRATCH_START();
 #ifdef _DEBUG
@@ -98,24 +36,8 @@ b8 vk_instance_create(VK_Context *context) {
     b8 enable_validation = false;
 #endif
 
-    VkResult result = volkInitialize();
-    if (result != VK_SUCCESS) {
-#if defined(PLATFORM_MACOS)
-        RL_WARN("Failed to initialize Vulkan loader via volk (VkResult=%s)", string_VkResult(result));
-        PFN_vkGetInstanceProcAddr proc = vk_try_load_proc_addr();
-        if (!proc) {
-            RL_ERROR("Failed to locate Vulkan loader or MoltenVK. Install Vulkan SDK or set VULKAN_SDK/DYLD_LIBRARY_PATH.");
-            return false;
-        }
-        volkInitializeCustom(proc);
-        if (!vkEnumerateInstanceVersion) {
-            RL_ERROR("Vulkan loader still unavailable after direct load");
-            return false;
-        }
-#else
-        RL_ERROR("Failed to initialize Vulkan loader (VkResult=%s)", string_VkResult(result));
+    if (!platform_vulkan_loader_init()) {
         return false;
-#endif
     }
 
     // Debug create info (used twice)
@@ -133,10 +55,7 @@ b8 vk_instance_create(VK_Context *context) {
     };
 
     vkEnumerateInstanceVersion(&context->api_version);
-    u32 requested_api = VK_API_VERSION_1_4;
-#if defined(PLATFORM_MACOS)
-    requested_api = VK_API_VERSION_1_2;
-#endif
+    u32 requested_api = platform_vulkan_get_api_version();
     RL_INFO("Vulkan loader version: %d.%d", VK_VERSION_MAJOR(context->api_version), VK_VERSION_MINOR(context->api_version));
     if (context->api_version < requested_api) {
         RL_ERROR("Vulkan loader too old. Requires %d.%d", VK_VERSION_MAJOR(requested_api), VK_VERSION_MINOR(requested_api));
@@ -161,12 +80,12 @@ b8 vk_instance_create(VK_Context *context) {
         }
     }
     if (enable_validation && !found_validation) {
-#if defined(PLATFORM_MACOS)
-        RL_WARN("Vulkan missing debug validation layer; disabling validation");
-        enable_validation = false;
-#else
-        RL_FATAL("Vulkan missing debug validation layer");
-#endif
+        if (platform_vulkan_validation_required()) {
+            RL_FATAL("Vulkan missing debug validation layer");
+        } else {
+            RL_WARN("Vulkan missing debug validation layer; disabling validation");
+            enable_validation = false;
+        }
     }
 
     u32 instance_ext_count = 0;
@@ -186,9 +105,8 @@ b8 vk_instance_create(VK_Context *context) {
     RL_TRACE("Required vulkan extensions for platform (%s): %d", platform_get_info()->platform_name, platform_ext_count);
     const char **enabled_exts = rl_arena_push(scratch.arena, sizeof(const char *) * platform_ext_count, true);
     u32 enabled_ext_count = 0;
-#if defined(PLATFORM_MACOS)
-    b8 enable_portability_enumeration = false;
-#endif
+    u32 instance_flags = platform_vulkan_get_instance_create_flags();
+    b8 portability_available = false;
     for (u32 i = 0; i < platform_ext_count; i++) {
         RL_TRACE("Required vulkan ext: %s", platform_exts[i]);
         b8 found = false;
@@ -199,21 +117,22 @@ b8 vk_instance_create(VK_Context *context) {
             }
         }
         if (!found) {
-#if defined(PLATFORM_MACOS)
-            b8 is_portability_enum = cstr_contains(platform_exts[i], "portability_enumeration");
-            if (is_portability_enum) {
+            if (cstr_contains(platform_exts[i], "portability_enumeration")) {
                 RL_WARN("Vulkan loader missing %s; continuing without portability enumeration", platform_exts[i]);
+                instance_flags = 0;
                 continue;
             }
-#endif
             RL_FATAL("Failed to find required vulkan extension: %s", platform_exts[i]);
         }
-#if defined(PLATFORM_MACOS)
         if (cstr_contains(platform_exts[i], "portability_enumeration")) {
-            enable_portability_enumeration = true;
+            portability_available = true;
         }
-#endif
         enabled_exts[enabled_ext_count++] = platform_exts[i];
+    }
+
+    // Only set portability flags if the extension was actually enabled
+    if (!portability_available) {
+        instance_flags = 0;
     }
 
     u32 enabled_layer_count = 0;
@@ -235,19 +154,14 @@ b8 vk_instance_create(VK_Context *context) {
     VkInstanceCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     create_info.pApplicationInfo = &app_info;
-    create_info.flags = 0;
-#if defined(PLATFORM_MACOS)
-    if (enable_portability_enumeration) {
-        create_info.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-    }
-#endif
+    create_info.flags = instance_flags;
     create_info.enabledLayerCount = enabled_layer_count;
     create_info.ppEnabledLayerNames = enabled_layers;
     create_info.enabledExtensionCount = enabled_ext_count;
     create_info.ppEnabledExtensionNames = enabled_exts;
     create_info.pNext = enable_validation ? &debug_create_info : nullptr;
 
-    result = vkCreateInstance(&create_info, nullptr, &context->instance);
+    VkResult result = vkCreateInstance(&create_info, nullptr, &context->instance);
     if (result != VK_SUCCESS) {
         RL_ERROR("Failed to create Vulkan instance (VkResult=%s)", string_VkResult(result));
         return false;
@@ -273,10 +187,5 @@ void vk_instance_destroy(VK_Context *context) {
         vkDestroyDebugUtilsMessengerEXT(context->instance, context->debug_messenger, nullptr);
     }
     vkDestroyInstance(context->instance, nullptr);
-#if defined(PLATFORM_MACOS)
-    if (vk_loader_handle) {
-        dlclose(vk_loader_handle);
-        vk_loader_handle = nullptr;
-    }
-#endif
+    platform_vulkan_loader_shutdown();
 }

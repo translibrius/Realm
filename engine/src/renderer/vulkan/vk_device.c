@@ -279,10 +279,7 @@ b8 create_logical_device(VK_Context *context, VkCandidate *candidate) {
 // Todo: Allow api to take a list of Device extensions, required and optional ones
 b8 vk_device_init(VK_Context *context) {
     ARENA_SCRATCH_START();
-    u32 required_api = VK_API_VERSION_1_4;
-#if defined(PLATFORM_MACOS)
-    required_api = VK_API_VERSION_1_2;
-#endif
+    u32 required_api = platform_vulkan_get_api_version();
     u32 physical_device_count = 0;
     vkEnumeratePhysicalDevices(context->instance, &physical_device_count, nullptr);
 
@@ -384,32 +381,27 @@ b8 vk_device_init(VK_Context *context) {
             continue;
         }
 
-#if !defined(PLATFORM_MACOS)
-        if (!feats.features.geometryShader) {
+        platform_vulkan_device_requirements reqs = platform_vulkan_get_device_requirements();
+        if (reqs.geometry_shader && !feats.features.geometryShader) {
             RL_TRACE("    Skipped: missing feature - 'geometryShader'");
             continue;
         }
-
-        if (!features13.dynamicRendering) {
+        if (reqs.dynamic_rendering && !features13.dynamicRendering) {
             RL_TRACE("    Skipped: missing feature (vulkan 1.3) - 'dynamicRendering'");
             continue;
         }
-
-        if (!features13.maintenance4) {
+        if (reqs.maintenance4 && !features13.maintenance4) {
             RL_TRACE("Skipped: Extension VK_KHR_maintenance4 required, update driver!");
             continue;
         }
-
-        if (!features14.maintenance5) {
+        if (reqs.maintenance5 && !features14.maintenance5) {
             RL_TRACE("Skipped: Extension VK_KHR_maintenance5 required, update driver!");
             continue;
         }
-
-        if (!features14.maintenance6) {
+        if (reqs.maintenance6 && !features14.maintenance6) {
             RL_TRACE("Skipped: Extension VK_KHR_maintenance6 required, update driver!");
             continue;
         }
-#endif
 
         RL_TRACE("GPU #%u:", i);
         RL_TRACE("    Name: %s", props.properties.deviceName);

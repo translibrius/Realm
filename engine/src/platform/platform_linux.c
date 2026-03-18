@@ -823,6 +823,41 @@ b8 platform_set_vsync(platform_window *window, b8 vsync) {
     return false;
 }
 
+// ---- Vulkan platform capabilities ----
+
+b8 platform_vulkan_loader_init(void) {
+    VkResult result = volkInitialize();
+    if (result != VK_SUCCESS) {
+        RL_ERROR("Failed to initialize Vulkan loader (VkResult=%s)", string_VkResult(result));
+        return false;
+    }
+    return true;
+}
+
+void platform_vulkan_loader_shutdown(void) {}
+
+u32 platform_vulkan_get_api_version(void) {
+    return VK_API_VERSION_1_4;
+}
+
+u32 platform_vulkan_get_instance_create_flags(void) {
+    return 0;
+}
+
+b8 platform_vulkan_validation_required(void) {
+    return true;
+}
+
+platform_vulkan_device_requirements platform_vulkan_get_device_requirements(void) {
+    return (platform_vulkan_device_requirements){
+        .geometry_shader = true,
+        .dynamic_rendering = true,
+        .maintenance4 = true,
+        .maintenance5 = true,
+        .maintenance6 = true,
+    };
+}
+
 u32 platform_get_required_vulkan_extensions(const char ***names_out, b8 enable_validation) {
     static const char *extensions[] = {
         VK_KHR_SURFACE_EXTENSION_NAME,
@@ -1049,6 +1084,10 @@ void platform_set_app_icon(platform_window *window, const u8 *rgba, i32 width, i
                     PropModeReplace, (unsigned char *)data, (int)data_len);
     XFlush(state.display);
     free(data);
+}
+
+b8 platform_has_native_app_icon(void) {
+    return false; // no bundle mechanism — runtime icon required
 }
 
 // Custom title bar stubs (Windows-only for now)

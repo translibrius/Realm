@@ -99,6 +99,11 @@ REALM_API void platform_set_titlebar_layout(platform_window *window, platform_ti
 // Application icon — set from RGBA pixel data (call after window creation)
 REALM_API void platform_set_app_icon(platform_window *window, const u8 *rgba, i32 width, i32 height);
 
+// Returns true if the platform provides a native application icon (e.g. macOS
+// .app bundle .icns). When true, callers should skip runtime icon loading for
+// the default engine icon — the OS-provided icon already has native treatment.
+REALM_API b8 platform_has_native_app_icon(void);
+
 // Returns the directory containing the running executable.
 // On macOS .app bundles this returns the directory containing the .app bundle,
 // not the binary inside Contents/MacOS/.
@@ -112,6 +117,22 @@ REALM_API b8 platform_swap_buffers(platform_window *window);
 REALM_API b8 platform_set_vsync(platform_window *window, b8 vsync);
 REALM_API u32 platform_get_required_vulkan_extensions(const char ***names_out, b8 enable_validation); // Returns count of extensions
 REALM_API b8 platform_create_vulkan_surface(struct VK_Context *context);
+
+// Vulkan platform capabilities — keeps #ifdef guards out of the renderer layer.
+REALM_API b8   platform_vulkan_loader_init(void);
+REALM_API void platform_vulkan_loader_shutdown(void);
+REALM_API u32  platform_vulkan_get_api_version(void);
+REALM_API u32  platform_vulkan_get_instance_create_flags(void);
+REALM_API b8   platform_vulkan_validation_required(void);
+
+typedef struct platform_vulkan_device_requirements {
+    b8 geometry_shader;
+    b8 dynamic_rendering;
+    b8 maintenance4;
+    b8 maintenance5;
+    b8 maintenance6;
+} platform_vulkan_device_requirements;
+REALM_API platform_vulkan_device_requirements platform_vulkan_get_device_requirements(void);
 
 // Cursor api
 REALM_API void platform_set_cursor_mode(platform_window *window, platform_cursor_mode mode);

@@ -962,6 +962,106 @@ b8 platform_create_opengl_context(platform_window *window) {
     return true;
 }
 
+// ---- Vulkan platform capabilities ----
+
+static void *vk_loader_handle;
+
+static PFN_vkGetInstanceProcAddr vk_try_load_proc_addr_path(const char *path) {
+    void *handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+    if (!handle) {
+        return NULL;
+    }
+    void *symbol = dlsym(handle, "vkGetInstanceProcAddr");
+    if (!symbol) {
+        dlclose(handle);
+        return NULL;
+    }
+    vk_loader_handle = handle;
+    return (PFN_vkGetInstanceProcAddr)symbol;
+}
+
+static PFN_vkGetInstanceProcAddr vk_try_load_proc_addr(void) {
+    const char *candidates[] = {
+        "libvulkan.1.dylib",
+        "libvulkan.dylib",
+        "libMoltenVK.dylib",
+        "/opt/homebrew/lib/libvulkan.1.dylib",
+        "/opt/homebrew/lib/libvulkan.dylib",
+        "/opt/homebrew/lib/libMoltenVK.dylib",
+        "/usr/local/lib/libvulkan.1.dylib",
+        "/usr/local/lib/libvulkan.dylib",
+        "/usr/local/lib/libMoltenVK.dylib"
+    };
+
+    for (u32 i = 0; i < (u32)(sizeof(candidates) / sizeof(candidates[0])); i++) {
+        PFN_vkGetInstanceProcAddr proc = vk_try_load_proc_addr_path(candidates[i]);
+        if (proc) {
+            return proc;
+        }
+    }
+
+    const char *sdk_root = getenv("VULKAN_SDK");
+    if (!sdk_root || sdk_root[0] == '\0') {
+        return NULL;
+    }
+
+    char path[1024];
+    for (u32 i = 0; i < (u32)(sizeof(candidates) / sizeof(candidates[0])); i++) {
+        int written = snprintf(path, sizeof(path), "%s/lib/%s", sdk_root, candidates[i]);
+        if (written <= 0 || written >= (int)sizeof(path)) {
+            continue;
+        }
+        PFN_vkGetInstanceProcAddr proc = vk_try_load_proc_addr_path(path);
+        if (proc) {
+            return proc;
+        }
+    }
+
+    return NULL;
+}
+
+b8 platform_vulkan_loader_init(void) {
+    VkResult result = volkInitialize();
+    if (result == VK_SUCCESS) {
+        return true;
+    }
+    RL_WARN("Failed to initialize Vulkan loader via volk (VkResult=%s)", string_VkResult(result));
+    PFN_vkGetInstanceProcAddr proc = vk_try_load_proc_addr();
+    if (!proc) {
+        RL_ERROR("Failed to locate Vulkan loader or MoltenVK. Install Vulkan SDK or set VULKAN_SDK/DYLD_LIBRARY_PATH.");
+        return false;
+    }
+    volkInitializeCustom(proc);
+    if (!vkEnumerateInstanceVersion) {
+        RL_ERROR("Vulkan loader still unavailable after direct load");
+        return false;
+    }
+    return true;
+}
+
+void platform_vulkan_loader_shutdown(void) {
+    if (vk_loader_handle) {
+        dlclose(vk_loader_handle);
+        vk_loader_handle = NULL;
+    }
+}
+
+u32 platform_vulkan_get_api_version(void) {
+    return VK_API_VERSION_1_2;
+}
+
+u32 platform_vulkan_get_instance_create_flags(void) {
+    return VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+}
+
+b8 platform_vulkan_validation_required(void) {
+    return false;
+}
+
+platform_vulkan_device_requirements platform_vulkan_get_device_requirements(void) {
+    return (platform_vulkan_device_requirements){0};
+}
+
 u32 platform_get_required_vulkan_extensions(const char ***names_out, b8 enable_validation) {
     static const char *extensions[] = {
         VK_KHR_SURFACE_EXTENSION_NAME,
@@ -1297,6 +1397,10 @@ void platform_set_app_icon(platform_window *window, const u8 *rgba, i32 width, i
         [icon addRepresentation:rep];
         [NSApp setApplicationIconImage:icon];
     }
+}
+
+b8 platform_has_native_app_icon(void) {
+    return true; // .app bundle .icns gets native dock treatment
 }
 
 void platform_set_titlebar_layout(platform_window *window, platform_titlebar_layout layout) {
