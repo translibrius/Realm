@@ -1,6 +1,7 @@
 # CLAUDE.md
 
 C23 graphics engine (`engine/`) with Vulkan and OpenGL 3.3 backends, plus a host executable (`realm/`) that hot-reloads a game module. Windows primary; macOS and Linux complete.
+When being prompted for stuff, try your best to ask questions/provide few possible options to the user to chose from viable paths, unless its really clear.
 
 ## Build
 

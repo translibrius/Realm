@@ -4,6 +4,7 @@
 #include "core/component.h"
 #include "core/entity.h"
 #include "core/logger.h"
+#include "platform/io/file_io.h"
 #include "util/str.h"
 
 #include "yyjson.h"
@@ -207,8 +208,30 @@ b8 scene_save(const rl_scene *scene, const char *path) {
     return ok;
 }
 
+// Peek first 4 bytes to detect binary format (magic "RLSC")
+static b8 scene_file_is_binary(const char *path) {
+    rl_file file = {0};
+    if (!platform_file_open(path, P_FILE_READ, &file)) return false;
+    if (!platform_file_read_all(&file)) {
+        platform_file_close(&file);
+        return false;
+    }
+    b8 is_bin = file.buf_len >= 4
+        && ((const u8 *)file.buf)[0] == 'R'
+        && ((const u8 *)file.buf)[1] == 'L'
+        && ((const u8 *)file.buf)[2] == 'S'
+        && ((const u8 *)file.buf)[3] == 'C';
+    platform_file_close(&file);
+    return is_bin;
+}
+
 rl_scene *scene_load(const char *path) {
     if (!path) return nullptr;
+
+    // Auto-detect binary vs JSON
+    if (scene_file_is_binary(path)) {
+        return scene_load_binary(path);
+    }
 
     yyjson_read_err err;
     yyjson_doc *doc = yyjson_read_file(path, 0, nullptr, &err);

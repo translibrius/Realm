@@ -11,7 +11,7 @@ When starting a session from this roadmap:
 
 ## Context
 
-Phases 1–14 are complete. The editor and game host share a project system, scene I/O (JSON via yyjson), dynamic asset discovery, a full property inspector with undo/redo, viewport interaction (camera, gizmos, picking, grid), and a polished GUI with themes, focus management, and centralized keyboard routing.
+Phases 1–14 are complete. The editor and game host share a project system, scene I/O (JSON via yyjson + binary via custom RLSC format), dynamic asset discovery, a full property inspector with undo/redo, viewport interaction (camera, gizmos, picking, grid), and a polished GUI with themes, focus management, and centralized keyboard routing.
 
 ### Current architecture
 
@@ -25,7 +25,7 @@ Phases 1–14 are complete. The editor and game host share a project system, sce
 
 1. **Infrastructure cleanup**: ~~centralized TOML parser~~ ✓, ~~consolidate `game/` project data into `realm/`~~ ✓, ~~behavior system~~ ✓, ~~string utils consolidation~~ ✓
 2. **Project scaffolding**: "New Project" generates a buildable game module template
-3. **Binary scenes + export pipeline**: custom binary format for fast loading, editor export for shipping
+3. **Binary scenes + export pipeline**: ~~custom binary format for fast loading~~ ✓ (19a+19b), editor export for shipping (19c + Phase 20)
 4. **Asset drag-and-drop + entity highlighting**: thumbnail previews, drag assets into scene/onto entities, hover outline shader
 
 ---
@@ -273,24 +273,50 @@ Windows-only custom title bar (editor) and application icon infrastructure. macO
 
 Custom binary format for fast loading and opaque shipping. Editor always saves JSON (human-readable, diffable). Export/runtime prefers binary.
 
-### 19a. Binary writer
+### 19a. Binary writer ✓
 
-- [ ] `scene_save_binary(scene, path)` — custom binary layout with magic bytes + version header
-- [ ] Component data written as flat structs — no parsing overhead on load
-- [ ] String table for entity names, behavior names, asset paths
+- [x] `scene_save_binary(scene, path)` — custom binary layout with `RLSC` magic + version 1 header
+- [x] Component data written as flat u32/f32 values — no parsing overhead on load
+- [x] String table with deduplication for entity names, behavior names, asset paths
+- [x] Arena-backed write buffer (scratch arena) — zero heap allocations during save
 
-### 19b. Binary reader
+### 19b. Binary reader ✓
 
-- [ ] `scene_load_binary(path)` → `rl_scene *`
-- [ ] Magic bytes detection: `scene_load(path)` auto-detects JSON vs binary
-- [ ] Version check — reject incompatible versions with clear error
+- [x] `scene_load_binary(path)` → `rl_scene *`
+- [x] Magic bytes detection: `scene_load(path)` auto-detects JSON vs binary (peeks first 4 bytes)
+- [x] Version check — rejects incompatible versions with clear error message
+- [x] Robust error handling — truncated data at any point returns `nullptr` with descriptive error
+
+### 19b-tests. Unit tests ✓
+
+- [x] 7 new tests added to `test_scene_io.c` (15 total in group, 263 total in suite)
+- [x] Binary roundtrip (all 5 component types, exact f32 precision — no float→double→float loss)
+- [x] Binary empty scene, multiple entities with mixed components
+- [x] Auto-detect: `scene_load` dispatches correctly for both binary and JSON files
+- [x] Version mismatch rejection (crafted bad header)
+- [x] Null argument handling
+- [x] String deduplication (two entities with same name share one string table entry)
 
 ### 19c. Wire into pipeline
 
 - [ ] Editor saves `.scene` as JSON (authoring format, unchanged)
 - [ ] Export step converts `.scene` → `.scene.bin` (Phase 20)
 - [ ] Game host prefers `.scene.bin` if present, falls back to `.scene`
-- [ ] Unit tests: round-trip binary save/load, format detection, version mismatch handling
+
+### Format reference
+
+```
+[Header — 16 bytes]
+  magic: u8[4] = 'R','L','S','C'   version: u32   entity_count: u32   string_count: u32
+[String table] per string: { u32 len, u8[len] chars }
+[Scene name]   name_str_idx: u32
+[Entities]     per entity: comp_mask: u32, then conditional component data
+  bit 0: name (u32 str_idx)
+  bit 1: transform (f32[9] — pos/rot/scale)
+  bit 2: mesh (u32 prim/kind/wire, u32 mesh_asset_idx, u32 diffuse_idx, f32[3] specular, f32 shininess)
+  bit 3: light (f32[9] — ambient/diffuse/specular)
+  bit 4: behavior (u32 str_idx)
+```
 
 ---
 
@@ -392,7 +418,7 @@ Phase 1–14: Foundation                       ✓ all done
             │
             ├── Phase 18: Project Scaffolding        ○ depends on 16 + 17
             │
-            ├── Phase 19: Binary Scene Format        ○ depends on 17
+            ├── Phase 19: Binary Scene Format        ◐ 19a+19b done, 19c depends on Phase 20
             │       │
             │       └── Phase 20: Export Pipeline    ○ depends on 19
             │
