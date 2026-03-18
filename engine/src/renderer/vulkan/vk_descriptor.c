@@ -85,12 +85,14 @@ void vk_descriptor_destroy_set_layout(VK_Context *context) {
 }
 
 b8 vk_descriptor_create_pool(VK_Context *context) {
+    // Space for default sets + per-texture descriptor sets (each needs UBO + sampler)
+    u32 max_sets = (1 + VK_MAX_TEXTURES) * context->max_frames_in_flight;
     VkDescriptorPoolSize pool_sizes[2] = {
-        { .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = context->max_frames_in_flight },
-        { .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .descriptorCount = context->max_frames_in_flight },
+        { .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = max_sets },
+        { .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .descriptorCount = max_sets },
     };
 
-    return vk_descriptor_pool_create(context, pool_sizes, 2, context->max_frames_in_flight, &context->descriptor_pool);
+    return vk_descriptor_pool_create(context, pool_sizes, 2, max_sets, &context->descriptor_pool);
 }
 
 void vk_descriptor_destroy_pool(VK_Context *context) {
@@ -112,7 +114,6 @@ b8 vk_descriptor_create_sets(VK_Context *context) {
         };
 
         VkWriteDescriptorSet descriptor_writes[2] = {};
-        u32 write_count = 1;
 
         descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         descriptor_writes[0].dstSet = context->descriptor_sets[i];
@@ -122,23 +123,66 @@ b8 vk_descriptor_create_sets(VK_Context *context) {
         descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         descriptor_writes[0].pBufferInfo = &buffer_info;
 
-        VkDescriptorImageInfo image_info = {0};
-        if (context->texture_count > 0) {
-            image_info.sampler = context->texture_sampler;
-            image_info.imageView = context->textures[0].texture.texture_image_view;
-            image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        // Always bind placeholder texture so binding 1 is never uninitialized
+        VkDescriptorImageInfo image_info = {
+            .sampler = context->texture_sampler,
+            .imageView = context->placeholder_texture.texture_image_view,
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        };
 
-            descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptor_writes[1].dstSet = context->descriptor_sets[i];
-            descriptor_writes[1].dstBinding = 1;
-            descriptor_writes[1].dstArrayElement = 0;
-            descriptor_writes[1].descriptorCount = 1;
-            descriptor_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptor_writes[1].pImageInfo = &image_info;
-            write_count = 2;
-        }
+        descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptor_writes[1].dstSet = context->descriptor_sets[i];
+        descriptor_writes[1].dstBinding = 1;
+        descriptor_writes[1].dstArrayElement = 0;
+        descriptor_writes[1].descriptorCount = 1;
+        descriptor_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptor_writes[1].pImageInfo = &image_info;
 
-        vkUpdateDescriptorSets(context->device, write_count, descriptor_writes, 0, nullptr);
+        vkUpdateDescriptorSets(context->device, 2, descriptor_writes, 0, nullptr);
+    }
+
+    return true;
+}
+
+b8 vk_descriptor_create_texture_sets(VK_Context *context, VkImageView texture_view, VkDescriptorSet *out_sets) {
+    if (!vk_descriptor_sets_allocate(context, context->descriptor_pool, context->descriptor_set_layout,
+                                     context->max_frames_in_flight, out_sets)) {
+        return false;
+    }
+
+    for (u32 i = 0; i < context->max_frames_in_flight; i++) {
+        VkDescriptorBufferInfo buffer_info = {
+            .buffer = context->uniform_buffers[i],
+            .offset = 0,
+            .range = sizeof(ubo)
+        };
+
+        VkDescriptorImageInfo image_info = {
+            .sampler = context->texture_sampler,
+            .imageView = texture_view,
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        };
+
+        VkWriteDescriptorSet writes[2] = {
+            {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = out_sets[i],
+                .dstBinding = 0,
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                .pBufferInfo = &buffer_info,
+            },
+            {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = out_sets[i],
+                .dstBinding = 1,
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                .pImageInfo = &image_info,
+            },
+        };
+
+        vkUpdateDescriptorSets(context->device, 2, writes, 0, nullptr);
     }
 
     return true;

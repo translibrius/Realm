@@ -12,3 +12,6 @@ void vk_texture_destroy(VK_Context *ctx, VK_Texture *vk_texture);
 
 b8 vk_texture_create_sampler(VK_Context *ctx);
 void vk_texture_destroy_sampler(VK_Context *ctx);
+
+b8 vk_placeholder_texture_create(VK_Context *ctx);
+void vk_placeholder_texture_destroy(VK_Context *ctx);

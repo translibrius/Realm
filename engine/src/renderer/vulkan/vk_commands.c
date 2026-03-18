@@ -1,11 +1,58 @@
 #include "vk_commands.h"
 #include "vk_gui.h"
+#include "vk_mesh.h"
 #include "vk_util.h"
 #include "asset/asset.h"
 #include "asset/mesh.h"
 #include "renderer/renderer_backend.h"
 #include "renderer/renderer_types.h"
 #include "memory/memory.h"
+
+// Find the descriptor sets for a given texture, or nullptr for placeholder
+static VkDescriptorSet *vk_cmd_find_texture_sets(VK_Context *ctx, asset_id diffuse_id) {
+    if (!diffuse_id) return nullptr;
+    for (u32 i = 0; i < ctx->texture_count; i++) {
+        if (ctx->textures[i].asset_id == diffuse_id) return ctx->textures[i].descriptor_sets;
+    }
+    return nullptr;
+}
+
+// Resolve effective diffuse texture for a frame mesh
+static asset_id vk_cmd_resolve_diffuse(rl_frame_mesh *fm) {
+    if (fm->material.diffuse_map) return fm->material.diffuse_map;
+    if (fm->mesh_asset) {
+        rl_asset *a = asset_get(fm->mesh_asset);
+        if (a && a->data) {
+            rl_mesh *m = (rl_mesh *)a->data;
+            if (m->material_count > 0)
+                return m->materials[0].base_color_texture;
+        }
+    }
+    return 0;
+}
+
+// Bind the correct vertex/index buffer and issue the draw call for a frame mesh.
+// Returns false if the mesh can't be drawn (missing asset).
+static b8 vk_cmd_bind_and_draw(VK_Context *ctx, VkCommandBuffer buf, rl_frame_mesh *fm) {
+    VkDeviceSize offset = 0;
+
+    if (fm->mesh_asset) {
+        i32 idx = vk_mesh_cache_find(ctx, fm->mesh_asset);
+        if (idx < 0) return false;
+
+        vkCmdBindVertexBuffers(buf, 0, 1, &ctx->mesh_cache[idx].vertex_buffer, &offset);
+        if (ctx->mesh_cache[idx].index_count > 0) {
+            vkCmdBindIndexBuffer(buf, ctx->mesh_cache[idx].index_buffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdDrawIndexed(buf, ctx->mesh_cache[idx].index_count, 1, 0, 0, 0);
+        } else {
+            vkCmdDraw(buf, ctx->mesh_cache[idx].vertex_count, 1, 0, 0);
+        }
+    } else {
+        vkCmdBindVertexBuffers(buf, 0, 1, &ctx->cube_vertex_buffer, &offset);
+        vkCmdDraw(buf, ctx->cube_vertex_count, 1, 0, 0);
+    }
+    return true;
+}
 
 b8 vk_command_pool_create(VK_Context *context, VkCommandPool *out_pool, u32 family_index) {
 
@@ -132,34 +179,40 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
             vkCmdDraw(buffer, 6, 1, 0, 0);
         }
 
-        // Shared vertex buffer for all mesh passes
-        VkBuffer vbufs[] = {context->cube_vertex_buffer};
-        VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(buffer, 0, 1, vbufs, offsets);
-
-        // --- Lit pass ---
+        // --- Lit pass (per-mesh texture + geometry binding) ---
         VkPipeline lit_pipe = context->debug_wireframe ? context->wireframe_lit_pipeline : context->graphics_pipeline.handle;
         vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, lit_pipe);
         for (u32 i = 0; i < context->frame_mesh_count; i++) {
-            if (context->frame_meshes[i].kind != RL_FRAME_MESH_KIND_LIT) continue;
+            rl_frame_mesh *fm = &context->frame_meshes[i];
+            if (fm->kind != RL_FRAME_MESH_KIND_LIT) continue;
+
+            // Bind per-mesh texture descriptor set (or default placeholder)
+            asset_id diffuse_id = vk_cmd_resolve_diffuse(fm);
+            VkDescriptorSet *tex_sets = vk_cmd_find_texture_sets(context, diffuse_id);
+            VkDescriptorSet ds = tex_sets ? tex_sets[context->current_frame]
+                                          : context->descriptor_sets[context->current_frame];
+            vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                context->pipeline_layout, 0, 1, &ds, 0, nullptr);
+
             VK_MeshPushConstants pc;
-            glm_mat4_copy(context->frame_meshes[i].model, pc.model);
-            glm_vec3_copy(context->frame_meshes[i].material.specular, pc.material_params);
-            pc.material_params[3] = context->frame_meshes[i].material.shininess;
+            glm_mat4_copy(fm->model, pc.model);
+            glm_vec3_copy(fm->material.specular, pc.material_params);
+            pc.material_params[3] = fm->material.shininess;
             vkCmdPushConstants(buffer, context->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(VK_MeshPushConstants), &pc);
-            vkCmdDraw(buffer, context->cube_vertex_count, 1, 0, 0);
+            vk_cmd_bind_and_draw(context, buffer, fm);
         }
 
         // --- Unlit pass ---
         VkPipeline unlit_pipe = context->debug_wireframe ? context->wireframe_unlit_pipeline : context->unlit_pipeline;
         vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, unlit_pipe);
         for (u32 i = 0; i < context->frame_mesh_count; i++) {
-            if (context->frame_meshes[i].kind != RL_FRAME_MESH_KIND_UNLIT) continue;
+            rl_frame_mesh *fm = &context->frame_meshes[i];
+            if (fm->kind != RL_FRAME_MESH_KIND_UNLIT) continue;
             VK_MeshPushConstants pc;
-            glm_mat4_copy(context->frame_meshes[i].model, pc.model);
+            glm_mat4_copy(fm->model, pc.model);
             glm_vec4_zero(pc.material_params);
             vkCmdPushConstants(buffer, context->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(VK_MeshPushConstants), &pc);
-            vkCmdDraw(buffer, context->cube_vertex_count, 1, 0, 0);
+            vk_cmd_bind_and_draw(context, buffer, fm);
         }
 
         // --- Outline highlight pass (stencil-based entity outlines) ---
@@ -209,7 +262,7 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
                     vkCmdPushConstants(buffer, context->pipeline_layout,
                         VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                         0, sizeof(VK_MeshPushConstants), &pc);
-                    vkCmdDraw(buffer, context->cube_vertex_count, 1, 0, 0);
+                    vk_cmd_bind_and_draw(context, buffer, fm);
                 }
 
                 // Step 2: Outline draw — expanded mesh with stencil test
@@ -225,7 +278,7 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
                     vkCmdPushConstants(buffer, context->pipeline_layout,
                         VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                         0, sizeof(VK_MeshPushConstants), &pc);
-                    vkCmdDraw(buffer, context->cube_vertex_count, 1, 0, 0);
+                    vk_cmd_bind_and_draw(context, buffer, fm);
                 }
 
                 stencil_ref++;
@@ -234,6 +287,12 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
 
         // --- World-space overlays (transform gizmos — main camera, no depth test) ---
         if (context->world_overlay_count > 0 && context->world_overlays) {
+            // Rebind cube vertex buffer (may have been changed by per-mesh draws above)
+            VkDeviceSize vb_offset = 0;
+            vkCmdBindVertexBuffers(buffer, 0, 1, &context->cube_vertex_buffer, &vb_offset);
+            // Rebind default descriptor set for overlays (no texture needed)
+            vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->pipeline_layout,
+                0, 1, &context->descriptor_sets[context->current_frame], 0, nullptr);
             vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->overlay_pipeline);
             for (u32 i = 0; i < context->world_overlay_count; i++) {
                 VK_MeshPushConstants pc;
@@ -276,6 +335,9 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
             vkCmdSetViewport(buffer, 0, 1, &gizmo_vp);
             vkCmdSetScissor(buffer, 0, 1, &gizmo_scissor);
 
+            // Ensure cube VB + default descriptor set are bound
+            VkDeviceSize gizmo_vb_offset = 0;
+            vkCmdBindVertexBuffers(buffer, 0, 1, &context->cube_vertex_buffer, &gizmo_vb_offset);
             vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->overlay_pipeline);
 
             // Build overlay UBO with overlay camera matrices

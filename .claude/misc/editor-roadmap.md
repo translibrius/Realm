@@ -442,9 +442,38 @@ Phase 21c (outline shader) is complete. Remaining 21a/21b/21d are GUI-heavy (thu
 
 ---
 
+## Interlude: Vulkan Backend Parity ✓
+
+The Vulkan backend was missing two features the OpenGL backend had from the start: per-mesh texture binding and imported mesh rendering. Lit meshes rendered as black blocks (uninitialized texture sampler) and all imported models drew as cubes (single shared vertex buffer).
+
+### Texture pipeline ✓
+
+- [x] **1×1 white placeholder texture** — created during VK init, always bound to descriptor set binding 1 so the sampler is never uninitialized
+- [x] **Per-texture descriptor sets** — each loaded texture gets its own descriptor set (per frame-in-flight) with the shared UBO + that texture's image view
+- [x] **Lazy texture loading** — `vulkan_submit_frame_data` scans meshes for referenced `diffuse_map` / mesh material `base_color_texture`, uploads on first reference (mirrors GL's `gl_load_texture`)
+- [x] **Descriptor pool scaled** — from `max_frames_in_flight` (2) sets to `(1 + VK_MAX_TEXTURES) * max_frames_in_flight` (130) to accommodate per-texture sets
+- [x] **Sampler max_lod fixed** — was based on `textures[0].mip_levels` (always 0 at init), now uses a flat `16.0f` so lazily-loaded textures with mipmaps work correctly
+- [x] **Per-mesh texture binding in lit pass** — each lit draw binds its texture's descriptor set, falls back to placeholder (white) for untextured meshes
+- [x] **Diffuse map resolution** — `vk_resolve_diffuse` / `vk_cmd_resolve_diffuse` fall back to the mesh asset's `materials[0].base_color_texture` when `diffuse_map` is 0 (same logic as GL)
+
+### Imported mesh rendering ✓
+
+- [x] **VK mesh cache** — `mesh_cache[64]` on `VK_Context`, stores per-mesh `VkBuffer` + `VkDeviceMemory` for vertex and optional index data
+- [x] **Lazy mesh upload** — `vk_mesh_cache_upload` uploads vertex + index buffers to device-local memory via staging buffer, called from `vulkan_submit_frame_data` for any referenced `mesh_asset`
+- [x] **Per-mesh draw** — `vk_cmd_bind_and_draw` binds the correct vertex/index buffer and issues `vkCmdDrawIndexed` (indexed) or `vkCmdDraw` (non-indexed), falls back to cube VB for primitives
+- [x] **All passes updated** — lit, unlit, and outline (stencil + draw) passes use per-mesh geometry; overlay passes explicitly rebind cube VB
+
+### Validation fixes ✓
+
+- [x] Eliminated `VUID-vkCmdDraw-None-08114` (descriptor never updated) — binding 1 always has a valid texture now
+- [x] Remaining benign warnings: outline pipeline `location 1/2 not consumed` (outline shader only reads position) — cosmetic, not a bug
+
+---
+
 ## Loose Ends
 
 - Entity create/destroy undo action types exist but the recreation logic for undo isn't wired yet. Context menu delete works but doesn't push undo entries.
 - File browser widget (`gui_file_browser`) is wired for export (directory picker) but not yet for project picker's Browse button (native dialog preferred long-term).
 - File browser has inline "New Folder" creation (nav bar button, Enter/Escape, auto-select after create). Mkdir logic is duplicated between Enter key handler and button click — could extract into a helper.
 - Dropdown `min_width` field added for auto-fit menus — used by editor menu bar (140px floor).
+- Outline pipeline has benign validation warnings (vertex attributes at location 1/2 not consumed by outline vertex shader) — could fix with a separate vertex input layout, but purely cosmetic.

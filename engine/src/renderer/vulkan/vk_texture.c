@@ -236,12 +236,24 @@ void vk_texture_destroy(VK_Context *ctx, VK_Texture *vk_texture) {
 }
 
 b8 vk_texture_create_sampler(VK_Context *ctx) {
-    // Use the first loaded texture's mip levels for the sampler (they're all similar)
-    u32 mip_levels = ctx->texture_count > 0 ? ctx->textures[0].texture.mip_levels : 1;
-    f32 max_lod = (f32)(mip_levels > 0 ? mip_levels - 1 : 0);
-    return vk_sampler_create(ctx, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, max_lod, &ctx->texture_sampler);
+    // Use a generous max_lod so textures with many mip levels work correctly
+    // even when loaded lazily after the sampler is created.
+    return vk_sampler_create(ctx, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, 16.0f, &ctx->texture_sampler);
 }
 
 void vk_texture_destroy_sampler(VK_Context *ctx) {
     vkDestroySampler(ctx->device, ctx->texture_sampler, nullptr);
+}
+
+b8 vk_placeholder_texture_create(VK_Context *ctx) {
+    u8 white_pixel[4] = {255, 255, 255, 255};
+    return vk_texture_upload(ctx, 1, 1, 1, VK_FORMAT_R8G8B8A8_UNORM,
+                             white_pixel, 4,
+                             &ctx->placeholder_texture.texture_image,
+                             &ctx->placeholder_texture.texture_memory,
+                             &ctx->placeholder_texture.texture_image_view);
+}
+
+void vk_placeholder_texture_destroy(VK_Context *ctx) {
+    vk_texture_destroy(ctx, &ctx->placeholder_texture);
 }

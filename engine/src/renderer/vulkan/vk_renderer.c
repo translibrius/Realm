@@ -1,6 +1,7 @@
 #include "renderer/vulkan/vk_renderer.h"
 
 #include "asset/asset.h"
+#include "asset/mesh.h"
 #include "core/event.h"
 #include "engine.h"
 #include "vk_buffer.h"
@@ -215,6 +216,11 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
         return false;
     }
 
+    if (!vk_placeholder_texture_create(&context)) {
+        RL_ERROR("failed to create placeholder texture");
+        return false;
+    }
+
     if (!vk_buffers_create_uniform(&context)) {
         RL_ERROR("failed to create uniform buffers");
         return false;
@@ -261,6 +267,7 @@ void vulkan_destroy(void) {
     vk_descriptor_destroy_pool(&context);
     vk_buffers_destroy_uniform(&context);
     vk_texture_destroy_sampler(&context);
+    vk_placeholder_texture_destroy(&context);
     for (u32 i = 0; i < context.texture_count; i++) {
         vk_texture_destroy(&context, &context.textures[i].texture);
     }
@@ -269,6 +276,7 @@ void vulkan_destroy(void) {
     vk_wireframe_pipelines_destroy(&context);
     vk_overlay_pipeline_destroy(&context);
     vk_unlit_pipeline_destroy(&context);
+    vk_mesh_cache_destroy_all(&context);
     vk_mesh_destroy_cube(&context);
     vk_sync_destroy_transfer(&context);
     if (context.queue_families.has_transfer) {
@@ -399,6 +407,59 @@ void vulkan_set_vsync(b8 vsync) {
     context.framebuffer_resized = true;
 }
 
+// --- Texture cache (mirrors GL's lazy loading) ---
+
+static i32 vk_find_texture_index(asset_id id) {
+    for (u32 i = 0; i < context.texture_count; i++) {
+        if (context.textures[i].asset_id == id) return (i32)i;
+    }
+    return -1;
+}
+
+static b8 vk_load_texture(asset_id id) {
+    if (context.texture_count >= VK_MAX_TEXTURES) {
+        RL_ERROR("VK texture table full");
+        return false;
+    }
+
+    u32 idx = context.texture_count;
+    if (!vk_texture_create(&context, id, &context.textures[idx].texture)) {
+        return false;
+    }
+
+    context.textures[idx].asset_id = id;
+
+    if (!vk_descriptor_create_texture_sets(&context,
+            context.textures[idx].texture.texture_image_view,
+            context.textures[idx].descriptor_sets)) {
+        vk_texture_destroy(&context, &context.textures[idx].texture);
+        return false;
+    }
+
+    context.texture_count++;
+    return true;
+}
+
+static void vk_ensure_texture(asset_id id) {
+    if (!id) return;
+    if (vk_find_texture_index(id) >= 0) return;
+    vk_load_texture(id);
+}
+
+// Resolve the effective diffuse texture for a frame mesh
+static asset_id vk_resolve_diffuse(rl_frame_mesh *fm) {
+    if (fm->material.diffuse_map) return fm->material.diffuse_map;
+    if (fm->mesh_asset) {
+        rl_asset *a = asset_get(fm->mesh_asset);
+        if (a && a->data) {
+            rl_mesh *m = (rl_mesh *)a->data;
+            if (m->material_count > 0)
+                return m->materials[0].base_color_texture;
+        }
+    }
+    return 0;
+}
+
 void vulkan_submit_frame_data(rl_frame_data *frame_data) {
     if (!frame_data) {
         return;
@@ -418,6 +479,14 @@ void vulkan_submit_frame_data(rl_frame_data *frame_data) {
         mem_copy(context.frame_meshes, frame_data->meshes, sz);
     } else {
         context.frame_meshes = nullptr;
+    }
+
+    // Ensure all referenced textures and meshes are uploaded to VK before command recording
+    for (u32 i = 0; i < frame_data->mesh_count; i++) {
+        vk_ensure_texture(vk_resolve_diffuse(&frame_data->meshes[i]));
+        if (frame_data->meshes[i].mesh_asset) {
+            vk_mesh_cache_upload(&context, frame_data->meshes[i].mesh_asset);
+        }
     }
 
     // Copy world overlay data (transform gizmos)

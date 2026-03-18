@@ -239,10 +239,23 @@ typedef struct VK_Context {
 
     VkDescriptorPool descriptor_pool;
 
-    // Cube mesh (shared geometry for all meshes)
+    // Cube mesh (default geometry for primitive cubes)
     VkBuffer cube_vertex_buffer;
     VkDeviceMemory cube_vertex_memory;
     u32 cube_vertex_count;
+
+    // Imported mesh cache (asset_id -> GPU buffers)
+    enum { VK_MAX_MESHES = 64 };
+    struct {
+        asset_id asset_id;
+        VkBuffer vertex_buffer;
+        VkDeviceMemory vertex_memory;
+        VkBuffer index_buffer;      // VK_NULL_HANDLE if non-indexed
+        VkDeviceMemory index_memory;
+        u32 vertex_count;
+        u32 index_count;            // 0 if non-indexed
+    } mesh_cache[64];
+    u32 mesh_cache_count;
 
     // Unlit pipeline (light cubes)
     VkPipeline unlit_pipeline;
@@ -288,8 +301,13 @@ typedef struct VK_Context {
 
     // Textures
     VkSampler texture_sampler;
+    VK_Texture placeholder_texture; // 1x1 white, used when mesh has no diffuse map
     enum { VK_MAX_TEXTURES = 64 };
-    struct { asset_id asset_id; VK_Texture texture; } textures[64];
+    struct {
+        asset_id asset_id;
+        VK_Texture texture;
+        VkDescriptorSet descriptor_sets[2]; // per frame-in-flight
+    } textures[64];
     u32 texture_count;
 
     // Text
