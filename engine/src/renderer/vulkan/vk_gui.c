@@ -60,12 +60,15 @@ static gui_clip_rect *clip_current(void) {
 static void push_rect(VK_GuiVertex *verts, u32 *count,
                        f32 x, f32 y, f32 w, f32 h,
                        f32 r, f32 g, f32 b, f32 a,
-                       f32 corner_radius) {
+                       Clay_CornerRadius corners) {
     if (*count + 6 > VK_GUI_MAX_VERTS) return;
+
+    b8 has_radius = corners.topLeft > 0 || corners.topRight > 0 ||
+                    corners.bottomLeft > 0 || corners.bottomRight > 0;
 
     f32 x0 = x, y0 = y, x1 = x + w, y1 = y + h;
 
-    if (corner_radius <= 0.0f && clip_active()) {
+    if (!has_radius && clip_active()) {
         gui_clip_rect *c = clip_current();
         if (x0 < c->x0) x0 = c->x0;
         if (y0 < c->y0) y0 = c->y0;
@@ -76,16 +79,17 @@ static void push_rect(VK_GuiVertex *verts, u32 *count,
 
     VK_GuiVertex *v = &verts[*count];
 
-    if (corner_radius > 0.0f) {
+    if (has_radius) {
         f32 hw = (x1 - x0) * 0.5f;
         f32 hh = (y1 - y0) * 0.5f;
-        vec4 ri = {hw, hh, corner_radius, 0};
-        v[0] = (VK_GuiVertex){.pos = {x0, y0}, .uv = {-hw, -hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
-        v[1] = (VK_GuiVertex){.pos = {x0, y1}, .uv = {-hw,  hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
-        v[2] = (VK_GuiVertex){.pos = {x1, y1}, .uv = { hw,  hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
-        v[3] = (VK_GuiVertex){.pos = {x0, y0}, .uv = {-hw, -hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
-        v[4] = (VK_GuiVertex){.pos = {x1, y1}, .uv = { hw,  hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
-        v[5] = (VK_GuiVertex){.pos = {x1, y0}, .uv = { hw, -hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
+        vec4 ri = {hw, hh, 1.0f, 0};
+        vec4 cr = {corners.topLeft, corners.topRight, corners.bottomLeft, corners.bottomRight};
+        v[0] = (VK_GuiVertex){.pos = {x0, y0}, .uv = {-hw, -hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}, .corner_radii = {cr[0], cr[1], cr[2], cr[3]}};
+        v[1] = (VK_GuiVertex){.pos = {x0, y1}, .uv = {-hw,  hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}, .corner_radii = {cr[0], cr[1], cr[2], cr[3]}};
+        v[2] = (VK_GuiVertex){.pos = {x1, y1}, .uv = { hw,  hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}, .corner_radii = {cr[0], cr[1], cr[2], cr[3]}};
+        v[3] = (VK_GuiVertex){.pos = {x0, y0}, .uv = {-hw, -hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}, .corner_radii = {cr[0], cr[1], cr[2], cr[3]}};
+        v[4] = (VK_GuiVertex){.pos = {x1, y1}, .uv = { hw,  hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}, .corner_radii = {cr[0], cr[1], cr[2], cr[3]}};
+        v[5] = (VK_GuiVertex){.pos = {x1, y0}, .uv = { hw, -hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}, .corner_radii = {cr[0], cr[1], cr[2], cr[3]}};
     } else {
         v[0] = (VK_GuiVertex){.pos = {x0, y0}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
         v[1] = (VK_GuiVertex){.pos = {x0, y1}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
@@ -241,11 +245,12 @@ b8 vk_gui_pipeline_init(VK_Context *ctx) {
         .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
     };
 
-    VkVertexInputAttributeDescription attr_descs[4] = {
+    VkVertexInputAttributeDescription attr_descs[5] = {
         { .location = 0, .binding = 0, .format = VK_FORMAT_R32G32_SFLOAT,       .offset = offsetof(VK_GuiVertex, pos) },
         { .location = 1, .binding = 0, .format = VK_FORMAT_R32G32_SFLOAT,       .offset = offsetof(VK_GuiVertex, uv) },
         { .location = 2, .binding = 0, .format = VK_FORMAT_R32G32B32A32_SFLOAT, .offset = offsetof(VK_GuiVertex, color) },
         { .location = 3, .binding = 0, .format = VK_FORMAT_R32G32B32A32_SFLOAT, .offset = offsetof(VK_GuiVertex, rect_info) },
+        { .location = 4, .binding = 0, .format = VK_FORMAT_R32G32B32A32_SFLOAT, .offset = offsetof(VK_GuiVertex, corner_radii) },
     };
 
     // Reuse the text pipeline's descriptor set layout (same: 1 combined image sampler)
@@ -255,7 +260,7 @@ b8 vk_gui_pipeline_init(VK_Context *ctx) {
         .bindings = &binding_desc,
         .binding_count = 1,
         .attributes = attr_descs,
-        .attribute_count = 4,
+        .attribute_count = 5,
         .set_layouts = &tp->descriptor_set_layout,
         .set_layout_count = 1,
         .push_constants = &push_range,
@@ -370,8 +375,7 @@ void vulkan_render_gui(void *commands, i32 command_count) {
             f32 g = rect->backgroundColor.g / 255.0f;
             f32 b = rect->backgroundColor.b / 255.0f;
             f32 a = rect->backgroundColor.a / 255.0f;
-            f32 cr = rect->cornerRadius.topLeft;
-            push_rect(verts, &vert_count, bb.x, bb.y, bb.width, bb.height, r, g, b, a, cr);
+            push_rect(verts, &vert_count, bb.x, bb.y, bb.width, bb.height, r, g, b, a, rect->cornerRadius);
             break;
         }
 
@@ -383,13 +387,13 @@ void vulkan_render_gui(void *commands, i32 command_count) {
             f32 a = border->color.a / 255.0f;
 
             if (border->width.top > 0)
-                push_rect(verts, &vert_count, bb.x, bb.y, bb.width, (f32)border->width.top, r, g, b, a, 0);
+                push_rect(verts, &vert_count, bb.x, bb.y, bb.width, (f32)border->width.top, r, g, b, a, (Clay_CornerRadius){0});
             if (border->width.bottom > 0)
-                push_rect(verts, &vert_count, bb.x, bb.y + bb.height - (f32)border->width.bottom, bb.width, (f32)border->width.bottom, r, g, b, a, 0);
+                push_rect(verts, &vert_count, bb.x, bb.y + bb.height - (f32)border->width.bottom, bb.width, (f32)border->width.bottom, r, g, b, a, (Clay_CornerRadius){0});
             if (border->width.left > 0)
-                push_rect(verts, &vert_count, bb.x, bb.y, (f32)border->width.left, bb.height, r, g, b, a, 0);
+                push_rect(verts, &vert_count, bb.x, bb.y, (f32)border->width.left, bb.height, r, g, b, a, (Clay_CornerRadius){0});
             if (border->width.right > 0)
-                push_rect(verts, &vert_count, bb.x + bb.width - (f32)border->width.right, bb.y, (f32)border->width.right, bb.height, r, g, b, a, 0);
+                push_rect(verts, &vert_count, bb.x + bb.width - (f32)border->width.right, bb.y, (f32)border->width.right, bb.height, r, g, b, a, (Clay_CornerRadius){0});
             break;
         }
 
@@ -438,7 +442,7 @@ void vulkan_render_gui(void *commands, i32 command_count) {
 
         case CLAY_RENDER_COMMAND_TYPE_IMAGE: {
             push_rect(verts, &vert_count, bb.x, bb.y, bb.width, bb.height,
-                      0.3f, 0.3f, 0.3f, 1.0f, 0);
+                      0.3f, 0.3f, 0.3f, 1.0f, (Clay_CornerRadius){0});
             break;
         }
 

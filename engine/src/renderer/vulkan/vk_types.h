@@ -107,7 +107,8 @@ typedef struct VK_GuiVertex {
     vec2 pos;
     vec2 uv;
     vec4 color;
-    vec4 rect_info; // (half_w, half_h, corner_radius, 0)
+    vec4 rect_info;     // (half_w, half_h, has_rounding, 0)
+    vec4 corner_radii;  // (topLeft, topRight, bottomLeft, bottomRight)
 } VK_GuiVertex;
 
 typedef struct VK_Font {

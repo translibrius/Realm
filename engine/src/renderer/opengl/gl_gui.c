@@ -89,6 +89,10 @@ b8 opengl_gui_pipeline_init(GL_Context *ctx) {
     glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(GL_GuiVertex), (void *)offsetof(GL_GuiVertex, rect_info));
     glEnableVertexAttribArray(3);
 
+    // corner_radii (vec4)
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(GL_GuiVertex), (void *)offsetof(GL_GuiVertex, corner_radii));
+    glEnableVertexAttribArray(4);
+
     glBindVertexArray(0);
     return true;
 }
@@ -96,13 +100,16 @@ b8 opengl_gui_pipeline_init(GL_Context *ctx) {
 static void push_rect(GL_GuiVertex *verts, u32 *count,
                        f32 x, f32 y, f32 w, f32 h,
                        f32 r, f32 g, f32 b, f32 a,
-                       f32 corner_radius) {
+                       Clay_CornerRadius corners) {
     if (*count + 6 > GUI_MAX_VERTS) return;
+
+    b8 has_radius = corners.topLeft > 0 || corners.topRight > 0 ||
+                    corners.bottomLeft > 0 || corners.bottomRight > 0;
 
     f32 x0 = x, y0 = y, x1 = x + w, y1 = y + h;
 
     // For rounded rects, skip software clipping (SDF handles edges)
-    if (corner_radius <= 0.0f && clip_active()) {
+    if (!has_radius && clip_active()) {
         gui_clip_rect *c = clip_current();
         if (x0 < c->x0) x0 = c->x0;
         if (y0 < c->y0) y0 = c->y0;
@@ -113,17 +120,17 @@ static void push_rect(GL_GuiVertex *verts, u32 *count,
 
     GL_GuiVertex *v = &verts[*count];
 
-    if (corner_radius > 0.0f) {
-        // Rounded rect: UV = local position from center, rect_info = (half_w, half_h, radius, 0)
+    if (has_radius) {
         f32 hw = (x1 - x0) * 0.5f;
         f32 hh = (y1 - y0) * 0.5f;
-        vec4 ri = {hw, hh, corner_radius, 0};
-        v[0] = (GL_GuiVertex){.pos = {x0, y0}, .uv = {-hw, -hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
-        v[1] = (GL_GuiVertex){.pos = {x0, y1}, .uv = {-hw,  hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
-        v[2] = (GL_GuiVertex){.pos = {x1, y1}, .uv = { hw,  hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
-        v[3] = (GL_GuiVertex){.pos = {x0, y0}, .uv = {-hw, -hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
-        v[4] = (GL_GuiVertex){.pos = {x1, y1}, .uv = { hw,  hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
-        v[5] = (GL_GuiVertex){.pos = {x1, y0}, .uv = { hw, -hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}};
+        vec4 ri = {hw, hh, 1.0f, 0};
+        vec4 cr = {corners.topLeft, corners.topRight, corners.bottomLeft, corners.bottomRight};
+        v[0] = (GL_GuiVertex){.pos = {x0, y0}, .uv = {-hw, -hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}, .corner_radii = {cr[0], cr[1], cr[2], cr[3]}};
+        v[1] = (GL_GuiVertex){.pos = {x0, y1}, .uv = {-hw,  hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}, .corner_radii = {cr[0], cr[1], cr[2], cr[3]}};
+        v[2] = (GL_GuiVertex){.pos = {x1, y1}, .uv = { hw,  hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}, .corner_radii = {cr[0], cr[1], cr[2], cr[3]}};
+        v[3] = (GL_GuiVertex){.pos = {x0, y0}, .uv = {-hw, -hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}, .corner_radii = {cr[0], cr[1], cr[2], cr[3]}};
+        v[4] = (GL_GuiVertex){.pos = {x1, y1}, .uv = { hw,  hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}, .corner_radii = {cr[0], cr[1], cr[2], cr[3]}};
+        v[5] = (GL_GuiVertex){.pos = {x1, y0}, .uv = { hw, -hh}, .color = {r, g, b, a}, .rect_info = {ri[0], ri[1], ri[2], ri[3]}, .corner_radii = {cr[0], cr[1], cr[2], cr[3]}};
     } else {
         // Plain rect: UV sentinel {-1,-1} tells fragment shader to use solid color
         v[0] = (GL_GuiVertex){.pos = {x0, y0}, .uv = {-1, -1}, .color = {r, g, b, a}, .rect_info = {0}};
@@ -278,8 +285,7 @@ void opengl_render_gui(void *commands, i32 command_count) {
             f32 g = rect->backgroundColor.g / 255.0f;
             f32 b = rect->backgroundColor.b / 255.0f;
             f32 a = rect->backgroundColor.a / 255.0f;
-            f32 cr = rect->cornerRadius.topLeft;
-            push_rect(verts, &vert_count, bb.x, bb.y, bb.width, bb.height, r, g, b, a, cr);
+            push_rect(verts, &vert_count, bb.x, bb.y, bb.width, bb.height, r, g, b, a, rect->cornerRadius);
             break;
         }
 
@@ -291,13 +297,13 @@ void opengl_render_gui(void *commands, i32 command_count) {
             f32 a = border->color.a / 255.0f;
 
             if (border->width.top > 0)
-                push_rect(verts, &vert_count, bb.x, bb.y, bb.width, (f32)border->width.top, r, g, b, a, 0);
+                push_rect(verts, &vert_count, bb.x, bb.y, bb.width, (f32)border->width.top, r, g, b, a, (Clay_CornerRadius){0});
             if (border->width.bottom > 0)
-                push_rect(verts, &vert_count, bb.x, bb.y + bb.height - (f32)border->width.bottom, bb.width, (f32)border->width.bottom, r, g, b, a, 0);
+                push_rect(verts, &vert_count, bb.x, bb.y + bb.height - (f32)border->width.bottom, bb.width, (f32)border->width.bottom, r, g, b, a, (Clay_CornerRadius){0});
             if (border->width.left > 0)
-                push_rect(verts, &vert_count, bb.x, bb.y, (f32)border->width.left, bb.height, r, g, b, a, 0);
+                push_rect(verts, &vert_count, bb.x, bb.y, (f32)border->width.left, bb.height, r, g, b, a, (Clay_CornerRadius){0});
             if (border->width.right > 0)
-                push_rect(verts, &vert_count, bb.x + bb.width - (f32)border->width.right, bb.y, (f32)border->width.right, bb.height, r, g, b, a, 0);
+                push_rect(verts, &vert_count, bb.x + bb.width - (f32)border->width.right, bb.y, (f32)border->width.right, bb.height, r, g, b, a, (Clay_CornerRadius){0});
             break;
         }
 
@@ -352,7 +358,7 @@ void opengl_render_gui(void *commands, i32 command_count) {
         case CLAY_RENDER_COMMAND_TYPE_IMAGE: {
             // TODO: implement image rendering (textured quad)
             push_rect(verts, &vert_count, bb.x, bb.y, bb.width, bb.height,
-                      0.3f, 0.3f, 0.3f, 1.0f, 0);
+                      0.3f, 0.3f, 0.3f, 1.0f, (Clay_CornerRadius){0});
             break;
         }
 

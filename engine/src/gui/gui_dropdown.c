@@ -51,6 +51,7 @@ b8 gui_dropdown(gui_dropdown_state *state, const gui_dropdown_cfg *cfg) {
         .width        = cfg->label ? 0 : width,
         .padding      = cfg->label ? 8 : 8,
         .corner_radius = radius,
+        .corners      = cfg->trigger_corners,
     });
     gui_text(display, &(gui_text_cfg){.color = text_color, .size = font_size, .font = font});
     gui_button_end();

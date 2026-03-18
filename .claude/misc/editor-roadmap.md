@@ -203,7 +203,7 @@ Semantic theme system overhaul and cross-cutting UI polish.
 
 ---
 
-## Interlude: Custom Title Bar & Application Icon (WIP)
+## Interlude: Custom Title Bar & Application Icon ✓
 
 Windows-only custom title bar (editor) and application icon infrastructure. macOS/Linux stubs in place, full implementation deferred.
 
@@ -233,6 +233,17 @@ Windows-only custom title bar (editor) and application icon infrastructure. macO
 - [x] `GUI_ICON_SQUARE` added (Lucide codepoint 57803) for maximize; reuses `MINUS`/`COPY`/`X` for others
 - [x] Titlebar layout communication: `Clay_GetElementData` on MenuBarMenus + WindowControls → `platform_set_titlebar_layout`
 - [x] `gui_button_cfg` gains `Clay_CornerRadius corners` for per-corner radius control
+
+### Rendering pipeline — per-corner radius ✓
+
+- [x] `vec4 corner_radii` added to `GL_GuiVertex` and `VK_GuiVertex` (48→64 bytes/vert)
+- [x] 5th vertex attribute (location 4) in both GL and VK pipeline setup
+- [x] `push_rect` takes full `Clay_CornerRadius` instead of collapsing to `topLeft`
+- [x] Fragment shaders: per-quadrant radius selection via UV sign, full signed-distance formula (`+ min(max(p.x, p.y), 0.0)` interior term)
+- [x] `gui_dropdown_cfg` gains `trigger_corners` for per-corner trigger button rounding
+- [x] File menu: `{6,0,0,0}` (top-left), Close button: `{0,6,0,0}` (top-right) — flush with window corners
+- [x] `gui_panel_cfg` gains `Clay_Padding pad` for per-side padding (overrides uniform `padding` shorthand)
+- [x] Title bar uses zero padding so edge buttons sit flush against window corners
 
 ### Application icon ✓
 

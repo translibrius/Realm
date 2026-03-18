@@ -2,6 +2,7 @@
 
 #include "asset/asset.h"
 #include "core/logger.h"
+#include "gui/gui_icon.h"
 #include "platform/io/file_io.h"
 
 #include "core/font/msdf_wrapper.h"
@@ -21,37 +22,14 @@ b8 rl_font_load(rl_arena *asset_arena, rl_asset *asset) {
 
     b8 load_ok;
     if (cstr_ends_with(asset->filename, "lucide.ttf")) {
-        // Only generate MSDF for codepoints we actually use as icons
-        static const u32 lucide_codepoints[] = {
-            57410, // arrow-down
-            57416, // arrow-left
-            57417, // arrow-right
-            57418, // arrow-up
-            57441, // box
-            57452, // check
-            57453, // chevron-down
-            57455, // chevron-right
-            57502, // copy
-            57530, // eye
-            57536, // file
-            57559, // folder
-            57577, // grid-3x3
-            57590, // image
-            57618, // maximize (scale)
-            57628, // minus
-            57633, // move
-            57660, // play
-            57661, // plus
-            57672, // rotate-ccw
-            57681, // search
-            57684, // settings
-            57720, // sun
-            57741, // trash
-            57778, // x
-            57927, // folder-open
-        };
-        load_ok = msdf_load_font_codepoints(path.cstr, lucide_codepoints,
-            sizeof(lucide_codepoints) / sizeof(lucide_codepoints[0]), font);
+        // Build codepoint list from the icon table — single source of truth
+        const u32 *table = gui_icon_codepoints();
+        u32 codepoints[GUI_ICON_COUNT];
+        u32 count = 0;
+        for (u32 i = 0; i < GUI_ICON_COUNT; i++) {
+            if (table[i]) codepoints[count++] = table[i];
+        }
+        load_ok = msdf_load_font_codepoints(path.cstr, codepoints, count, font);
     } else {
         load_ok = msdf_load_font_ascii(path.cstr, font);
     }

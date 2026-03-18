@@ -44,3 +44,8 @@ typedef enum gui_icon_type {
 } gui_icon_type;
 
 REALM_API void gui_icon(gui_icon_type type, f32 size, Clay_Color color);
+
+// Returns the codepoint table (GUI_ICON_COUNT entries, indexed by gui_icon_type).
+// Entries with value 0 are unused. Used by the font loader to build the MSDF atlas
+// for exactly the codepoints we need — single source of truth, no duplicate lists.
+REALM_API const u32 *gui_icon_codepoints(void);

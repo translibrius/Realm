@@ -40,7 +40,11 @@ void gui_panel_begin(const gui_panel_cfg *cfg) {
     decl.layout.layoutDirection = (cfg && cfg->horizontal) ? CLAY_LEFT_TO_RIGHT : CLAY_TOP_TO_BOTTOM;
 
     if (cfg) {
-        decl.layout.padding = CLAY_PADDING_ALL((u16)cfg->padding);
+        if (cfg->pad.left || cfg->pad.right || cfg->pad.top || cfg->pad.bottom) {
+            decl.layout.padding = cfg->pad;
+        } else {
+            decl.layout.padding = CLAY_PADDING_ALL((u16)cfg->padding);
+        }
         decl.layout.childGap = (u16)cfg->gap;
         decl.layout.childAlignment.x = cfg->align_x;
         decl.layout.childAlignment.y = cfg->align_y;

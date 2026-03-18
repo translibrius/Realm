@@ -9,36 +9,43 @@
 static u16 icon_font_id;
 static b8  icon_font_ready;
 
-// Codepoint lookup table (indexed by gui_icon_type)
+// Codepoint lookup table (indexed by gui_icon_type).
+// Hex values from the Lucide icon font cmap — single source of truth.
+// The font loader reads this table via gui_icon_codepoints() to build
+// the MSDF atlas for exactly these glyphs.
 static const u32 icon_codepoints[GUI_ICON_COUNT] = {
-    [GUI_ICON_CHEVRON_RIGHT] = 57455,
-    [GUI_ICON_CHEVRON_DOWN]  = 57453,
-    [GUI_ICON_FOLDER]        = 57559,
-    [GUI_ICON_FOLDER_OPEN]   = 57927,
-    [GUI_ICON_FILE]          = 57536,
-    [GUI_ICON_SEARCH]        = 57681,
-    [GUI_ICON_SETTINGS]      = 57684,
-    [GUI_ICON_X]             = 57778,
-    [GUI_ICON_PLUS]          = 57661,
-    [GUI_ICON_MINUS]         = 57628,
-    [GUI_ICON_CHECK]         = 57452,
-    [GUI_ICON_ARROW_UP]      = 57418,
-    [GUI_ICON_ARROW_DOWN]    = 57410,
-    [GUI_ICON_ARROW_LEFT]    = 57416,
-    [GUI_ICON_ARROW_RIGHT]   = 57417,
-    [GUI_ICON_MOVE]          = 57633,
-    [GUI_ICON_ROTATE]        = 57672,
-    [GUI_ICON_SCALE]         = 57618,
-    [GUI_ICON_GRID]          = 57577,
-    [GUI_ICON_PLAY]          = 57660,
-    [GUI_ICON_IMAGE]         = 57590,
-    [GUI_ICON_BOX]           = 57441,
-    [GUI_ICON_SUN]           = 57720,
-    [GUI_ICON_EYE]           = 57530,
-    [GUI_ICON_TRASH]         = 57741,
-    [GUI_ICON_COPY]          = 57502,
-    [GUI_ICON_SQUARE]        = 57803,
+    [GUI_ICON_CHEVRON_RIGHT] = 0xE06F, // chevron-right
+    [GUI_ICON_CHEVRON_DOWN]  = 0xE06D, // chevron-down
+    [GUI_ICON_FOLDER]        = 0xE0D7, // folder
+    [GUI_ICON_FOLDER_OPEN]   = 0xE247, // folder-open
+    [GUI_ICON_FILE]          = 0xE0C0, // file
+    [GUI_ICON_SEARCH]        = 0xE151, // search
+    [GUI_ICON_SETTINGS]      = 0xE154, // settings
+    [GUI_ICON_X]             = 0xE1B2, // x
+    [GUI_ICON_PLUS]          = 0xE13D, // plus
+    [GUI_ICON_MINUS]         = 0xE11C, // minus
+    [GUI_ICON_CHECK]         = 0xE06C, // check
+    [GUI_ICON_ARROW_UP]      = 0xE04A, // arrow-up
+    [GUI_ICON_ARROW_DOWN]    = 0xE042, // arrow-down
+    [GUI_ICON_ARROW_LEFT]    = 0xE048, // arrow-left
+    [GUI_ICON_ARROW_RIGHT]   = 0xE049, // arrow-right
+    [GUI_ICON_MOVE]          = 0xE121, // move
+    [GUI_ICON_ROTATE]        = 0xE148, // rotate-ccw
+    [GUI_ICON_SCALE]         = 0xE112, // maximize
+    [GUI_ICON_GRID]          = 0xE0E9, // grid-3x3
+    [GUI_ICON_PLAY]          = 0xE13C, // play
+    [GUI_ICON_IMAGE]         = 0xE0F6, // image
+    [GUI_ICON_BOX]           = 0xE061, // box
+    [GUI_ICON_SUN]           = 0xE178, // sun
+    [GUI_ICON_EYE]           = 0xE0BA, // eye
+    [GUI_ICON_TRASH]         = 0xE18D, // trash
+    [GUI_ICON_COPY]          = 0xE09E, // copy
+    [GUI_ICON_SQUARE]        = 0xE167, // square
 };
+
+const u32 *gui_icon_codepoints(void) {
+    return icon_codepoints;
+}
 
 void gui_icon_init_(void) {
     asset_id id = asset_find(RL_ASSET_FONT_LUCIDE);

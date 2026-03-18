@@ -15,7 +15,8 @@ typedef struct gui_panel_cfg {
     Clay_Color border_color; // border color
     f32 border_width;        // uniform border width (0 = no border)
     f32 corner_radius;       // uniform corner radius
-    f32 padding;             // uniform padding
+    f32 padding;             // uniform padding (shorthand — overridden by pad_*)
+    Clay_Padding pad;        // per-side padding (overrides uniform padding if any side > 0)
     f32 gap;                 // child gap
     f32 width;               // value for GUI_SIZE_FIXED (also auto-promotes if > 0 and sizing is FIT)
     f32 height;              // value for GUI_SIZE_FIXED (also auto-promotes if > 0 and sizing is FIT)

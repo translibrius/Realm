@@ -42,6 +42,8 @@ typedef struct mac_window {
     NSRect saved_frame;
     NSUInteger saved_style;
     b8 is_borderless;
+    b8 custom_titlebar;
+    platform_titlebar_layout titlebar;
 
     b8 alive;
     b8 should_close;
@@ -376,6 +378,34 @@ static KEYBOARD_KEY mac_map_keycode(u16 keycode) {
     return self;
 }
 
+- (void)mouseDown:(NSEvent *)event {
+    if (!_window_state || !_window_state->custom_titlebar) {
+        [super mouseDown:event];
+        return;
+    }
+
+    NSPoint loc = [self convertPoint:event.locationInWindow fromView:nil];
+    CGFloat scale = self.window.backingScaleFactor;
+    CGFloat px = loc.x * scale;
+    CGFloat py = (self.bounds.size.height - loc.y) * scale;
+
+    platform_titlebar_layout tb = _window_state->titlebar;
+    if (py < tb.height) {
+        if (px >= tb.drag_start_x && px < tb.drag_end_x) {
+            if (event.clickCount == 2) {
+                [self.window zoom:nil];
+            } else {
+                [self.window performWindowDragWithEvent:event];
+            }
+        }
+        // Don't call super for title bar region — NSWindow's fullSizeContentView
+        // drag handling would block the event loop for non-drag clicks.
+        return;
+    }
+
+    [super mouseDown:event];
+}
+
 - (NSDragOperation)draggingEntered:(id<NSDraggingInfo>)sender {
     (void)sender;
     return NSDragOperationCopy;
@@ -699,6 +729,16 @@ b8 platform_create_window(platform_window *window) {
         ns_window.opaque = NO;
         ns_window.backgroundColor = [NSColor clearColor];
         ns_window.hasShadow = NO;
+    }
+
+    if (window->settings.window_flags & WINDOW_FLAG_CUSTOM_TITLEBAR) {
+        mw->custom_titlebar = true;
+        ns_window.styleMask |= NSWindowStyleMaskFullSizeContentView;
+        ns_window.titlebarAppearsTransparent = YES;
+        ns_window.titleVisibility = NSWindowTitleHidden;
+        [[ns_window standardWindowButton:NSWindowCloseButton] setHidden:YES];
+        [[ns_window standardWindowButton:NSWindowMiniaturizeButton] setHidden:YES];
+        [[ns_window standardWindowButton:NSWindowZoomButton] setHidden:YES];
     }
 
     RLWindowDelegate *delegate = [[RLWindowDelegate alloc] initWithWindowState:mw];
@@ -1206,13 +1246,39 @@ void platform_splash_destroy() {
     splash_state.layer = nil;
 }
 
-// Custom title bar stubs (Windows-only for now)
-void platform_window_minimize(platform_window *window) { (void)window; }
-void platform_window_maximize(platform_window *window) { (void)window; }
-void platform_window_restore(platform_window *window)  { (void)window; }
-b8   platform_window_is_maximized(platform_window *window) { (void)window; return false; }
+void platform_window_minimize(platform_window *window) {
+    if (!window || window->id >= MAX_WINDOWS) return;
+    mac_window *mw = &state.windows[window->id];
+    if (!mw->alive || !mw->window) return;
+    [mw->window miniaturize:nil];
+}
+
+void platform_window_maximize(platform_window *window) {
+    if (!window || window->id >= MAX_WINDOWS) return;
+    mac_window *mw = &state.windows[window->id];
+    if (!mw->alive || !mw->window) return;
+    [mw->window zoom:nil];
+}
+
+void platform_window_restore(platform_window *window) {
+    if (!window || window->id >= MAX_WINDOWS) return;
+    mac_window *mw = &state.windows[window->id];
+    if (!mw->alive || !mw->window) return;
+    [mw->window zoom:nil];
+}
+
+b8 platform_window_is_maximized(platform_window *window) {
+    if (!window || window->id >= MAX_WINDOWS) return false;
+    mac_window *mw = &state.windows[window->id];
+    if (!mw->alive || !mw->window) return false;
+    return [mw->window isZoomed];
+}
+
 void platform_set_titlebar_layout(platform_window *window, platform_titlebar_layout layout) {
-    (void)window; (void)layout;
+    if (!window || window->id >= MAX_WINDOWS) return;
+    mac_window *mw = &state.windows[window->id];
+    if (!mw->alive) return;
+    mw->titlebar = layout;
 }
 
 i32 platform_system(const char *command) {

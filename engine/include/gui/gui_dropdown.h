@@ -20,6 +20,7 @@ typedef struct gui_dropdown_cfg {
     Clay_Color hover_color;  // hovered item background
     Clay_Color text_color;   // text color
     f32 corner_radius;
+    Clay_CornerRadius trigger_corners; // per-corner radius for trigger button (overrides corner_radius)
     u16 font;
     u16 font_size;      // default: 14
 } gui_dropdown_cfg;

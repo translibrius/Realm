@@ -67,7 +67,7 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
         .color = t->bg_titlebar,
         .width_sizing = GUI_SIZE_GROW,
         .height = layout->menu_bar_height,
-        .padding = 6,
+        .pad = {.top = 0, .bottom = 0, .left = 0, .right = 0},
         .gap = 4,
         .horizontal = true,
         .align_y = CLAY_ALIGN_Y_CENTER,
@@ -93,6 +93,7 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
         menu_cfg.items = file_items;
         menu_cfg.item_count = 6;
         menu_cfg.label = "File";
+        menu_cfg.trigger_corners = (Clay_CornerRadius){6, 0, 0, 0};
         if (gui_dropdown(&layout->menu_file, &menu_cfg)) {
             i32 sel = layout->menu_file.selected;
             if (sel == 0) app->new_scene_requested = true;
@@ -107,6 +108,7 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
         menu_cfg.items = edit_items;
         menu_cfg.item_count = 2;
         menu_cfg.label = "Edit";
+        menu_cfg.trigger_corners = (Clay_CornerRadius){0};
         if (gui_dropdown(&layout->menu_edit, &menu_cfg)) {
             i32 sel = layout->menu_edit.selected;
             if (sel == 0) app->undo_requested = true;
@@ -125,15 +127,49 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
             layout->menu_view.selected = -1;
         }
 
-        // Menu bar hover-switch: once any menu is open, hovering another opens it
-        b8 any_open = layout->menu_file.open || layout->menu_edit.open || layout->menu_view.open;
-        if (any_open) {
+        // Menu bar hover-open / hover-close
+        {
             gui_dropdown_state *menus[] = {&layout->menu_file, &layout->menu_edit, &layout->menu_view};
+
+            // Hovering a trigger opens it (and closes others)
+            b8 any_trigger_hovered = false;
             for (i32 i = 0; i < 3; i++) {
-                if (menus[i]->_trigger_hovered && !menus[i]->open) {
-                    for (i32 j = 0; j < 3; j++) menus[j]->open = false;
-                    menus[i]->open = true;
+                if (menus[i]->_trigger_hovered) {
+                    any_trigger_hovered = true;
+                    if (!menus[i]->open) {
+                        for (i32 j = 0; j < 3; j++) menus[j]->open = false;
+                        menus[i]->open = true;
+                    }
                     break;
+                }
+            }
+
+            // Close when mouse leaves the menu bar row and the open dropdown list
+            b8 any_open = menus[0]->open || menus[1]->open || menus[2]->open;
+            if (any_open && !any_trigger_hovered) {
+                vec2 mouse;
+                input_get_mouse_position(mouse);
+
+                b8 in_menu_area = mouse[1] >= 0 && mouse[1] < layout->menu_bar_height;
+
+                if (!in_menu_area) {
+                    for (i32 i = 0; i < 3; i++) {
+                        if (menus[i]->open) {
+                            Clay_ElementData data = Clay_GetElementData(
+                                CLAY_IDI("GuiDropdownList", menus[i]->_id));
+                            if (data.found) {
+                                Clay_BoundingBox bb = data.boundingBox;
+                                if (mouse[0] >= bb.x && mouse[0] <= bb.x + bb.width &&
+                                    mouse[1] >= bb.y && mouse[1] <= bb.y + bb.height) {
+                                    in_menu_area = true;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (!in_menu_area) {
+                    for (i32 i = 0; i < 3; i++) menus[i]->open = false;
                 }
             }
         }
