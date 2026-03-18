@@ -5,6 +5,7 @@
 #include "core/logger.h"
 #include "memory/memory.h"
 #include "platform/platform.h"
+#include "util/str.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -219,7 +220,7 @@ static const char *resolve_name(void *fn_addr) {
 #if defined(PLATFORM_MACOS) || defined(PLATFORM_LINUX)
     Dl_info info;
     if (dladdr(fn_addr, &info) && info.dli_sname) {
-        u32 len = (u32)strlen(info.dli_sname);
+        u32 len = cstr_len(info.dli_sname);
         char *buf = mem_alloc(len + 1, MEM_SUBSYSTEM_PROFILER);
         memcpy(buf, info.dli_sname, len + 1);
         name = buf;
@@ -419,7 +420,7 @@ PROF_NOINST
 static void shm_copy_name(char *dst, u32 dst_size, const char *src) {
     memset(dst, 0, dst_size);
     if (src) {
-        u32 len = (u32)strlen(src);
+        u32 len = cstr_len(src);
         if (len >= dst_size) len = dst_size - 1;
         memcpy(dst, src, len);
     }
@@ -528,7 +529,7 @@ static void shm_broadcast(void) {
         // Copy name, truncate to fit
         memset(dst->name, 0, SHM_ZONE_NAME_LEN);
         if (z->name) {
-            u32 len = (u32)strlen(z->name);
+            u32 len = cstr_len(z->name);
             if (len >= SHM_ZONE_NAME_LEN) len = SHM_ZONE_NAME_LEN - 1;
             memcpy(dst->name, z->name, len);
         }
@@ -937,7 +938,7 @@ void rl_profiler_write_session_report(const char *path) {
     for (u32 i = 0; i < count; i++) {
         memset(hdr.zones[i].name, 0, SHM_ZONE_NAME_LEN);
         if (zones[i].name) {
-            u32 len = (u32)strlen(zones[i].name);
+            u32 len = cstr_len(zones[i].name);
             if (len >= SHM_ZONE_NAME_LEN) len = SHM_ZONE_NAME_LEN - 1;
             memcpy(hdr.zones[i].name, zones[i].name, len);
         }

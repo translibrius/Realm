@@ -4,6 +4,7 @@
 #include "platform/dir_watcher.h"
 #include "platform/io/file_io.h"
 #include "platform/platform.h"
+#include "util/str.h"
 
 #include <string.h>
 
@@ -56,8 +57,7 @@ b8 realm_app_watcher_start(realm_app_watcher *watcher, const char *module_name) 
     }
 
     memset(watcher, 0, sizeof(*watcher));
-    strncpy(watcher->module_name, module_name, sizeof(watcher->module_name) - 1);
-    watcher->module_name[sizeof(watcher->module_name) - 1] = '\0';
+    cstr_copy(watcher->module_name, sizeof(watcher->module_name), module_name);
     watcher->next_poll_time = watcher_now_ticks();
 
     if (platform_dir_watcher_start(&watcher->dir_watcher, ".")) {

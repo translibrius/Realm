@@ -14,6 +14,7 @@
 #include "core/logger.h"
 #include "memory/memory.h"
 #include "util/assert.h"
+#include "util/str.h"
 
 static int file_access_mode(const FILE_PERM *perms) {
     switch (*perms) {
@@ -76,10 +77,10 @@ b8 platform_dir_remove(const char *path) {
 
     struct dirent *entry;
     while ((entry = readdir(d))) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+        if (cstr_eq(entry->d_name, ".") || cstr_eq(entry->d_name, "..")) continue;
 
         char child[4096];
-        snprintf(child, sizeof(child), "%s/%s", path, entry->d_name);
+        cstr_format_buf(child, sizeof(child), "%s/%s", path, entry->d_name);
 
         struct stat st;
         if (stat(child, &st) == 0 && S_ISDIR(st.st_mode)) {
@@ -174,7 +175,7 @@ b8 platform_file_open(const char *path, FILE_PERM perms, rl_file *out_file) {
         return false;
     }
 
-    const char *name = strrchr(path, '/');
+    const char *name = cstr_find_last_char(path, '/');
     if (name) {
         name += 1;
     } else {

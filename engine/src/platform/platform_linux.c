@@ -334,7 +334,7 @@ static void linux_get_system_info(void) {
     static char machine[256] = {0};
 
     if (uname(&uts) == 0) {
-        strncpy(machine, uts.machine, sizeof(machine) - 1);
+        cstr_copy(machine, sizeof(machine), uts.machine);
     }
 
     state.platform_info.platform_name = "Linux";

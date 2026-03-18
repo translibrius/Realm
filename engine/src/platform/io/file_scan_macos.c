@@ -69,7 +69,7 @@ b8 platform_dir_scan(const char *path,
             is_dir = true;
         } else if (entry->d_type == DT_UNKNOWN) {
             char full[1024];
-            snprintf(full, sizeof(full), "%s/%s", path, name);
+            cstr_format_buf(full, sizeof(full), "%s/%s", path, name);
             struct stat st;
             if (stat(full, &st) == 0 && S_ISDIR(st.st_mode)) {
                 is_dir = true;

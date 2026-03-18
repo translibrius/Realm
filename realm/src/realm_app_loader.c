@@ -4,6 +4,7 @@
 #include "memory/memory.h"
 #include "platform/io/file_io.h"
 #include "platform/platform.h"
+#include "util/str.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -111,10 +112,8 @@ b8 realm_app_module_load(realm_app_module *module) {
     }
 
     module->has_copy = true;
-    strncpy(module->copied_dll_path, dll_path, sizeof(module->copied_dll_path) - 1);
-    module->copied_dll_path[sizeof(module->copied_dll_path) - 1] = '\0';
-    strncpy(module->copied_pdb_path, pdb_path, sizeof(module->copied_pdb_path) - 1);
-    module->copied_pdb_path[sizeof(module->copied_pdb_path) - 1] = '\0';
+    cstr_copy(module->copied_dll_path, sizeof(module->copied_dll_path), dll_path);
+    cstr_copy(module->copied_pdb_path, sizeof(module->copied_pdb_path), pdb_path);
 
     module->get_state_version = nullptr;
 

@@ -77,7 +77,7 @@ b8 platform_dir_remove(const char *path) {
 
     struct dirent *entry;
     while ((entry = readdir(d))) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+        if (cstr_eq(entry->d_name, ".") || cstr_eq(entry->d_name, "..")) continue;
 
         char child[4096];
         cstr_format_buf(child, sizeof(child), "%s/%s", path, entry->d_name);
@@ -153,7 +153,7 @@ b8 platform_file_open(const char *path, FILE_PERM perms, rl_file *out_file) {
         return false;
     }
 
-    const char *name = strrchr(path, '/');
+    const char *name = cstr_find_last_char(path, '/');
     if (name) {
         name += 1;
     } else {

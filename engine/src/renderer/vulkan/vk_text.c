@@ -150,7 +150,7 @@ b8 vk_text_pipeline_init(VK_Context *ctx) {
                 RL_WARN("vk_font_create() failed for '%s'", asset->filename);
             }
 
-            if (strcmp(font->name, "JetBrainsMono-Regular.ttf") == 0) {
+            if (cstr_eq(font->name, "JetBrainsMono-Regular.ttf")) {
                 vulkan_set_active_font(font);
             }
         }

@@ -196,9 +196,9 @@ b8 load_mesh(rl_arena *asset_arena, rl_asset *asset) {
                 // Load base color texture if it has an external URI
                 if (pbr->base_color_texture.texture && pbr->base_color_texture.texture->image) {
                     const cgltf_image *img = pbr->base_color_texture.texture->image;
-                    if (img->uri && strncmp(img->uri, "data:", 5) != 0) {
+                    if (img->uri && !cstr_starts_with(img->uri, "data:")) {
                         // Build relative path: extract directory from model path
-                        const char *last_slash = strrchr(asset->source_path, '/');
+                        const char *last_slash = cstr_find_last_char(asset->source_path, '/');
                         if (last_slash) {
                             u64 dir_len = (u64)(last_slash - asset->source_path + 1);
                             rl_string tex_path = rl_str_format(scratch.arena, "%.*s%s",

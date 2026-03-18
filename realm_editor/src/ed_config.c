@@ -101,7 +101,7 @@ void ed_config_add_recent(ed_config *cfg, const char *project_path) {
 
     // Remove duplicate if present
     for (u32 i = 0; i < cfg->recent_count; i++) {
-        if (strcmp(cfg->recent_projects[i], project_path) == 0) {
+        if (cstr_eq(cfg->recent_projects[i], project_path)) {
             // Shift everything down
             for (u32 j = i; j > 0; j--) {
                 cstr_copy(cfg->recent_projects[j], sizeof(cfg->recent_projects[j]), cfg->recent_projects[j - 1]);

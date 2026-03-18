@@ -53,11 +53,11 @@ void ed_asset_browser_refresh(ed_asset_browser *browser) {
     ARENA_SCRATCH_START();
 
     char tex_path[512];
-    snprintf(tex_path, sizeof(tex_path), "%stextures/", proj->asset_path);
+    cstr_format_buf(tex_path, sizeof(tex_path), "%stextures/", proj->asset_path);
     platform_dir_scan(tex_path, ".jpg,.jpeg,.png,.bmp,.tga", scratch.arena, &browser->textures);
 
     char mdl_path[512];
-    snprintf(mdl_path, sizeof(mdl_path), "%smodels/", proj->asset_path);
+    cstr_format_buf(mdl_path, sizeof(mdl_path), "%smodels/", proj->asset_path);
     platform_dir_scan(mdl_path, ".gltf,.glb,.obj", scratch.arena, &browser->models);
 
     // Note: filenames point into scratch arena which will be released.
@@ -169,9 +169,9 @@ void ed_asset_browser_render(ed_asset_browser *browser, ed_application *app, f32
                             char rel_path[512];
                             if (is_dir) {
                                 // Directory-based model: e.g. models/lion_head_4k.gltf/lion_head_4k.gltf
-                                snprintf(rel_path, sizeof(rel_path), "models/%s/%s", name, name);
+                                cstr_format_buf(rel_path, sizeof(rel_path), "models/%s/%s", name, name);
                             } else {
-                                snprintf(rel_path, sizeof(rel_path), "models/%s", name);
+                                cstr_format_buf(rel_path, sizeof(rel_path), "models/%s", name);
                             }
                             asset_id aid = asset_find(rel_path);
                             if (aid) {

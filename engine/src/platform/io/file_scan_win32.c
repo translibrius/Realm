@@ -51,7 +51,7 @@ b8 platform_dir_scan(const char *path,
     if (!path || !out) return false;
 
     char search_path[1024];
-    snprintf(search_path, sizeof(search_path), "%s\\*", path);
+    cstr_format_buf(search_path, sizeof(search_path), "%s\\*", path);
 
     WIN32_FIND_DATAA ffd;
     HANDLE h = FindFirstFileA(search_path, &ffd);

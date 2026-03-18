@@ -69,10 +69,10 @@ b8 platform_dir_remove(const char *path) {
     }
 
     do {
-        if (strcmp(fd.cFileName, ".") == 0 || strcmp(fd.cFileName, "..") == 0) continue;
+        if (cstr_eq(fd.cFileName, ".") || cstr_eq(fd.cFileName, "..")) continue;
 
         char child[MAX_PATH];
-        snprintf(child, sizeof(child), "%s/%s", path, fd.cFileName);
+        cstr_format_buf(child, sizeof(child), "%s/%s", path, fd.cFileName);
 
         if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
             platform_dir_remove(child);

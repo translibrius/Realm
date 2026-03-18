@@ -128,6 +128,8 @@ REALM_API void        cstr_sanitize_identifier(char *dst, u32 dst_size, const ch
 REALM_API b8          cstr_starts_with(const char *str, const char *prefix);
 REALM_API const char *cstr_find_char(const char *str, char c);
 REALM_API const char *cstr_find_last_char(const char *str, char c);
+REALM_API i32         cstr_cmp_nocase(const char *a, const char *b);
+REALM_API b8          cstr_contains(const char *str, const char *needle);
 
 // -- UTF-8 helpers (inline) -------------------------------------------------
 

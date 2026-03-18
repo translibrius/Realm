@@ -58,7 +58,7 @@ rl_entity scene_entity_find(const rl_scene *scene, const char *name) {
 
     for (u32 i = 1; i < es->high_water; i++) {
         if (!es->alive[i]) continue;
-        if (cs->has_name[i] && strcmp(cs->names[i].name, name) == 0) {
+        if (cs->has_name[i] && cstr_eq(cs->names[i].name, name)) {
             return rl_entity_pack(i, es->generation[i]);
         }
     }

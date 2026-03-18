@@ -44,7 +44,11 @@ Key rules:
 
 - Types: `u8`, `i32`, `f32`, `b8` from `engine/include/defines.h` — not `size_t` or bare `int`.
 - Logging: `RL_INFO` / `RL_DEBUG` / `RL_ERROR` / `RL_FATAL` — not `printf`.
-- Strings: `cstr_copy` / `cstr_format_buf` / `cstr_len` / `cstr_eq` from `engine/include/util/str.h` — not `strcpy` / `snprintf` / `strlen` / `strcmp`. If the needed utility doesn't exist, add it to `str.h` rather than using raw C.
+- Strings: **always** use `engine/include/util/str.h` — never raw C string functions.
+  - `cstr_eq` not `strcmp`, `cstr_len` not `strlen`, `cstr_copy` not `strncpy`, `cstr_format_buf` not `snprintf` (unless tracking return value).
+  - `cstr_find_char` / `cstr_find_last_char` not `strchr` / `strrchr`. `cstr_contains` not `strstr`. `cstr_starts_with` not `strncmp`. `cstr_cmp_nocase` for case-insensitive compare.
+  - For view-first strings: `rl_str("hello")`, `rl_str_format(arena, ...)`, `rl_str_eq`, `rl_str_contains`, `rl_path_*` for path ops.
+  - If the needed utility doesn't exist, add it to `str.h` rather than using raw C.
 - Platform code stays in `engine/src/platform/`.
 - Straight C with explicit structs and function tables. No unnecessary abstraction layers.
 - Don't change global build flags silently.

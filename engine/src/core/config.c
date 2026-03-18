@@ -4,6 +4,7 @@
 #include "core/logger.h"
 #include "memory/arena.h"
 #include "platform/io/file_io.h"
+#include "util/str.h"
 #include "util/toml.h"
 
 #include <stdio.h>
@@ -50,21 +51,7 @@ static const enum_entry msaa_names[] = {
 
 static b8 enum_from_str(const enum_entry *table, const char *str, i32 *out) {
     for (const enum_entry *e = table; e->name; e++) {
-        // Case-insensitive compare
-        const char *a = e->name;
-        const char *b = str;
-        b8 match = true;
-        while (*a && *b) {
-            char ca = *a >= 'A' && *a <= 'Z' ? *a + 32 : *a;
-            char cb = *b >= 'A' && *b <= 'Z' ? *b + 32 : *b;
-            if (ca != cb) {
-                match = false;
-                break;
-            }
-            a++;
-            b++;
-        }
-        if (match && *a == '\0' && *b == '\0') {
+        if (cstr_cmp_nocase(e->name, str) == 0) {
             *out = e->value;
             return true;
         }
@@ -241,7 +228,7 @@ b8 config_system_start(void *memory, const char *filename) {
     state->time_since_flush = 0.0;
 
     const char *fn = (filename && filename[0]) ? filename : RL_CONFIG_FILENAME_DEFAULT;
-    u64 len = strlen(fn);
+    u64 len = cstr_len(fn);
     if (len >= sizeof(state->filename)) len = sizeof(state->filename) - 1;
     memcpy(state->filename, fn, len);
     state->filename[len] = '\0';

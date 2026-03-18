@@ -72,7 +72,7 @@ static void ed_on_file_drop(void *userdata, const e_file_drop_payload *drop) {
 
         // Build destination path
         char dest[512];
-        snprintf(dest, sizeof(dest), "%s%s/%s", proj->asset_path, subdir, filename);
+        cstr_format_buf(dest, sizeof(dest), "%s%s/%s", proj->asset_path, subdir, filename);
 
         if (!platform_file_copy(path, dest, false)) {
             RL_ERROR("Failed to import '%s' to '%s'", path, dest);
@@ -81,7 +81,7 @@ static void ed_on_file_drop(void *userdata, const e_file_drop_payload *drop) {
 
         // Load into asset system
         char rel_path[512];
-        snprintf(rel_path, sizeof(rel_path), "%s/%s", subdir, filename);
+        cstr_format_buf(rel_path, sizeof(rel_path), "%s/%s", subdir, filename);
         asset_load(type, rel_path);
 
         RL_INFO("Imported '%s' -> '%s'", filename, rel_path);

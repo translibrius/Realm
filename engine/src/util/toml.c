@@ -2,6 +2,7 @@
 
 #include "memory/arena.h"
 #include "platform/io/file_io.h"
+#include "util/str.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -30,17 +31,17 @@ static void table_push(toml_table *t, const char *section, const char *key, cons
 
     toml_entry *e = &t->entries[t->count++];
 
-    u32 slen = (u32)strlen(section);
+    u32 slen = cstr_len(section);
     if (slen >= sizeof(e->section)) slen = sizeof(e->section) - 1;
     memcpy(e->section, section, slen);
     e->section[slen] = '\0';
 
-    u32 klen = (u32)strlen(key);
+    u32 klen = cstr_len(key);
     if (klen >= sizeof(e->key)) klen = sizeof(e->key) - 1;
     memcpy(e->key, key, klen);
     e->key[klen] = '\0';
 
-    u32 vlen = (u32)strlen(value);
+    u32 vlen = cstr_len(value);
     e->value = rl_arena_push(t->arena, vlen + 1, false);
     memcpy(e->value, value, vlen + 1);
 }
@@ -48,7 +49,7 @@ static void table_push(toml_table *t, const char *section, const char *key, cons
 static const toml_entry *table_find(const toml_table *t, const char *section, const char *key) {
     const char *sec = (section && section[0]) ? section : "";
     for (u32 i = 0; i < t->count; i++) {
-        if (strcmp(t->entries[i].section, sec) == 0 && strcmp(t->entries[i].key, key) == 0) {
+        if (cstr_eq(t->entries[i].section, sec) && cstr_eq(t->entries[i].key, key)) {
             return &t->entries[i];
         }
     }
@@ -72,7 +73,7 @@ toml_table *toml_parse(const char *text, u64 len) {
 
     char *line = buf;
     while (line && *line) {
-        char *next = strchr(line, '\n');
+        char *next = (char *)cstr_find_char(line, '\n');
         if (next) { *next = '\0'; next++; }
 
         // Skip leading whitespace
@@ -86,7 +87,7 @@ toml_table *toml_parse(const char *text, u64 len) {
 
         // Section header
         if (*line == '[') {
-            const char *end = strchr(line + 1, ']');
+            const char *end = cstr_find_char(line + 1, ']');
             if (end) {
                 u32 slen = (u32)(end - line - 1);
                 if (slen >= sizeof(current_section)) slen = sizeof(current_section) - 1;
@@ -98,14 +99,14 @@ toml_table *toml_parse(const char *text, u64 len) {
         }
 
         // Key = value
-        char *eq = strchr(line, '=');
+        char *eq = (char *)cstr_find_char(line, '=');
         if (!eq) { line = next; continue; }
 
         // Extract and trim key
         *eq = '\0';
         char *k = line;
         while (*k == ' ' || *k == '\t') k++;
-        char *kend = k + strlen(k) - 1;
+        char *kend = k + cstr_len(k) - 1;
         while (kend > k && (*kend == ' ' || *kend == '\t')) { *kend = '\0'; kend--; }
 
         // Extract value
@@ -113,24 +114,24 @@ toml_table *toml_parse(const char *text, u64 len) {
         while (*v == ' ' || *v == '\t') v++;
 
         // Strip \r
-        u32 vlen = (u32)strlen(v);
+        u32 vlen = cstr_len(v);
         while (vlen > 0 && (v[vlen - 1] == '\r' || v[vlen - 1] == '\n')) { v[--vlen] = '\0'; }
 
         // Strip inline comment (but not inside quotes)
         if (v[0] != '"') {
-            char *hash = strchr(v, '#');
+            char *hash = (char *)cstr_find_char(v, '#');
             if (hash) {
                 *hash = '\0';
-                vlen = (u32)strlen(v);
+                vlen = cstr_len(v);
             }
         } else {
             // For quoted strings, find closing quote first, then strip comment after
-            char *closing = strchr(v + 1, '"');
+            char *closing = (char *)cstr_find_char(v + 1, '"');
             if (closing) {
-                char *hash = strchr(closing + 1, '#');
+                char *hash = (char *)cstr_find_char(closing + 1, '#');
                 if (hash) {
                     *hash = '\0';
-                    vlen = (u32)strlen(v);
+                    vlen = cstr_len(v);
                 }
             }
         }
@@ -205,8 +206,8 @@ b8 toml_get_bool(const toml_table *t, const char *section, const char *key, b8 f
     if (!t) return fallback;
     const toml_entry *e = table_find(t, section, key);
     if (!e) return fallback;
-    if (strcmp(e->value, "true") == 0 || strcmp(e->value, "1") == 0) return true;
-    if (strcmp(e->value, "false") == 0 || strcmp(e->value, "0") == 0) return false;
+    if (cstr_eq(e->value, "true") || cstr_eq(e->value, "1")) return true;
+    if (cstr_eq(e->value, "false") || cstr_eq(e->value, "0")) return false;
     return fallback;
 }
 

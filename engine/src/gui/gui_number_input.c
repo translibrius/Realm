@@ -8,6 +8,7 @@
 #include "gui_internal.h"
 #include "memory/arena.h"
 #include "platform/input.h"
+#include "util/str.h"
 
 #include <float.h>
 #include <stdio.h>
@@ -88,8 +89,8 @@ b8 gui_number_input(gui_number_input_state *state, const gui_number_input_cfg *c
                 // Click → enter editing mode
                 state->editing = true;
                 state->cursor_blink = 0;
-                snprintf(state->buf, sizeof(state->buf), fmt, (f64)state->value);
-                state->len = (u16)strlen(state->buf);
+                cstr_format_buf(state->buf, sizeof(state->buf), fmt, (f64)state->value);
+                state->len = (u16)cstr_len(state->buf);
                 state->cursor = state->len;
                 gui_focus_set_input(state->_id, GUI_INPUT_NUMBER, state);
             }
@@ -138,8 +139,8 @@ b8 gui_number_input(gui_number_input_state *state, const gui_number_input_cfg *c
         }
     } else {
         char *display = rl_arena_push(arena, 32, false);
-        snprintf(display, 32, fmt, (f64)state->value);
-        u16 dlen = (u16)strlen(display);
+        cstr_format_buf(display, 32, fmt, (f64)state->value);
+        u16 dlen = (u16)cstr_len(display);
         gui_textn(display, dlen, &(gui_text_cfg){.color = t->text, .size = 12, .font = font});
     }
 

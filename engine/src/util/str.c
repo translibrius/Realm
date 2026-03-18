@@ -330,3 +330,24 @@ const char *cstr_find_last_char(const char *str, char c) {
     if (!str) return nullptr;
     return strrchr(str, c);
 }
+
+i32 cstr_cmp_nocase(const char *a, const char *b) {
+    if (a == b) return 0;
+    if (!a) return -1;
+    if (!b) return 1;
+    while (*a && *b) {
+        int ca = tolower((u8)*a);
+        int cb = tolower((u8)*b);
+        if (ca != cb) return ca < cb ? -1 : 1;
+        a++;
+        b++;
+    }
+    if (*a) return 1;
+    if (*b) return -1;
+    return 0;
+}
+
+b8 cstr_contains(const char *str, const char *needle) {
+    if (!str || !needle) return false;
+    return strstr(str, needle) != nullptr;
+}

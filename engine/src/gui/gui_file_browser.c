@@ -114,19 +114,7 @@ static void fb_pool_clear(fb_tree_pool *pool) {
 static i32 fb_compare_entries(const platform_dir_entry *a, const platform_dir_entry *b) {
     if (a->is_dir && !b->is_dir) return -1;
     if (!a->is_dir && b->is_dir) return 1;
-    const char *na = a->name;
-    const char *nb = b->name;
-    while (*na && *nb) {
-        char ca = *na, cb = *nb;
-        if (ca >= 'A' && ca <= 'Z') ca += 32;
-        if (cb >= 'A' && cb <= 'Z') cb += 32;
-        if (ca != cb) return ca < cb ? -1 : 1;
-        na++;
-        nb++;
-    }
-    if (*na) return 1;
-    if (*nb) return -1;
-    return 0;
+    return cstr_cmp_nocase(a->name, b->name);
 }
 
 static void fb_sort_entries(DirEntries *entries) {

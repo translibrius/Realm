@@ -26,7 +26,7 @@ void gui_text(const char *str, const gui_text_cfg *cfg) {
     }
 
     const char *display = str;
-    u32 len = (u32)strlen(str);
+    u32 len = cstr_len(str);
 
     if (max_chars > 3 && len > max_chars) {
         rl_arena *frame = rl_engine_get_frame_arena();

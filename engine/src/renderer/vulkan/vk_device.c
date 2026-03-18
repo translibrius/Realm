@@ -2,6 +2,7 @@
 
 #include "vk_swapchain.h"
 #include "vk_util.h"
+#include "util/str.h"
 
 #include <string.h>
 
@@ -342,11 +343,11 @@ b8 vk_device_init(VK_Context *context) {
         b8 has_swapchain = false;
         b8 has_portability_subset = false;
         for (u32 e = 0; e < ext_count; e++) {
-            if (strcmp(extensions[e].extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0) {
+            if (cstr_eq(extensions[e].extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME)) {
                 has_swapchain = true;
                 continue;
             }
-            if (strcmp(extensions[e].extensionName, VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME) == 0) {
+            if (cstr_eq(extensions[e].extensionName, VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME)) {
                 has_portability_subset = true;
             }
         }

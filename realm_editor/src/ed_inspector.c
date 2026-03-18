@@ -12,6 +12,7 @@
 #include "gui/gui_text.h"
 #include "gui/gui_text_input.h"
 #include "gui/gui_theme.h"
+#include "util/str.h"
 #include <string.h>
 
 // ── Init / bind ─────────────────────────────────────────────────────────────
@@ -56,7 +57,7 @@ void ed_inspector_bind(ed_inspector *insp, rl_scene *scene, rl_entity entity) {
     // Name
     rl_name_component *nc = name_get(cs, entity);
     if (nc) {
-        u16 len = (u16)strlen(nc->name);
+        u16 len = (u16)cstr_len(nc->name);
         if (len >= GUI_TEXT_INPUT_MAX) len = GUI_TEXT_INPUT_MAX - 1;
         memcpy(insp->name_input.buf, nc->name, len);
         insp->name_input.buf[len] = '\0';
@@ -178,7 +179,7 @@ b8 ed_inspector_render(ed_inspector *insp, rl_scene *scene, rl_entity entity,
 
         // When focus leaves the name input, write back if changed
         if (!name_editing && insp->name_input.len > 0) {
-            if (strcmp(nc->name, insp->name_input.buf) != 0) {
+            if (!cstr_eq(nc->name, insp->name_input.buf)) {
                 rl_name_component before = *nc;
                 u16 copy_len = insp->name_input.len;
                 if (copy_len >= RL_NAME_MAX) copy_len = RL_NAME_MAX - 1;

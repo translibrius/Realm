@@ -75,7 +75,7 @@ static void ed_new_scene(void) {
 static void ed_build_scene_abs_path(char *buf, u32 buf_size) {
     rl_project *proj = project_get();
     if (proj) {
-        snprintf(buf, buf_size, "%s%s", proj->root_path, proj->default_scene);
+        cstr_format_buf(buf, buf_size, "%s%s", proj->root_path, proj->default_scene);
     } else {
         buf[0] = '\0';
     }

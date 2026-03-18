@@ -587,7 +587,7 @@ void platform_console_write(const char *message, const LOG_LEVEL level) {
     SetConsoleTextAttribute(console_handle, level_colors[level]);
 
     OutputDebugStringA(message);
-    const u64 length = strlen(message);
+    const u64 length = cstr_len(message);
     DWORD number_written = 0;
 
     WriteConsoleA(console_handle, message, (DWORD)length, &number_written, nullptr);

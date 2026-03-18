@@ -3,6 +3,7 @@
 #include "core/logger.h"
 #include "platform/platform.h"
 #include "util/assert.h"
+#include "util/str.h"
 #include "vk_util.h"
 
 #include <string.h>
@@ -155,7 +156,7 @@ b8 vk_instance_create(VK_Context *context) {
 
     for (u32 i = 0; i < layer_count; i++) {
         RL_TRACE("Available vulkan layer: %s", layers[i].layerName);
-        if (strcmp("VK_LAYER_KHRONOS_validation", layers[i].layerName) == 0) {
+        if (cstr_eq("VK_LAYER_KHRONOS_validation", layers[i].layerName)) {
             found_validation = true;
         }
     }
@@ -192,14 +193,14 @@ b8 vk_instance_create(VK_Context *context) {
         RL_TRACE("Required vulkan ext: %s", platform_exts[i]);
         b8 found = false;
         for (u32 j = 0; j < instance_ext_count; j++) {
-            if (strcmp(platform_exts[i], available_extensions[j].extensionName) == 0) {
+            if (cstr_eq(platform_exts[i], available_extensions[j].extensionName)) {
                 found = true;
                 break;
             }
         }
         if (!found) {
 #if defined(PLATFORM_MACOS)
-            b8 is_portability_enum = strstr(platform_exts[i], "portability_enumeration") != nullptr;
+            b8 is_portability_enum = cstr_contains(platform_exts[i], "portability_enumeration");
             if (is_portability_enum) {
                 RL_WARN("Vulkan loader missing %s; continuing without portability enumeration", platform_exts[i]);
                 continue;
@@ -208,7 +209,7 @@ b8 vk_instance_create(VK_Context *context) {
             RL_FATAL("Failed to find required vulkan extension: %s", platform_exts[i]);
         }
 #if defined(PLATFORM_MACOS)
-        if (strstr(platform_exts[i], "portability_enumeration") != nullptr) {
+        if (cstr_contains(platform_exts[i], "portability_enumeration")) {
             enable_portability_enumeration = true;
         }
 #endif

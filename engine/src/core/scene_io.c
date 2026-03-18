@@ -21,7 +21,7 @@ static const char *primitive_to_str(rl_frame_primitive p) {
 
 static rl_frame_primitive str_to_primitive(const char *s) {
     if (!s) return RL_FRAME_PRIMITIVE_CUBE;
-    if (strcmp(s, "cube") == 0) return RL_FRAME_PRIMITIVE_CUBE;
+    if (cstr_eq(s, "cube")) return RL_FRAME_PRIMITIVE_CUBE;
     return RL_FRAME_PRIMITIVE_CUBE;
 }
 
@@ -35,7 +35,7 @@ static const char *kind_to_str(rl_frame_mesh_kind k) {
 
 static rl_frame_mesh_kind str_to_kind(const char *s) {
     if (!s) return RL_FRAME_MESH_KIND_LIT;
-    if (strcmp(s, "unlit") == 0) return RL_FRAME_MESH_KIND_UNLIT;
+    if (cstr_eq(s, "unlit")) return RL_FRAME_MESH_KIND_UNLIT;
     return RL_FRAME_MESH_KIND_LIT;
 }
 

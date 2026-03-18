@@ -58,7 +58,7 @@ void ed_settings_apply_theme(const char *theme_key) {
     const gui_theme *theme = gui_theme_dark();
     if (theme_key && theme_key[0]) {
         for (i32 i = 0; i < (i32)(sizeof(map) / sizeof(map[0])); i++) {
-            if (strcmp(theme_key, map[i].key) == 0) { theme = map[i].fn(); break; }
+            if (cstr_eq(theme_key, map[i].key)) { theme = map[i].fn(); break; }
         }
     }
     gui_theme_set(theme);
@@ -70,7 +70,7 @@ void ed_settings_apply_theme(const char *theme_key) {
 i32 ed_settings_theme_index(const char *theme_key) {
     if (!theme_key || !theme_key[0]) return 0;
     for (i32 i = 0; i < THEME_COUNT; i++) {
-        if (strcmp(theme_key, s_theme_keys[i]) == 0) return i;
+        if (cstr_eq(theme_key, s_theme_keys[i])) return i;
     }
     return 0;
 }

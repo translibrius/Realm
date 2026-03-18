@@ -62,7 +62,7 @@ b8 opengl_text_pipeline_init(GL_Context *ctx) {
                 RL_WARN("gl_font_create() failed for '%s'", asset->filename);
             }
 
-            if (strcmp(font->name, "JetBrainsMono-Regular.ttf") == 0) {
+            if (cstr_eq(font->name, "JetBrainsMono-Regular.ttf")) {
                 opengl_set_active_font(font);
             }
         }

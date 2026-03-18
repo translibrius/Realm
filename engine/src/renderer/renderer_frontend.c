@@ -3,6 +3,7 @@
 #include "core/config.h"
 #include "core/event.h"
 #include "core/logger.h"
+#include "util/str.h"
 #include <string.h>
 #include "opengl/gl_gui.h"
 #include "opengl/gl_text.h"
@@ -27,7 +28,7 @@ void prepare_interface(RENDERER_BACKEND backend);
 static b8 on_config_changed(void *data, void *user_data) {
     (void)user_data;
     e_config_changed_payload *p = data;
-    if (strcmp(p->key, "vsync") == 0) {
+    if (cstr_eq(p->key, "vsync")) {
         renderer_set_vsync(config_get()->vsync);
     }
     return false;

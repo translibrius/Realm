@@ -15,7 +15,7 @@ static rl_project state;
 
 // Normalize path into dst: copy, convert backslashes, ensure trailing slash.
 static void normalize_path(char *dst, u64 dst_size, const char *src) {
-    u64 len = strlen(src);
+    u64 len = cstr_len(src);
     if (len >= dst_size - 1) len = dst_size - 2;
     memcpy(dst, src, len);
 
@@ -124,8 +124,8 @@ rl_project *project_open(const char *path) {
     // Parse
     memset(&state, 0, sizeof(state));
     cstr_copy(state.root_path, sizeof(state.root_path), root);
-    snprintf(state.asset_path, sizeof(state.asset_path), "%sassets/", root);
-    snprintf(state.scenes_path, sizeof(state.scenes_path), "%sscenes/", root);
+    cstr_format_buf(state.asset_path, sizeof(state.asset_path), "%sassets/", root);
+    cstr_format_buf(state.scenes_path, sizeof(state.scenes_path), "%sscenes/", root);
 
     cstr_copy(state.name, sizeof(state.name), toml_get_string(t, "project", "name", "Untitled"));
     cstr_copy(state.default_scene, sizeof(state.default_scene), toml_get_string(t, "project", "default_scene", ""));

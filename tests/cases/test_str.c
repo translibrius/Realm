@@ -611,6 +611,31 @@ RL_TEST(str_cstr_find_last_char_not_found) {
     RL_EXPECT_NULL(cstr_find_last_char("hello", 'z'));
 }
 
+RL_TEST(str_cstr_cmp_nocase_equal) {
+    RL_EXPECT_EQ_I32(cstr_cmp_nocase("Hello", "hELLO"), 0);
+}
+
+RL_TEST(str_cstr_cmp_nocase_less) {
+    RL_EXPECT(cstr_cmp_nocase("apple", "Banana") < 0);
+}
+
+RL_TEST(str_cstr_cmp_nocase_greater) {
+    RL_EXPECT(cstr_cmp_nocase("Zebra", "apple") > 0);
+}
+
+RL_TEST(str_cstr_contains_true) {
+    RL_EXPECT(cstr_contains("hello world", "lo wo"));
+}
+
+RL_TEST(str_cstr_contains_false) {
+    RL_EXPECT(!cstr_contains("hello", "xyz"));
+}
+
+RL_TEST(str_cstr_contains_null) {
+    RL_EXPECT(!cstr_contains(nullptr, "test"));
+    RL_EXPECT(!cstr_contains("test", nullptr));
+}
+
 RL_TEST(str_sanitize_identifier_basic) {
     char dst[64];
     cstr_sanitize_identifier(dst, sizeof(dst), "My Cool Game");
@@ -748,6 +773,12 @@ void register_str_tests(void) {
     RL_REGISTER_TEST(str_cstr_find_char_not_found);
     RL_REGISTER_TEST(str_cstr_find_last_char_found);
     RL_REGISTER_TEST(str_cstr_find_last_char_not_found);
+    RL_REGISTER_TEST(str_cstr_cmp_nocase_equal);
+    RL_REGISTER_TEST(str_cstr_cmp_nocase_less);
+    RL_REGISTER_TEST(str_cstr_cmp_nocase_greater);
+    RL_REGISTER_TEST(str_cstr_contains_true);
+    RL_REGISTER_TEST(str_cstr_contains_false);
+    RL_REGISTER_TEST(str_cstr_contains_null);
     RL_REGISTER_TEST(str_sanitize_identifier_basic);
     RL_REGISTER_TEST(str_sanitize_identifier_leading_digit);
     RL_REGISTER_TEST(str_sanitize_identifier_all_invalid);

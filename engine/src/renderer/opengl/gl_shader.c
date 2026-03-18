@@ -4,6 +4,7 @@
 #include "gl_renderer.h"
 #include "asset/shader.h"
 #include "glad.h"
+#include "util/str.h"
 
 #include <string.h>
 
@@ -50,7 +51,7 @@ void opengl_shader_use(GL_Shader *shader) {
 static i32 shader_get_location(GL_Shader *shader, const char *name) {
     // Search cache (pointer comparison first, then strcmp fallback)
     for (u32 i = 0; i < shader->uniform_count; i++) {
-        if (shader->uniforms[i].name == name || strcmp(shader->uniforms[i].name, name) == 0) {
+        if (shader->uniforms[i].name == name || cstr_eq(shader->uniforms[i].name, name)) {
             return shader->uniforms[i].location;
         }
     }

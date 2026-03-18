@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <util/str.h>
 #include <string.h>
 
 #include <core/logger.h>
@@ -8,7 +9,7 @@
 int main(int argc, char **argv) {
     const char *project_path = nullptr;
     for (i32 i = 1; i < argc - 1; i++) {
-        if (strcmp(argv[i], "--project") == 0) {
+        if (cstr_eq(argv[i], "--project")) {
             project_path = argv[i + 1];
             break;
         }

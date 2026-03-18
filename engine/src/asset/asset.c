@@ -88,7 +88,7 @@ static void asset_set_root(const char *asset_root) {
         source = DEFAULT_ASSET_ROOT;
     }
 
-    u64 source_len = strlen(source);
+    u64 source_len = cstr_len(source);
     u64 max_copy = sizeof(state->asset_root) - 2;
 
     u64 copy_len = source_len;
@@ -110,10 +110,10 @@ static void asset_set_root(const char *asset_root) {
     }
     state->asset_root[copy_len] = '\0';
 
-    snprintf(state->fonts_dir, sizeof(state->fonts_dir), "%sfonts/", state->asset_root);
-    snprintf(state->shaders_dir, sizeof(state->shaders_dir), "%sshaders/", state->asset_root);
-    snprintf(state->textures_dir, sizeof(state->textures_dir), "%stextures/", state->asset_root);
-    snprintf(state->models_dir, sizeof(state->models_dir), "%smodels/", state->asset_root);
+    cstr_format_buf(state->fonts_dir, sizeof(state->fonts_dir), "%sfonts/", state->asset_root);
+    cstr_format_buf(state->shaders_dir, sizeof(state->shaders_dir), "%sshaders/", state->asset_root);
+    cstr_format_buf(state->textures_dir, sizeof(state->textures_dir), "%stextures/", state->asset_root);
+    cstr_format_buf(state->models_dir, sizeof(state->models_dir), "%smodels/", state->asset_root);
 }
 
 static b8 asset_load_data(rl_asset *asset) {
@@ -238,11 +238,9 @@ asset_id asset_load(ASSET_TYPE type, const char *source_path) {
 
     // Extract filename from the arena-owned copy
     const char *filename = owned_path;
-    for (const char *p = owned_path; *p; p++) {
-        if (*p == '/' || *p == '\\') {
-            filename = p + 1;
-        }
-    }
+    const char *slash = cstr_find_last_char(owned_path, '/');
+    if (!slash) slash = cstr_find_last_char(owned_path, '\\');
+    if (slash) filename = slash + 1;
 
     asset_id id = state->next_id++;
 
@@ -303,7 +301,7 @@ const char *asset_get_resolve_root(ASSET_TYPE type) {
 void asset_set_content_root(const char *path) {
     if (!state || !path || !path[0]) return;
 
-    u64 len = strlen(path);
+    u64 len = cstr_len(path);
     u64 max_copy = sizeof(state->content_root) - 2;
     if (len > max_copy) len = max_copy;
 
@@ -351,7 +349,7 @@ asset_id asset_find(const char *source_path) {
     }
 
     for (u64 i = 0; i < state->assets.count; i++) {
-        if (strcmp(state->assets.items[i].source_path, source_path) == 0) {
+        if (cstr_eq(state->assets.items[i].source_path, source_path)) {
             return state->assets.items[i].id;
         }
     }
