@@ -1,4 +1,3 @@
-#define CGLTF_IMPLEMENTATION
 #include "mesh.h"
 
 #include "core/logger.h"

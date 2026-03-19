@@ -10,6 +10,7 @@ typedef enum ASSET_TYPE {
     ASSET_SHADER,
     ASSET_TEXTURE,
     ASSET_MESH,
+    ASSET_MODEL,
 } ASSET_TYPE;
 
 // Well-known built-in asset paths (used with asset_find)

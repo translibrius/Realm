@@ -5,6 +5,7 @@
 
 #include "asset/font.h"
 #include "asset/mesh.h"
+#include "asset/model.h"
 #include "asset/shader.h"
 #include "asset/texture.h"
 #include "core/event.h"
@@ -130,6 +131,9 @@ static b8 asset_load_data(rl_asset *asset) {
         break;
     case ASSET_MESH:
         success = load_mesh(&state->asset_arena, asset);
+        break;
+    case ASSET_MODEL:
+        success = load_model(&state->asset_arena, asset);
         break;
     }
     return success;
@@ -291,7 +295,7 @@ const char *asset_get_resolve_root(ASSET_TYPE type) {
         return DEFAULT_ASSET_ROOT;
     }
 
-    if (state->has_content_root && (type == ASSET_TEXTURE || type == ASSET_MESH)) {
+    if (state->has_content_root && (type == ASSET_TEXTURE || type == ASSET_MESH || type == ASSET_MODEL)) {
         return state->content_root;
     }
 
@@ -370,6 +374,7 @@ const char *get_assets_dir(ASSET_TYPE asset_type) {
     case ASSET_TEXTURE:
         return state->textures_dir;
     case ASSET_MESH:
+    case ASSET_MODEL:
         return state->models_dir;
     default:
         break;
