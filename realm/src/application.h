@@ -1,14 +1,14 @@
 #pragma once
 
 #include "defines.h"
-#include "event_handler.h"
+#include "host/event_handler.h"
 #include "platform/platform.h"
 #include "renderer/renderer_backend.h"
 
-#include "realm_app_watcher.h"
-#include "realm_app_loader.h"
-#include "app_console.h"
-#include "app_debug_panel.h"
+#include "module/realm_app_watcher.h"
+#include "module/realm_app_loader.h"
+#include "gui/app_console.h"
+#include "gui/app_debug_panel.h"
 
 typedef struct rl_scene rl_scene;
 

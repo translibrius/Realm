@@ -22,6 +22,7 @@ add_executable(Realm
 target_include_directories(Realm
         PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 rl_set_compiler_flags(Realm)

@@ -60,6 +60,8 @@ Key rules:
 - One file pair (`<name>.h` + `<name>.c`) per entity with lifecycle functions (`_init/_shutdown`, `_create/_destroy`, or `_begin/_end`).
 - Keep files focused and slim. If a helper grows complex, give it its own file.
 - New entity in existing subsystem → new file pair, don't stuff into existing files.
+- **Readability-first layering:** top-level orchestrators (e.g. `application.c`, frame loops, init sequences) should read like a high-level outline — just named function calls in order. Push path formatting, flag switches, multi-step I/O, and other gritty logic into focused helper functions/files so the caller never has to parse implementation details inline. If a block would make someone stop and squint, extract it.
+- Organize source files into semantic subfolders (`gui/`, `host/`, `module/`, etc.) when a directory grows past a handful of files. Group by responsibility, not alphabetically.
 - Reference: GUI widget system (`engine/include/gui/gui_*.h`).
 
 ## Git
