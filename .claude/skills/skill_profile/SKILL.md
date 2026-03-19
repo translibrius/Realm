@@ -1,5 +1,5 @@
 ---
-name: profile
+name: skill_profile
 description: Generate and analyze a Realm profiler report. Use when the user asks to profile, find performance bottlenecks, or optimize the engine.
 argument-hint: [snapshot|session <path>]
 allowed-tools: Bash(python3 *), Read, Grep, Glob

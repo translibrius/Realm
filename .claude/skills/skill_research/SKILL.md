@@ -1,5 +1,5 @@
 ---
-name: research
+name: skill_research
 description: Review the Realm codebase and suggest what to work on next. Finds bugs, missing features, convention violations, test gaps, and backend parity issues.
 argument-hint: "[bugs|parity|conventions|tests|features|architecture]"
 allowed-tools: Read, Grep, Glob, Task
