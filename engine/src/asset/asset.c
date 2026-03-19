@@ -4,7 +4,6 @@
 #include "asset/asset_table.h"
 
 #include "asset/font.h"
-#include "asset/mesh.h"
 #include "asset/model.h"
 #include "asset/shader.h"
 #include "asset/texture.h"
@@ -130,8 +129,8 @@ static b8 asset_load_data(rl_asset *asset) {
         success = load_texture(&state->asset_arena, asset);
         break;
     case ASSET_MESH:
-        success = load_mesh(&state->asset_arena, asset);
-        break;
+        asset->type = ASSET_MODEL; // upgrade deprecated type
+        // fallthrough
     case ASSET_MODEL:
         success = load_model(&state->asset_arena, asset);
         break;
@@ -263,7 +262,7 @@ asset_id asset_load(ASSET_TYPE type, const char *source_path) {
         return 0;
     }
 
-    // Reserve slot before loading data — load_mesh may recursively call
+    // Reserve slot before loading data — load_model may recursively call
     // asset_load (e.g. for textures), so the slot must exist at the correct
     // index (id-1) before any child assets are appended.
     da_append(&state->assets, asset);

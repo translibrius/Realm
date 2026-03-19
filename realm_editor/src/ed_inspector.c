@@ -251,7 +251,7 @@ b8 ed_inspector_render(ed_inspector *insp, rl_scene *scene, rl_entity entity,
     // ── Mesh ────────────────────────────────────────────────────────────
     rl_mesh_component *mc = mesh_get(cs, entity);
     if (mc) {
-        section_header("Mesh", t, font);
+        section_header("Model", t, font);
 
         static const char *kind_items[] = {"Lit", "Unlit"};
         gui_field_begin("Kind", &fcfg);

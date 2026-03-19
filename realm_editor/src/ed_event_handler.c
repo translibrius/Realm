@@ -60,7 +60,7 @@ static void ed_on_file_drop(void *userdata, const e_file_drop_payload *drop) {
         } else if (cstr_ends_with(ext, ".gltf") || cstr_ends_with(ext, ".glb") ||
                    cstr_ends_with(ext, ".obj")) {
             subdir = "models";
-            type = ASSET_MESH;
+            type = ASSET_MODEL;
         } else {
             RL_INFO("Skipping unsupported file drop: %s", path);
             continue;

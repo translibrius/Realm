@@ -1,7 +1,6 @@
 #include "renderer/vulkan/vk_renderer.h"
 
 #include "asset/asset.h"
-#include "asset/mesh.h"
 #include "asset/model.h"
 #include "core/event.h"
 #include "engine.h"
@@ -466,9 +465,6 @@ static asset_id vk_resolve_diffuse(rl_frame_mesh *fm) {
             u32 mat_idx = m->meshes[fm->mesh_index].material_index;
             if (mat_idx < m->material_count) return m->materials[mat_idx].base_color_texture;
         }
-    } else if (a->type == ASSET_MESH) {
-        rl_mesh *m = (rl_mesh *)a->data;
-        if (m->material_count > 0) return m->materials[0].base_color_texture;
     }
     return 0;
 }

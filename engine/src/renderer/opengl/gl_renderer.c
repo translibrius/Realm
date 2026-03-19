@@ -1,7 +1,6 @@
 #include "renderer/opengl/gl_renderer.h"
 
 #include "asset/asset.h"
-#include "asset/mesh.h"
 #include "asset/model.h"
 #include "gl_gui.h"
 #include "math/ray.h"
@@ -92,29 +91,6 @@ static i32 gl_ensure_model(asset_id id) {
         context.model_cache_count++;
 
         RL_DEBUG("Uploaded model asset %u to GL (%u sub-meshes)", id, model->mesh_count);
-    } else if (asset->type == ASSET_MESH) {
-        rl_mesh *mesh = (rl_mesh *)asset->data;
-        if (mesh->primitive_count == 0) {
-            RL_ERROR("gl_ensure_model: mesh has no primitives");
-            return -1;
-        }
-
-        rl_mesh_primitive *prim = &mesh->primitives[0];
-        GL_Mesh *meshes = rl_arena_push(&context.arena, sizeof(GL_Mesh), true);
-        meshes[0] = gl_mesh_create_from_primitive(prim->vertices, prim->vertex_count, prim->indices, prim->index_count);
-
-        // Ensure the mesh's diffuse texture is uploaded
-        if (mesh->material_count > 0 && prim->material_index < mesh->material_count) {
-            asset_id tex_id = mesh->materials[prim->material_index].base_color_texture;
-            if (tex_id && !gl_find_texture(tex_id)) gl_load_texture(tex_id);
-        }
-
-        context.model_cache[idx].model_id = id;
-        context.model_cache[idx].meshes = meshes;
-        context.model_cache[idx].mesh_count = 1;
-        context.model_cache_count++;
-
-        RL_DEBUG("Uploaded legacy mesh asset %u to GL (verts=%u, indices=%u)", id, prim->vertex_count, prim->index_count);
     } else {
         RL_ERROR("gl_ensure_model: asset %u is not a model or mesh", id);
         return -1;
@@ -137,9 +113,6 @@ static asset_id gl_resolve_diffuse(rl_frame_mesh *fm) {
             u32 mat_idx = m->meshes[fm->mesh_index].material_index;
             if (mat_idx < m->material_count) return m->materials[mat_idx].base_color_texture;
         }
-    } else if (a->type == ASSET_MESH) {
-        rl_mesh *m = (rl_mesh *)a->data;
-        if (m->material_count > 0) return m->materials[0].base_color_texture;
     }
     return 0;
 }

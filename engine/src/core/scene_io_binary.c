@@ -30,7 +30,7 @@
 //     [bit 0] name_str_idx: u32
 //     [bit 1] position: f32[3], rotation: f32[3], scale: f32[3]
 //     [bit 2] primitive: u32, kind: u32, wireframe: u32,
-//             mesh_asset_idx: u32, diffuse_map_idx: u32,
+//             model_asset_idx: u32, diffuse_map_idx: u32,
 //             specular: f32[3], shininess: f32
 //     [bit 3] ambient: f32[3], diffuse: f32[3], specular: f32[3]
 //     [bit 4] behavior_str_idx: u32
@@ -263,13 +263,13 @@ b8 scene_save_binary(const rl_scene *scene, const char *path) {
             wbuf_write_u32(&wb, (u32)m->kind);
             wbuf_write_u32(&wb, m->wireframe ? 1 : 0);
 
-            // Mesh asset path
-            u32 mesh_idx = RLSC_STR_NONE;
+            // Model asset path
+            u32 model_idx = RLSC_STR_NONE;
             if (m->model_asset) {
                 rl_asset *a = asset_get(m->model_asset);
-                if (a && a->source_path) mesh_idx = strtab_add(&st, a->source_path);
+                if (a && a->source_path) model_idx = strtab_add(&st, a->source_path);
             }
-            wbuf_write_u32(&wb, mesh_idx);
+            wbuf_write_u32(&wb, model_idx);
 
             // Diffuse map path
             u32 diff_idx = RLSC_STR_NONE;
@@ -449,10 +449,10 @@ rl_scene *scene_load_binary(const char *path) {
         // Mesh
         if (mask & COMP_MESH) {
             rl_mesh_component *m = mesh_add(&scene->components, e);
-            u32 prim, kind, wire, mesh_asset_idx, diffuse_idx;
+            u32 prim, kind, wire, model_asset_idx, diffuse_idx;
 
             if (!rc_read_u32(&rc, &prim) || !rc_read_u32(&rc, &kind) ||
-                !rc_read_u32(&rc, &wire) || !rc_read_u32(&rc, &mesh_asset_idx) ||
+                !rc_read_u32(&rc, &wire) || !rc_read_u32(&rc, &model_asset_idx) ||
                 !rc_read_u32(&rc, &diffuse_idx) ||
                 !rc_read_vec3(&rc, m->material.specular) ||
                 !rc_read_f32(&rc, &m->material.shininess)) goto truncated;
@@ -461,8 +461,8 @@ rl_scene *scene_load_binary(const char *path) {
             m->kind      = (rl_frame_mesh_kind)kind;
             m->wireframe = wire != 0;
 
-            const char *mesh_path = (mesh_asset_idx != RLSC_STR_NONE) ? STR_AT(mesh_asset_idx) : nullptr;
-            m->model_asset = mesh_path ? asset_find(mesh_path) : 0;
+            const char *model_path = (model_asset_idx != RLSC_STR_NONE) ? STR_AT(model_asset_idx) : nullptr;
+            m->model_asset = model_path ? asset_find(model_path) : 0;
 
             const char *diff_path = (diffuse_idx != RLSC_STR_NONE) ? STR_AT(diffuse_idx) : nullptr;
             m->material.diffuse_map = diff_path ? asset_find(diff_path) : 0;

@@ -17,7 +17,7 @@ typedef struct {
 
 static const asset_scan_entry scan_table[] = {
     {"textures", ".jpg,.jpeg,.png,.bmp,.tga", ASSET_TEXTURE},
-    {"models",   ".gltf,.glb,.obj",           ASSET_MESH},
+    {"models",   ".gltf,.glb,.obj",           ASSET_MODEL},
 };
 
 i32 project_load_assets(void) {

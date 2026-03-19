@@ -93,7 +93,7 @@
         "primitive": "cube",
         "kind": "lit",
         "wireframe": false,
-        "mesh_asset_path": "models/lion_head_4k.gltf/lion_head_4k.gltf",
+        "model_asset_path": "models/lion_head_4k.gltf/lion_head_4k.gltf",
         "material": {
           "specular": [
             0.5,

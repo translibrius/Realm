@@ -3,7 +3,6 @@
 #include "vk_mesh.h"
 #include "vk_util.h"
 #include "asset/asset.h"
-#include "asset/mesh.h"
 #include "asset/model.h"
 #include "renderer/renderer_backend.h"
 #include "renderer/renderer_types.h"
@@ -32,9 +31,6 @@ static asset_id vk_cmd_resolve_diffuse(rl_frame_mesh *fm) {
             u32 mat_idx = m->meshes[fm->mesh_index].material_index;
             if (mat_idx < m->material_count) return m->materials[mat_idx].base_color_texture;
         }
-    } else if (a->type == ASSET_MESH) {
-        rl_mesh *m = (rl_mesh *)a->data;
-        if (m->material_count > 0) return m->materials[0].base_color_texture;
     }
     return 0;
 }

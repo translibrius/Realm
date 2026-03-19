@@ -1,7 +1,6 @@
 #include "vk_mesh.h"
 #include "vk_buffer.h"
 #include "asset/asset.h"
-#include "asset/mesh.h"
 #include "asset/model.h"
 #include "renderer/mesh_data.h"
 
@@ -149,25 +148,6 @@ i32 vk_model_cache_upload(VK_Context *ctx, asset_id id) {
         ctx->model_cache_count++;
 
         RL_DEBUG("Uploaded model asset %u to VK (%u sub-meshes)", id, model->mesh_count);
-    } else if (asset->type == ASSET_MESH) {
-        rl_mesh *mesh = (rl_mesh *)asset->data;
-        if (mesh->primitive_count == 0) {
-            RL_ERROR("vk_model_cache_upload: mesh has no primitives");
-            return -1;
-        }
-
-        rl_mesh_primitive *prim = &mesh->primitives[0];
-        VK_CachedMesh *meshes = rl_arena_push(&ctx->arena, sizeof(VK_CachedMesh), true);
-        if (!vk_upload_submesh(ctx, &meshes[0], prim->vertices, prim->vertex_count, prim->indices, prim->index_count)) {
-            return -1;
-        }
-
-        ctx->model_cache[idx].model_id = id;
-        ctx->model_cache[idx].meshes = meshes;
-        ctx->model_cache[idx].mesh_count = 1;
-        ctx->model_cache_count++;
-
-        RL_DEBUG("Uploaded legacy mesh asset %u to VK (verts=%u, indices=%u)", id, prim->vertex_count, prim->index_count);
     } else {
         RL_ERROR("vk_model_cache_upload: asset %u is not a model or mesh", id);
         return -1;
