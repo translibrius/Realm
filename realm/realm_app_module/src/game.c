@@ -32,8 +32,17 @@ b8 game_init(rl_game *game, const realm_app_context *ctx) {
         game->settings_sensitivity_slider = (gui_slider_state){0};
     }
 
+    // Init camera from scene entity if available, otherwise use defaults
+    if (ctx->scene) {
+        rl_entity cam_e = scene_get_main_camera(ctx->scene);
+        if (cam_e != RL_ENTITY_INVALID) {
+            rl_transform *ct = transform_get(&ctx->scene->components, cam_e);
+            rl_camera_component *cc = camera_comp_get(&ctx->scene->components, cam_e);
+            if (ct && cc) camera_from_entity(&game->camera, ct, cc);
+        }
+    }
+
     // Apply persisted config values to camera
-    game->camera.fov = ctx->fov;
     game->camera.look_speed = ctx->mouse_sensitivity;
 
     game->app_context = ctx;
@@ -61,7 +70,7 @@ void game_update(rl_game *game, const realm_app_context *ctx, realm_app_output *
         return;
     }
 
-    // Sync camera with config (handles real-time slider changes)
+    // Sync camera with config (handles real-time slider changes from settings menu)
     game->camera.fov = ctx->fov;
     game->camera.look_speed = ctx->mouse_sensitivity;
 
@@ -71,9 +80,15 @@ void game_update(rl_game *game, const realm_app_context *ctx, realm_app_output *
         game->pause_menu_open = false;
         game->settings_open = false;
 
-        if (game->active_scene == SCENE_GAME) {
-            camera_init(&game->camera);
-            game->camera.fov = ctx->fov;
+        if (game->active_scene == SCENE_GAME && ctx->scene) {
+            rl_entity cam_e = scene_get_main_camera(ctx->scene);
+            if (cam_e != RL_ENTITY_INVALID) {
+                rl_transform *ct = transform_get(&ctx->scene->components, cam_e);
+                rl_camera_component *cc = camera_comp_get(&ctx->scene->components, cam_e);
+                if (ct && cc) camera_from_entity(&game->camera, ct, cc);
+            } else {
+                camera_init(&game->camera);
+            }
             game->camera.look_speed = ctx->mouse_sensitivity;
         }
     }

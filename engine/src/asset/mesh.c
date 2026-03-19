@@ -110,6 +110,16 @@ static b8 load_primitive(rl_arena *asset_arena, const cgltf_primitive *prim, con
         out->material_index = (u32)(prim->material - gltf->materials);
     }
 
+    // Compute local-space AABB
+    if (vert_count > 0) {
+        glm_vec3_copy(verts[0].pos, out->local_aabb_min);
+        glm_vec3_copy(verts[0].pos, out->local_aabb_max);
+        for (u32 v = 1; v < vert_count; v++) {
+            glm_vec3_minv(out->local_aabb_min, verts[v].pos, out->local_aabb_min);
+            glm_vec3_maxv(out->local_aabb_max, verts[v].pos, out->local_aabb_max);
+        }
+    }
+
     return true;
 }
 

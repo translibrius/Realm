@@ -8,7 +8,7 @@
 #include "gui/gui_focus.h"
 #include "gui/gui_panel.h"
 #include "gui/gui_number_input.h"
-#include "gui/gui_panel.h"
+#include "gui/gui_slider.h"
 #include "gui/gui_text.h"
 #include "gui/gui_text_input.h"
 #include "gui/gui_theme.h"
@@ -43,6 +43,9 @@ static void cancel_editing(ed_inspector *insp) {
     insp->mat_specular.y.editing = false;
     insp->mat_specular.z.editing = false;
     insp->mat_shininess.editing = false;
+    insp->cam_fov.editing = false;
+    insp->cam_near.editing = false;
+    insp->cam_far.editing = false;
 }
 
 void ed_inspector_bind(ed_inspector *insp, rl_scene *scene, rl_entity entity) {
@@ -106,6 +109,16 @@ void ed_inspector_bind(ed_inspector *insp, rl_scene *scene, rl_entity entity) {
         insp->light[2].x.value = lc->specular[0];
         insp->light[2].y.value = lc->specular[1];
         insp->light[2].z.value = lc->specular[2];
+    }
+
+    // Camera
+    rl_camera_component *cc = camera_comp_get(cs, entity);
+    if (cc) {
+        insp->cam_fov.value  = cc->fov;
+        insp->cam_near.value = cc->near_clip;
+        insp->cam_far.value  = cc->far_clip;
+        insp->cam_is_main    = cc->is_main;
+        insp->cam_fov_slider.value = (cc->fov - 30.0f) / 120.0f; // 30-150 range
     }
 }
 
@@ -341,6 +354,56 @@ b8 ed_inspector_render(ed_inspector *insp, rl_scene *scene, rl_entity entity,
         }
     }
 
+    // ── Camera ──────────────────────────────────────────────────────────
+    rl_camera_component *cc = camera_comp_get(cs, entity);
+    if (cc) {
+        section_header("Camera", t, font);
+
+        // FOV slider + number input
+        gui_field_begin("FOV", &fcfg);
+        gui_slider_cfg fov_slider_cfg = {
+            .width = 100, .height = 14,
+            .track_color = (Clay_Color){t->bg_input.r, t->bg_input.g, t->bg_input.b, t->bg_input.a},
+            .fill_color  = (Clay_Color){t->accent.r, t->accent.g, t->accent.b, t->accent.a},
+            .thumb_color = (Clay_Color){t->text.r, t->text.g, t->text.b, t->text.a},
+        };
+        gui_number_input_cfg fov_cfg = {.step = 1.0f, .min = 30.0f, .max = 150.0f, .format = "%.0f", .width = 45, .height = 18};
+        b8 fov_slider_changed = gui_slider(&insp->cam_fov_slider, &fov_slider_cfg);
+        if (fov_slider_changed) {
+            insp->cam_fov.value = 30.0f + insp->cam_fov_slider.value * 120.0f;
+        }
+        b8 fov_num_changed = gui_number_input(&insp->cam_fov, &fov_cfg, dt);
+        if (fov_num_changed) {
+            insp->cam_fov_slider.value = (insp->cam_fov.value - 30.0f) / 120.0f;
+        }
+        gui_field_end();
+
+        gui_number_input_cfg near_cfg = {.step = 0.01f, .min = 0.001f, .max = 1000.0f, .format = "%.3f", .width = 55, .height = 18};
+        gui_field_begin("Near", &fcfg);
+        b8 near_changed = gui_number_input(&insp->cam_near, &near_cfg, dt);
+        gui_field_end();
+
+        gui_number_input_cfg far_cfg = {.step = 1.0f, .min = 1.0f, .max = 100000.0f, .format = "%.0f", .width = 55, .height = 18};
+        gui_field_begin("Far", &fcfg);
+        b8 far_changed = gui_number_input(&insp->cam_far, &far_cfg, dt);
+        gui_field_end();
+
+        gui_field_begin("Main", &fcfg);
+        b8 main_changed = gui_checkbox(&insp->cam_is_main, nullptr);
+        gui_field_end();
+
+        b8 cam_changed = fov_slider_changed || fov_num_changed || near_changed || far_changed || main_changed;
+        if (cam_changed) {
+            cc->fov       = insp->cam_fov.value;
+            cc->near_clip = insp->cam_near.value;
+            cc->far_clip  = insp->cam_far.value;
+            cc->is_main   = insp->cam_is_main;
+            any_changed = true;
+        }
+
+        gui_separator();
+    }
+
     // ── Drag lifecycle tracking for undo coalescing ────────────────────
     if (insp->undo) {
         b8 is_transform_dragging = false;
@@ -369,7 +432,13 @@ b8 ed_inspector_render(ed_inspector *insp, rl_scene *scene, rl_entity entity,
             }
         }
 
-        b8 is_any_dragging = is_transform_dragging || is_mesh_dragging || is_light_dragging;
+        b8 is_camera_dragging = false;
+        if (cc) {
+            is_camera_dragging = insp->cam_fov.dragging || insp->cam_fov_slider.dragging ||
+                                 insp->cam_near.dragging || insp->cam_far.dragging;
+        }
+
+        b8 is_any_dragging = is_transform_dragging || is_mesh_dragging || is_light_dragging || is_camera_dragging;
 
         if (!insp->was_any_dragging && is_any_dragging) {
             // Drag started — snapshot "before" state
@@ -383,6 +452,9 @@ b8 ed_inspector_render(ed_inspector *insp, rl_scene *scene, rl_entity entity,
             } else if (is_light_dragging) {
                 insp->undo_action = ED_UNDO_LIGHT;
                 insp->drag_start_light = *lc;
+            } else if (is_camera_dragging) {
+                insp->undo_action = ED_UNDO_CAMERA;
+                insp->drag_start_camera = *cc;
             }
         }
 
@@ -402,6 +474,10 @@ b8 ed_inspector_render(ed_inspector *insp, rl_scene *scene, rl_entity entity,
             case ED_UNDO_LIGHT:
                 entry.light.before = insp->drag_start_light;
                 entry.light.after = *light_get(cs, insp->undo_entity);
+                break;
+            case ED_UNDO_CAMERA:
+                entry.camera.before = insp->drag_start_camera;
+                entry.camera.after = *camera_comp_get(cs, insp->undo_entity);
                 break;
             default: break;
             }

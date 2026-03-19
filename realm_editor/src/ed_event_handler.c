@@ -16,6 +16,8 @@
 #include "core/project.h"
 #include "platform/input.h"
 #include "platform/io/file_io.h"
+#include "platform/platform.h"
+#include "profiler/profiler.h"
 #include "renderer/frame_data.h"
 #include "util/str.h"
 
@@ -141,6 +143,28 @@ static b8 ed_on_key(void *event, void *user_data) {
     input_key *k = event;
     if (!app || !k || !k->pressed || k->repeat) return false;
     if (app->mode != ED_MODE_EDITOR) return false;
+
+    // Profiler hotkeys work regardless of widget focus
+#if RL_PROFILE_ENABLED
+    if (k->key == KEY_F3) {
+#if defined(PLATFORM_WINDOWS)
+        platform_system("start python profiler_view.py");
+#else
+        platform_system("python3 profiler_view.py &");
+#endif
+        RL_INFO("Launching profiler viewer");
+        return true;
+    }
+    if (k->key == KEY_F4) {
+#if defined(PLATFORM_WINDOWS)
+        platform_system("start python profiler_report.py --snapshot --source-root " REALM_SOURCE_ROOT);
+#else
+        platform_system("python3 profiler_report.py --snapshot --source-root " REALM_SOURCE_ROOT " &");
+#endif
+        RL_INFO("Generating profiler snapshot report");
+        return true;
+    }
+#endif
 
     // Don't intercept when any widget has focus (text/number input editing)
     if (gui_focus_get() != 0) {

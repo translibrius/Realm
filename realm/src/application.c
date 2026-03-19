@@ -16,7 +16,6 @@
 #include "memory/memory.h"
 #include "platform/io/file_io.h"
 #include "platform/platform.h"
-#include "profiler/profiler.h"
 #include "renderer/renderer_frontend.h"
 #include "util/str.h"
 
@@ -90,15 +89,12 @@ b8 create_application(const char *project_path) {
         RL_WARN("failed to start app module watcher");
     }
 
-    rl_profiler_init();
-
     // Main loop — cursor state is applied from the previous frame's output
     // so that input_update + pump see the correct mode before the module reads deltas.
     f64 dt = 0.0f;
     b8 prev_capture = false;
     realm_app_output prev_output = {0};
     while (rl_engine_is_running()) {
-        rl_profiler_frame_mark();
 
         // Apply cursor state from previous frame's module output, before input_update + pump
         b8 capture = app.focused && !prev_output.wants_cursor_visible && !app.console.core.visible;
@@ -208,8 +204,6 @@ b8 create_application(const char *project_path) {
     if (project_is_open()) {
         project_close();
     }
-    rl_profiler_write_session_report("profiler_session.bin");
-    rl_profiler_shutdown();
     rl_engine_destroy();
 
     return true;

@@ -130,8 +130,9 @@ RL_TEST(project_create_scene_is_loadable) {
     RL_EXPECT_NOT_NULL(scene);
 
     RL_EXPECT_STR_EQ(scene->name, "Default Scene");
-    RL_EXPECT_EQ_U32(scene->entities.count, 1);
+    RL_EXPECT_EQ_U32(scene->entities.count, 2);
 
+    // Entity 1: Light
     RL_EXPECT(scene->components.has_name[1]);
     RL_EXPECT_STR_EQ(scene->components.names[1].name, "Light");
 
@@ -139,6 +140,13 @@ RL_TEST(project_create_scene_is_loadable) {
     RL_EXPECT_NEAR_F32(scene->components.lights[1].ambient[0], 0.2f, 0.01f);
     RL_EXPECT_NEAR_F32(scene->components.lights[1].diffuse[0], 0.5f, 0.01f);
     RL_EXPECT_NEAR_F32(scene->components.lights[1].specular[0], 1.0f, 0.01f);
+
+    // Entity 2: Camera
+    RL_EXPECT(scene->components.has_name[2]);
+    RL_EXPECT_STR_EQ(scene->components.names[2].name, "Camera");
+    RL_EXPECT(scene->components.has_camera[2]);
+    RL_EXPECT_NEAR_F32(scene->components.cameras[2].fov, 90.0f, 0.01f);
+    RL_EXPECT(scene->components.cameras[2].is_main);
 
     scene_destroy(scene);
     cleanup_project();

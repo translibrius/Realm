@@ -143,6 +143,23 @@ static void deserialize_light(yyjson_val *obj, rl_light_component *l) {
     deserialize_vec3(yyjson_obj_get(obj, "specular"), l->specular);
 }
 
+static yyjson_mut_val *serialize_camera(yyjson_mut_doc *doc, const rl_camera_component *c) {
+    yyjson_mut_val *obj = yyjson_mut_obj(doc);
+    yyjson_mut_obj_add_real(doc, obj, "fov",  (f64)c->fov);
+    yyjson_mut_obj_add_real(doc, obj, "near", (f64)c->near_clip);
+    yyjson_mut_obj_add_real(doc, obj, "far",  (f64)c->far_clip);
+    yyjson_mut_obj_add_bool(doc, obj, "main", c->is_main);
+    return obj;
+}
+
+static void deserialize_camera(yyjson_val *obj, rl_camera_component *c) {
+    yyjson_val *v;
+    v = yyjson_obj_get(obj, "fov");  if (v) c->fov       = (f32)yyjson_get_num(v);
+    v = yyjson_obj_get(obj, "near"); if (v) c->near_clip  = (f32)yyjson_get_num(v);
+    v = yyjson_obj_get(obj, "far");  if (v) c->far_clip   = (f32)yyjson_get_num(v);
+    v = yyjson_obj_get(obj, "main"); if (v) c->is_main    = yyjson_get_bool(v);
+}
+
 // --- Public API ---
 
 b8 scene_save(const rl_scene *scene, const char *path) {
@@ -193,6 +210,12 @@ b8 scene_save(const rl_scene *scene, const char *path) {
         // Behavior
         if (cs->has_behavior[i]) {
             yyjson_mut_obj_add_strcpy(doc, ent, "behavior", cs->behaviors[i].name);
+        }
+
+        // Camera
+        if (cs->has_camera[i]) {
+            yyjson_mut_obj_add_val(doc, ent, "camera",
+                                   serialize_camera(doc, &cs->cameras[i]));
         }
 
         yyjson_mut_arr_add_val(entities_arr, ent);
@@ -286,6 +309,13 @@ rl_scene *scene_load(const char *path) {
             const char *behavior_name = yyjson_get_str(yyjson_obj_get(ent_val, "behavior"));
             if (behavior_name) {
                 behavior_comp_add(&scene->components, e, behavior_name);
+            }
+
+            // Camera
+            yyjson_val *camera_obj = yyjson_obj_get(ent_val, "camera");
+            if (camera_obj) {
+                rl_camera_component *cc = camera_comp_add(&scene->components, e);
+                deserialize_camera(camera_obj, cc);
             }
         }
     }

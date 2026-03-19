@@ -86,3 +86,4 @@ Recommended CLI tools for dev and AI agent workflows. See [.claude/docs/tools.md
 - Vulkan swapchain changes must handle resize/recreation.
 - Backend switch fully destroys and recreates window + renderer.
 - `asset_root` is config-driven; don't hardcode paths.
+- **Never call `glm_perspective`/`glm_ortho` directly** — use `camera_get_projection()` / `camera_get_ortho_projection()` which handle Vulkan's zero-to-one depth clip range. Raw cglm defaults to OpenGL's [-1,1] and Vulkan will silently clip half your geometry.

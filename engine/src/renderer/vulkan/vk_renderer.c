@@ -221,12 +221,22 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
         return false;
     }
 
+    if (!vk_buffers_create_overlay_uniform(&context)) {
+        RL_ERROR("failed to create overlay uniform buffers");
+        return false;
+    }
+
     if (!vk_descriptor_create_pool(&context)) {
         RL_ERROR("failed to create descriptor pool");
         return false;
     }
 
     if (!vk_descriptor_create_sets(&context)) {
+        return false;
+    }
+
+    if (!vk_descriptor_create_overlay_sets(&context)) {
+        RL_ERROR("failed to create overlay descriptor sets");
         return false;
     }
 
@@ -260,6 +270,7 @@ void vulkan_destroy(void) {
     vk_text_pipeline_destroy(&context);
     vk_sync_destroy_frame(&context);
     vk_descriptor_destroy_pool(&context);
+    vk_buffers_destroy_overlay_uniform(&context);
     vk_buffers_destroy_uniform(&context);
     vk_texture_destroy_sampler(&context);
     vk_placeholder_texture_destroy(&context);

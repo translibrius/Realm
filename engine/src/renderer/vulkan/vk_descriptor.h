@@ -15,4 +15,5 @@ b8 vk_descriptor_create_pool(VK_Context *context);
 void vk_descriptor_destroy_pool(VK_Context *context);
 
 b8 vk_descriptor_create_sets(VK_Context *context);
+b8 vk_descriptor_create_overlay_sets(VK_Context *context);
 b8 vk_descriptor_create_texture_sets(VK_Context *context, VkImageView texture_view, VkDescriptorSet *out_sets);

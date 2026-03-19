@@ -1,6 +1,7 @@
 #include "ed_gizmo.h"
 
 #include "core/camera.h"
+#include "core/config.h"
 #include "engine.h"
 #include "memory/arena.h"
 
@@ -23,7 +24,8 @@ void ed_gizmo_build_axis_overlay(const ed_camera *cam,
 
     // Small ortho projection
     mat4 proj;
-    glm_ortho(-1.5f, 1.5f, -1.5f, 1.5f, -10.0f, 10.0f, proj);
+    rl_config *cfg = config_get();
+    camera_get_ortho_projection(-1.5f, 1.5f, -1.5f, 1.5f, -10.0f, 10.0f, proj, cfg->renderer_backend);
 
     // Overlay camera
     frame->overlay_camera.valid = true;

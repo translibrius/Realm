@@ -502,6 +502,126 @@ RL_TEST(scene_io_binary_string_dedup) {
     cleanup_bin_file();
 }
 
+RL_TEST(scene_io_camera_component_roundtrip) {
+    cleanup_scene_file();
+
+    rl_scene *scene = scene_create("CameraTest");
+
+    rl_entity e = scene_entity_create(scene, "MainCam");
+    rl_transform *t = transform_add(&scene->components, e);
+    t->position[0] = 5.0f; t->position[1] = 3.0f; t->position[2] = -10.0f;
+    t->rotation[0] = -15.0f; t->rotation[1] = 45.0f;
+
+    rl_camera_component *cc = camera_comp_add(&scene->components, e);
+    cc->fov       = 75.0f;
+    cc->near_clip = 0.05f;
+    cc->far_clip  = 500.0f;
+    cc->is_main   = true;
+
+    RL_EXPECT(scene_save(scene, s_scene_path));
+
+    rl_scene *loaded = scene_load(s_scene_path);
+    RL_EXPECT_NOT_NULL(loaded);
+
+    rl_component_store *cs = &loaded->components;
+    RL_EXPECT(cs->has_camera[1]);
+    RL_EXPECT_NEAR_F32(cs->cameras[1].fov, 75.0f, 0.01f);
+    RL_EXPECT_NEAR_F32(cs->cameras[1].near_clip, 0.05f, 0.001f);
+    RL_EXPECT_NEAR_F32(cs->cameras[1].far_clip, 500.0f, 0.01f);
+    RL_EXPECT(cs->cameras[1].is_main);
+
+    // Transform should also roundtrip
+    RL_EXPECT_NEAR_F32(cs->transforms[1].position[0], 5.0f, 0.01f);
+    RL_EXPECT_NEAR_F32(cs->transforms[1].rotation[1], 45.0f, 0.01f);
+
+    scene_destroy(loaded);
+    scene_destroy(scene);
+    cleanup_scene_file();
+}
+
+RL_TEST(scene_io_camera_binary_roundtrip) {
+    cleanup_bin_file();
+
+    rl_scene *scene = scene_create("CameraBin");
+
+    rl_entity e = scene_entity_create(scene, "Cam");
+    rl_transform *t = transform_add(&scene->components, e);
+    t->position[2] = -8.0f;
+
+    rl_camera_component *cc = camera_comp_add(&scene->components, e);
+    cc->fov       = 60.0f;
+    cc->near_clip = 0.01f;
+    cc->far_clip  = 2000.0f;
+    cc->is_main   = true;
+
+    RL_EXPECT(scene_save_binary(scene, s_bin_path));
+
+    rl_scene *loaded = scene_load_binary(s_bin_path);
+    RL_EXPECT_NOT_NULL(loaded);
+
+    rl_component_store *cs = &loaded->components;
+    RL_EXPECT(cs->has_camera[1]);
+    RL_EXPECT_NEAR_F32(cs->cameras[1].fov, 60.0f, 0.0f);
+    RL_EXPECT_NEAR_F32(cs->cameras[1].near_clip, 0.01f, 0.0f);
+    RL_EXPECT_NEAR_F32(cs->cameras[1].far_clip, 2000.0f, 0.0f);
+    RL_EXPECT(cs->cameras[1].is_main);
+
+    scene_destroy(loaded);
+    scene_destroy(scene);
+    cleanup_bin_file();
+}
+
+RL_TEST(scene_io_camera_comp_add_get_remove) {
+    rl_scene *scene = scene_create("CompTest");
+    rl_entity e = scene_entity_create(scene, "Cam");
+
+    // Not present initially
+    RL_EXPECT_NULL(camera_comp_get(&scene->components, e));
+
+    // Add with defaults
+    rl_camera_component *cc = camera_comp_add(&scene->components, e);
+    RL_EXPECT_NOT_NULL(cc);
+    RL_EXPECT_NEAR_F32(cc->fov, 90.0f, 0.0f);
+    RL_EXPECT_NEAR_F32(cc->near_clip, 0.1f, 0.0f);
+    RL_EXPECT_NEAR_F32(cc->far_clip, 100.0f, 0.0f);
+    RL_EXPECT(!cc->is_main);
+
+    // Get returns same pointer
+    RL_EXPECT(camera_comp_get(&scene->components, e) == cc);
+
+    // Modify and verify
+    cc->fov = 120.0f;
+    cc->is_main = true;
+    RL_EXPECT_NEAR_F32(camera_comp_get(&scene->components, e)->fov, 120.0f, 0.0f);
+    RL_EXPECT(camera_comp_get(&scene->components, e)->is_main);
+
+    // Remove
+    camera_comp_remove(&scene->components, e);
+    RL_EXPECT_NULL(camera_comp_get(&scene->components, e));
+
+    scene_destroy(scene);
+}
+
+RL_TEST(scene_io_scene_get_main_camera) {
+    rl_scene *scene = scene_create("MainCamTest");
+
+    // No camera entities → INVALID
+    RL_EXPECT(scene_get_main_camera(scene) == RL_ENTITY_INVALID);
+
+    // Add a non-main camera
+    rl_entity e1 = scene_entity_create(scene, "SecondCam");
+    camera_comp_add(&scene->components, e1);
+    RL_EXPECT(scene_get_main_camera(scene) == RL_ENTITY_INVALID);
+
+    // Add a main camera
+    rl_entity e2 = scene_entity_create(scene, "MainCam");
+    rl_camera_component *cc2 = camera_comp_add(&scene->components, e2);
+    cc2->is_main = true;
+    RL_EXPECT(scene_get_main_camera(scene) == e2);
+
+    scene_destroy(scene);
+}
+
 void register_scene_io_tests(void) {
     init_paths();
     init_bin_path();
@@ -521,4 +641,8 @@ void register_scene_io_tests(void) {
     RL_REGISTER_TEST(scene_io_binary_version_mismatch);
     RL_REGISTER_TEST(scene_io_binary_null_args);
     RL_REGISTER_TEST(scene_io_binary_string_dedup);
+    RL_REGISTER_TEST(scene_io_camera_component_roundtrip);
+    RL_REGISTER_TEST(scene_io_camera_binary_roundtrip);
+    RL_REGISTER_TEST(scene_io_camera_comp_add_get_remove);
+    RL_REGISTER_TEST(scene_io_scene_get_main_camera);
 }

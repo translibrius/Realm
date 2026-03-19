@@ -112,19 +112,26 @@ void aabb_from_mesh_asset(asset_id mesh_id, mat4 model, rl_aabb *out) {
         return;
     }
 
+    // Transform 8 corners of the cached local AABB instead of all vertices
     rl_mesh_primitive *prim = &mesh->primitives[0];
-    vec4 transformed;
-    vec4 v = {prim->vertices[0].pos[0], prim->vertices[0].pos[1], prim->vertices[0].pos[2], 1.0f};
-    glm_mat4_mulv(model, v, transformed);
+    f32 *mn = prim->local_aabb_min;
+    f32 *mx = prim->local_aabb_max;
+    f32 corners[8][3] = {
+        {mn[0], mn[1], mn[2]}, {mx[0], mn[1], mn[2]},
+        {mn[0], mx[1], mn[2]}, {mx[0], mx[1], mn[2]},
+        {mn[0], mn[1], mx[2]}, {mx[0], mn[1], mx[2]},
+        {mn[0], mx[1], mx[2]}, {mx[0], mx[1], mx[2]},
+    };
+
+    vec4 corner, transformed;
+    corner[0] = corners[0][0]; corner[1] = corners[0][1]; corner[2] = corners[0][2]; corner[3] = 1.0f;
+    glm_mat4_mulv(model, corner, transformed);
     glm_vec3_copy(transformed, out->min);
     glm_vec3_copy(transformed, out->max);
 
-    for (u32 i = 1; i < prim->vertex_count; i++) {
-        v[0] = prim->vertices[i].pos[0];
-        v[1] = prim->vertices[i].pos[1];
-        v[2] = prim->vertices[i].pos[2];
-        v[3] = 1.0f;
-        glm_mat4_mulv(model, v, transformed);
+    for (u32 i = 1; i < 8; i++) {
+        corner[0] = corners[i][0]; corner[1] = corners[i][1]; corner[2] = corners[i][2]; corner[3] = 1.0f;
+        glm_mat4_mulv(model, corner, transformed);
         glm_vec3_minv(out->min, transformed, out->min);
         glm_vec3_maxv(out->max, transformed, out->max);
     }

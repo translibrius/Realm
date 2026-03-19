@@ -57,6 +57,20 @@
           1.0
         ]
       }
+    },
+    {
+      "name": "Camera",
+      "transform": {
+        "position": [0.0, 0.0, 3.0],
+        "rotation": [0.0, -90.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "camera": {
+        "fov": 90.0,
+        "near": 0.1,
+        "far": 100.0,
+        "main": true
+      }
     }
   ]
 }

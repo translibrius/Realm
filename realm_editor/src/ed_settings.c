@@ -12,6 +12,7 @@
 #include "gui/gui_slider.h"
 #include "gui/gui_text.h"
 #include "gui/gui_theme.h"
+#include "profiler/profiler.h"
 #include "renderer/renderer_frontend.h"
 #include "util/str.h"
 
@@ -201,5 +202,27 @@ void ed_settings_render(ed_layout *layout, ed_config *cfg, f32 dt) {
                 ed_config_save(cfg);
             }
         }
+
+        gui_separator();
+
+        // ── Profiler ──────────────────────────────────────────────
+        section_label("Profiler", t, font);
+
+        gui_text_cfg dim = {.color = t->text_dim, .size = 12, .font = font};
+
+#if RL_PROFILE_ENABLED
+        b8 prof_enabled = rl_profiler_is_enabled();
+        gui_field_begin("Enabled", &fcfg);
+        if (gui_checkbox(&prof_enabled, &(gui_checkbox_cfg){.size = 20, .corner_radius = 4})) {
+            rl_profiler_set_enabled(prof_enabled);
+        }
+        gui_field_end();
+
+        gui_text("F3  Open live viewer", &dim);
+        gui_text("F4  Snapshot report", &dim);
+#else
+        gui_text("Build with -DRL_PROFILE=ON", &dim);
+        gui_text("to enable profiling", &dim);
+#endif
     }
 }

@@ -153,6 +153,22 @@ void vk_buffers_destroy_uniform(VK_Context *context) {
     }
 }
 
+b8 vk_buffers_create_overlay_uniform(VK_Context *context) {
+    context->overlay_uniform_buffers = rl_arena_push(&context->arena, sizeof(VkBuffer) * context->max_frames_in_flight, true);
+    context->overlay_uniform_buffers_memory = rl_arena_push(&context->arena, sizeof(VkDeviceMemory) * context->max_frames_in_flight, true);
+    context->overlay_uniform_buffers_mapped = rl_arena_push(&context->arena, sizeof(void *) * context->max_frames_in_flight, true);
+
+    return vk_buffers_create_mapped(context, sizeof(ubo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                    context->max_frames_in_flight,
+                                    context->overlay_uniform_buffers, context->overlay_uniform_buffers_memory, context->overlay_uniform_buffers_mapped);
+}
+
+void vk_buffers_destroy_overlay_uniform(VK_Context *context) {
+    for (u32 i = 0; i < context->max_frames_in_flight; i++) {
+        vk_buffer_destroy(context, context->overlay_uniform_buffers[i], context->overlay_uniform_buffers_memory[i]);
+    }
+}
+
 // ----------------------------
 
 void vk_buffer_copy_to_image(VK_Context *ctx, VkBuffer buffer, VkImage image, u32 w, u32 h) {

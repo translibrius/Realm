@@ -265,19 +265,20 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
             vkCmdSetViewport(buffer, 0, 1, &gizmo_vp);
             vkCmdSetScissor(buffer, 0, 1, &gizmo_scissor);
 
-            // Ensure cube VB + default descriptor set are bound
+            // Bind cube VB, overlay descriptor set, and overlay pipeline
             VkDeviceSize gizmo_vb_offset = 0;
             vkCmdBindVertexBuffers(buffer, 0, 1, &context->cube_vertex_buffer, &gizmo_vb_offset);
             vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->overlay_pipeline);
 
-            // Build overlay UBO with overlay camera matrices
+            // Write overlay camera to dedicated overlay UBO (not the scene UBO)
             ubo overlay_ubo = {0};
             glm_mat4_copy(context->overlay_camera.view, overlay_ubo.view);
             glm_mat4_copy(context->overlay_camera.projection, overlay_ubo.proj);
-            // Light/camera fields unused by unlit shader, leave zeroed
+            mem_copy(context->overlay_uniform_buffers_mapped[context->current_frame], &overlay_ubo, sizeof(ubo));
 
-            // We reuse the same UBO buffer — update it temporarily for overlay
-            mem_copy(context->uniform_buffers_mapped[context->current_frame], &overlay_ubo, sizeof(ubo));
+            // Bind overlay descriptor set so this pass reads the overlay UBO
+            vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->pipeline_layout,
+                0, 1, &context->overlay_descriptor_sets[context->current_frame], 0, nullptr);
 
             for (u32 i = 0; i < context->overlay_count; i++) {
                 VK_MeshPushConstants pc;
@@ -287,17 +288,6 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
                 vkCmdPushConstants(buffer, context->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(VK_MeshPushConstants), &pc);
                 vkCmdDraw(buffer, context->cube_vertex_count, 1, 0, 0);
             }
-
-            // Restore scene UBO
-            ubo scene_ubo = {0};
-            glm_mat4_copy(context->view, scene_ubo.view);
-            glm_mat4_copy(context->proj, scene_ubo.proj);
-            glm_vec3_copy(context->frame_light.position, scene_ubo.light_pos);
-            glm_vec3_copy(context->frame_light.ambient,  scene_ubo.light_ambient);
-            glm_vec3_copy(context->frame_light.diffuse,  scene_ubo.light_diffuse);
-            glm_vec3_copy(context->frame_light.specular, scene_ubo.light_specular);
-            glm_vec3_copy(context->camera_pos,           scene_ubo.camera_pos);
-            mem_copy(context->uniform_buffers_mapped[context->current_frame], &scene_ubo, sizeof(ubo));
         }
 
         // Restore full-swapchain viewport/scissor for GUI overlay

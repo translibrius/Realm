@@ -41,6 +41,7 @@ void scene_entity_destroy(rl_scene *scene, rl_entity e) {
     light_remove(&scene->components, e);
     name_remove(&scene->components, e);
     behavior_comp_remove(&scene->components, e);
+    camera_comp_remove(&scene->components, e);
 
     entity_destroy(&scene->entities, e);
 }
@@ -59,6 +60,22 @@ rl_entity scene_entity_find(const rl_scene *scene, const char *name) {
     for (u32 i = 1; i < es->high_water; i++) {
         if (!es->alive[i]) continue;
         if (cs->has_name[i] && cstr_eq(cs->names[i].name, name)) {
+            return rl_entity_pack(i, es->generation[i]);
+        }
+    }
+
+    return RL_ENTITY_INVALID;
+}
+
+rl_entity scene_get_main_camera(const rl_scene *scene) {
+    if (!scene) return RL_ENTITY_INVALID;
+
+    const rl_entity_store *es    = &scene->entities;
+    const rl_component_store *cs = &scene->components;
+
+    for (u32 i = 1; i < es->high_water; i++) {
+        if (!es->alive[i]) continue;
+        if (cs->has_camera[i] && cs->cameras[i].is_main) {
             return rl_entity_pack(i, es->generation[i]);
         }
     }

@@ -18,6 +18,8 @@ typedef struct rl_mesh_primitive {
     u32 *indices;      // nullptr if non-indexed
     u32 index_count;   // 0 if non-indexed
     u32 material_index; // index into rl_mesh.materials
+    vec3 local_aabb_min; // object-space bounding box, computed at load time
+    vec3 local_aabb_max;
 } rl_mesh_primitive;
 
 typedef struct rl_mesh {

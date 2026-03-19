@@ -34,6 +34,11 @@ static void apply_component(rl_scene *scene, const ed_undo_entry *e, b8 use_befo
         if (n) *n = use_before ? e->name.before : e->name.after;
     } break;
 
+    case ED_UNDO_CAMERA: {
+        rl_camera_component *c = camera_comp_get(cs, e->entity);
+        if (c) *c = use_before ? e->camera.before : e->camera.after;
+    } break;
+
     case ED_UNDO_CREATE_ENTITY:
         if (use_before) {
             // Undo create → destroy the entity

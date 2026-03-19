@@ -15,6 +15,7 @@ static void update_vectors(ed_camera *ec) {
 
 void ed_camera_init(ed_camera *ec) {
     camera_init(&ec->cam);
+    ec->cam.far_clip = 10000.0f;
     ec->distance = 3.0f;
     ec->fly_mode = false;
     ec->orbiting = false;

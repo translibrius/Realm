@@ -34,6 +34,7 @@
 //             specular: f32[3], shininess: f32
 //     [bit 3] ambient: f32[3], diffuse: f32[3], specular: f32[3]
 //     [bit 4] behavior_str_idx: u32
+//     [bit 5] fov: f32, near_clip: f32, far_clip: f32, is_main: u32
 
 #define RLSC_MAGIC_0 'R'
 #define RLSC_MAGIC_1 'L'
@@ -48,6 +49,7 @@
 #define COMP_MESH      (1u << 2)
 #define COMP_LIGHT     (1u << 3)
 #define COMP_BEHAVIOR  (1u << 4)
+#define COMP_CAMERA    (1u << 5)
 
 // --- String table (write side) ---
 
@@ -238,6 +240,7 @@ b8 scene_save_binary(const rl_scene *scene, const char *path) {
         if (cs->has_mesh[i])      mask |= COMP_MESH;
         if (cs->has_light[i])     mask |= COMP_LIGHT;
         if (cs->has_behavior[i])  mask |= COMP_BEHAVIOR;
+        if (cs->has_camera[i])    mask |= COMP_CAMERA;
         wbuf_write_u32(&wb, mask);
 
         // Name
@@ -291,6 +294,15 @@ b8 scene_save_binary(const rl_scene *scene, const char *path) {
         // Behavior
         if (mask & COMP_BEHAVIOR) {
             wbuf_write_u32(&wb, strtab_add(&st, cs->behaviors[i].name));
+        }
+
+        // Camera
+        if (mask & COMP_CAMERA) {
+            const rl_camera_component *cc = &cs->cameras[i];
+            wbuf_write_f32(&wb, cc->fov);
+            wbuf_write_f32(&wb, cc->near_clip);
+            wbuf_write_f32(&wb, cc->far_clip);
+            wbuf_write_u32(&wb, cc->is_main ? 1 : 0);
         }
     }
 
@@ -470,6 +482,17 @@ rl_scene *scene_load_binary(const char *path) {
             if (!rc_read_u32(&rc, &beh_idx)) goto truncated;
             const char *beh_name = STR_AT(beh_idx);
             if (beh_name) behavior_comp_add(&scene->components, e, beh_name);
+        }
+
+        // Camera
+        if (mask & COMP_CAMERA) {
+            rl_camera_component *cc = camera_comp_add(&scene->components, e);
+            u32 is_main;
+            if (!rc_read_f32(&rc, &cc->fov) ||
+                !rc_read_f32(&rc, &cc->near_clip) ||
+                !rc_read_f32(&rc, &cc->far_clip) ||
+                !rc_read_u32(&rc, &is_main)) goto truncated;
+            cc->is_main = is_main != 0;
         }
 
         continue;

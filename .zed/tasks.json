@@ -28,6 +28,13 @@
     "reveal": "always"
   },
   {
+    "label": "Editor (Profile)",
+    "command": "cmake --build --preset profile --target run_editor_checked",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
     "label": "Editor (Release)",
     "command": "cmake --build --preset release --target run_editor_checked",
     "use_new_terminal": false,

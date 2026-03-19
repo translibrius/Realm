@@ -1,7 +1,8 @@
 #include "core/camera.h"
 
 #include "../vendor/cglm/clipspace/persp_rh_zo.h"
-#include "core/camera.h"
+#include "../vendor/cglm/clipspace/ortho_rh_zo.h"
+#include "core/component.h"
 #include "platform/input.h"
 #include "platform/platform.h"
 #include "renderer/renderer_backend.h"
@@ -22,6 +23,8 @@ void camera_init(rl_camera *camera) {
     camera->yaw = -90.0f;
     camera->pitch = 0.0f;
     camera->fov = 90.0f;
+    camera->near_clip = 0.1f;
+    camera->far_clip = 100.0f;
     camera->look_speed = 0.1f;
     camera->move_speed = 5.0f;
 
@@ -41,16 +44,24 @@ void camera_get_projection(const rl_camera *camera, f32 aspect, mat4 out_proj, R
         glm_perspective(
             glm_rad(camera->fov),
             aspect,
-            0.1f,
-            100.0f,
+            camera->near_clip,
+            camera->far_clip,
             out_proj);
     } else if (renderer_backend == BACKEND_VULKAN) {
         glm_perspective_rh_zo(
             glm_rad(camera->fov),
             aspect,
-            0.1f,
-            100.0f,
+            camera->near_clip,
+            camera->far_clip,
             out_proj);
+    }
+}
+
+void camera_get_ortho_projection(f32 left, f32 right, f32 bottom, f32 top, f32 near, f32 far, mat4 out_proj, RENDERER_BACKEND renderer_backend) {
+    if (renderer_backend == BACKEND_OPENGL) {
+        glm_ortho(left, right, bottom, top, near, far, out_proj);
+    } else if (renderer_backend == BACKEND_VULKAN) {
+        glm_ortho_rh_zo(left, right, bottom, top, near, far, out_proj);
     }
 }
 
@@ -100,4 +111,29 @@ void camera_update(rl_camera *camera, f64 dt) {
 
     // Recompute forward vector
     camera_update_vectors(camera);
+}
+
+void camera_from_entity(rl_camera *camera, const rl_transform *t, const rl_camera_component *cc) {
+    if (!camera || !t || !cc) return;
+
+    glm_vec3_copy((f32 *)t->position, camera->pos);
+
+    // Entity rotation stores euler degrees (pitch, yaw, roll)
+    camera->pitch = t->rotation[0];
+    camera->yaw   = t->rotation[1];
+
+    camera->fov       = cc->fov;
+    camera->near_clip = cc->near_clip;
+    camera->far_clip  = cc->far_clip;
+
+    camera_update_vectors(camera);
+}
+
+void camera_sync_to_transform(const rl_camera *camera, rl_transform *t) {
+    if (!camera || !t) return;
+
+    glm_vec3_copy((f32 *)camera->pos, t->position);
+    t->rotation[0] = camera->pitch;
+    t->rotation[1] = camera->yaw;
+    t->dirty = true;
 }

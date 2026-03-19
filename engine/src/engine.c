@@ -10,6 +10,7 @@
 #include "platform/input.h"
 #include "platform/platform.h"
 #include "renderer/renderer_frontend.h"
+#include "profiler/profiler.h"
 #include "util/clock.h"
 
 typedef struct engine_state {
@@ -107,11 +108,15 @@ b8 rl_engine_create(const rl_engine_config *config) {
     state.delta_time = 0;
     clock_reset(&state.frame_clock);
     state.last_frame_time = platform_get_clock_counter();
+
+    rl_profiler_init();
     return true;
 }
 
 void rl_engine_destroy(void) {
     RL_DEBUG("Engine shutting down, cleaning up...");
+    rl_profiler_write_session_report("profiler_session.bin");
+    rl_profiler_shutdown();
     platform_system_shutdown();
     renderer_destroy();
     config_system_shutdown();
@@ -132,6 +137,7 @@ void rl_engine_stop(void) {
 
 // Returns delta_time
 b8 rl_engine_begin_frame(f64 *out_dt) {
+    rl_profiler_frame_mark();
     clock_update(&state.frame_clock);
     state.frame_count++;
     i64 now = state.frame_clock.last;

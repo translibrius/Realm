@@ -11,7 +11,7 @@
 typedef struct rl_font rl_font;
 typedef struct rl_scene rl_scene;
 
-#define RL_GAME_STATE_VERSION 11
+#define RL_GAME_STATE_VERSION 12
 
 typedef enum game_scene {
     SCENE_MAIN_MENU,

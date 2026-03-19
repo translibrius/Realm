@@ -85,8 +85,8 @@ void vk_descriptor_destroy_set_layout(VK_Context *context) {
 }
 
 b8 vk_descriptor_create_pool(VK_Context *context) {
-    // Space for default sets + per-texture descriptor sets (each needs UBO + sampler)
-    u32 max_sets = (1 + VK_MAX_TEXTURES) * context->max_frames_in_flight;
+    // Space for default sets + overlay sets + per-texture descriptor sets (each needs UBO + sampler)
+    u32 max_sets = (1 + 1 + VK_MAX_TEXTURES) * context->max_frames_in_flight;
     VkDescriptorPoolSize pool_sizes[2] = {
         { .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = max_sets },
         { .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .descriptorCount = max_sets },
@@ -139,6 +139,51 @@ b8 vk_descriptor_create_sets(VK_Context *context) {
         descriptor_writes[1].pImageInfo = &image_info;
 
         vkUpdateDescriptorSets(context->device, 2, descriptor_writes, 0, nullptr);
+    }
+
+    return true;
+}
+
+b8 vk_descriptor_create_overlay_sets(VK_Context *context) {
+    context->overlay_descriptor_sets = rl_arena_push(&context->arena, sizeof(VkDescriptorSet) * context->max_frames_in_flight, true);
+
+    if (!vk_descriptor_sets_allocate(context, context->descriptor_pool, context->descriptor_set_layout, context->max_frames_in_flight, context->overlay_descriptor_sets)) {
+        return false;
+    }
+
+    for (u32 i = 0; i < context->max_frames_in_flight; i++) {
+        VkDescriptorBufferInfo buffer_info = {
+            .buffer = context->overlay_uniform_buffers[i],
+            .offset = 0,
+            .range = sizeof(ubo)
+        };
+
+        VkDescriptorImageInfo image_info = {
+            .sampler = context->texture_sampler,
+            .imageView = context->placeholder_texture.texture_image_view,
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        };
+
+        VkWriteDescriptorSet writes[2] = {
+            {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = context->overlay_descriptor_sets[i],
+                .dstBinding = 0,
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                .pBufferInfo = &buffer_info,
+            },
+            {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = context->overlay_descriptor_sets[i],
+                .dstBinding = 1,
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                .pImageInfo = &image_info,
+            },
+        };
+
+        vkUpdateDescriptorSets(context->device, 2, writes, 0, nullptr);
     }
 
     return true;

@@ -12,15 +12,17 @@ typedef enum ED_UNDO_ACTION {
     ED_UNDO_MESH,
     ED_UNDO_LIGHT,
     ED_UNDO_NAME,
+    ED_UNDO_CAMERA,
     ED_UNDO_CREATE_ENTITY,
     ED_UNDO_DESTROY_ENTITY,
 } ED_UNDO_ACTION;
 
 typedef struct ed_entity_snapshot {
-    rl_transform       transform;    b8 has_transform;
-    rl_mesh_component  mesh;         b8 has_mesh;
-    rl_light_component light;        b8 has_light;
-    rl_name_component  name;         b8 has_name;
+    rl_transform        transform;    b8 has_transform;
+    rl_mesh_component   mesh;         b8 has_mesh;
+    rl_light_component  light;        b8 has_light;
+    rl_name_component   name;         b8 has_name;
+    rl_camera_component camera;       b8 has_camera;
 } ed_entity_snapshot;
 
 typedef struct ed_undo_entry {
@@ -30,7 +32,8 @@ typedef struct ed_undo_entry {
         struct { rl_transform       before, after; } transform;
         struct { rl_mesh_component  before, after; } mesh;
         struct { rl_light_component before, after; } light;
-        struct { rl_name_component  before, after; } name;
+        struct { rl_name_component   before, after; } name;
+        struct { rl_camera_component before, after; } camera;
         struct { ed_entity_snapshot snapshot; }       entity_op;
     };
 } ed_undo_entry;

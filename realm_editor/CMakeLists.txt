@@ -47,3 +47,19 @@ endif ()
 
 target_link_libraries(RealmEditor PRIVATE Engine)
 target_compile_definitions(RealmEditor PRIVATE ENGINE_SHARED)
+
+if (RL_PROFILE)
+    target_compile_options(RealmEditor PRIVATE -finstrument-functions)
+    target_compile_definitions(RealmEditor PRIVATE REALM_SOURCE_ROOT="${CMAKE_SOURCE_DIR}")
+
+    # Copy profiler scripts alongside editor binary
+    add_custom_command(TARGET RealmEditor POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_SOURCE_DIR}/tools/profiler_view.py"
+            "$<TARGET_FILE_DIR:RealmEditor>/profiler_view.py"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_SOURCE_DIR}/tools/profiler_report.py"
+            "$<TARGET_FILE_DIR:RealmEditor>/profiler_report.py"
+        COMMENT "Copying profiler scripts to editor output directory"
+    )
+endif ()

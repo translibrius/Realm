@@ -25,11 +25,28 @@ void main() {
     vec3 world_pos = near_point + t * (far_point - near_point);
 
     float dist = length(world_pos - camera_pos);
-    float fade = 1.0 - smoothstep(150.0, 400.0, dist);
+
+    // Adaptive multi-level grid: pick two adjacent power-of-10 scales
+    // based on camera height above the grid plane
+    float cam_height = max(abs(camera_pos.y), 0.1);
+    float log_level = log2(cam_height) / log2(10.0);
+    float level = floor(log_level);
+    float blend = fract(log_level);
+
+    float minor_scale = pow(10.0, level - 1.0);
+    float major_scale = pow(10.0, level);
+
+    // Early discard before expensive grid computation
+    float fade_start = major_scale * 150.0;
+    float fade_end   = major_scale * 400.0;
+    float fade = 1.0 - smoothstep(fade_start, fade_end, dist);
     if (fade <= 0.0) discard;
 
-    vec4 minor = grid(world_pos, 0.1);
-    vec4 major = grid(world_pos, 1.0);
+    vec4 minor = grid(world_pos, minor_scale);
+    vec4 major = grid(world_pos, major_scale);
+
+    // Fade out minor lines as we approach the next level
+    minor.a *= 1.0 - blend;
 
     vec4 color = minor;
     color = mix(color, major, major.a);

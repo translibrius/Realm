@@ -27,3 +27,6 @@ b8 vk_buffers_create_mapped(VK_Context *ctx, VkDeviceSize size, VkBufferUsageFla
 
 b8 vk_buffers_create_uniform(VK_Context *context);
 void vk_buffers_destroy_uniform(VK_Context *context);
+
+b8 vk_buffers_create_overlay_uniform(VK_Context *context);
+void vk_buffers_destroy_overlay_uniform(VK_Context *context);

@@ -7,6 +7,7 @@
 #include "gui/gui_checkbox.h"
 #include "gui/gui_dropdown.h"
 #include "gui/gui_number_input.h"
+#include "gui/gui_slider.h"
 #include "gui/gui_text_input.h"
 
 typedef struct ed_undo_stack ed_undo_stack;
@@ -32,6 +33,13 @@ typedef struct ed_inspector {
     // Light: ambient[0], diffuse[1], specular[2]
     ed_inspector_vec3 light[3];
 
+    // Camera
+    gui_slider_state cam_fov_slider;
+    gui_number_input_state cam_fov;
+    gui_number_input_state cam_near;
+    gui_number_input_state cam_far;
+    b8 cam_is_main;
+
     // Track bound entity to detect selection changes
     u32 bound_entity_idx;
 
@@ -40,9 +48,10 @@ typedef struct ed_inspector {
     b8 was_any_dragging;
     rl_entity undo_entity;
     u32 undo_action; // ED_UNDO_ACTION
-    rl_transform       drag_start_transform;
-    rl_mesh_component  drag_start_mesh;
-    rl_light_component drag_start_light;
+    rl_transform        drag_start_transform;
+    rl_mesh_component   drag_start_mesh;
+    rl_light_component  drag_start_light;
+    rl_camera_component drag_start_camera;
 } ed_inspector;
 
 void ed_inspector_init(ed_inspector *insp, ed_undo_stack *undo);

@@ -53,6 +53,15 @@ void scene_game_update(rl_game *game, const realm_app_context *ctx, realm_app_ou
     }
 
     camera_update(&game->camera, dt);
+
+    // Sync camera state back to the scene camera entity
+    if (ctx->scene) {
+        rl_entity cam_e = scene_get_main_camera(ctx->scene);
+        if (cam_e != RL_ENTITY_INVALID) {
+            rl_transform *ct = transform_get(&ctx->scene->components, cam_e);
+            if (ct) camera_sync_to_transform(&game->camera, ct);
+        }
+    }
 }
 
 void scene_game_render(rl_game *game, const realm_app_context *ctx, realm_app_output *out) {

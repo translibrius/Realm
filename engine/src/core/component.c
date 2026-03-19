@@ -22,6 +22,9 @@ void component_store_init(rl_component_store *store, u32 capacity, rl_arena *are
 
     store->behaviors    = rl_arena_push(arena, capacity * sizeof(rl_behavior_component), true);
     store->has_behavior = rl_arena_push(arena, capacity * sizeof(b8), true);
+
+    store->cameras    = rl_arena_push(arena, capacity * sizeof(rl_camera_component), true);
+    store->has_camera = rl_arena_push(arena, capacity * sizeof(b8), true);
 }
 
 // --- Transform ---
@@ -164,4 +167,31 @@ void behavior_comp_remove(rl_component_store *s, rl_entity e) {
     u32 idx = rl_entity_index(e);
     if (!s || idx >= s->capacity) return;
     s->has_behavior[idx] = false;
+}
+
+// --- Camera ---
+
+rl_camera_component *camera_comp_add(rl_component_store *s, rl_entity e) {
+    u32 idx = rl_entity_index(e);
+    if (!s || idx >= s->capacity) return nullptr;
+
+    rl_camera_component *c = &s->cameras[idx];
+    c->fov       = 90.0f;
+    c->near_clip = 0.1f;
+    c->far_clip  = 100.0f;
+    c->is_main   = false;
+    s->has_camera[idx] = true;
+    return c;
+}
+
+rl_camera_component *camera_comp_get(rl_component_store *s, rl_entity e) {
+    u32 idx = rl_entity_index(e);
+    if (!s || idx >= s->capacity || !s->has_camera[idx]) return nullptr;
+    return &s->cameras[idx];
+}
+
+void camera_comp_remove(rl_component_store *s, rl_entity e) {
+    u32 idx = rl_entity_index(e);
+    if (!s || idx >= s->capacity) return;
+    s->has_camera[idx] = false;
 }

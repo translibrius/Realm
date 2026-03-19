@@ -237,6 +237,12 @@ typedef struct VK_Context {
     void **uniform_buffers_mapped;
     VkDescriptorSet *descriptor_sets;
 
+    // Overlay UBO (separate buffer so gizmo pass doesn't race with scene UBO)
+    VkBuffer        *overlay_uniform_buffers;
+    VkDeviceMemory  *overlay_uniform_buffers_memory;
+    void           **overlay_uniform_buffers_mapped;
+    VkDescriptorSet *overlay_descriptor_sets;
+
     VkDescriptorPool descriptor_pool;
 
     // Cube mesh (default geometry for primitive cubes)
