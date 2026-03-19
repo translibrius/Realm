@@ -484,7 +484,7 @@ void vulkan_submit_frame_data(rl_frame_data *frame_data) {
     if (frame_data->mesh_count > 0 && frame_data->meshes) {
         rl_arena *fa = rl_engine_get_frame_arena();
         u64 sz = (u64)frame_data->mesh_count * sizeof(rl_frame_mesh);
-        context.frame_meshes = rl_arena_push(fa, sz, alignof(rl_frame_mesh));
+        context.frame_meshes = rl_arena_push_array(fa, rl_frame_mesh, frame_data->mesh_count, false);
         mem_copy(context.frame_meshes, frame_data->meshes, sz);
     } else {
         context.frame_meshes = nullptr;
@@ -503,7 +503,7 @@ void vulkan_submit_frame_data(rl_frame_data *frame_data) {
     if (frame_data->world_overlay_count > 0 && frame_data->world_overlays) {
         rl_arena *fa2 = rl_engine_get_frame_arena();
         u64 wsz = (u64)frame_data->world_overlay_count * sizeof(rl_frame_mesh);
-        context.world_overlays = rl_arena_push(fa2, wsz, alignof(rl_frame_mesh));
+        context.world_overlays = rl_arena_push_array(fa2, rl_frame_mesh, frame_data->world_overlay_count, false);
         mem_copy(context.world_overlays, frame_data->world_overlays, wsz);
     } else {
         context.world_overlays = nullptr;
@@ -515,7 +515,7 @@ void vulkan_submit_frame_data(rl_frame_data *frame_data) {
     if (frame_data->overlay_count > 0 && frame_data->overlay_meshes) {
         rl_arena *fa = rl_engine_get_frame_arena();
         u64 osz = (u64)frame_data->overlay_count * sizeof(rl_frame_mesh);
-        context.overlay_meshes = rl_arena_push(fa, osz, alignof(rl_frame_mesh));
+        context.overlay_meshes = rl_arena_push_array(fa, rl_frame_mesh, frame_data->overlay_count, false);
         mem_copy(context.overlay_meshes, frame_data->overlay_meshes, osz);
     } else {
         context.overlay_meshes = nullptr;

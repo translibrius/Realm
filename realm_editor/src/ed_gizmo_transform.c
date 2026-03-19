@@ -197,7 +197,7 @@ static void build_tip_aabb(rl_aabb *out, const vec3 entity_pos, u32 axis_idx) {
 
 static void build_translate_overlays(ed_gizmo_transform *g, rl_transform *t, rl_frame_data *frame) {
     rl_arena *fa = rl_engine_get_frame_arena();
-    rl_frame_mesh *meshes = rl_arena_push(fa, TRANSLATE_MESH_COUNT * sizeof(rl_frame_mesh), true);
+    rl_frame_mesh *meshes = rl_arena_push_array(fa, rl_frame_mesh, TRANSLATE_MESH_COUNT, true);
 
     for (u32 a = 0; a < 3; a++) {
         b8 highlight = g->dragging && (u32)g->drag_axis == a + 1;
@@ -233,7 +233,7 @@ static void build_translate_overlays(ed_gizmo_transform *g, rl_transform *t, rl_
 
 static void build_rotate_overlays(ed_gizmo_transform *g, rl_transform *t, rl_frame_data *frame) {
     rl_arena *fa = rl_engine_get_frame_arena();
-    rl_frame_mesh *meshes = rl_arena_push(fa, ROTATE_MESH_COUNT * sizeof(rl_frame_mesh), true);
+    rl_frame_mesh *meshes = rl_arena_push_array(fa, rl_frame_mesh, ROTATE_MESH_COUNT, true);
 
     f32 seg_length = 2.0f * RING_RADIUS * sinf((f32)M_PI / (f32)RING_SEGMENTS);
     u32 idx = 0;
@@ -293,7 +293,7 @@ static void build_rotate_overlays(ed_gizmo_transform *g, rl_transform *t, rl_fra
 
 static void build_scale_overlays(ed_gizmo_transform *g, rl_transform *t, rl_frame_data *frame) {
     rl_arena *fa = rl_engine_get_frame_arena();
-    rl_frame_mesh *meshes = rl_arena_push(fa, SCALE_MESH_COUNT * sizeof(rl_frame_mesh), true);
+    rl_frame_mesh *meshes = rl_arena_push_array(fa, rl_frame_mesh, SCALE_MESH_COUNT, true);
 
     for (u32 a = 0; a < 3; a++) {
         b8 highlight = g->dragging && (u32)g->drag_axis == a + 1;

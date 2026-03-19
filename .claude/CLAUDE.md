@@ -87,3 +87,4 @@ Recommended CLI tools for dev and AI agent workflows. See [.claude/docs/tools.md
 - Backend switch fully destroys and recreates window + renderer.
 - `asset_root` is config-driven; don't hardcode paths.
 - **Never call `glm_perspective`/`glm_ortho` directly** — use `camera_get_projection()` / `camera_get_ortho_projection()` which handle Vulkan's zero-to-one depth clip range. Raw cglm defaults to OpenGL's [-1,1] and Vulkan will silently clip half your geometry.
+- **Arena allocation alignment**: any struct containing cglm SIMD types (`mat4`, `vec4`) requires alignment that varies by target (`-march=native` → AVX → 32-byte). **Use `rl_arena_push_array(arena, T, count, zero)` instead of raw `rl_arena_push`** for struct/array allocations — it derives alignment from `_Alignof(T)` automatically. Never hardcode alignment values like 16. Misalignment silently works in debug and crashes in release.

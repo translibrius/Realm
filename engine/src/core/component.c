@@ -8,23 +8,23 @@ void component_store_init(rl_component_store *store, u32 capacity, rl_arena *are
 
     store->capacity = capacity;
 
-    store->transforms    = rl_arena_push_aligned(arena, capacity * sizeof(rl_transform), 16, true);
-    store->has_transform = rl_arena_push(arena, capacity * sizeof(b8), true);
+    store->transforms    = rl_arena_push_array(arena, rl_transform, capacity, true);
+    store->has_transform = rl_arena_push_array(arena, b8, capacity, true);
 
-    store->meshes   = rl_arena_push(arena, capacity * sizeof(rl_mesh_component), true);
-    store->has_mesh = rl_arena_push(arena, capacity * sizeof(b8), true);
+    store->meshes   = rl_arena_push_array(arena, rl_mesh_component, capacity, true);
+    store->has_mesh = rl_arena_push_array(arena, b8, capacity, true);
 
-    store->lights    = rl_arena_push(arena, capacity * sizeof(rl_light_component), true);
-    store->has_light = rl_arena_push(arena, capacity * sizeof(b8), true);
+    store->lights    = rl_arena_push_array(arena, rl_light_component, capacity, true);
+    store->has_light = rl_arena_push_array(arena, b8, capacity, true);
 
-    store->names    = rl_arena_push(arena, capacity * sizeof(rl_name_component), true);
-    store->has_name = rl_arena_push(arena, capacity * sizeof(b8), true);
+    store->names    = rl_arena_push_array(arena, rl_name_component, capacity, true);
+    store->has_name = rl_arena_push_array(arena, b8, capacity, true);
 
-    store->behaviors    = rl_arena_push(arena, capacity * sizeof(rl_behavior_component), true);
-    store->has_behavior = rl_arena_push(arena, capacity * sizeof(b8), true);
+    store->behaviors    = rl_arena_push_array(arena, rl_behavior_component, capacity, true);
+    store->has_behavior = rl_arena_push_array(arena, b8, capacity, true);
 
-    store->cameras    = rl_arena_push(arena, capacity * sizeof(rl_camera_component), true);
-    store->has_camera = rl_arena_push(arena, capacity * sizeof(b8), true);
+    store->cameras    = rl_arena_push_array(arena, rl_camera_component, capacity, true);
+    store->has_camera = rl_arena_push_array(arena, b8, capacity, true);
 }
 
 // --- Transform ---

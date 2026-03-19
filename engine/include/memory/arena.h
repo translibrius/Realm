@@ -33,6 +33,11 @@ REALM_API void rl_arena_deinit(rl_arena *arena);
 
 REALM_API void *rl_arena_push(rl_arena *arena, u64 size, b8 zero);
 REALM_API void *rl_arena_push_aligned(rl_arena *arena, u64 size, u64 alignment, b8 zero);
+
+// Typed push — derives alignment from the type so SIMD-aligned types (mat4, rl_transform, etc.)
+// get correct alignment automatically. Prefer this over raw rl_arena_push for struct/array allocations.
+#define rl_arena_push_array(arena, T, count, zero) \
+    ((T *)rl_arena_push_aligned((arena), (count) * sizeof(T), _Alignof(T), (zero)))
 REALM_API void rl_arena_pop(rl_arena *arena, u64 size);
 REALM_API void rl_arena_clear(rl_arena *arena);
 

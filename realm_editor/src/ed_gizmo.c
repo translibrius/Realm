@@ -13,7 +13,7 @@ void ed_gizmo_build_axis_overlay(const ed_camera *cam,
     if (!cam || !frame) return;
 
     rl_arena *fa = rl_engine_get_frame_arena();
-    rl_frame_mesh *meshes = rl_arena_push(fa, GIZMO_MESH_COUNT * sizeof(rl_frame_mesh), true);
+    rl_frame_mesh *meshes = rl_arena_push_array(fa, rl_frame_mesh, GIZMO_MESH_COUNT, true);
 
     // Build rotation-only view matrix: copy camera view, zero translation column
     mat4 view;

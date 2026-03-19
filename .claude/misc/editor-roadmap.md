@@ -46,6 +46,7 @@ When starting a session from this roadmap:
 
 ### Completed interludes
 
+- **Arena alignment fix** — `rl_arena_push_array(arena, T, count, zero)` macro that derives alignment from `_Alignof(T)`. Fixed release-only crash caused by `-march=native` (AVX) requiring 32-byte alignment for `mat4`-containing structs, while arena allocs hardcoded 16. Migrated all `rl_frame_mesh` and `rl_transform` allocations (component store, scene frame data, vulkan renderer, editor gizmos).
 - **Input, scroll & theme polish** — mouse capture on drag (all platforms), Clay scroll fixes, slider widgets, viewport clear color from theme, 6 new themes (8 total)
 - **Theme architecture & editor polish** — `bg_titlebar`/`bg_elevated` surface hierarchy, theme corrections (Tokyo Night, Nord, Rose Pine), slider/menu bar/scrollbar UX improvements
 - **Custom title bar & app icon** — Win32 custom title bar + window controls, per-corner radius rendering, app icon infrastructure (macOS .icns + Win32 .ico), `platform_get_executable_dir()`. macOS/Linux custom title bar deferred.

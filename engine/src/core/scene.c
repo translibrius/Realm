@@ -121,9 +121,9 @@ void scene_build_frame_data(rl_scene *scene, const rl_frame_camera *camera, rl_f
     rl_frame_point_light *lights = nullptr;
 
     if (mesh_count > 0)
-        meshes = rl_arena_push(frame_arena, mesh_count * sizeof(rl_frame_mesh), true);
+        meshes = rl_arena_push_array(frame_arena, rl_frame_mesh, mesh_count, true);
     if (light_count > 0)
-        lights = rl_arena_push(frame_arena, light_count * sizeof(rl_frame_point_light), true);
+        lights = rl_arena_push_array(frame_arena, rl_frame_point_light, light_count, true);
 
     // Fill pass
     u32 mi = 0;
