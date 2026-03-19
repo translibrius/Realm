@@ -72,9 +72,6 @@ typedef struct GL_Context {
     GL_Shader grid_shader;
     u32 grid_vao;
 
-    // Outline
-    GL_Shader outline_shader;
-
     // Texture lookup (asset_id -> GL_Texture)
     enum { GL_MAX_TEXTURES = 64 };
     struct { asset_id asset_id; GL_Texture texture; } textures[64];

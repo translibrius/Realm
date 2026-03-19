@@ -33,8 +33,6 @@ static const gui_theme dark_theme = {
 
     .debug_highlight = {180, 255, 180, 255},
 
-    .highlight_hover    = {128, 180, 255, 200},  // light blue
-    .highlight_selected = {255, 153, 0, 255},    // orange
 
     .separator     = {55, 55, 62, 255},
     .viewport_bg   = {51, 51, 51, 255},   // 0.2 gray — matches legacy RL_CLEAR_COLOR
@@ -76,8 +74,6 @@ static const gui_theme catppuccin_theme = {
 
     .debug_highlight = {166, 227, 161, 255}, // green
 
-    .highlight_hover    = {137, 180, 250, 200},  // blue
-    .highlight_selected = {250, 179, 135, 255},  // peach #fab387
 
     .separator     = {69, 71, 90, 255},     // surface1
     .viewport_bg   = {24, 24, 37, 255},     // mantle
@@ -119,8 +115,6 @@ static const gui_theme dracula_theme = {
 
     .debug_highlight = {80, 250, 123, 255}, // green #50fa7b
 
-    .highlight_hover    = {139, 233, 253, 200},  // cyan #8be9fd
-    .highlight_selected = {255, 121, 198, 255},  // pink #ff79c6
 
     .separator     = {68, 71, 90, 255},     // current line
     .viewport_bg   = {33, 34, 44, 255},     // darker bg
@@ -162,8 +156,6 @@ static const gui_theme gruvbox_theme = {
 
     .debug_highlight = {184, 187, 38, 255}, // bright_green #b8bb26
 
-    .highlight_hover    = {131, 165, 152, 200},  // bright_blue #83a598
-    .highlight_selected = {254, 128, 25, 255},   // bright_orange #fe8019
 
     .separator     = {80, 73, 69, 255},     // bg2 #504945
     .viewport_bg   = {29, 32, 33, 255},     // bg0_h (hard dark)
@@ -205,8 +197,6 @@ static const gui_theme nord_theme = {
 
     .debug_highlight = {163, 190, 140, 255}, // nord14 #a3be8c
 
-    .highlight_hover    = {136, 192, 208, 200},  // nord8 frost #88c0d0
-    .highlight_selected = {208, 135, 112, 255},  // nord12 aurora orange #d08770
 
     .separator     = {67, 76, 94, 255},     // nord2 #434c5e
     .viewport_bg   = {39, 44, 54, 255},     // darker polar night
@@ -248,8 +238,6 @@ static const gui_theme tokyonight_theme = {
 
     .debug_highlight = {158, 206, 106, 255}, // green #9ece6a
 
-    .highlight_hover    = {122, 162, 247, 200},  // blue #7aa2f7
-    .highlight_selected = {255, 158, 100, 255},  // orange #ff9e64
 
     .separator     = {36, 40, 58, 255},     // subtle divider
     .viewport_bg   = {22, 22, 30, 255},     // bg_dark
@@ -291,8 +279,6 @@ static const gui_theme onedark_theme = {
 
     .debug_highlight = {152, 195, 121, 255}, // green #98c379
 
-    .highlight_hover    = {97, 175, 239, 200},   // blue #61afef
-    .highlight_selected = {229, 192, 123, 255},  // yellow #e5c07b
 
     .separator     = {75, 82, 99, 255},     // gutter
     .viewport_bg   = {33, 37, 43, 255},     // darker bg
@@ -334,8 +320,6 @@ static const gui_theme rosepine_theme = {
 
     .debug_highlight = {49, 116, 143, 255}, // pine #31748f
 
-    .highlight_hover    = {156, 207, 216, 200},  // foam #9ccfd8
-    .highlight_selected = {246, 193, 119, 255},  // gold #f6c177
 
     .separator     = {38, 35, 58, 255},     // overlay #26233a
     .viewport_bg   = {21, 19, 30, 255},     // darker base

@@ -322,19 +322,6 @@ b8 create_editor(void) {
                     frame.viewport_rect = (rl_viewport_rect){vb.x, vb.y, vb.width, vb.height};
                 }
 
-                // Set highlight config from theme
-                {
-                    const gui_theme *theme = gui_theme_get();
-                    frame.highlight_hover_color[0] = theme->highlight_hover.r / 255.0f;
-                    frame.highlight_hover_color[1] = theme->highlight_hover.g / 255.0f;
-                    frame.highlight_hover_color[2] = theme->highlight_hover.b / 255.0f;
-                    frame.highlight_selected_color[0] = theme->highlight_selected.r / 255.0f;
-                    frame.highlight_selected_color[1] = theme->highlight_selected.g / 255.0f;
-                    frame.highlight_selected_color[2] = theme->highlight_selected.b / 255.0f;
-                    frame.outline_hover_thickness = 0.012f;
-                    frame.outline_selected_thickness = 0.020f;
-                }
-
                 // Resolve selected entity for gizmo
                 rl_entity gizmo_entity = RL_ENTITY_INVALID;
                 {
@@ -374,24 +361,6 @@ b8 create_editor(void) {
                 }
 
                 ed_gizmo_build_axis_overlay(&app.camera, &vb, &frame);
-
-                // Mark highlighted entities on frame meshes
-                {
-                    rl_entity sel_entity = RL_ENTITY_INVALID;
-                    if (gizmo_entity != RL_ENTITY_INVALID) {
-                        sel_entity = gizmo_entity;
-                    }
-                    for (u32 fi = 0; fi < frame.mesh_count; fi++) {
-                        rl_frame_mesh *fm = &frame.meshes[fi];
-                        if (fm->source_entity == sel_entity && sel_entity != RL_ENTITY_INVALID) {
-                            fm->highlight = RL_HIGHLIGHT_SELECTED;
-                        } else if (fm->source_entity == app.hovered_entity &&
-                                   app.hovered_entity != RL_ENTITY_INVALID &&
-                                   fm->source_entity != sel_entity) {
-                            fm->highlight = RL_HIGHLIGHT_HOVER;
-                        }
-                    }
-                }
             }
 
             renderer_submit_frame_data(&frame);

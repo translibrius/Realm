@@ -54,5 +54,3 @@ void vk_wireframe_pipelines_destroy(VK_Context *context);
 b8 vk_grid_pipeline_create(VK_Context *context);
 void vk_grid_pipeline_destroy(VK_Context *context);
 
-b8 vk_outline_pipelines_create(VK_Context *context);
-void vk_outline_pipelines_destroy(VK_Context *context);

@@ -32,14 +32,12 @@ b8 vk_depth_res_create(VK_Context* ctx) {
         return false;
     }
 
-    ctx->has_stencil = vk_depth_format_has_stencil(depth_format);
-
     // Render pass handles UNDEFINED → DEPTH_STENCIL_ATTACHMENT_OPTIMAL automatically
     return true;
 }
 
 VkFormat find_depth_format(VK_Context *ctx) {
-    // Prefer depth+stencil formats so stencil-based outline rendering works
+    // Prefer depth+stencil formats for future flexibility
     VkFormat candidates[3] = {
         VK_FORMAT_D32_SFLOAT_S8_UINT,
         VK_FORMAT_D24_UNORM_S8_UINT,

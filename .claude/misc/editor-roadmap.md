@@ -363,19 +363,25 @@ Rich asset interaction: thumbnail previews in the asset browser, drag-and-drop a
 - [ ] Visual feedback during drag: valid/invalid drop zone indication
 - [ ] Undo support for all drop actions
 
-### 21c. Entity highlight on hover (outline shader) ✓
+### 21c. Entity highlight on hover — picking infrastructure ✓ / outline rendering reverted
 
-- [x] Stencil-based outline — stencil write pass stamps entity silhouette, outline draw pass expands in clip space with stencil NOT_EQUAL test
-- [x] Two modes: **hover** (thin blue outline, 0.012 NDC) and **selected** (thicker orange outline, 0.020 NDC) — colors per-theme
-- [x] Works in both OpenGL and Vulkan backends — stencil write pipeline + outline draw pipeline on VK, GL state machine on GL
-- [x] Configurable highlight color via `highlight_hover` / `highlight_selected` on `gui_theme` — all 8 themes have palette-appropriate values
-- [x] Performance: only re-render highlighted entities to stencil (1–2 entities max), not the whole scene
-- [x] Screen-space consistent outline width — clip-space expansion from mesh center, uniform from all angles and distances
-- [x] Vulkan depth format reordered to prefer depth+stencil (`D32_SFLOAT_S8_UINT` > `D24_UNORM_S8_UINT` > `D32_SFLOAT`)
+Hover picking infrastructure is complete. Stencil-based outline rendering was implemented and worked on Windows + Vulkan, but macOS OpenGL's deprecated driver silently drops all stencil writes (`glReadPixels` readback confirmed all zeros). The stencil outline code was fully removed from both backends pending a new technique (post-process edge detection, jump flood, or similar stencil-free approach).
+
+**Kept (picking infrastructure):**
 - [x] Hover picking via `EVENT_MOUSE_MOVE` — only fires within viewport bounds, not per-frame
 - [x] Imported mesh AABB picking — `aabb_from_mesh_asset()` uses actual vertex bounds instead of unit cube for imported meshes
 - [x] `source_entity` field on `rl_frame_mesh` for editor highlight matching after `scene_build_frame_data`
-- [x] Outline vertex shaders (`outline.vert`) compute obj-space AABB center for correct expansion on non-origin-centered imported meshes
+- [x] `hovered_entity` field on editor app state, updated by `ed_pick_entity()` ray-AABB intersection
+
+**Removed (outline rendering):**
+- Stencil-based outline shaders (`outline.vert` for GL and VK)
+- Outline rendering passes in both GL and VK command recording
+- Outline pipeline creation/destruction in VK
+- `rl_highlight_mode` enum and `highlight` field on `rl_frame_mesh`
+- Outline thickness/color fields on `rl_frame_data`
+- `highlight_hover` / `highlight_selected` theme colors (all 8 themes)
+
+**Next:** choose a stencil-free outline technique and re-implement for both backends
 
 ### 21d. Inspector drop targets
 
@@ -386,6 +392,49 @@ Rich asset interaction: thumbnail previews in the asset browser, drag-and-drop a
 
 ---
 
+## Phase 22: Camera Component & Visualization
+
+The game camera is currently a raw `rl_camera` on `rl_game` — not a scene entity. This means it can't be placed, moved, or visualized in the editor. Making the camera a proper component (like transform/mesh/light/behavior) enables scene-authored cameras, frustum visualization, and is a prerequisite for play mode.
+
+### 22a. Camera component ✓
+
+- [x] `rl_camera_component` — stores `fov`, `near_clip`, `far_clip`, `b8 is_main` (first-found wins, no hard enforcement)
+- [x] Add to `rl_component_store` with `camera_comp_add/get/remove` accessors
+- [x] `scene_entity_destroy` cleans up camera component
+- [x] Scene I/O — JSON: `"camera": { "fov": 90, "near": 0.1, "far": 100, "main": true }`, binary: `COMP_CAMERA = (1u << 5)` with fov/near/far as f32, is_main as u32
+- [x] Inspector section — FOV slider (30-150 range) + number input, near/far number inputs, "Main Camera" checkbox
+- [x] Undo support — `ED_UNDO_CAMERA` action type with drag coalescing
+- [x] 4 unit tests: JSON roundtrip, binary roundtrip, component add/get/remove, `scene_get_main_camera`
+
+### 22b. Game module migration ✓
+
+- [x] `scene_get_main_camera(scene)` helper — returns entity handle of first `is_main` camera, or `RL_ENTITY_INVALID`
+- [x] `camera_from_entity(camera, transform, camera_component)` — init `rl_camera` from entity data
+- [x] `camera_sync_to_transform(camera, transform)` — write camera pos/yaw/pitch back to entity transform
+- [x] Game module reads camera from scene entity on init and scene transition (falls back to `camera_init` if no camera entity)
+- [x] Game module syncs camera state back to entity transform each frame (so editor/save reflects runtime position)
+- [x] Settings FOV slider still works (runtime override via `ctx->fov`, takes precedence over entity value)
+- [x] `near_clip`/`far_clip` fields added to `rl_camera` (were hardcoded 0.1/100.0 in `camera_get_projection`)
+- [x] Existing scenes (`gameplay.scene`, `default.scene`) get Camera entity with `is_main: true`
+- [x] Project template default scene includes Camera entity
+- [x] Editor camera sets `far_clip = 10000.0f` (large editor viewport)
+- [x] `RL_GAME_STATE_VERSION` bumped to 12
+
+### 22c. Frustum visualization
+
+- [ ] Wireframe frustum rendered for camera entities in editor viewport (like existing light visualization)
+- [ ] Only draw when camera entity is selected or hovered
+- [ ] Frustum lines derived from camera component FOV/near/far + entity transform
+- [ ] Different color from selection outline (e.g., yellow/white wireframe)
+
+### 22d. Camera preview (deferred — needs offscreen render targets)
+
+- [ ] Picture-in-picture preview showing selected camera's POV
+- [ ] Requires offscreen FBO/render target infrastructure (shared with "Multiple viewports" future work)
+- [ ] Small preview window anchored to corner of viewport or floating panel
+
+---
+
 ## Future (not scoped)
 
 ### Editor features
@@ -393,8 +442,8 @@ Rich asset interaction: thumbnail previews in the asset browser, drag-and-drop a
 - Native file/directory picker dialog (`NSOpenPanel` on macOS, `IFileOpenDialog` on Win32, GTK/portal on Linux)
 - Multi-select, copy/paste entities
 - Transform hierarchy (parent/child relationships)
-- Multiple viewports (offscreen render targets)
-- Play mode — launch game module inside editor with project path (F5 = play, Esc = stop)
+- Multiple viewports (offscreen render targets — shared infra with Phase 22d)
+- Play mode — launch game module inside editor with project path (F5 = play, Esc = stop) — depends on Phase 22 (camera component)
 - Snap-to-grid
 - Prefab system
 - Material system / material editor
@@ -434,11 +483,16 @@ Phase 1–14: Foundation                       ✓ all done
             │
             ├── Phase 21: Asset Drag-Drop + Highlight  ◐ 21c done, 21a/21b/21d remaining
             │
-            └── Future: Scripting Runtime            ○ depends on 17 (behavior seam)
+            ├── Phase 22: Camera Component             ◐ 22a+22b done, 22c remaining, 22d deferred (needs offscreen RT)
+            │       │
+            │       └── Future: Play Mode              ○ depends on 22 (needs scene camera)
+            │
+            └── Future: Scripting Runtime              ○ depends on 17 (behavior seam)
 ```
 
-Phases 18, 21 are independent of each other and can be done in any order.
-Phase 21c (outline shader) is complete. Remaining 21a/21b/21d are GUI-heavy (thumbnails, drag-and-drop) — good candidate for a dedicated session.
+Phases 18, 21, 22 are independent of each other and can be done in any order.
+Phase 21c picking infrastructure is done but outline rendering was reverted (macOS GL stencil is broken). A new outline technique needs to be chosen and implemented.
+Phase 22a+22b are complete. 22c (frustum visualization) is a small follow-up. 22d is deferred until offscreen render target infrastructure exists.
 
 ---
 
@@ -470,10 +524,30 @@ The Vulkan backend was missing two features the OpenGL backend had from the star
 
 ---
 
+## Interlude: Grid & Camera Prep ✓
+
+Quality-of-life improvements to the editor viewport grid and camera system, done as prerequisites for Phase 22.
+
+### Adaptive grid ✓
+
+- [x] **Multi-level grid shader** — both GL and VK grid fragment shaders now pick two adjacent power-of-10 scales based on camera height above the grid plane
+- [x] Minor lines fade out as camera approaches the next level (smooth `blend = fract(log_level)`)
+- [x] Fade distance scales with grid level so grid stays visible at any zoom (not just fixed 150-400 range)
+- [x] **Grid depth write disabled** — both backends disable `glDepthMask`/`depth_write` during grid pass so the grid never occludes scene objects
+
+### Camera near/far clip ✓
+
+- [x] `near_clip` and `far_clip` fields added to `rl_camera` (were hardcoded 0.1/100.0 in `camera_get_projection`)
+- [x] `camera_init` sets defaults (0.1/100.0)
+- [x] `camera_get_projection` uses camera fields instead of literals
+- [x] Editor camera sets `far_clip = 10000.0f` for large viewport
+- [x] `RL_GAME_STATE_VERSION` bumped to 12
+
+---
+
 ## Loose Ends
 
 - Entity create/destroy undo action types exist but the recreation logic for undo isn't wired yet. Context menu delete works but doesn't push undo entries.
 - File browser widget (`gui_file_browser`) is wired for export (directory picker) but not yet for project picker's Browse button (native dialog preferred long-term).
 - File browser has inline "New Folder" creation (nav bar button, Enter/Escape, auto-select after create). Mkdir logic is duplicated between Enter key handler and button click — could extract into a helper.
 - Dropdown `min_width` field added for auto-fit menus — used by editor menu bar (140px floor).
-- Outline pipeline has benign validation warnings (vertex attributes at location 1/2 not consumed by outline vertex shader) — could fix with a separate vertex input layout, but purely cosmetic.

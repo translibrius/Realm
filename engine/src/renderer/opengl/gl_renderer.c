@@ -274,94 +274,6 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
         glEnable(GL_CULL_FACE);
     }
 
-    // --- Outline highlight pass (stencil-based entity outlines) ---
-    {
-        u32 stencil_ref = 1;
-        for (u32 i = 0; i < frame_data->mesh_count; i++) {
-            rl_frame_mesh *fm = &frame_data->meshes[i];
-            if (fm->highlight == RL_HIGHLIGHT_NONE) continue;
-
-            f32 thickness = (fm->highlight == RL_HIGHLIGHT_HOVER)
-                ? frame_data->outline_hover_thickness
-                : frame_data->outline_selected_thickness;
-            vec3 color;
-            glm_vec3_copy((fm->highlight == RL_HIGHLIGHT_HOVER)
-                ? frame_data->highlight_hover_color
-                : frame_data->highlight_selected_color, color);
-
-            if (thickness <= 0.0f) thickness = 0.03f;
-
-            GL_Mesh *draw_mesh = &context.cube_mesh;
-            vec3 obj_center = {0.0f, 0.0f, 0.0f};
-            if (fm->mesh_asset) {
-                draw_mesh = gl_ensure_mesh(fm->mesh_asset);
-                if (!draw_mesh) { stencil_ref++; continue; }
-                // Compute object-space center from mesh AABB
-                rl_asset *asset = asset_get(fm->mesh_asset);
-                if (asset && asset->data) {
-                    rl_mesh *mesh = (rl_mesh *)asset->data;
-                    if (mesh->primitive_count > 0 && mesh->primitives[0].vertex_count > 0) {
-                        rl_mesh_primitive *prim = &mesh->primitives[0];
-                        vec3 mn, mx;
-                        glm_vec3_copy(prim->vertices[0].pos, mn);
-                        glm_vec3_copy(prim->vertices[0].pos, mx);
-                        for (u32 vi = 1; vi < prim->vertex_count; vi++) {
-                            glm_vec3_minv(mn, prim->vertices[vi].pos, mn);
-                            glm_vec3_maxv(mx, prim->vertices[vi].pos, mx);
-                        }
-                        glm_vec3_add(mn, mx, obj_center);
-                        glm_vec3_scale(obj_center, 0.5f, obj_center);
-                    }
-                }
-            }
-
-            // Step 1: Stencil write — mark entity silhouette (no depth test to avoid z-fighting)
-            glEnable(GL_STENCIL_TEST);
-            glDisable(GL_DEPTH_TEST);
-            glStencilFunc(GL_ALWAYS, (i32)stencil_ref, 0xFF);
-            glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-            glStencilMask(0xFF);
-            glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-            glDepthMask(GL_FALSE);
-            glDisable(GL_CULL_FACE);
-
-            opengl_shader_use(&context.light_shader);
-            opengl_shader_set_mat4(&context.light_shader, "view", context.view);
-            opengl_shader_set_mat4(&context.light_shader, "projection", context.projection);
-            opengl_shader_set_mat4(&context.light_shader, "model", fm->model);
-
-            glBindVertexArray(draw_mesh->vao);
-            gl_mesh_draw(draw_mesh);
-
-            glEnable(GL_CULL_FACE);
-
-            // Step 2: Outline draw — normal-pushed mesh with stencil test
-            glStencilFunc(GL_NOTEQUAL, (i32)stencil_ref, 0xFF);
-            glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-            glStencilMask(0x00);
-            glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-            glDisable(GL_DEPTH_TEST);
-
-            opengl_shader_use(&context.outline_shader);
-            opengl_shader_set_mat4(&context.outline_shader, "view", context.view);
-            opengl_shader_set_mat4(&context.outline_shader, "projection", context.projection);
-            opengl_shader_set_mat4(&context.outline_shader, "model", fm->model);
-            opengl_shader_set_f32(&context.outline_shader, "outline_thickness", thickness);
-            opengl_shader_set_vec3(&context.outline_shader, "flat_color", color);
-            opengl_shader_set_vec3(&context.outline_shader, "obj_center", obj_center);
-
-            glDisable(GL_CULL_FACE);
-            gl_mesh_draw(draw_mesh);
-            glEnable(GL_CULL_FACE);
-
-            glEnable(GL_DEPTH_TEST);
-            glDisable(GL_STENCIL_TEST);
-            glDepthMask(GL_TRUE);
-
-            stencil_ref++;
-        }
-    }
-
     // --- World-space overlays (transform gizmos — no depth test, main camera) ---
     if (frame_data->world_overlay_count > 0 && frame_data->world_overlays) {
         glDisable(GL_DEPTH_TEST);
@@ -484,12 +396,6 @@ b8 opengl_initialize(platform_window *platform_window, b8 vsync) {
         return false;
     }
     glGenVertexArrays(1, &context.grid_vao);
-
-    // Outline pipeline (outline.vert + light.frag for flat color)
-    if (!opengl_shader_setup(asset_find(RL_ASSET_SHADER_GL_OUTLINE_VERT), asset_find(RL_ASSET_SHADER_GL_LIGHT_FRAG), &context.outline_shader)) {
-        RL_ERROR("Outline shader setup failed");
-        return false;
-    }
 
     return true;
 }
