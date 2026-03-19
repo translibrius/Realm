@@ -77,7 +77,7 @@ rl_mesh_component *mesh_add(rl_component_store *s, rl_entity e) {
     m->primitive  = RL_FRAME_PRIMITIVE_CUBE;
     m->kind       = RL_FRAME_MESH_KIND_LIT;
     m->wireframe  = false;
-    m->mesh_asset = 0;
+    m->model_asset = 0;
     memset(&m->material, 0, sizeof(rl_material));
     s->has_mesh[idx] = true;
     return m;

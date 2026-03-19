@@ -83,9 +83,9 @@ static yyjson_mut_val *serialize_mesh(yyjson_mut_doc *doc, const rl_mesh_compone
     yyjson_mut_obj_add_str(doc, obj, "kind",      kind_to_str(m->kind));
     yyjson_mut_obj_add_bool(doc, obj, "wireframe", m->wireframe);
 
-    // Mesh asset path
-    if (m->mesh_asset) {
-        rl_asset *a = asset_get(m->mesh_asset);
+    // Model/mesh asset path
+    if (m->model_asset) {
+        rl_asset *a = asset_get(m->model_asset);
         if (a && a->source_path) {
             yyjson_mut_obj_add_strcpy(doc, obj, "mesh_asset_path", a->source_path);
         }
@@ -113,9 +113,9 @@ static void deserialize_mesh(yyjson_val *obj, rl_mesh_component *m) {
     m->kind      = str_to_kind(yyjson_get_str(yyjson_obj_get(obj, "kind")));
     m->wireframe = yyjson_get_bool(yyjson_obj_get(obj, "wireframe"));
 
-    // Mesh asset path
+    // Model/mesh asset path (accepts both keys for backward compat)
     const char *mesh_path = yyjson_get_str(yyjson_obj_get(obj, "mesh_asset_path"));
-    m->mesh_asset = mesh_path ? asset_find(mesh_path) : 0;
+    m->model_asset = mesh_path ? asset_find(mesh_path) : 0;
 
     // Material
     memset(&m->material, 0, sizeof(rl_material));

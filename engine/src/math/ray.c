@@ -2,6 +2,7 @@
 
 #include "asset/asset.h"
 #include "asset/mesh.h"
+#include "asset/model.h"
 
 #include <math.h>
 
@@ -99,23 +100,8 @@ void aabb_from_unit_cube(mat4 model, rl_aabb *out) {
     }
 }
 
-void aabb_from_mesh_asset(asset_id mesh_id, mat4 model, rl_aabb *out) {
-    rl_asset *asset = asset_get(mesh_id);
-    if (!asset || asset->type != ASSET_MESH || !asset->data) {
-        aabb_from_unit_cube(model, out);
-        return;
-    }
-
-    rl_mesh *mesh = (rl_mesh *)asset->data;
-    if (mesh->primitive_count == 0 || mesh->primitives[0].vertex_count == 0) {
-        aabb_from_unit_cube(model, out);
-        return;
-    }
-
-    // Transform 8 corners of the cached local AABB instead of all vertices
-    rl_mesh_primitive *prim = &mesh->primitives[0];
-    f32 *mn = prim->local_aabb_min;
-    f32 *mx = prim->local_aabb_max;
+// Helper: compute world-space AABB from local min/max + model matrix
+static void aabb_from_local_bounds(f32 *mn, f32 *mx, mat4 model_mat, rl_aabb *out) {
     f32 corners[8][3] = {
         {mn[0], mn[1], mn[2]}, {mx[0], mn[1], mn[2]},
         {mn[0], mx[1], mn[2]}, {mx[0], mx[1], mn[2]},
@@ -125,14 +111,37 @@ void aabb_from_mesh_asset(asset_id mesh_id, mat4 model, rl_aabb *out) {
 
     vec4 corner, transformed;
     corner[0] = corners[0][0]; corner[1] = corners[0][1]; corner[2] = corners[0][2]; corner[3] = 1.0f;
-    glm_mat4_mulv(model, corner, transformed);
+    glm_mat4_mulv(model_mat, corner, transformed);
     glm_vec3_copy(transformed, out->min);
     glm_vec3_copy(transformed, out->max);
 
     for (u32 i = 1; i < 8; i++) {
         corner[0] = corners[i][0]; corner[1] = corners[i][1]; corner[2] = corners[i][2]; corner[3] = 1.0f;
-        glm_mat4_mulv(model, corner, transformed);
+        glm_mat4_mulv(model_mat, corner, transformed);
         glm_vec3_minv(out->min, transformed, out->min);
         glm_vec3_maxv(out->max, transformed, out->max);
+    }
+}
+
+void aabb_from_model_asset(asset_id id, mat4 model_mat, rl_aabb *out) {
+    rl_asset *asset = asset_get(id);
+    if (!asset || !asset->data) {
+        aabb_from_unit_cube(model_mat, out);
+        return;
+    }
+
+    if (asset->type == ASSET_MODEL) {
+        rl_model *m = (rl_model *)asset->data;
+        aabb_from_local_bounds(m->aabb_min, m->aabb_max, model_mat, out);
+    } else if (asset->type == ASSET_MESH) {
+        rl_mesh *mesh = (rl_mesh *)asset->data;
+        if (mesh->primitive_count == 0 || mesh->primitives[0].vertex_count == 0) {
+            aabb_from_unit_cube(model_mat, out);
+            return;
+        }
+        rl_mesh_primitive *prim = &mesh->primitives[0];
+        aabb_from_local_bounds(prim->local_aabb_min, prim->local_aabb_max, model_mat, out);
+    } else {
+        aabb_from_unit_cube(model_mat, out);
     }
 }

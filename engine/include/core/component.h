@@ -20,7 +20,7 @@ typedef struct rl_mesh_component {
     rl_frame_mesh_kind kind;
     rl_material        material;
     b8                 wireframe;
-    asset_id           mesh_asset; // 0 = use primitive
+    asset_id           model_asset; // 0 = use primitive
 } rl_mesh_component;
 
 typedef struct rl_light_component {

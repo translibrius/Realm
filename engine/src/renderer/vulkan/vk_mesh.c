@@ -2,6 +2,7 @@
 #include "vk_buffer.h"
 #include "asset/asset.h"
 #include "asset/mesh.h"
+#include "asset/model.h"
 #include "renderer/mesh_data.h"
 
 b8 vk_mesh_create_cube(VK_Context *ctx) {
@@ -71,73 +72,117 @@ static b8 vk_upload_buffer(VK_Context *ctx, void *data, VkDeviceSize size,
     return true;
 }
 
-i32 vk_mesh_cache_find(VK_Context *ctx, asset_id id) {
-    for (u32 i = 0; i < ctx->mesh_cache_count; i++) {
-        if (ctx->mesh_cache[i].asset_id == id) return (i32)i;
+// Upload a single sub-mesh's vertex + index buffers into a VK_CachedMesh slot.
+static b8 vk_upload_submesh(VK_Context *ctx, VK_CachedMesh *out,
+                             vertex *vertices, u32 vertex_count,
+                             u32 *indices, u32 index_count) {
+    VkDeviceSize vb_size = (VkDeviceSize)vertex_count * sizeof(vertex);
+    if (!vk_upload_buffer(ctx, vertices, vb_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                          &out->vertex_buffer, &out->vertex_memory)) {
+        return false;
+    }
+    out->vertex_count = vertex_count;
+
+    if (indices && index_count > 0) {
+        VkDeviceSize ib_size = (VkDeviceSize)index_count * sizeof(u32);
+        if (!vk_upload_buffer(ctx, indices, ib_size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                              &out->index_buffer, &out->index_memory)) {
+            vk_buffer_destroy(ctx, out->vertex_buffer, out->vertex_memory);
+            return false;
+        }
+        out->index_count = index_count;
+    } else {
+        out->index_buffer = VK_NULL_HANDLE;
+        out->index_memory = VK_NULL_HANDLE;
+        out->index_count = 0;
+    }
+    return true;
+}
+
+i32 vk_model_cache_find(VK_Context *ctx, asset_id id) {
+    for (u32 i = 0; i < ctx->model_cache_count; i++) {
+        if (ctx->model_cache[i].model_id == id) return (i32)i;
     }
     return -1;
 }
 
-i32 vk_mesh_cache_upload(VK_Context *ctx, asset_id id) {
-    i32 existing = vk_mesh_cache_find(ctx, id);
+i32 vk_model_cache_upload(VK_Context *ctx, asset_id id) {
+    i32 existing = vk_model_cache_find(ctx, id);
     if (existing >= 0) return existing;
 
     rl_asset *asset = asset_get(id);
-    if (!asset || asset->type != ASSET_MESH || !asset->data) {
-        RL_ERROR("vk_mesh_cache_upload: invalid mesh asset %u", id);
+    if (!asset || !asset->data) {
+        RL_ERROR("vk_model_cache_upload: invalid asset %u", id);
         return -1;
     }
 
-    if (ctx->mesh_cache_count >= VK_MAX_MESHES) {
-        RL_ERROR("VK mesh cache full");
+    if (ctx->model_cache_count >= VK_MAX_MODELS) {
+        RL_ERROR("VK model cache full");
         return -1;
     }
 
-    rl_mesh *mesh = (rl_mesh *)asset->data;
-    if (mesh->primitive_count == 0) {
-        RL_ERROR("vk_mesh_cache_upload: mesh has no primitives");
-        return -1;
-    }
+    u32 idx = ctx->model_cache_count;
 
-    rl_mesh_primitive *prim = &mesh->primitives[0];
-    u32 idx = ctx->mesh_cache_count;
-
-    // Upload vertex buffer
-    VkDeviceSize vb_size = (VkDeviceSize)prim->vertex_count * sizeof(vertex);
-    if (!vk_upload_buffer(ctx, prim->vertices, vb_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                          &ctx->mesh_cache[idx].vertex_buffer, &ctx->mesh_cache[idx].vertex_memory)) {
-        return -1;
-    }
-    ctx->mesh_cache[idx].vertex_count = prim->vertex_count;
-
-    // Upload index buffer if present
-    if (prim->indices && prim->index_count > 0) {
-        VkDeviceSize ib_size = (VkDeviceSize)prim->index_count * sizeof(u32);
-        if (!vk_upload_buffer(ctx, prim->indices, ib_size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                              &ctx->mesh_cache[idx].index_buffer, &ctx->mesh_cache[idx].index_memory)) {
-            vk_buffer_destroy(ctx, ctx->mesh_cache[idx].vertex_buffer, ctx->mesh_cache[idx].vertex_memory);
+    if (asset->type == ASSET_MODEL) {
+        rl_model *model = (rl_model *)asset->data;
+        if (model->mesh_count == 0) {
+            RL_ERROR("vk_model_cache_upload: model has no meshes");
             return -1;
         }
-        ctx->mesh_cache[idx].index_count = prim->index_count;
+
+        VK_CachedMesh *meshes = rl_arena_push(&ctx->arena, sizeof(VK_CachedMesh) * model->mesh_count, true);
+        for (u32 i = 0; i < model->mesh_count; i++) {
+            rl_model_mesh *mm = &model->meshes[i];
+            if (!vk_upload_submesh(ctx, &meshes[i], mm->vertices, mm->vertex_count, mm->indices, mm->index_count)) {
+                // Clean up already-uploaded sub-meshes
+                for (u32 j = 0; j < i; j++) {
+                    vk_buffer_destroy(ctx, meshes[j].vertex_buffer, meshes[j].vertex_memory);
+                    if (meshes[j].index_buffer) vk_buffer_destroy(ctx, meshes[j].index_buffer, meshes[j].index_memory);
+                }
+                return -1;
+            }
+        }
+
+        ctx->model_cache[idx].model_id = id;
+        ctx->model_cache[idx].meshes = meshes;
+        ctx->model_cache[idx].mesh_count = model->mesh_count;
+        ctx->model_cache_count++;
+
+        RL_DEBUG("Uploaded model asset %u to VK (%u sub-meshes)", id, model->mesh_count);
+    } else if (asset->type == ASSET_MESH) {
+        rl_mesh *mesh = (rl_mesh *)asset->data;
+        if (mesh->primitive_count == 0) {
+            RL_ERROR("vk_model_cache_upload: mesh has no primitives");
+            return -1;
+        }
+
+        rl_mesh_primitive *prim = &mesh->primitives[0];
+        VK_CachedMesh *meshes = rl_arena_push(&ctx->arena, sizeof(VK_CachedMesh), true);
+        if (!vk_upload_submesh(ctx, &meshes[0], prim->vertices, prim->vertex_count, prim->indices, prim->index_count)) {
+            return -1;
+        }
+
+        ctx->model_cache[idx].model_id = id;
+        ctx->model_cache[idx].meshes = meshes;
+        ctx->model_cache[idx].mesh_count = 1;
+        ctx->model_cache_count++;
+
+        RL_DEBUG("Uploaded legacy mesh asset %u to VK (verts=%u, indices=%u)", id, prim->vertex_count, prim->index_count);
     } else {
-        ctx->mesh_cache[idx].index_buffer = VK_NULL_HANDLE;
-        ctx->mesh_cache[idx].index_memory = VK_NULL_HANDLE;
-        ctx->mesh_cache[idx].index_count = 0;
+        RL_ERROR("vk_model_cache_upload: asset %u is not a model or mesh", id);
+        return -1;
     }
 
-    ctx->mesh_cache[idx].asset_id = id;
-    ctx->mesh_cache_count++;
-
-    RL_DEBUG("Uploaded mesh asset %u to VK GPU (verts=%u, indices=%u)", id, prim->vertex_count, prim->index_count);
     return (i32)idx;
 }
 
-void vk_mesh_cache_destroy_all(VK_Context *ctx) {
-    for (u32 i = 0; i < ctx->mesh_cache_count; i++) {
-        vk_buffer_destroy(ctx, ctx->mesh_cache[i].vertex_buffer, ctx->mesh_cache[i].vertex_memory);
-        if (ctx->mesh_cache[i].index_buffer) {
-            vk_buffer_destroy(ctx, ctx->mesh_cache[i].index_buffer, ctx->mesh_cache[i].index_memory);
+void vk_model_cache_destroy_all(VK_Context *ctx) {
+    for (u32 i = 0; i < ctx->model_cache_count; i++) {
+        for (u32 j = 0; j < ctx->model_cache[i].mesh_count; j++) {
+            VK_CachedMesh *cm = &ctx->model_cache[i].meshes[j];
+            vk_buffer_destroy(ctx, cm->vertex_buffer, cm->vertex_memory);
+            if (cm->index_buffer) vk_buffer_destroy(ctx, cm->index_buffer, cm->index_memory);
         }
     }
-    ctx->mesh_cache_count = 0;
+    ctx->model_cache_count = 0;
 }

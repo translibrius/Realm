@@ -2,6 +2,7 @@
 
 #include "asset/asset.h"
 #include "asset/mesh.h"
+#include "asset/model.h"
 #include "core/event.h"
 #include "engine.h"
 #include "vk_buffer.h"
@@ -281,7 +282,7 @@ void vulkan_destroy(void) {
     vk_wireframe_pipelines_destroy(&context);
     vk_overlay_pipeline_destroy(&context);
     vk_unlit_pipeline_destroy(&context);
-    vk_mesh_cache_destroy_all(&context);
+    vk_model_cache_destroy_all(&context);
     vk_mesh_destroy_cube(&context);
     vk_sync_destroy_transfer(&context);
     if (context.queue_families.has_transfer) {
@@ -454,13 +455,20 @@ static void vk_ensure_texture(asset_id id) {
 // Resolve the effective diffuse texture for a frame mesh
 static asset_id vk_resolve_diffuse(rl_frame_mesh *fm) {
     if (fm->material.diffuse_map) return fm->material.diffuse_map;
-    if (fm->mesh_asset) {
-        rl_asset *a = asset_get(fm->mesh_asset);
-        if (a && a->data) {
-            rl_mesh *m = (rl_mesh *)a->data;
-            if (m->material_count > 0)
-                return m->materials[0].base_color_texture;
+    if (!fm->model_asset) return 0;
+
+    rl_asset *a = asset_get(fm->model_asset);
+    if (!a || !a->data) return 0;
+
+    if (a->type == ASSET_MODEL) {
+        rl_model *m = (rl_model *)a->data;
+        if (fm->mesh_index < m->mesh_count) {
+            u32 mat_idx = m->meshes[fm->mesh_index].material_index;
+            if (mat_idx < m->material_count) return m->materials[mat_idx].base_color_texture;
         }
+    } else if (a->type == ASSET_MESH) {
+        rl_mesh *m = (rl_mesh *)a->data;
+        if (m->material_count > 0) return m->materials[0].base_color_texture;
     }
     return 0;
 }
@@ -489,8 +497,8 @@ void vulkan_submit_frame_data(rl_frame_data *frame_data) {
     // Ensure all referenced textures and meshes are uploaded to VK before command recording
     for (u32 i = 0; i < frame_data->mesh_count; i++) {
         vk_ensure_texture(vk_resolve_diffuse(&frame_data->meshes[i]));
-        if (frame_data->meshes[i].mesh_asset) {
-            vk_mesh_cache_upload(&context, frame_data->meshes[i].mesh_asset);
+        if (frame_data->meshes[i].model_asset) {
+            vk_model_cache_upload(&context, frame_data->meshes[i].model_asset);
         }
     }
 

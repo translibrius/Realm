@@ -1,4 +1,6 @@
 #include "core/scene.h"
+#include "asset/asset.h"
+#include "asset/model.h"
 #include "engine.h"
 #include "util/str.h"
 
@@ -89,15 +91,26 @@ void scene_build_frame_data(rl_scene *scene, const rl_frame_camera *camera, rl_f
     rl_entity_store *es    = &scene->entities;
     rl_component_store *cs = &scene->components;
 
-    // Count pass
+    // Count pass — ASSET_MODEL entities expand to N frame_meshes
     u32 mesh_count  = 0;
     u32 light_count = 0;
     for (u32 i = 1; i < es->high_water; i++) {
         if (!es->alive[i]) continue;
-        if (cs->has_transform[i] && cs->has_mesh[i])  mesh_count++;
+        if (cs->has_transform[i] && cs->has_mesh[i]) {
+            asset_id mid = cs->meshes[i].model_asset;
+            if (mid) {
+                rl_asset *a = asset_get(mid);
+                if (a && a->type == ASSET_MODEL && a->data) {
+                    mesh_count += ((rl_model *)a->data)->mesh_count;
+                } else {
+                    mesh_count++;
+                }
+            } else {
+                mesh_count++;
+            }
+        }
         if (cs->has_transform[i] && cs->has_light[i]) {
             light_count++;
-            // Also emit a small unlit cube to visualize the light source
             if (!cs->has_mesh[i]) mesh_count++;
         }
     }
@@ -124,14 +137,45 @@ void scene_build_frame_data(rl_scene *scene, const rl_frame_camera *camera, rl_f
 
             if (cs->has_mesh[i]) {
                 rl_mesh_component *mc = &cs->meshes[i];
-                rl_frame_mesh *fm     = &meshes[mi++];
-                fm->primitive      = mc->primitive;
-                fm->kind           = mc->kind;
-                fm->wireframe      = mc->wireframe;
-                fm->mesh_asset     = mc->mesh_asset;
-                fm->material       = mc->material;
-                fm->source_entity  = rl_entity_pack(i, es->generation[i]);
-                glm_mat4_copy(t->local_to_world, fm->model);
+                rl_entity ent = rl_entity_pack(i, es->generation[i]);
+
+                // Determine sub-mesh count for this entity
+                u32 sub_count = 1;
+                rl_model *model = nullptr;
+                if (mc->model_asset) {
+                    rl_asset *a = asset_get(mc->model_asset);
+                    if (a && a->type == ASSET_MODEL && a->data) {
+                        model = (rl_model *)a->data;
+                        sub_count = model->mesh_count;
+                    }
+                }
+
+                for (u32 p = 0; p < sub_count; p++) {
+                    rl_frame_mesh *fm = &meshes[mi++];
+                    fm->primitive      = mc->primitive;
+                    fm->kind           = mc->kind;
+                    fm->wireframe      = mc->wireframe;
+                    fm->model_asset    = mc->model_asset;
+                    fm->mesh_index     = p;
+                    fm->source_entity  = ent;
+                    glm_mat4_copy(t->local_to_world, fm->model);
+
+                    // Resolve material: entity override > model per-mesh material > nothing
+                    if (mc->material.diffuse_map) {
+                        fm->material = mc->material;
+                    } else if (model && p < model->mesh_count) {
+                        rl_model_mesh *mm = &model->meshes[p];
+                        if (mm->material_index < model->material_count) {
+                            fm->material.diffuse_map = model->materials[mm->material_index].base_color_texture;
+                        }
+                        fm->material.specular[0] = mc->material.specular[0];
+                        fm->material.specular[1] = mc->material.specular[1];
+                        fm->material.specular[2] = mc->material.specular[2];
+                        fm->material.shininess   = mc->material.shininess;
+                    } else {
+                        fm->material = mc->material;
+                    }
+                }
             }
 
             if (cs->has_light[i]) {
@@ -148,7 +192,7 @@ void scene_build_frame_data(rl_scene *scene, const rl_frame_camera *camera, rl_f
                     fm->primitive      = RL_FRAME_PRIMITIVE_CUBE;
                     fm->kind           = RL_FRAME_MESH_KIND_UNLIT;
                     fm->wireframe      = false;
-                    fm->mesh_asset     = 0;
+                    fm->model_asset    = 0;
                     fm->source_entity  = rl_entity_pack(i, es->generation[i]);
                     glm_vec3_copy((vec3){1.0f, 1.0f, 1.0f}, fm->material.specular);
                     glm_mat4_copy(t->local_to_world, fm->model);

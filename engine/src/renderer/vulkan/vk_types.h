@@ -170,6 +170,15 @@ typedef struct VK_MeshPushConstants {
     vec4 obj_center;      // 16 bytes: xyz = object-space mesh center (reserved)
 } VK_MeshPushConstants;
 
+typedef struct VK_CachedMesh {
+    VkBuffer vertex_buffer;
+    VkDeviceMemory vertex_memory;
+    VkBuffer index_buffer;      // VK_NULL_HANDLE if non-indexed
+    VkDeviceMemory index_memory;
+    u32 vertex_count;
+    u32 index_count;            // 0 if non-indexed
+} VK_CachedMesh;
+
 typedef struct VK_Pipeline {
     VkPipeline handle;
     u32 shader_stage_count;
@@ -250,18 +259,14 @@ typedef struct VK_Context {
     VkDeviceMemory cube_vertex_memory;
     u32 cube_vertex_count;
 
-    // Imported mesh cache (asset_id -> GPU buffers)
-    enum { VK_MAX_MESHES = 64 };
+    // Model GPU cache (asset_id -> array of sub-mesh GPU buffers)
+    enum { VK_MAX_MODELS = 64 };
     struct {
-        asset_id asset_id;
-        VkBuffer vertex_buffer;
-        VkDeviceMemory vertex_memory;
-        VkBuffer index_buffer;      // VK_NULL_HANDLE if non-indexed
-        VkDeviceMemory index_memory;
-        u32 vertex_count;
-        u32 index_count;            // 0 if non-indexed
-    } mesh_cache[64];
-    u32 mesh_cache_count;
+        asset_id model_id;
+        VK_CachedMesh *meshes;      // arena-allocated array
+        u32 mesh_count;
+    } model_cache[VK_MAX_MODELS];
+    u32 model_cache_count;
 
     // Unlit pipeline (light cubes)
     VkPipeline unlit_pipeline;

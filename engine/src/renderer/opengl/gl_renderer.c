@@ -2,6 +2,7 @@
 
 #include "asset/asset.h"
 #include "asset/mesh.h"
+#include "asset/model.h"
 #include "gl_gui.h"
 #include "math/ray.h"
 #include "gl_texture.h"
@@ -40,58 +41,107 @@ static b8 gl_load_texture(asset_id id) {
     return true;
 }
 
-static GL_Mesh *gl_find_mesh(asset_id id) {
-    for (u32 i = 0; i < context.mesh_cache_count; i++) {
-        if (context.mesh_cache[i].asset_id == id) {
-            return &context.mesh_cache[i].mesh;
-        }
+static i32 gl_find_model(asset_id id) {
+    for (u32 i = 0; i < context.model_cache_count; i++) {
+        if (context.model_cache[i].model_id == id) return (i32)i;
     }
-    return nullptr;
+    return -1;
 }
 
-static GL_Mesh *gl_ensure_mesh(asset_id id) {
-    GL_Mesh *existing = gl_find_mesh(id);
-    if (existing) {
-        return existing;
-    }
+// Ensure all sub-meshes of a model (or legacy mesh) asset are uploaded to GL.
+// Returns cache index, or -1 on failure.
+static i32 gl_ensure_model(asset_id id) {
+    i32 existing = gl_find_model(id);
+    if (existing >= 0) return existing;
 
     rl_asset *asset = asset_get(id);
-    if (!asset || asset->type != ASSET_MESH || !asset->data) {
-        RL_ERROR("gl_ensure_mesh: invalid mesh asset %u", id);
-        return nullptr;
+    if (!asset || !asset->data) {
+        RL_ERROR("gl_ensure_model: invalid asset %u", id);
+        return -1;
     }
 
-    if (context.mesh_cache_count >= 64) {
-        RL_ERROR("GL mesh cache full");
-        return nullptr;
+    if (context.model_cache_count >= 64) {
+        RL_ERROR("GL model cache full");
+        return -1;
     }
 
-    rl_mesh *mesh = (rl_mesh *)asset->data;
-    if (mesh->primitive_count == 0) {
-        RL_ERROR("gl_ensure_mesh: mesh has no primitives");
-        return nullptr;
-    }
+    u32 idx = context.model_cache_count;
 
-    rl_mesh_primitive *prim = &mesh->primitives[0];
-    GL_Mesh gl_mesh = gl_mesh_create_from_primitive(
-        prim->vertices, prim->vertex_count,
-        prim->indices, prim->index_count
-    );
-
-    // Ensure the mesh's diffuse texture is uploaded to GL
-    if (mesh->material_count > 0 && prim->material_index < mesh->material_count) {
-        asset_id tex_id = mesh->materials[prim->material_index].base_color_texture;
-        if (tex_id && !gl_find_texture(tex_id)) {
-            gl_load_texture(tex_id);
+    if (asset->type == ASSET_MODEL) {
+        rl_model *model = (rl_model *)asset->data;
+        if (model->mesh_count == 0) {
+            RL_ERROR("gl_ensure_model: model has no meshes");
+            return -1;
         }
+
+        GL_Mesh *meshes = rl_arena_push(&context.arena, sizeof(GL_Mesh) * model->mesh_count, true);
+        for (u32 i = 0; i < model->mesh_count; i++) {
+            rl_model_mesh *mm = &model->meshes[i];
+            meshes[i] = gl_mesh_create_from_primitive(mm->vertices, mm->vertex_count, mm->indices, mm->index_count);
+
+            // Ensure this sub-mesh's texture is uploaded
+            if (mm->material_index < model->material_count) {
+                asset_id tex_id = model->materials[mm->material_index].base_color_texture;
+                if (tex_id && !gl_find_texture(tex_id)) gl_load_texture(tex_id);
+            }
+        }
+
+        context.model_cache[idx].model_id = id;
+        context.model_cache[idx].meshes = meshes;
+        context.model_cache[idx].mesh_count = model->mesh_count;
+        context.model_cache_count++;
+
+        RL_DEBUG("Uploaded model asset %u to GL (%u sub-meshes)", id, model->mesh_count);
+    } else if (asset->type == ASSET_MESH) {
+        rl_mesh *mesh = (rl_mesh *)asset->data;
+        if (mesh->primitive_count == 0) {
+            RL_ERROR("gl_ensure_model: mesh has no primitives");
+            return -1;
+        }
+
+        rl_mesh_primitive *prim = &mesh->primitives[0];
+        GL_Mesh *meshes = rl_arena_push(&context.arena, sizeof(GL_Mesh), true);
+        meshes[0] = gl_mesh_create_from_primitive(prim->vertices, prim->vertex_count, prim->indices, prim->index_count);
+
+        // Ensure the mesh's diffuse texture is uploaded
+        if (mesh->material_count > 0 && prim->material_index < mesh->material_count) {
+            asset_id tex_id = mesh->materials[prim->material_index].base_color_texture;
+            if (tex_id && !gl_find_texture(tex_id)) gl_load_texture(tex_id);
+        }
+
+        context.model_cache[idx].model_id = id;
+        context.model_cache[idx].meshes = meshes;
+        context.model_cache[idx].mesh_count = 1;
+        context.model_cache_count++;
+
+        RL_DEBUG("Uploaded legacy mesh asset %u to GL (verts=%u, indices=%u)", id, prim->vertex_count, prim->index_count);
+    } else {
+        RL_ERROR("gl_ensure_model: asset %u is not a model or mesh", id);
+        return -1;
     }
 
-    u32 idx = context.mesh_cache_count++;
-    context.mesh_cache[idx].asset_id = id;
-    context.mesh_cache[idx].mesh = gl_mesh;
+    return (i32)idx;
+}
 
-    RL_DEBUG("Uploaded mesh asset %u to GPU (verts=%u, indices=%u)", id, prim->vertex_count, prim->index_count);
-    return &context.mesh_cache[idx].mesh;
+// Resolve the effective diffuse texture for a frame mesh
+static asset_id gl_resolve_diffuse(rl_frame_mesh *fm) {
+    if (fm->material.diffuse_map) return fm->material.diffuse_map;
+    if (!fm->model_asset) return 0;
+
+    rl_asset *a = asset_get(fm->model_asset);
+    if (!a || !a->data) return 0;
+
+    if (a->type == ASSET_MODEL) {
+        rl_model *m = (rl_model *)a->data;
+        if (fm->mesh_index < m->mesh_count) {
+            u32 mat_idx = m->meshes[fm->mesh_index].material_index;
+            if (mat_idx < m->material_count) return m->materials[mat_idx].base_color_texture;
+        }
+    } else if (a->type == ASSET_MESH) {
+        rl_mesh *m = (rl_mesh *)a->data;
+        if (m->material_count > 0) return m->materials[0].base_color_texture;
+    }
+    return 0;
 }
 
 GL_Context *opengl_get_context(void) {
@@ -188,20 +238,13 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
         }
 
         GL_Mesh *draw_mesh = &context.cube_mesh;
-        asset_id diffuse_id = fm->material.diffuse_map;
+        asset_id diffuse_id = gl_resolve_diffuse(fm);
 
-        if (fm->mesh_asset) {
-            draw_mesh = gl_ensure_mesh(fm->mesh_asset);
-            if (!draw_mesh) continue;
-
-            // Fall back to the mesh's own texture if game didn't set one
-            if (!diffuse_id) {
-                rl_asset *mesh_asset = asset_get(fm->mesh_asset);
-                rl_mesh *m = (rl_mesh *)mesh_asset->data;
-                if (m->material_count > 0) {
-                    diffuse_id = m->materials[0].base_color_texture;
-                }
-            }
+        if (fm->model_asset) {
+            i32 mi2 = gl_ensure_model(fm->model_asset);
+            if (mi2 < 0) continue;
+            if (fm->mesh_index >= context.model_cache[mi2].mesh_count) continue;
+            draw_mesh = &context.model_cache[mi2].meshes[fm->mesh_index];
         }
 
         if (draw_mesh->vao != bound_vao) {
@@ -247,9 +290,11 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
         }
 
         GL_Mesh *draw_mesh = &context.cube_mesh;
-        if (fm->mesh_asset) {
-            draw_mesh = gl_ensure_mesh(fm->mesh_asset);
-            if (!draw_mesh) continue;
+        if (fm->model_asset) {
+            i32 mi2 = gl_ensure_model(fm->model_asset);
+            if (mi2 < 0) continue;
+            if (fm->mesh_index >= context.model_cache[mi2].mesh_count) continue;
+            draw_mesh = &context.model_cache[mi2].meshes[fm->mesh_index];
         }
 
         if (draw_mesh->vao != bound_vao) {
@@ -401,10 +446,12 @@ b8 opengl_initialize(platform_window *platform_window, b8 vsync) {
 }
 
 void opengl_destroy() {
-    for (u32 i = 0; i < context.mesh_cache_count; i++) {
-        gl_mesh_destroy(&context.mesh_cache[i].mesh);
+    for (u32 i = 0; i < context.model_cache_count; i++) {
+        for (u32 j = 0; j < context.model_cache[i].mesh_count; j++) {
+            gl_mesh_destroy(&context.model_cache[i].meshes[j]);
+        }
     }
-    context.mesh_cache_count = 0;
+    context.model_cache_count = 0;
 
     for (u32 i = 0; i < context.texture_count; i++) {
         glDeleteTextures(1, &context.textures[i].texture.id);

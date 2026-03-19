@@ -77,9 +77,9 @@ typedef struct GL_Context {
     struct { asset_id asset_id; GL_Texture texture; } textures[64];
     u32 texture_count;
 
-    // Mesh GPU cache (asset_id -> GL_Mesh)
-    struct { asset_id asset_id; GL_Mesh mesh; } mesh_cache[64];
-    u32 mesh_cache_count;
+    // Model GPU cache (asset_id -> array of GL_Mesh, one per sub-mesh)
+    struct { asset_id model_id; GL_Mesh *meshes; u32 mesh_count; } model_cache[64];
+    u32 model_cache_count;
 
     // Clear color (default from RL_CLEAR_COLOR_*)
     f32 clear_color[4];

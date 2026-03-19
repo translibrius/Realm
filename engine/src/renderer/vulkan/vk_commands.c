@@ -4,6 +4,7 @@
 #include "vk_util.h"
 #include "asset/asset.h"
 #include "asset/mesh.h"
+#include "asset/model.h"
 #include "renderer/renderer_backend.h"
 #include "renderer/renderer_types.h"
 #include "memory/memory.h"
@@ -20,13 +21,20 @@ static VkDescriptorSet *vk_cmd_find_texture_sets(VK_Context *ctx, asset_id diffu
 // Resolve effective diffuse texture for a frame mesh
 static asset_id vk_cmd_resolve_diffuse(rl_frame_mesh *fm) {
     if (fm->material.diffuse_map) return fm->material.diffuse_map;
-    if (fm->mesh_asset) {
-        rl_asset *a = asset_get(fm->mesh_asset);
-        if (a && a->data) {
-            rl_mesh *m = (rl_mesh *)a->data;
-            if (m->material_count > 0)
-                return m->materials[0].base_color_texture;
+    if (!fm->model_asset) return 0;
+
+    rl_asset *a = asset_get(fm->model_asset);
+    if (!a || !a->data) return 0;
+
+    if (a->type == ASSET_MODEL) {
+        rl_model *m = (rl_model *)a->data;
+        if (fm->mesh_index < m->mesh_count) {
+            u32 mat_idx = m->meshes[fm->mesh_index].material_index;
+            if (mat_idx < m->material_count) return m->materials[mat_idx].base_color_texture;
         }
+    } else if (a->type == ASSET_MESH) {
+        rl_mesh *m = (rl_mesh *)a->data;
+        if (m->material_count > 0) return m->materials[0].base_color_texture;
     }
     return 0;
 }
@@ -36,16 +44,18 @@ static asset_id vk_cmd_resolve_diffuse(rl_frame_mesh *fm) {
 static b8 vk_cmd_bind_and_draw(VK_Context *ctx, VkCommandBuffer buf, rl_frame_mesh *fm) {
     VkDeviceSize offset = 0;
 
-    if (fm->mesh_asset) {
-        i32 idx = vk_mesh_cache_find(ctx, fm->mesh_asset);
+    if (fm->model_asset) {
+        i32 idx = vk_model_cache_find(ctx, fm->model_asset);
         if (idx < 0) return false;
+        if (fm->mesh_index >= ctx->model_cache[idx].mesh_count) return false;
 
-        vkCmdBindVertexBuffers(buf, 0, 1, &ctx->mesh_cache[idx].vertex_buffer, &offset);
-        if (ctx->mesh_cache[idx].index_count > 0) {
-            vkCmdBindIndexBuffer(buf, ctx->mesh_cache[idx].index_buffer, 0, VK_INDEX_TYPE_UINT32);
-            vkCmdDrawIndexed(buf, ctx->mesh_cache[idx].index_count, 1, 0, 0, 0);
+        VK_CachedMesh *cm = &ctx->model_cache[idx].meshes[fm->mesh_index];
+        vkCmdBindVertexBuffers(buf, 0, 1, &cm->vertex_buffer, &offset);
+        if (cm->index_count > 0) {
+            vkCmdBindIndexBuffer(buf, cm->index_buffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdDrawIndexed(buf, cm->index_count, 1, 0, 0, 0);
         } else {
-            vkCmdDraw(buf, ctx->mesh_cache[idx].vertex_count, 1, 0, 0);
+            vkCmdDraw(buf, cm->vertex_count, 1, 0, 0);
         }
     } else {
         vkCmdBindVertexBuffers(buf, 0, 1, &ctx->cube_vertex_buffer, &offset);

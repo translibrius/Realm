@@ -179,7 +179,7 @@ void ed_asset_browser_render(ed_asset_browser *browser, ed_application *app, f32
                                 transform_add(&app->scene->components, e);
                                 rl_mesh_component *mc = mesh_add(&app->scene->components, e);
                                 if (mc) {
-                                    mc->mesh_asset = aid;
+                                    mc->model_asset = aid;
                                     mc->kind = RL_FRAME_MESH_KIND_LIT;
                                 }
                                 app->scene_dirty = true;

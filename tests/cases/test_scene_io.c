@@ -213,7 +213,7 @@ RL_TEST(scene_io_mesh_material_roundtrip) {
     m->primitive = RL_FRAME_PRIMITIVE_CUBE;
     m->kind = RL_FRAME_MESH_KIND_LIT;
     m->wireframe = false;
-    m->mesh_asset = 0; // no mesh asset in test (asset system not running)
+    m->model_asset = 0; // no mesh asset in test (asset system not running)
     m->material.diffuse_map = 0;
     m->material.specular[0] = 0.5f;
     m->material.specular[1] = 0.6f;
@@ -229,8 +229,8 @@ RL_TEST(scene_io_mesh_material_roundtrip) {
     rl_component_store *cs = &loaded->components;
     RL_EXPECT(cs->has_mesh[1]);
 
-    // mesh_asset and diffuse_map resolve to 0 since asset system isn't running
-    RL_EXPECT_EQ_U32(cs->meshes[1].mesh_asset, 0);
+    // model_asset and diffuse_map resolve to 0 since asset system isn't running
+    RL_EXPECT_EQ_U32(cs->meshes[1].model_asset, 0);
     RL_EXPECT_EQ_U32(cs->meshes[1].material.diffuse_map, 0);
 
     // specular and shininess should roundtrip

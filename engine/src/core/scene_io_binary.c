@@ -197,8 +197,8 @@ b8 scene_save_binary(const rl_scene *scene, const char *path) {
         if (cs->has_behavior[i]) strtab_add(&st, cs->behaviors[i].name);
 
         if (cs->has_mesh[i]) {
-            if (cs->meshes[i].mesh_asset) {
-                rl_asset *a = asset_get(cs->meshes[i].mesh_asset);
+            if (cs->meshes[i].model_asset) {
+                rl_asset *a = asset_get(cs->meshes[i].model_asset);
                 if (a && a->source_path) strtab_add(&st, a->source_path);
             }
             if (cs->meshes[i].material.diffuse_map) {
@@ -265,8 +265,8 @@ b8 scene_save_binary(const rl_scene *scene, const char *path) {
 
             // Mesh asset path
             u32 mesh_idx = RLSC_STR_NONE;
-            if (m->mesh_asset) {
-                rl_asset *a = asset_get(m->mesh_asset);
+            if (m->model_asset) {
+                rl_asset *a = asset_get(m->model_asset);
                 if (a && a->source_path) mesh_idx = strtab_add(&st, a->source_path);
             }
             wbuf_write_u32(&wb, mesh_idx);
@@ -462,7 +462,7 @@ rl_scene *scene_load_binary(const char *path) {
             m->wireframe = wire != 0;
 
             const char *mesh_path = (mesh_asset_idx != RLSC_STR_NONE) ? STR_AT(mesh_asset_idx) : nullptr;
-            m->mesh_asset = mesh_path ? asset_find(mesh_path) : 0;
+            m->model_asset = mesh_path ? asset_find(mesh_path) : 0;
 
             const char *diff_path = (diffuse_idx != RLSC_STR_NONE) ? STR_AT(diffuse_idx) : nullptr;
             m->material.diffuse_map = diff_path ? asset_find(diff_path) : 0;

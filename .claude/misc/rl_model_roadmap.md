@@ -86,173 +86,46 @@ typedef struct rl_mesh_component {
 
 ---
 
-## Session 2 — Backend Rendering: OpenGL
+## Sessions 2–4 — Backends + Scene Integration [DONE]
 
-**Goal**: GL backend renders all meshes of a model asset, each with its own material/texture.
+**Completed.** Both GL and Vulkan backends render all sub-meshes of ASSET_MODEL assets with per-mesh material/texture binding. Scene frame building expands model entities into N frame_meshes. ASSET_MESH backward compat preserved. All callers renamed from `mesh_asset` → `model_asset`. Build + tests pass.
 
-### Files to modify
-- `engine/src/renderer/opengl/gl_renderer.c` — model cache + draw loop
-- `engine/src/renderer/opengl/gl_mesh.h` — (if cache struct lives here, otherwise gl_types or gl_renderer static)
-- `engine/include/renderer/frame_data.h` — add `mesh_index` to `rl_frame_mesh`, rename `mesh_asset` → `model_asset`
+### What was done
 
-### Cache changes
-Current: one `GL_Mesh` per asset_id.
-New: array of `GL_Mesh` per model asset_id:
-```c
-struct {
-    asset_id model_asset;
-    GL_Mesh *meshes;        // allocated from context arena
-    u32 mesh_count;
-} model_cache[64];
-```
+**Core type changes:**
+- `engine/include/renderer/frame_data.h` — `rl_frame_mesh.mesh_asset` → `model_asset`, added `u32 mesh_index`
+- `engine/include/core/component.h` — `rl_mesh_component.mesh_asset` → `model_asset`
+- `engine/src/core/component.c` — updated field initialization
 
-### `gl_ensure_model(asset_id)` (replaces `gl_ensure_mesh`)
-- First-time: get `rl_model *` from asset, loop all `model->mesh_count` meshes
-- Call `gl_mesh_create_from_primitive()` for each mesh's vertices/indices
-- Ensure each mesh's material texture is uploaded via `gl_load_texture()`
-- Cache the array
+**GL backend:**
+- `engine/src/renderer/opengl/gl_types.h` — replaced flat `mesh_cache[64]` with `model_cache[64]` (arena-allocated array of `GL_Mesh` per model)
+- `engine/src/renderer/opengl/gl_renderer.c` — `gl_ensure_model()` handles both `ASSET_MODEL` (uploads all sub-meshes) and `ASSET_MESH` (single entry). `gl_resolve_diffuse()` resolves per-mesh material textures. Draw loops use `model_asset + mesh_index`.
 
-### Draw loop changes
-Currently: `gl_ensure_mesh()` returns one GL_Mesh, draw it.
-New: caller provides `model_asset + mesh_index`, look up `model_cache[i].meshes[mesh_index]`
+**VK backend:**
+- `engine/src/renderer/vulkan/vk_types.h` — added `VK_CachedMesh` struct, replaced flat cache with `model_cache[VK_MAX_MODELS]`
+- `engine/src/renderer/vulkan/vk_mesh.h` / `vk_mesh.c` — `vk_model_cache_upload()` handles both asset types with per-sub-mesh upload and cleanup on partial failure
+- `engine/src/renderer/vulkan/vk_commands.c` — `vk_cmd_resolve_diffuse()` and `vk_cmd_bind_and_draw()` use `mesh_index` lookup
+- `engine/src/renderer/vulkan/vk_renderer.c` — updated submit path and destroy calls
 
-Per-primitive material resolution:
-```
-1. Entity material override (fm->material.diffuse_map) — wins if set
-2. Model mesh material (model->materials[mesh->material_index].base_color_texture)
-3. Placeholder texture
-```
+**Scene integration:**
+- `engine/src/core/scene.c` — count pass: ASSET_MODEL entities contribute `model->mesh_count` frame_meshes. Fill pass: expands into N frame_meshes with per-mesh material resolution (entity override > model material > nothing).
 
-### Destroy cleanup
-Loop all cache entries, destroy all GL_Mesh in each entry's array.
+**Picking:**
+- `engine/include/math/ray.h` / `engine/src/math/ray.c` — `aabb_from_mesh_asset()` → `aabb_from_model_asset()`, uses whole-model AABB for ASSET_MODEL, falls back to ASSET_MESH.
 
-### Verification
-- Load a multi-mesh model, hardcode frame_data with multiple mesh_indices
-- Confirm all sub-meshes render with correct textures in GL backend
-- Build + run with GL backend (F7 to switch if needed)
+**Callers updated:**
+- `realm_editor/src/ed_picking.c`, `realm_editor/src/ed_asset_browser.c`, `engine/src/core/scene_io.c`, `engine/src/core/scene_io_binary.c`, `tests/cases/test_scene_io.c`
+
+### Notes for future sessions
+- JSON scene format still uses `"mesh_asset_path"` key for backward compat — rename in Session 5.
+- GL texture upload for model materials happens eagerly in `gl_ensure_model()`. VK does it via `vk_ensure_texture()` in `vulkan_submit_frame_data()`.
+- Both backends handle ASSET_MESH transparently (uploaded as single-entry model cache), so old scenes keep working.
 
 ---
 
-## Session 3 — Backend Rendering: Vulkan
+## Session 5 — Scene IO: Serialization
 
-**Goal**: Same as Session 2 but for Vulkan.
-
-### Files to modify
-- `engine/src/renderer/vulkan/vk_types.h` — model cache struct
-- `engine/src/renderer/vulkan/vk_mesh.c` → rename to `vk_model.c` (or keep, add model functions)
-- `engine/src/renderer/vulkan/vk_mesh.h` → corresponding header
-- `engine/src/renderer/vulkan/vk_commands.c` — draw loop changes
-- `engine/src/renderer/vulkan/vk_renderer.c` — texture pre-upload for all model materials
-
-### Cache changes
-```c
-typedef struct VK_CachedMesh {
-    VkBuffer vertex_buffer;
-    VkDeviceMemory vertex_memory;
-    VkBuffer index_buffer;      // VK_NULL_HANDLE if non-indexed
-    VkDeviceMemory index_memory;
-    u32 vertex_count;
-    u32 index_count;
-} VK_CachedMesh;
-
-// In VK_Context:
-struct {
-    asset_id model_asset;
-    VK_CachedMesh *meshes;
-    u32 mesh_count;
-} model_cache[VK_MAX_MESHES];
-```
-
-### `vk_model_cache_upload(ctx, asset_id)` (replaces `vk_mesh_cache_upload`)
-- Upload ALL meshes of the model (vertex + index buffers each)
-- Ensure ALL material textures are uploaded via `vk_ensure_texture()`
-
-### `vk_cmd_bind_and_draw` changes
-- Takes `model_asset + mesh_index`
-- Looks up `model_cache[i].meshes[mesh_index]`, binds its buffers, draws
-
-### `vk_cmd_resolve_diffuse` changes
-- Takes `model_asset + mesh_index`, resolves per-mesh material texture
-
-### Texture pre-upload in `vulkan_submit_frame_data`
-```c
-if (fm->model_asset) {
-    vk_model_cache_upload(&context, fm->model_asset);
-    // All textures already ensured by cache upload
-}
-```
-
-### Destroy cleanup
-Loop all cache entries, destroy all VK buffer pairs in each entry.
-
-### Verification
-- Same test model as Session 2, now with Vulkan backend
-- F7 to switch backends, confirm both render identically
-- Build + run
-
----
-
-## Session 4 — Scene Integration: Components + Frame Building
-
-**Goal**: Scene system produces correct frame_data for model entities. One model entity → N frame_meshes (one per sub-mesh).
-
-### Files to modify
-- `engine/include/core/component.h` — rename `mesh_asset` → `model_asset` in `rl_mesh_component`
-- `engine/src/core/component.c` — update any references
-- `engine/src/core/scene.c` — rework `scene_build_frame_data()`
-- `engine/src/math/ray.c` — AABB computation for picking uses whole-model bounds
-- `engine/include/renderer/frame_data.h` — already done in Session 2
-
-### Frame building changes in `scene_build_frame_data`
-
-**Count pass**: For entities with `model_asset != 0`, count the model's `mesh_count` instead of 1:
-```c
-if (mc->model_asset) {
-    rl_asset *a = asset_get(mc->model_asset);
-    rl_model *m = (rl_model *)a->data;
-    mesh_count += m->mesh_count;
-} else {
-    mesh_count += 1; // primitive cube
-}
-```
-
-**Fill pass**: For model entities, emit N frame_meshes:
-```c
-if (mc->model_asset) {
-    rl_model *m = get_model(mc->model_asset);
-    for (u32 p = 0; p < m->mesh_count; p++) {
-        rl_frame_mesh *fm = &meshes[mi++];
-        fm->kind          = mc->kind;
-        fm->wireframe     = mc->wireframe;
-        fm->model_asset   = mc->model_asset;
-        fm->mesh_index    = p;
-        fm->source_entity = entity;
-        glm_mat4_copy(t->local_to_world, fm->model);
-
-        // Resolve material: entity override > mesh material > nothing
-        if (mc->material.diffuse_map) {
-            fm->material = mc->material;
-        } else {
-            rl_model_mesh *mm = &m->meshes[p];
-            if (mm->material_index < m->material_count) {
-                fm->material.diffuse_map = m->materials[mm->material_index].base_color_texture;
-            }
-            fm->material.specular  = mc->material.specular;
-            fm->material.shininess = mc->material.shininess;
-        }
-    }
-}
-```
-
-### Picking / AABB (`ray.c`)
-Use `model->aabb_min/max` (whole-model bounds) instead of `primitives[0]` AABB. Transform the 8 corners by the entity's model matrix for world-space ray test.
-
-### Verification
-- Place a multi-mesh model entity in a scene
-- Confirm all sub-meshes render at the entity's transform
-- Confirm picking/hover selects the entity correctly
-- Both backends
-- `ctest --preset debug`
+**(Merged into Sessions 2–4 above.)**
 
 ---
 

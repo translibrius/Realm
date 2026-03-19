@@ -44,7 +44,8 @@ typedef struct rl_frame_mesh {
     mat4 model;
     rl_material material;
     b8 wireframe;
-    asset_id mesh_asset;          // 0 = use primitive (cube), non-zero = loaded mesh
+    asset_id model_asset;         // 0 = use primitive (cube), non-zero = loaded model/mesh
+    u32 mesh_index;               // which sub-mesh within the model (0 for single-mesh)
     rl_entity source_entity;      // originating entity (for picking/hover matching)
 } rl_frame_mesh;
 

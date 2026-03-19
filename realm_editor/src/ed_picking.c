@@ -37,9 +37,9 @@ rl_entity ed_pick_entity(rl_scene *scene, f32 screen_x, f32 screen_y,
         rl_aabb aabb;
 
         if (cs->has_mesh[i]) {
-            asset_id mesh_id = cs->meshes[i].mesh_asset;
+            asset_id mesh_id = cs->meshes[i].model_asset;
             if (mesh_id) {
-                aabb_from_mesh_asset(mesh_id, t->local_to_world, &aabb);
+                aabb_from_model_asset(mesh_id, t->local_to_world, &aabb);
             } else {
                 aabb_from_unit_cube(t->local_to_world, &aabb);
             }
