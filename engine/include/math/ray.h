@@ -16,9 +16,11 @@ typedef struct rl_aabb {
 
 // Build a world-space ray from screen coordinates and inverse camera matrices.
 // (sx, sy) are in window/screen space; (vp_x, vp_y, vp_w, vp_h) define the viewport rect.
+// ndc_near_z: near-plane Z in NDC — -1.0 for OpenGL (depth [-1,1]), 0.0 for Vulkan (depth [0,1]).
 REALM_API rl_ray ray_from_screen(f32 sx, f32 sy,
                                   f32 vp_x, f32 vp_y, f32 vp_w, f32 vp_h,
-                                  mat4 inv_view, mat4 inv_proj);
+                                  mat4 inv_view, mat4 inv_proj,
+                                  f32 ndc_near_z);
 
 // Slab-method ray/AABB intersection. Returns true if the ray hits, with closest positive t.
 REALM_API b8 ray_intersect_aabb(const rl_ray *ray, const rl_aabb *aabb, f32 *out_t);

@@ -7,7 +7,8 @@
 
 rl_entity ed_pick_entity(rl_scene *scene, f32 screen_x, f32 screen_y,
                           const rl_viewport_rect *viewport,
-                          const rl_frame_camera *camera) {
+                          const rl_frame_camera *camera,
+                          f32 ndc_near_z) {
     if (!scene || !viewport || !camera || !camera->valid) return RL_ENTITY_INVALID;
 
     // Build inverse matrices (memcpy to mutable local to satisfy cglm's non-const API)
@@ -19,7 +20,7 @@ rl_entity ed_pick_entity(rl_scene *scene, f32 screen_x, f32 screen_y,
 
     rl_ray ray = ray_from_screen(screen_x, screen_y,
                                   viewport->x, viewport->y, viewport->w, viewport->h,
-                                  inv_view, inv_proj);
+                                  inv_view, inv_proj, ndc_near_z);
 
     rl_entity_store *es = &scene->entities;
     rl_component_store *cs = &scene->components;

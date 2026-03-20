@@ -1,6 +1,7 @@
 #include "viewport/ed_gizmo_transform.h"
 
 #include "cglm.h"
+#include "core/config.h"
 #include "engine.h"
 #include "memory/arena.h"
 #include "platform/input.h"
@@ -516,9 +517,10 @@ ed_gizmo_drag_result ed_gizmo_transform_frame_update(
     glm_mat4_inv(view_copy, inv_view);
     glm_mat4_inv(proj_copy, inv_proj);
 
+    f32 ndc_near = (config_get()->renderer_backend == BACKEND_VULKAN) ? 0.0f : -1.0f;
     rl_ray ray = ray_from_screen(mpos[0], mpos[1],
                                   vp.x, vp.y, vp.w, vp.h,
-                                  inv_view, inv_proj);
+                                  inv_view, inv_proj, ndc_near);
     ed_gizmo_transform_drag_update(g, scene, &ray);
     result.scene_dirty = true;
 

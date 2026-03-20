@@ -120,7 +120,8 @@ static b8 ed_on_mouse_move(void *event, void *user_data) {
     glm_vec3_copy(app->camera.cam.pos, fc.position);
 
     rl_viewport_rect vp = {vb.x, vb.y, vb.width, vb.height};
-    app->hovered_entity = ed_pick_entity(app->scene, mx, my, &vp, &fc);
+    f32 ndc_near = (config_get()->renderer_backend == BACKEND_VULKAN) ? 0.0f : -1.0f;
+    app->hovered_entity = ed_pick_entity(app->scene, mx, my, &vp, &fc, ndc_near);
 
     return false; // don't consume — other handlers may need mouse move
 }
@@ -270,9 +271,10 @@ static b8 ed_on_click(void *event, void *user_data) {
     glm_mat4_inv(view_copy, inv_view);
     glm_mat4_inv(proj_copy, inv_proj);
 
+    f32 ndc_near = (config_get()->renderer_backend == BACKEND_VULKAN) ? 0.0f : -1.0f;
     rl_ray pick_ray = ray_from_screen(mouse_pos[0], mouse_pos[1],
                                        vp.x, vp.y, vp.w, vp.h,
-                                       inv_view, inv_proj);
+                                       inv_view, inv_proj, ndc_near);
 
     // Gizmo pick takes priority over entity picking
     {
@@ -290,7 +292,7 @@ static b8 ed_on_click(void *event, void *user_data) {
         }
     }
 
-    rl_entity hit = ed_pick_entity(app->scene, mouse_pos[0], mouse_pos[1], &vp, &fc);
+    rl_entity hit = ed_pick_entity(app->scene, mouse_pos[0], mouse_pos[1], &vp, &fc, ndc_near);
     if (hit != RL_ENTITY_INVALID) {
         u32 idx = rl_entity_index(hit);
         app->layout.hierarchy_tree.selected_id = ED_ENTITY_NODE_BASE + idx;

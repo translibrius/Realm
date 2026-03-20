@@ -7,13 +7,15 @@
 
 rl_ray ray_from_screen(f32 sx, f32 sy,
                         f32 vp_x, f32 vp_y, f32 vp_w, f32 vp_h,
-                        mat4 inv_view, mat4 inv_proj) {
+                        mat4 inv_view, mat4 inv_proj,
+                        f32 ndc_near_z) {
     // Screen → NDC (Y flipped: top=+1, bottom=-1)
     f32 ndc_x = 2.0f * (sx - vp_x) / vp_w - 1.0f;
     f32 ndc_y = 1.0f - 2.0f * (sy - vp_y) / vp_h;
 
     // Near/far clip points in clip space
-    vec4 near_clip = {ndc_x, ndc_y, -1.0f, 1.0f};
+    // ndc_near_z: -1.0 for GL (depth [-1,1]), 0.0 for VK (depth [0,1])
+    vec4 near_clip = {ndc_x, ndc_y, ndc_near_z, 1.0f};
     vec4 far_clip  = {ndc_x, ndc_y,  1.0f, 1.0f};
 
     // Unproject to view space

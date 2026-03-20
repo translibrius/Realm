@@ -1,6 +1,7 @@
 #include "../harness/rl_test.h"
 
 #include "math/ray.h"
+#include "../vendor/cglm/clipspace/persp_rh_zo.h"
 
 RL_TEST(ray_intersect_aabb_hit_centered) {
     rl_ray ray = {
@@ -120,12 +121,32 @@ RL_TEST(ray_from_screen_center_fires_forward) {
     glm_mat4_inv(proj, inv_proj);
 
     // Center of a 100x100 viewport
-    rl_ray ray = ray_from_screen(50.0f, 50.0f, 0.0f, 0.0f, 100.0f, 100.0f, inv_view, inv_proj);
+    rl_ray ray = ray_from_screen(50.0f, 50.0f, 0.0f, 0.0f, 100.0f, 100.0f, inv_view, inv_proj, -1.0f);
 
     // Direction should be approximately (0, 0, -1)
     RL_EXPECT_NEAR_F32(ray.direction[0], 0.0f, 0.02f);
     RL_EXPECT_NEAR_F32(ray.direction[1], 0.0f, 0.02f);
     RL_EXPECT_NEAR_F32(ray.direction[2], -1.0f, 0.02f);
+}
+
+RL_TEST(ray_from_screen_center_vk_depth) {
+    // Same camera, but with Vulkan's [0,1] depth projection
+    mat4 view, proj, inv_view, inv_proj;
+    glm_lookat((vec3){0, 0, 0}, (vec3){0, 0, -1}, (vec3){0, 1, 0}, view);
+    glm_perspective_rh_zo(glm_rad(90.0f), 1.0f, 0.1f, 100.0f, proj);
+    glm_mat4_inv(view, inv_view);
+    glm_mat4_inv(proj, inv_proj);
+
+    // Center of viewport, using ndc_near_z = 0 for Vulkan
+    rl_ray ray = ray_from_screen(50.0f, 50.0f, 0.0f, 0.0f, 100.0f, 100.0f, inv_view, inv_proj, 0.0f);
+
+    // Direction should be approximately (0, 0, -1), same as the GL version
+    RL_EXPECT_NEAR_F32(ray.direction[0], 0.0f, 0.02f);
+    RL_EXPECT_NEAR_F32(ray.direction[1], 0.0f, 0.02f);
+    RL_EXPECT_NEAR_F32(ray.direction[2], -1.0f, 0.02f);
+
+    // Origin should be at the near plane (z ≈ -0.1), not behind it
+    RL_EXPECT_NEAR_F32(ray.origin[2], -0.1f, 0.01f);
 }
 
 void register_ray_tests(void) {
@@ -138,4 +159,5 @@ void register_ray_tests(void) {
     RL_REGISTER_TEST(aabb_from_unit_cube_translated);
     RL_REGISTER_TEST(aabb_from_unit_cube_scaled);
     RL_REGISTER_TEST(ray_from_screen_center_fires_forward);
+    RL_REGISTER_TEST(ray_from_screen_center_vk_depth);
 }
