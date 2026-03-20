@@ -1,4 +1,4 @@
-#include "ed_gizmo.h"
+#include "viewport/ed_gizmo.h"
 
 #include "core/camera.h"
 #include "core/config.h"

@@ -1,6 +1,6 @@
-#include "ed_asset_browser.h"
+#include "panels/ed_asset_browser.h"
 
-#include "ed_application.h"
+#include "core/ed_application.h"
 #include "asset/asset.h"
 #include "core/component.h"
 #include "core/entity.h"

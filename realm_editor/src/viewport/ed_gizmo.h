@@ -1,7 +1,7 @@
 #pragma once
 
 #include "defines.h"
-#include "ed_camera.h"
+#include "viewport/ed_camera.h"
 #include "renderer/frame_data.h"
 
 #include "clay.h"

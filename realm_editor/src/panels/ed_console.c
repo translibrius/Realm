@@ -1,4 +1,4 @@
-#include "ed_console.h"
+#include "panels/ed_console.h"
 
 #include "asset/asset.h"
 #include "engine.h"

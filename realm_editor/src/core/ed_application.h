@@ -2,24 +2,20 @@
 
 #include "core/entity.h"
 #include "core/scene.h"
+#include "core/ed_mode.h"
 #include "defines.h"
-#include "ed_asset_browser.h"
-#include "ed_camera.h"
-#include "ed_config.h"
-#include "ed_console.h"
-#include "ed_event_handler.h"
-#include "ed_layout.h"
-#include "ed_project_picker.h"
+#include "panels/ed_asset_browser.h"
+#include "viewport/ed_camera.h"
+#include "core/ed_config.h"
+#include "panels/ed_console.h"
+#include "core/ed_event_handler.h"
+#include "panels/ed_layout.h"
+#include "project/ed_project_picker.h"
 #include "gui/gui_file_browser.h"
-#include "ed_gizmo_transform.h"
-#include "ed_undo.h"
+#include "viewport/ed_gizmo_transform.h"
+#include "scene/ed_undo.h"
 #include "platform/platform.h"
 #include "renderer/renderer_backend.h"
-
-typedef enum ED_MODE {
-    ED_MODE_PICKER,
-    ED_MODE_EDITOR,
-} ED_MODE;
 
 typedef struct ed_application {
     platform_window window;

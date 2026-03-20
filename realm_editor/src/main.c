@@ -1,6 +1,6 @@
 #include <core/logger.h>
 
-#include "ed_application.h"
+#include "core/ed_application.h"
 
 int main() {
     if (!create_editor()) {

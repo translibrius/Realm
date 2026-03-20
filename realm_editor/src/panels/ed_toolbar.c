@@ -1,6 +1,6 @@
-#include "ed_toolbar.h"
+#include "panels/ed_toolbar.h"
 
-#include "ed_application.h"
+#include "core/ed_application.h"
 #include "asset/asset.h"
 #include "gui/gui_button.h"
 #include "gui/gui_clay.h"

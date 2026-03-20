@@ -1,7 +1,7 @@
-#include "ed_project_picker.h"
+#include "project/ed_project_picker.h"
 
-#include "ed_application.h"
-#include "ed_config.h"
+#include "core/ed_application.h"
+#include "core/ed_config.h"
 #include "asset/asset.h"
 #include "core/event.h"
 #include "core/logger.h"

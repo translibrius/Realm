@@ -1,7 +1,7 @@
-#include "ed_settings.h"
+#include "panels/ed_settings.h"
 
-#include "ed_config.h"
-#include "ed_layout.h"
+#include "core/ed_config.h"
+#include "panels/ed_layout.h"
 #include "asset/asset.h"
 #include "gui/gui_checkbox.h"
 #include "gui/gui_clay.h"

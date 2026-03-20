@@ -1,17 +1,17 @@
-#include "ed_layout.h"
+#include "panels/ed_layout.h"
 
-#include "ed_application.h"
-#include "ed_asset_browser.h"
-#include "ed_console.h"
-#include "ed_inspector.h"
-#include "ed_settings.h"
-#include "ed_toolbar.h"
-#include "ed_camera.h"
+#include "core/ed_application.h"
+#include "panels/ed_asset_browser.h"
+#include "panels/ed_console.h"
+#include "panels/ed_inspector.h"
+#include "panels/ed_settings.h"
+#include "panels/ed_toolbar.h"
+#include "viewport/ed_camera.h"
+#include "scene/ed_entity_ops.h"
 #include "asset/asset.h"
 #include "core/component.h"
 #include "core/entity.h"
 #include "core/scene.h"
-#include "renderer/frame_data.h"
 #include "engine.h"
 #include "gui/gui_clay.h"
 #include "gui/gui_context_menu.h"
@@ -501,47 +501,23 @@ void ed_layout_render(ed_layout *layout, ed_application *app, f32 dt) {
         if (picked >= 0) {
             rl_scene *scene = app->scene;
             if (picked == 0) {
-                // Add empty entity with default transform
-                rl_entity e = scene_entity_create(scene, "Entity");
-                rl_transform *tr = transform_add(&scene->components, e);
-                tr->scale[0] = tr->scale[1] = tr->scale[2] = 1.0f;
-                tr->dirty = true;
+                rl_entity e = ed_entity_create_empty(scene, "Entity");
                 layout->hierarchy_tree.selected_id = ED_ENTITY_NODE_BASE + rl_entity_index(e);
                 app->scene_dirty = true;
             } else if (picked == 1) {
-                // Add light with default transform
-                rl_entity e = scene_entity_create(scene, "Light");
-                rl_component_store *cs = &scene->components;
-                rl_transform *tr = transform_add(cs, e);
-                tr->position[1] = 3.0f;
-                tr->scale[0] = tr->scale[1] = tr->scale[2] = 1.0f;
-                tr->dirty = true;
-                rl_light_component *lc = light_add(cs, e);
-                lc->ambient[0] = lc->ambient[1] = lc->ambient[2] = 0.1f;
-                lc->diffuse[0] = lc->diffuse[1] = lc->diffuse[2] = 0.8f;
-                lc->specular[0] = lc->specular[1] = lc->specular[2] = 1.0f;
+                rl_entity e = ed_entity_create_light(scene);
                 layout->hierarchy_tree.selected_id = ED_ENTITY_NODE_BASE + rl_entity_index(e);
                 app->scene_dirty = true;
             } else if (picked == 2 && has_sel) {
-                // Duplicate — create entity with same name and copy transform
                 u32 idx = sel - ED_ENTITY_NODE_BASE;
                 rl_entity src = rl_entity_pack(idx, scene->entities.generation[idx]);
-                rl_component_store *cs = &scene->components;
-                const char *name = cs->has_name[idx] ? cs->names[idx].name : "Entity";
-                rl_entity dup = scene_entity_create(scene, name);
-                rl_transform *tr = transform_get(cs, src);
-                if (tr) {
-                    rl_transform *dst = transform_add(cs, dup);
-                    *dst = *tr;
-                    dst->dirty = true;
-                }
-                app->scene_dirty = true;
+                rl_entity dup = ed_entity_duplicate(scene, src);
                 layout->hierarchy_tree.selected_id = ED_ENTITY_NODE_BASE + rl_entity_index(dup);
+                app->scene_dirty = true;
             } else if (picked == 3 && has_sel) {
-                // Delete
                 u32 idx = sel - ED_ENTITY_NODE_BASE;
                 rl_entity e = rl_entity_pack(idx, scene->entities.generation[idx]);
-                scene_entity_destroy(scene, e);
+                ed_entity_delete(scene, e);
                 layout->hierarchy_tree.selected_id = 0;
                 app->scene_dirty = true;
             }
@@ -560,31 +536,11 @@ void ed_layout_render(ed_layout *layout, ed_application *app, f32 dt) {
         if (picked >= 0) {
             rl_scene *scene = app->scene;
             if (picked == 0) {
-                // Add cube with default transform
-                rl_entity e = scene_entity_create(scene, "Cube");
-                rl_component_store *cs = &scene->components;
-                rl_transform *tr = transform_add(cs, e);
-                tr->scale[0] = tr->scale[1] = tr->scale[2] = 1.0f;
-                tr->dirty = true;
-                rl_mesh_component *mc = mesh_add(cs, e);
-                mc->kind = RL_FRAME_MESH_KIND_LIT;
-                mc->primitive = RL_FRAME_PRIMITIVE_CUBE;
-                mc->material.specular[0] = mc->material.specular[1] = mc->material.specular[2] = 0.5f;
-                mc->material.shininess = 32.0f;
+                rl_entity e = ed_entity_create_cube(scene);
                 layout->hierarchy_tree.selected_id = ED_ENTITY_NODE_BASE + rl_entity_index(e);
                 app->scene_dirty = true;
             } else if (picked == 1) {
-                // Add light with default transform
-                rl_entity e = scene_entity_create(scene, "Light");
-                rl_component_store *cs = &scene->components;
-                rl_transform *tr = transform_add(cs, e);
-                tr->position[1] = 3.0f;
-                tr->scale[0] = tr->scale[1] = tr->scale[2] = 1.0f;
-                tr->dirty = true;
-                rl_light_component *lc = light_add(cs, e);
-                lc->ambient[0] = lc->ambient[1] = lc->ambient[2] = 0.1f;
-                lc->diffuse[0] = lc->diffuse[1] = lc->diffuse[2] = 0.8f;
-                lc->specular[0] = lc->specular[1] = lc->specular[2] = 1.0f;
+                rl_entity e = ed_entity_create_light(scene);
                 layout->hierarchy_tree.selected_id = ED_ENTITY_NODE_BASE + rl_entity_index(e);
                 app->scene_dirty = true;
             } else if (picked == 2) {

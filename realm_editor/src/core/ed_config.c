@@ -1,4 +1,4 @@
-#include "ed_config.h"
+#include "core/ed_config.h"
 
 #include "core/logger.h"
 #include "platform/io/file_io.h"

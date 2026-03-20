@@ -1,7 +1,7 @@
 #pragma once
 
 #include "defines.h"
-#include "ed_inspector.h"
+#include "panels/ed_inspector.h"
 #include "gui/gui_context_menu.h"
 #include "gui/gui_dropdown.h"
 #include "gui/gui_scroll.h"

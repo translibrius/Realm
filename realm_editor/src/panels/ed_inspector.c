@@ -1,6 +1,6 @@
-#include "ed_inspector.h"
+#include "panels/ed_inspector.h"
 
-#include "ed_undo.h"
+#include "scene/ed_undo.h"
 #include "asset/asset.h"
 #include "core/component.h"
 #include "gui/gui_clay.h"
