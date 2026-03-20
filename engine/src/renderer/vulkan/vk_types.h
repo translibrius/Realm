@@ -319,4 +319,19 @@ typedef struct VK_Context {
     mat4 proj;
 
     f32 clear_color[4];
+
+    // Outline (JFA)
+    struct {
+        b8 ready;
+        VkRenderPass mask_render_pass;
+        VkRenderPass jfa_render_pass;
+        struct { VkImage image; VkDeviceMemory memory; VkImageView view; VkFramebuffer framebuffer; u32 width, height; VkFormat format; } mask_rt, jfa_a, jfa_b;
+        VkImage mask_depth_image; VkDeviceMemory mask_depth_memory; VkImageView mask_depth_view;
+        VkSampler sampler;
+        VkDescriptorPool descriptor_pool;
+        VkDescriptorSet mask_ds[2], jfa_a_ds[2], jfa_b_ds[2];
+        VkPipeline mask_pipeline, jfa_init_pipeline, jfa_step_pipeline, composite_pipeline;
+        rl_frame_outline *outlines; u32 outline_count;
+        VkDescriptorSet *_final_jfa_ds;
+    } outline;
 } VK_Context;

@@ -3,6 +3,7 @@
 #include "renderer/vulkan/vk_types.h"
 #include "vk_frame_buffers.h"
 #include "vk_image.h"
+#include "vk_outline.h"
 #include "vk_util.h"
 #include "vk_depth.h"
 #include <vulkan/vulkan_core.h>
@@ -252,6 +253,8 @@ b8 vk_swapchain_recreate(VK_Context *context) {
         RL_ERROR("Failed to recreate swapchain: framebuffers could not be created");
         return false;
     }
+
+    vk_outline_resize(context);
 
     return true;
 }

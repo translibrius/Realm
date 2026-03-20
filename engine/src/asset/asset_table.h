@@ -31,6 +31,24 @@ static asset_table_entry engine_asset_table[] = {
     {ASSET_SHADER,  "shaders/opengl/grid.frag",        "grid.frag"},
     {ASSET_SHADER,  "shaders/vulkan/grid.vert",        "grid.vert"},
     {ASSET_SHADER,  "shaders/vulkan/grid.frag",        "grid.frag"},
+
+    // Outline / JFA shaders
+    {ASSET_SHADER,  "shaders/opengl/outline_mask.vert",      "outline_mask.vert"},
+    {ASSET_SHADER,  "shaders/opengl/outline_mask.frag",      "outline_mask.frag"},
+    {ASSET_SHADER,  "shaders/opengl/jfa_init.vert",          "jfa_init.vert"},
+    {ASSET_SHADER,  "shaders/opengl/jfa_init.frag",          "jfa_init.frag"},
+    {ASSET_SHADER,  "shaders/opengl/jfa_step.vert",          "jfa_step.vert"},
+    {ASSET_SHADER,  "shaders/opengl/jfa_step.frag",          "jfa_step.frag"},
+    {ASSET_SHADER,  "shaders/opengl/outline_composite.vert", "outline_composite.vert"},
+    {ASSET_SHADER,  "shaders/opengl/outline_composite.frag", "outline_composite.frag"},
+    {ASSET_SHADER,  "shaders/vulkan/outline_mask.vert",      "outline_mask.vert"},
+    {ASSET_SHADER,  "shaders/vulkan/outline_mask.frag",      "outline_mask.frag"},
+    {ASSET_SHADER,  "shaders/vulkan/jfa_init.vert",          "jfa_init.vert"},
+    {ASSET_SHADER,  "shaders/vulkan/jfa_init.frag",          "jfa_init.frag"},
+    {ASSET_SHADER,  "shaders/vulkan/jfa_step.vert",          "jfa_step.vert"},
+    {ASSET_SHADER,  "shaders/vulkan/jfa_step.frag",          "jfa_step.frag"},
+    {ASSET_SHADER,  "shaders/vulkan/outline_composite.vert", "outline_composite.vert"},
+    {ASSET_SHADER,  "shaders/vulkan/outline_composite.frag", "outline_composite.frag"},
 };
 
 #define ENGINE_ASSET_TABLE_COUNT (sizeof(engine_asset_table) / sizeof(engine_asset_table[0]))

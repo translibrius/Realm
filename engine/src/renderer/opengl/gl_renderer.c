@@ -3,6 +3,7 @@
 #include "asset/asset.h"
 #include "asset/model.h"
 #include "gl_gui.h"
+#include "gl_outline.h"
 #include "math/ray.h"
 #include "gl_texture.h"
 #include "renderer/opengl/gl_text.h"
@@ -292,6 +293,9 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
         glEnable(GL_CULL_FACE);
     }
 
+    // --- Outline pass (JFA) ---
+    gl_outline_render(&context, frame_data);
+
     // --- World-space overlays (transform gizmos — no depth test, main camera) ---
     if (frame_data->world_overlay_count > 0 && frame_data->world_overlays) {
         glDisable(GL_DEPTH_TEST);
@@ -415,6 +419,12 @@ b8 opengl_initialize(platform_window *platform_window, b8 vsync) {
     }
     glGenVertexArrays(1, &context.grid_vao);
 
+    // Outline (JFA) pipeline
+    if (!gl_outline_init(&context, context.window->settings.width, context.window->settings.height)) {
+        RL_ERROR("Outline pipeline init failed");
+        return false;
+    }
+
     return true;
 }
 
@@ -433,6 +443,7 @@ void opengl_destroy() {
 
     gl_mesh_destroy(&context.cube_mesh);
     if (context.grid_vao) glDeleteVertexArrays(1, &context.grid_vao);
+    gl_outline_destroy(&context);
     rl_arena_deinit(&context.arena);
 }
 

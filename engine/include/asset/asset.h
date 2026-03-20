@@ -38,6 +38,25 @@ typedef enum ASSET_TYPE {
 #define RL_ASSET_SHADER_VK_GRID_VERT      "shaders/vulkan/grid.vert"
 #define RL_ASSET_SHADER_VK_GRID_FRAG      "shaders/vulkan/grid.frag"
 
+// Outline / JFA shaders
+#define RL_ASSET_SHADER_GL_OUTLINE_MASK_VERT   "shaders/opengl/outline_mask.vert"
+#define RL_ASSET_SHADER_GL_OUTLINE_MASK_FRAG   "shaders/opengl/outline_mask.frag"
+#define RL_ASSET_SHADER_GL_JFA_INIT_VERT       "shaders/opengl/jfa_init.vert"
+#define RL_ASSET_SHADER_GL_JFA_INIT_FRAG       "shaders/opengl/jfa_init.frag"
+#define RL_ASSET_SHADER_GL_JFA_STEP_VERT       "shaders/opengl/jfa_step.vert"
+#define RL_ASSET_SHADER_GL_JFA_STEP_FRAG       "shaders/opengl/jfa_step.frag"
+#define RL_ASSET_SHADER_GL_OUTLINE_COMP_VERT   "shaders/opengl/outline_composite.vert"
+#define RL_ASSET_SHADER_GL_OUTLINE_COMP_FRAG   "shaders/opengl/outline_composite.frag"
+
+#define RL_ASSET_SHADER_VK_OUTLINE_MASK_VERT   "shaders/vulkan/outline_mask.vert"
+#define RL_ASSET_SHADER_VK_OUTLINE_MASK_FRAG   "shaders/vulkan/outline_mask.frag"
+#define RL_ASSET_SHADER_VK_JFA_INIT_VERT       "shaders/vulkan/jfa_init.vert"
+#define RL_ASSET_SHADER_VK_JFA_INIT_FRAG       "shaders/vulkan/jfa_init.frag"
+#define RL_ASSET_SHADER_VK_JFA_STEP_VERT       "shaders/vulkan/jfa_step.vert"
+#define RL_ASSET_SHADER_VK_JFA_STEP_FRAG       "shaders/vulkan/jfa_step.frag"
+#define RL_ASSET_SHADER_VK_OUTLINE_COMP_VERT   "shaders/vulkan/outline_composite.vert"
+#define RL_ASSET_SHADER_VK_OUTLINE_COMP_FRAG   "shaders/vulkan/outline_composite.frag"
+
 typedef struct rl_asset {
     asset_id id;
     ASSET_TYPE type;

@@ -22,6 +22,7 @@
 #include "vk_gui.h"
 #include "vk_util.h"
 #include "vk_depth.h"
+#include "vk_outline.h"
 #include "core/config.h"
 
 static VK_Context context;
@@ -260,12 +261,18 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
         return false;
     }
 
+    if (!vk_outline_init(&context)) {
+        RL_ERROR("failed to create outline pipeline");
+        return false;
+    }
+
     return true;
 }
 
 void vulkan_destroy(void) {
     vkDeviceWaitIdle(context.device);
 
+    vk_outline_destroy(&context);
     vk_gui_pipeline_destroy(&context);
     vk_text_pipeline_destroy(&context);
     vk_sync_destroy_frame(&context);
@@ -531,6 +538,18 @@ void vulkan_submit_frame_data(rl_frame_data *frame_data) {
     } else {
         context.frame_light = RL_DEFAULT_POINT_LIGHT;
     }
+
+    // Copy outline data
+    context.outline.outline_count = frame_data->outline_count;
+    if (frame_data->outline_count > 0 && frame_data->outlines) {
+        rl_arena *fa3 = rl_engine_get_frame_arena();
+        u64 osz = (u64)frame_data->outline_count * sizeof(rl_frame_outline);
+        context.outline.outlines = rl_arena_push_array(fa3, rl_frame_outline, frame_data->outline_count, false);
+        mem_copy(context.outline.outlines, frame_data->outlines, osz);
+    } else {
+        context.outline.outlines = nullptr;
+    }
+    context.outline._final_jfa_ds = nullptr;
 
     if (frame_data->text_count > 0 && frame_data->texts) {
         for (u32 i = 0; i < frame_data->text_count; i++) {

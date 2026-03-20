@@ -3,12 +3,14 @@
 #include "defines.h"
 #include "gl_shader.h"
 #include "gl_texture.h"
+#include "gl_render_target.h"
 #include "memory/arena.h"
 #include "memory/containers/dynamic_array.h"
 #include "platform/platform.h"
 #include "gl_mesh.h"
 #include "asset/font.h"
 #include "core/camera.h"
+#include "renderer/frame_data.h"
 
 typedef struct {
     u32 texture_id;
@@ -86,6 +88,22 @@ typedef struct GL_Context {
 
     // Debug
     b8 debug_wireframe;
+
+    // Outline (JFA)
+    GL_Shader outline_mask_shader;
+    GL_Shader jfa_init_shader;
+    GL_Shader jfa_step_shader;
+    GL_Shader outline_composite_shader;
+    GL_RenderTarget outline_mask_rt;  // RGBA8 — white silhouette
+    GL_RenderTarget outline_jfa_a;    // RGBA16F — JFA ping
+    GL_RenderTarget outline_jfa_b;    // RGBA16F — JFA pong
+    u32 fullscreen_quad_vao;
+    u32 fullscreen_quad_vbo;
+    b8 outline_ready; // true once shaders + RTs are initialized
+
+    // Per-frame outline data (copied from frame_data)
+    rl_frame_outline *frame_outlines;
+    u32 frame_outline_count;
 
     // Mat
     mat4 view;

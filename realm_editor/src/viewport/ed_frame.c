@@ -14,8 +14,11 @@
 #include "core/project.h"
 #include "core/project_export.h"
 #include "core/scene.h"
+#include "engine.h"
 #include "gui/gui.h"
 #include "gui/gui_file_browser.h"
+#include "gui/gui_theme.h"
+#include "memory/arena.h"
 #include "renderer/renderer_frontend.h"
 
 void ed_frame_update(ed_application *app, f64 dt) {
@@ -89,6 +92,44 @@ void ed_frame_update(ed_application *app, f64 dt) {
             }
 
             ed_gizmo_build_axis_overlay(&app->camera, &vb, &frame);
+
+            // Outline requests for hover / selection
+            {
+                rl_entity sel_entity = RL_ENTITY_INVALID;
+                if (gizmo_entity) sel_entity = gizmo_entity;
+
+                u32 ol_count = 0;
+                if (app->hovered_entity && app->hovered_entity != sel_entity) ol_count++;
+                if (sel_entity) ol_count++;
+
+                if (ol_count > 0) {
+                    const gui_theme *t = gui_theme_get();
+                    rl_arena *fa = rl_engine_get_frame_arena();
+                    rl_frame_outline *ols = rl_arena_push_array(fa, rl_frame_outline, ol_count, true);
+                    u32 idx = 0;
+
+                    if (sel_entity) {
+                        ols[idx].entity = sel_entity;
+                        ols[idx].color[0] = t->accent.r / 255.0f;
+                        ols[idx].color[1] = t->accent.g / 255.0f;
+                        ols[idx].color[2] = t->accent.b / 255.0f;
+                        ols[idx].color[3] = 1.0f;
+                        ols[idx].width = 3.0f;
+                        idx++;
+                    }
+                    if (app->hovered_entity && app->hovered_entity != sel_entity) {
+                        ols[idx].entity = app->hovered_entity;
+                        ols[idx].color[0] = t->accent_hover.r / 255.0f;
+                        ols[idx].color[1] = t->accent_hover.g / 255.0f;
+                        ols[idx].color[2] = t->accent_hover.b / 255.0f;
+                        ols[idx].color[3] = 0.8f;
+                        ols[idx].width = 2.0f;
+                        idx++;
+                    }
+                    frame.outlines = ols;
+                    frame.outline_count = ol_count;
+                }
+            }
         }
 
         renderer_submit_frame_data(&frame);

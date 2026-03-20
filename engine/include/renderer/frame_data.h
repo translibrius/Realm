@@ -67,6 +67,18 @@ typedef struct rl_viewport_rect {
     f32 x, y, w, h; // pixels; all-zero = full window
 } rl_viewport_rect;
 
+typedef enum rl_outline_technique {
+    RL_OUTLINE_JFA = 0, // crisp uniform-width (default)
+} rl_outline_technique;
+
+typedef struct rl_frame_outline {
+    rl_entity entity;
+    vec4 color;
+    f32 width;
+    rl_outline_technique technique;
+    b8 through_walls;
+} rl_frame_outline;
+
 typedef struct rl_frame_data {
     rl_frame_camera camera;
 
@@ -91,4 +103,8 @@ typedef struct rl_frame_data {
     u32             overlay_count;
 
     b8 show_grid;
+
+    // Outline requests (entity highlights)
+    rl_frame_outline *outlines;
+    u32 outline_count;
 } rl_frame_data;

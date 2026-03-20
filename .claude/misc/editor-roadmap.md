@@ -98,17 +98,28 @@ Rich asset interaction: thumbnail previews in the asset browser, drag-and-drop a
 - [ ] Visual feedback during drag: valid/invalid drop zone indication
 - [ ] Undo support for all drop actions
 
-### 21c. Entity highlight on hover — picking infrastructure done, outline rendering reverted
+### 21c. Entity highlight on hover — JFA outline rendering implemented
 
-Hover picking infrastructure is complete. Stencil-based outline rendering was implemented but macOS OpenGL's deprecated driver silently drops all stencil writes. The stencil outline code was fully removed pending a stencil-free technique (post-process edge detection, jump flood, or similar).
+Hover picking infrastructure is complete. Stencil-based outline was reverted (macOS GL drops stencil writes). Replaced with FBO-based Jump Flood Algorithm (JFA) outlines — engine-level API, both backends.
 
-**Kept (picking infrastructure):**
+**Implementation:**
 - [x] Hover picking via `EVENT_MOUSE_MOVE` within viewport bounds
 - [x] Imported mesh AABB picking — `aabb_from_mesh_asset()` uses actual vertex bounds
 - [x] `source_entity` field on `rl_frame_mesh` for highlight matching
 - [x] `hovered_entity` on editor app state
+- [x] `rl_frame_outline` API in `frame_data.h` — entity, color, width, technique, through_walls
+- [x] GL FBO render target abstraction (`gl_render_target.c`)
+- [x] JFA shaders: mask, init, step, composite (both GL + VK GLSL)
+- [x] GL outline pass orchestration (`gl_outline.c`)
+- [x] VK outline pass orchestration (`vk_outline.c`) — offscreen render passes, per-RT descriptor sets
+- [x] Editor integration: hover (accent_hover, 2px) + selection (accent, 3px) outlines
+- [x] Resize handling in both backends (GL resize, VK swapchain recreate)
 
-**Next:** choose a stencil-free outline technique and re-implement for both backends
+**Architecture decisions:**
+- Engine-level API via `rl_frame_data.outlines` — usable by both editor and game modules
+- FBO infrastructure also serves Phase 22d (camera preview)
+- `rl_outline_technique` enum allows future techniques (blur/glow, Sobel) as user-selectable options
+- Through-walls support via `through_walls` flag (skips depth test in mask pass)
 
 ### 21d. Inspector drop targets
 
@@ -180,8 +191,7 @@ Phase 1–20: Foundation + infrastructure       all done
     │
     ├── Phase 18b: Project Scaffolding docs    ○ remaining (18a template done)
     │
-    ├── Phase 21: Asset Drag-Drop + Highlight  ◐ 21c picking done, 21a/21b/21d remaining
-    │                                            outline rendering needs stencil-free technique
+    ├── Phase 21: Asset Drag-Drop + Highlight  ◐ 21c done (JFA outlines), 21a/21b/21d remaining
     │
     ├── Phase 22: Camera Component             ◐ 22a+22b done, 22c remaining, 22d deferred
     │       │

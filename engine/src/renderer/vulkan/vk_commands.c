@@ -1,6 +1,7 @@
 #include "vk_commands.h"
 #include "vk_gui.h"
 #include "vk_mesh.h"
+#include "vk_outline.h"
 #include "vk_util.h"
 #include "asset/asset.h"
 #include "asset/model.h"
@@ -119,6 +120,9 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
         return false;
     }
 
+    // Outline offscreen passes (mask + JFA) — before main render pass
+    vk_outline_record_offscreen(context, buffer);
+
     VkClearValue clear_values[2] = {
         (VkClearValue) {.color = {context->clear_color[0], context->clear_color[1], context->clear_color[2], context->clear_color[3]}},
         (VkClearValue) {.depthStencil = {1.0f, 0.0f}}
@@ -220,6 +224,9 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
             vkCmdPushConstants(buffer, context->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(VK_MeshPushConstants), &pc);
             vk_cmd_bind_and_draw(context, buffer, fm);
         }
+
+        // --- Outline composite (JFA result blended onto scene) ---
+        vk_outline_record_composite(context, buffer);
 
         // --- World-space overlays (transform gizmos — main camera, no depth test) ---
         if (context->world_overlay_count > 0 && context->world_overlays) {
