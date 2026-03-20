@@ -55,13 +55,23 @@ static b8 create_mask_render_pass(VK_Context *ctx) {
         .pDepthStencilAttachment = &depth_ref,
     };
 
-    VkSubpassDependency dep = {
-        .srcSubpass = VK_SUBPASS_EXTERNAL,
-        .dstSubpass = 0,
-        .srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-        .srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
-        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+    VkSubpassDependency deps[2] = {
+        {
+            .srcSubpass = VK_SUBPASS_EXTERNAL,
+            .dstSubpass = 0,
+            .srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+            .srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
+            .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+        },
+        {
+            .srcSubpass = 0,
+            .dstSubpass = VK_SUBPASS_EXTERNAL,
+            .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+        },
     };
 
     VkRenderPassCreateInfo ci = {
@@ -70,8 +80,8 @@ static b8 create_mask_render_pass(VK_Context *ctx) {
         .pAttachments = attachments,
         .subpassCount = 1,
         .pSubpasses = &subpass,
-        .dependencyCount = 1,
-        .pDependencies = &dep,
+        .dependencyCount = 2,
+        .pDependencies = deps,
     };
 
     VK_CHECK_RETURN_FALSE(vkCreateRenderPass(ctx->device, &ci, nullptr, &OL.mask_render_pass),
@@ -99,13 +109,23 @@ static b8 create_jfa_render_pass(VK_Context *ctx) {
         .pColorAttachments = &color_ref,
     };
 
-    VkSubpassDependency dep = {
-        .srcSubpass = VK_SUBPASS_EXTERNAL,
-        .dstSubpass = 0,
-        .srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        .srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
-        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    VkSubpassDependency deps[2] = {
+        {
+            .srcSubpass = VK_SUBPASS_EXTERNAL,
+            .dstSubpass = 0,
+            .srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
+            .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        },
+        {
+            .srcSubpass = 0,
+            .dstSubpass = VK_SUBPASS_EXTERNAL,
+            .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+        },
     };
 
     VkRenderPassCreateInfo ci = {
@@ -114,8 +134,8 @@ static b8 create_jfa_render_pass(VK_Context *ctx) {
         .pAttachments = &attachment,
         .subpassCount = 1,
         .pSubpasses = &subpass,
-        .dependencyCount = 1,
-        .pDependencies = &dep,
+        .dependencyCount = 2,
+        .pDependencies = deps,
     };
 
     VK_CHECK_RETURN_FALSE(vkCreateRenderPass(ctx->device, &ci, nullptr, &OL.jfa_render_pass),
@@ -207,7 +227,7 @@ static b8 create_mask_pipeline(VK_Context *ctx) {
         .bindings = &binding, .binding_count = 1,
         .attributes = attrs, .attribute_count = 3,
         .depth_test = true, .depth_write = true,
-        .cull_mode = VK_CULL_MODE_BACK_BIT,
+        .cull_mode = VK_CULL_MODE_NONE,
         .polygon_mode = VK_POLYGON_MODE_FILL,
         .msaa_samples = VK_SAMPLE_COUNT_1_BIT,
         .render_pass = OL.mask_render_pass,
@@ -363,12 +383,11 @@ void vk_outline_destroy(VK_Context *ctx) {
     mem_zero(&OL, sizeof(OL));
 }
 
-void vk_outline_resize(VK_Context *ctx) {
+void vk_outline_resize(VK_Context *ctx, u32 w, u32 h) {
     if (!OL.ready) return;
-
-    u32 w = ctx->swapchain.chosen_extent.width;
-    u32 h = ctx->swapchain.chosen_extent.height;
     if (w == OL.mask_rt.width && h == OL.mask_rt.height) return;
+
+    vkDeviceWaitIdle(ctx->device);
 
     destroy_ort(ctx, (VK_ORT *)&OL.jfa_b);
     destroy_ort(ctx, (VK_ORT *)&OL.jfa_a);
@@ -399,8 +418,27 @@ void vk_outline_resize(VK_Context *ctx) {
 void vk_outline_record_offscreen(VK_Context *ctx, VkCommandBuffer cmd) {
     if (!OL.ready || OL.outline_count == 0 || !OL.outlines) return;
 
+    // Use viewport dimensions (matching the scene projection's aspect ratio),
+    // falling back to swapchain size when no viewport rect is specified.
+    rl_viewport_rect vr = ctx->scene_viewport;
+    u32 rt_w = (vr.w > 0 && vr.h > 0) ? (u32)vr.w : ctx->swapchain.chosen_extent.width;
+    u32 rt_h = (vr.w > 0 && vr.h > 0) ? (u32)vr.h : ctx->swapchain.chosen_extent.height;
+    vk_outline_resize(ctx, rt_w, rt_h);
+
     u32 w = OL.mask_rt.width;
     u32 h = OL.mask_rt.height;
+
+    // Barrier: ensure any previous frame's outline reads/writes are complete before
+    // we start writing. The RTs are shared between frames-in-flight.
+    VkMemoryBarrier mem_barrier = {
+        .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+        .srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    };
+    vkCmdPipelineBarrier(cmd,
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        0, 1, &mem_barrier, 0, nullptr, 0, nullptr);
 
     // === 1. Mask pass ===
     {
@@ -414,7 +452,7 @@ void vk_outline_record_offscreen(VK_Context *ctx, VkCommandBuffer cmd) {
         };
         vkCmdBeginRenderPass(cmd, &rp, VK_SUBPASS_CONTENTS_INLINE);
 
-        VkViewport vp = {.y = (f32)h, .width = (f32)w, .height = -(f32)h, .maxDepth = 1};
+        VkViewport vp = {.width = (f32)w, .height = (f32)h, .maxDepth = 1};
         VkRect2D sc = {.extent = {w, h}};
         vkCmdSetViewport(cmd, 0, 1, &vp);
         vkCmdSetScissor(cmd, 0, 1, &sc);
@@ -467,7 +505,7 @@ void vk_outline_record_offscreen(VK_Context *ctx, VkCommandBuffer cmd) {
         };
         vkCmdBeginRenderPass(cmd, &rp, VK_SUBPASS_CONTENTS_INLINE);
 
-        VkViewport vp = {.y = (f32)h, .width = (f32)w, .height = -(f32)h, .maxDepth = 1};
+        VkViewport vp = {.width = (f32)w, .height = (f32)h, .maxDepth = 1};
         VkRect2D sc = {.extent = {w, h}};
         vkCmdSetViewport(cmd, 0, 1, &vp);
         vkCmdSetScissor(cmd, 0, 1, &sc);
@@ -501,7 +539,7 @@ void vk_outline_record_offscreen(VK_Context *ctx, VkCommandBuffer cmd) {
         };
         vkCmdBeginRenderPass(cmd, &rp, VK_SUBPASS_CONTENTS_INLINE);
 
-        VkViewport vp = {.y = (f32)h, .width = (f32)w, .height = -(f32)h, .maxDepth = 1};
+        VkViewport vp = {.width = (f32)w, .height = (f32)h, .maxDepth = 1};
         VkRect2D sc = {.extent = {w, h}};
         vkCmdSetViewport(cmd, 0, 1, &vp);
         vkCmdSetScissor(cmd, 0, 1, &sc);

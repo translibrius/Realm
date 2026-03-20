@@ -147,6 +147,10 @@ void gl_outline_render(GL_Context *ctx, rl_frame_data *frame_data) {
     // Resize if needed
     gl_outline_resize(ctx, rt_w, rt_h);
 
+    // Disable scissor for offscreen passes — the main renderer's scissor rect is in
+    // window coordinates, not FBO-local coordinates, and would clip the mask/JFA textures.
+    glDisable(GL_SCISSOR_TEST);
+
     // For each unique outline group (color+width), we run mask+JFA+composite.
     // First pass: single group (most common — 1-2 outlines with same params).
     // TODO: group by color+width for multiple distinct outlines

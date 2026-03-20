@@ -300,7 +300,10 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
     if (frame_data->world_overlay_count > 0 && frame_data->world_overlays) {
         glDisable(GL_DEPTH_TEST);
 
-        // light_shader + scene view/projection already set from unlit pass
+        // Re-activate light_shader (outline pass may have changed the active program)
+        opengl_shader_use(&context.light_shader);
+        opengl_shader_set_mat4(&context.light_shader, "view", context.view);
+        opengl_shader_set_mat4(&context.light_shader, "projection", context.projection);
         bound_vao = 0;
         for (u32 i = 0; i < frame_data->world_overlay_count; i++) {
             rl_frame_mesh *wm = &frame_data->world_overlays[i];

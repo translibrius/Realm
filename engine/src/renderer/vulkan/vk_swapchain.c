@@ -254,7 +254,8 @@ b8 vk_swapchain_recreate(VK_Context *context) {
         return false;
     }
 
-    vk_outline_resize(context);
+    vk_outline_resize(context, context->swapchain.chosen_extent.width,
+                       context->swapchain.chosen_extent.height);
 
     return true;
 }

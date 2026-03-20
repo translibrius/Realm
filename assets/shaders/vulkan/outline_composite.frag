@@ -12,9 +12,11 @@ layout (push_constant) uniform PushConstants {
 } push;
 
 void main() {
-    vec2 seed = texture(jfa_tex, fragTexCoord).rg;
+    vec4 jfa = texture(jfa_tex, fragTexCoord);
+    vec2 seed = jfa.rg;
+    float mask = jfa.b; // carried through from JFA init
 
-    if (seed.x < 0.0) discard; // no seed nearby
+    if (seed.x < 0.0) discard;
 
     vec4 outline_color = push.material_params;
     float outline_width = push.obj_center.x;
@@ -23,8 +25,8 @@ void main() {
     vec2 diff = (fragTexCoord - seed) * screen_size;
     float dist = length(diff);
 
-    // dist ~0 = inside mask (seed pixel), dist > 0 = outside mask
-    if (dist < 0.5 || dist > outline_width) discard;
+    // Only draw outside the mask, within outline_width pixels of the edge
+    if (mask > 0.5 || dist > outline_width) discard;
 
     float alpha = smoothstep(outline_width, outline_width - 1.0, dist);
     outColor = vec4(outline_color.rgb, outline_color.a * alpha);
