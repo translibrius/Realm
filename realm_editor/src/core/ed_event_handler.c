@@ -26,8 +26,7 @@
 
 static void ed_on_backend_switch(void *userdata, RENDERER_BACKEND new_backend) {
     ed_application *app = userdata;
-    app->requested_backend = new_backend;
-    app->backend_switch_requested = true;
+    ed_cmd_push(&app->cmds, (ed_cmd){.type = ED_CMD_SWITCH_BACKEND, .backend = new_backend});
     RL_INFO("Scheduled renderer backend switch to %d", new_backend);
 }
 
@@ -177,13 +176,13 @@ static b8 ed_on_key(void *event, void *user_data) {
 
     // Ctrl+Z = Undo
     if (k->key == KEY_Z && ctrl && !shift) {
-        app->undo_requested = true;
+        ed_cmd_push(&app->cmds, (ed_cmd){.type = ED_CMD_UNDO});
         return true;
     }
 
     // Ctrl+Shift+Z = Redo
     if (k->key == KEY_Z && ctrl && shift) {
-        app->redo_requested = true;
+        ed_cmd_push(&app->cmds, (ed_cmd){.type = ED_CMD_REDO});
         return true;
     }
 

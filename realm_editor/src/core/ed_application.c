@@ -24,80 +24,76 @@ static b8 ed_switch_backend(RENDERER_BACKEND backend) {
 }
 
 
+static void ed_rebind_inspector_to_selection(void) {
+    u32 sel = app.layout.hierarchy_tree.selected_id;
+    if (sel >= ED_ENTITY_NODE_BASE) {
+        u32 idx = sel - ED_ENTITY_NODE_BASE;
+        rl_entity e = rl_entity_pack(idx, app.scene->entities.generation[idx]);
+        ed_inspector_bind(&app.layout.inspector, app.scene, e);
+    }
+}
+
 static void ed_handle_requests(void) {
-    if (app.minimize_requested) {
-        app.minimize_requested = false;
-        platform_window_minimize(&app.window);
-    }
-
-    if (app.maximize_requested) {
-        app.maximize_requested = false;
-        if (platform_window_is_maximized(&app.window))
-            platform_window_restore(&app.window);
-        else
-            platform_window_maximize(&app.window);
-    }
-
-    if (app.backend_switch_requested) {
-        app.backend_switch_requested = false;
-        ed_switch_backend(app.requested_backend);
-    }
-
-    if (app.mode == ED_MODE_EDITOR && app.save_scene_requested) {
-        app.save_scene_requested = false;
-        if (app.scene_path[0]) {
-            ed_scene_save(&app, app.scene_path);
-        } else {
-            char abs_path[512];
-            ed_scene_build_abs_path(abs_path, sizeof(abs_path));
-            if (abs_path[0]) ed_scene_save(&app, abs_path);
+    for (u32 i = 0; i < app.cmds.count; i++) {
+        ed_cmd cmd = app.cmds.items[i];
+        switch (cmd.type) {
+            case ED_CMD_MINIMIZE:
+                platform_window_minimize(&app.window);
+                break;
+            case ED_CMD_MAXIMIZE:
+                if (platform_window_is_maximized(&app.window))
+                    platform_window_restore(&app.window);
+                else
+                    platform_window_maximize(&app.window);
+                break;
+            case ED_CMD_SWITCH_BACKEND:
+                ed_switch_backend(cmd.backend);
+                break;
+            case ED_CMD_SAVE_SCENE:
+                if (app.mode != ED_MODE_EDITOR) break;
+                if (app.scene_path[0]) {
+                    ed_scene_save(&app, app.scene_path);
+                } else {
+                    char abs_path[512];
+                    ed_scene_build_abs_path(abs_path, sizeof(abs_path));
+                    if (abs_path[0]) ed_scene_save(&app, abs_path);
+                }
+                break;
+            case ED_CMD_NEW_SCENE:
+                if (app.mode != ED_MODE_EDITOR) break;
+                ed_scene_new(&app);
+                break;
+            case ED_CMD_UNDO:
+                if (app.mode != ED_MODE_EDITOR) break;
+                if (ed_undo_perform(&app.undo, app.scene)) {
+                    ed_rebind_inspector_to_selection();
+                    app.scene_dirty = true;
+                }
+                break;
+            case ED_CMD_REDO:
+                if (app.mode != ED_MODE_EDITOR) break;
+                if (ed_undo_redo(&app.undo, app.scene)) {
+                    ed_rebind_inspector_to_selection();
+                    app.scene_dirty = true;
+                }
+                break;
+            case ED_CMD_CLOSE_PROJECT:
+                if (app.mode != ED_MODE_EDITOR) break;
+                ed_mode_switch(&app, ED_MODE_PICKER);
+                break;
+            case ED_CMD_EXPORT:
+                if (app.mode != ED_MODE_EDITOR) break;
+                {
+                    rl_project *proj = project_get();
+                    if (proj) {
+                        gui_file_browser_open(&app.export_browser, GUI_FILE_BROWSER_DIRECTORY,
+                                              proj->root_path, NULL);
+                    }
+                }
+                break;
         }
     }
-
-    if (app.mode == ED_MODE_EDITOR && app.new_scene_requested) {
-        app.new_scene_requested = false;
-        ed_scene_new(&app);
-    }
-
-    if (app.mode == ED_MODE_EDITOR && app.undo_requested) {
-        app.undo_requested = false;
-        if (ed_undo_perform(&app.undo, app.scene)) {
-            u32 sel = app.layout.hierarchy_tree.selected_id;
-            if (sel >= ED_ENTITY_NODE_BASE) {
-                u32 idx = sel - ED_ENTITY_NODE_BASE;
-                rl_entity e = rl_entity_pack(idx, app.scene->entities.generation[idx]);
-                ed_inspector_bind(&app.layout.inspector, app.scene, e);
-            }
-            app.scene_dirty = true;
-        }
-    }
-
-    if (app.mode == ED_MODE_EDITOR && app.redo_requested) {
-        app.redo_requested = false;
-        if (ed_undo_redo(&app.undo, app.scene)) {
-            u32 sel = app.layout.hierarchy_tree.selected_id;
-            if (sel >= ED_ENTITY_NODE_BASE) {
-                u32 idx = sel - ED_ENTITY_NODE_BASE;
-                rl_entity e = rl_entity_pack(idx, app.scene->entities.generation[idx]);
-                ed_inspector_bind(&app.layout.inspector, app.scene, e);
-            }
-            app.scene_dirty = true;
-        }
-    }
-
-    if (app.mode == ED_MODE_EDITOR && app.close_project_requested) {
-        app.close_project_requested = false;
-        ed_mode_switch(&app, ED_MODE_PICKER);
-    }
-
-    if (app.mode == ED_MODE_EDITOR && app.export_requested) {
-        app.export_requested = false;
-        rl_project *proj = project_get();
-        if (proj) {
-            gui_file_browser_open(&app.export_browser, GUI_FILE_BROWSER_DIRECTORY,
-                                  proj->root_path, NULL);
-        }
-    }
+    app.cmds.count = 0;
 
     if (app.mode == ED_MODE_PICKER && app.picker.project_selected) {
         ed_mode_switch(&app, ED_MODE_EDITOR);
@@ -108,8 +104,6 @@ b8 create_editor(void) {
     app.mode = ED_MODE_COUNT; // no mode active yet
     app.focused = true;
     app.hovered_entity = RL_ENTITY_INVALID;
-    app.backend_switch_requested = false;
-    app.requested_backend = BACKEND_OPENGL;
 
     // Derive asset root from executable location so it works inside .app bundles too
     char exe_dir[512];

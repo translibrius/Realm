@@ -2,6 +2,7 @@
 
 #include "core/entity.h"
 #include "core/scene.h"
+#include "core/ed_cmd.h"
 #include "core/ed_mode.h"
 #include "defines.h"
 #include "panels/ed_asset_browser.h"
@@ -32,19 +33,10 @@ typedef struct ed_application {
     ed_undo_stack undo;
     rl_entity hovered_entity; // entity under mouse cursor in viewport
     char scene_path[512];
+    ed_cmd_queue cmds;
     b8 scene_dirty;
-    b8 new_scene_requested;
-    b8 save_scene_requested;
-    b8 undo_requested;
-    b8 redo_requested;
     b8 focused;
     b8 show_grid;
-    b8 backend_switch_requested;
-    b8 close_project_requested;
-    b8 minimize_requested;
-    b8 maximize_requested;
-    b8 export_requested;
-    RENDERER_BACKEND requested_backend;
     gui_file_browser_state export_browser;
 } ed_application;
 

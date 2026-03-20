@@ -98,10 +98,10 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
         menu_cfg.trigger_corners = (Clay_CornerRadius){6, 0, 0, 0};
         if (gui_dropdown(&layout->menu_file, &menu_cfg)) {
             i32 sel = layout->menu_file.selected;
-            if (sel == 0) app->new_scene_requested = true;
-            if (sel == 1) app->save_scene_requested = true;
-            if (sel == 2 || sel == 3 || sel == 4) app->close_project_requested = true;
-            if (sel == 5) app->export_requested = true;
+            if (sel == 0) ed_cmd_push(&app->cmds, (ed_cmd){.type = ED_CMD_NEW_SCENE});
+            if (sel == 1) ed_cmd_push(&app->cmds, (ed_cmd){.type = ED_CMD_SAVE_SCENE});
+            if (sel == 2 || sel == 3 || sel == 4) ed_cmd_push(&app->cmds, (ed_cmd){.type = ED_CMD_CLOSE_PROJECT});
+            if (sel == 5) ed_cmd_push(&app->cmds, (ed_cmd){.type = ED_CMD_EXPORT});
             if (sel == 6) rl_engine_stop();
             layout->menu_file.selected = -1;
         }
@@ -114,8 +114,8 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
         menu_cfg.trigger_corners = (Clay_CornerRadius){0};
         if (gui_dropdown(&layout->menu_edit, &menu_cfg)) {
             i32 sel = layout->menu_edit.selected;
-            if (sel == 0) app->undo_requested = true;
-            if (sel == 1) app->redo_requested = true;
+            if (sel == 0) ed_cmd_push(&app->cmds, (ed_cmd){.type = ED_CMD_UNDO});
+            if (sel == 1) ed_cmd_push(&app->cmds, (ed_cmd){.type = ED_CMD_REDO});
             layout->menu_edit.selected = -1;
         }
 
@@ -204,14 +204,14 @@ static void ed_layout_menu_bar(ed_layout *layout, ed_application *app) {
             gui_button_state min_s = gui_button_begin(&wbtn);
             gui_icon(GUI_ICON_MINUS, 16, t->text);
             gui_button_end();
-            if (min_s.clicked) app->minimize_requested = true;
+            if (min_s.clicked) ed_cmd_push(&app->cmds, (ed_cmd){.type = ED_CMD_MINIMIZE});
 
             // Maximize / Restore
             b8 maximized = platform_window_is_maximized(&app->window);
             gui_button_state max_s = gui_button_begin(&wbtn);
             gui_icon(maximized ? GUI_ICON_COPY : GUI_ICON_SQUARE, 16, t->text);
             gui_button_end();
-            if (max_s.clicked) app->maximize_requested = true;
+            if (max_s.clicked) ed_cmd_push(&app->cmds, (ed_cmd){.type = ED_CMD_MAXIMIZE});
 
             // Close (red hover, rounded top-right corner)
             gui_button_cfg close_btn = wbtn;
