@@ -4,6 +4,7 @@
 #include "core/logger.h"
 #include "engine.h"
 #include "gui/gui.h"
+#include "gui/gui_theme.h"
 #include "renderer/renderer_frontend.h"
 
 b8 host_window_create(platform_window *window,
@@ -79,6 +80,7 @@ host_switch_result host_renderer_switch_backend(platform_window *window,
     pcfg->renderer_backend = new_backend;
     config_mark_dirty();
     gui_set_layout_dimensions((f32)window->settings.width, (f32)window->settings.height);
+    gui_theme_set(gui_theme_get());
 
     result.success = true;
     result.active_backend = new_backend;

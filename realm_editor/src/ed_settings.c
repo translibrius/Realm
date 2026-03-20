@@ -13,7 +13,6 @@
 #include "gui/gui_text.h"
 #include "gui/gui_theme.h"
 #include "profiler/profiler.h"
-#include "renderer/renderer_frontend.h"
 #include "util/str.h"
 
 #include <string.h>
@@ -63,9 +62,6 @@ void ed_settings_apply_theme(const char *theme_key) {
         }
     }
     gui_theme_set(theme);
-    renderer_set_clear_color(
-        theme->viewport_bg.r / 255.0f, theme->viewport_bg.g / 255.0f,
-        theme->viewport_bg.b / 255.0f, theme->viewport_bg.a / 255.0f);
 }
 
 i32 ed_settings_theme_index(const char *theme_key) {

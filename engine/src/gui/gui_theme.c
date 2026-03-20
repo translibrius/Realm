@@ -1,5 +1,7 @@
 #include "gui/gui_theme.h"
 
+#include "renderer/renderer_frontend.h"
+
 static const gui_theme dark_theme = {
     .bg            = {25, 25, 28, 230},
     .bg_secondary  = {38, 38, 44, 255},
@@ -331,6 +333,9 @@ static const gui_theme *active_theme = &dark_theme;
 
 void gui_theme_set(const gui_theme *theme) {
     active_theme = theme ? theme : &dark_theme;
+    renderer_set_clear_color(
+        active_theme->viewport_bg.r / 255.0f, active_theme->viewport_bg.g / 255.0f,
+        active_theme->viewport_bg.b / 255.0f, active_theme->viewport_bg.a / 255.0f);
 }
 
 const gui_theme *gui_theme_get(void) {
