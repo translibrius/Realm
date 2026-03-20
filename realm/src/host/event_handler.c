@@ -3,14 +3,14 @@
 #include "application.h"
 #include "core/event.h"
 #include "core/logger.h"
+#include "host/host_cmd.h"
 #include "memory/memory.h"
 #include "platform/input.h"
 #include "profiler/profiler.h"
 
 static void on_backend_switch(void *userdata, RENDERER_BACKEND new_backend) {
     rl_application *app = userdata;
-    app->requested_backend = new_backend;
-    app->backend_switch_requested = true;
+    host_cmd_push(&app->cmds, (host_cmd){.type = HOST_CMD_SWITCH_BACKEND, .backend = new_backend});
     RL_INFO("Scheduled renderer backend switch to %d", new_backend);
 }
 
@@ -41,8 +41,8 @@ static b8 on_game_key_press(void *event, void *data) {
 #endif
 
     if (key->key == KEY_F5) {
-        handler->application->rebuild_requested = true;
-        handler->application->reload_requested = true;
+        host_cmd_push(&handler->application->cmds, (host_cmd){.type = HOST_CMD_REBUILD_MODULE});
+        host_cmd_push(&handler->application->cmds, (host_cmd){.type = HOST_CMD_RELOAD_MODULE});
         RL_INFO("Hot reload requested");
     }
 

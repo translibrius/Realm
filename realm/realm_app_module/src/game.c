@@ -65,7 +65,7 @@ b8 game_init(rl_game *game, const realm_app_context *ctx) {
     return true;
 }
 
-void game_update(rl_game *game, const realm_app_context *ctx, realm_app_output *out, f64 dt) {
+void game_update(rl_game *game, const realm_app_context *ctx, realm_app_cmd_queue *cmds, f64 dt) {
     if (!game) {
         return;
     }
@@ -95,27 +95,27 @@ void game_update(rl_game *game, const realm_app_context *ctx, realm_app_output *
 
     switch (game->active_scene) {
         case SCENE_MAIN_MENU:
-            scene_main_menu_update(game, ctx, out, dt);
+            scene_main_menu_update(game, ctx, cmds, dt);
             break;
         case SCENE_GAME:
-            scene_game_update(game, ctx, out, dt);
+            scene_game_update(game, ctx, cmds, dt);
             break;
         default:
             break;
     }
 }
 
-void game_render(rl_game *game, const realm_app_context *ctx, realm_app_output *out) {
+void game_render(rl_game *game, const realm_app_context *ctx, realm_app_cmd_queue *cmds) {
     if (!game) {
         return;
     }
 
     switch (game->active_scene) {
         case SCENE_MAIN_MENU:
-            scene_main_menu_render(game, ctx, out);
+            scene_main_menu_render(game, ctx, cmds);
             break;
         case SCENE_GAME:
-            scene_game_render(game, ctx, out);
+            scene_game_render(game, ctx, cmds);
             break;
         default:
             break;

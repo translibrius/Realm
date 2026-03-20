@@ -6,7 +6,7 @@
 #include "gui/gui_theme.h"
 #include "gui/gui_widgets.h"
 
-void menu_pause_render(rl_game *game, const realm_app_context *ctx, realm_app_output *out) {
+void menu_pause_render(rl_game *game, const realm_app_context *ctx, realm_app_cmd_queue *cmds) {
     const gui_theme *t = gui_theme_get();
 
     // Full-screen dim backdrop
@@ -47,7 +47,7 @@ void menu_pause_render(rl_game *game, const realm_app_context *ctx, realm_app_ou
 
         GUI_PANEL(&panel_cfg) {
             if (game->settings_open) {
-                menu_settings_render(game, ctx, out);
+                menu_settings_render(game, ctx, cmds);
             } else {
                 // ── Layout ──────────────────────────────────────────
                 gui_text("Paused", &(gui_text_cfg){.color = t->text, .size = 24});
@@ -66,7 +66,7 @@ void menu_pause_render(rl_game *game, const realm_app_context *ctx, realm_app_ou
                 if (resume)   game->pause_menu_open = false;
                 if (settings) game->settings_open = true;
                 if (main_mnu) game->pending_scene = SCENE_MAIN_MENU;
-                if (quit)     out->wants_quit = true;
+                if (quit)     realm_app_cmd_push(cmds, (realm_app_cmd){.type = REALM_APP_CMD_QUIT});
             }
         }
     }

@@ -2,8 +2,8 @@
 
 #include "defines.h"
 #include "host/event_handler.h"
+#include "host/host_cmd.h"
 #include "platform/platform.h"
-#include "renderer/renderer_backend.h"
 
 #include "module/realm_app_watcher.h"
 #include "module/realm_app_loader.h"
@@ -24,10 +24,7 @@ typedef struct rl_application {
     app_debug_panel debug_panel;
     rl_scene *scene;
     b8 focused;
-    b8 rebuild_requested;
-    b8 reload_requested;
-    b8 backend_switch_requested;
-    RENDERER_BACKEND requested_backend;
+    host_cmd_queue cmds;
 } rl_application;
 
 b8 create_application(const char *project_path);

@@ -49,6 +49,6 @@ typedef struct rl_game {
 } rl_game;
 
 b8 game_init(rl_game *game, const realm_app_context *ctx);
-void game_update(rl_game *game, const realm_app_context *ctx, realm_app_output *out, f64 dt);
-void game_render(rl_game *game, const realm_app_context *ctx, realm_app_output *out);
+void game_update(rl_game *game, const realm_app_context *ctx, realm_app_cmd_queue *cmds, f64 dt);
+void game_render(rl_game *game, const realm_app_context *ctx, realm_app_cmd_queue *cmds);
 void game_destroy(rl_game *game);

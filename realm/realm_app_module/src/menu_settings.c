@@ -29,7 +29,7 @@ static MSAA_SAMPLES index_to_msaa(i32 idx) {
     return (idx >= 0 && idx < 4) ? table[idx] : MSAA_OFF;
 }
 
-void menu_settings_render(rl_game *game, const realm_app_context *ctx, realm_app_output *out) {
+void menu_settings_render(rl_game *game, const realm_app_context *ctx, realm_app_cmd_queue *cmds) {
     // ── State sync ──────────────────────────────────────────────
     b8 vsync = ctx->vsync;
     game->settings_window_mode_dropdown.selected = (i32)ctx->window_mode;
@@ -115,34 +115,32 @@ void menu_settings_render(rl_game *game, const realm_app_context *ctx, realm_app
 
     // ── Apply changes ───────────────────────────────────────────
     if (vsync_chg) {
-        out->wants_vsync_change = true;
-        out->vsync_value = vsync;
+        realm_app_cmd_push(cmds, (realm_app_cmd){.type = REALM_APP_CMD_SET_VSYNC, .b = vsync});
     }
     if (window_chg) {
         PLATFORM_WINDOW_MODE sel = (PLATFORM_WINDOW_MODE)game->settings_window_mode_dropdown.selected;
         if (sel != ctx->window_mode) {
-            out->wants_window_mode_change = true;
-            out->window_mode_value = sel;
+            realm_app_cmd_push(cmds, (realm_app_cmd){.type = REALM_APP_CMD_SET_WINDOW_MODE, .window_mode = sel});
         }
     }
     if (fov_chg) {
-        out->wants_fov_change = true;
-        out->fov_value = 60.0f + game->settings_fov_slider.value * 60.0f;
+        realm_app_cmd_push(cmds, (realm_app_cmd){.type = REALM_APP_CMD_SET_FOV, .f = 60.0f + game->settings_fov_slider.value * 60.0f});
     }
     if (sens_chg) {
         f32 s = game->settings_sensitivity_slider.value * 0.5f;
         if (s < 0.01f) s = 0.01f;
-        out->wants_sensitivity_change = true; out->sensitivity_value = s;
+        realm_app_cmd_push(cmds, (realm_app_cmd){.type = REALM_APP_CMD_SET_SENSITIVITY, .f = s});
     }
     if (backend_chg) {
         RENDERER_BACKEND sel = (RENDERER_BACKEND)game->settings_backend_dropdown.selected;
-        if (sel != ctx->renderer_backend) { out->wants_backend_switch = true; out->requested_backend = sel; }
+        if (sel != ctx->renderer_backend) {
+            realm_app_cmd_push(cmds, (realm_app_cmd){.type = REALM_APP_CMD_SWITCH_BACKEND, .backend = sel});
+        }
     }
     if (msaa_chg) {
         MSAA_SAMPLES sel = index_to_msaa(game->settings_msaa_dropdown.selected);
         if (sel != ctx->msaa) {
-            out->wants_msaa_change = true;
-            out->msaa_value = sel;
+            realm_app_cmd_push(cmds, (realm_app_cmd){.type = REALM_APP_CMD_SET_MSAA, .msaa = sel});
         }
     }
     if (theme_chg) {

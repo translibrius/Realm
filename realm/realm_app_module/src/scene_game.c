@@ -24,7 +24,7 @@ void scene_game_register_behaviors(void) {
     behavior_register("rotate", rotate_update);
 }
 
-void scene_game_update(rl_game *game, const realm_app_context *ctx, realm_app_output *out, f64 dt) {
+void scene_game_update(rl_game *game, const realm_app_context *ctx, realm_app_cmd_queue *cmds, f64 dt) {
     (void)ctx;
 
     if (input_key_pressed(KEY_ESCAPE)) {
@@ -35,19 +35,19 @@ void scene_game_update(rl_game *game, const realm_app_context *ctx, realm_app_ou
         }
     }
 
-    out->show_debug_panel = true;
+    realm_app_cmd_push(cmds, (realm_app_cmd){.type = REALM_APP_CMD_SHOW_DEBUG_PANEL, .b = true});
 
     b8 paused = game->pause_menu_open || !ctx->focused;
 
     if (paused) {
-        out->wants_cursor_visible = true;
+        realm_app_cmd_push(cmds, (realm_app_cmd){.type = REALM_APP_CMD_SET_CURSOR_VISIBLE, .b = true});
         if (!game->pause_freezes_sim && ctx->scene) {
             behavior_update_all(ctx->scene, (f32)dt);
         }
         return;
     }
 
-    out->wants_cursor_visible = false;
+    realm_app_cmd_push(cmds, (realm_app_cmd){.type = REALM_APP_CMD_SET_CURSOR_VISIBLE, .b = false});
     if (ctx->scene) {
         behavior_update_all(ctx->scene, (f32)dt);
     }
@@ -64,10 +64,10 @@ void scene_game_update(rl_game *game, const realm_app_context *ctx, realm_app_ou
     }
 }
 
-void scene_game_render(rl_game *game, const realm_app_context *ctx, realm_app_output *out) {
+void scene_game_render(rl_game *game, const realm_app_context *ctx, realm_app_cmd_queue *cmds) {
     if (!ctx->scene) {
         if (game->pause_menu_open) {
-            menu_pause_render(game, ctx, out);
+            menu_pause_render(game, ctx, cmds);
         }
         return;
     }
@@ -91,6 +91,6 @@ void scene_game_render(rl_game *game, const realm_app_context *ctx, realm_app_ou
     renderer_submit_frame_data(&frame);
 
     if (game->pause_menu_open) {
-        menu_pause_render(game, ctx, out);
+        menu_pause_render(game, ctx, cmds);
     }
 }

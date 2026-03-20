@@ -23,14 +23,14 @@ void realm_app_init(void *state, const realm_app_context *ctx) {
     }
 }
 
-void realm_app_update(void *state, const realm_app_context *ctx, realm_app_output *out, f64 dt) {
+void realm_app_update(void *state, const realm_app_context *ctx, realm_app_cmd_queue *cmds, f64 dt) {
     rl_game *game = (rl_game *)state;
-    game_update(game, ctx, out, dt);
+    game_update(game, ctx, cmds, dt);
 }
 
-void realm_app_render(void *state, const realm_app_context *ctx, realm_app_output *out) {
+void realm_app_render(void *state, const realm_app_context *ctx, realm_app_cmd_queue *cmds) {
     rl_game *game = (rl_game *)state;
-    game_render(game, ctx, out);
+    game_render(game, ctx, cmds);
 }
 
 void realm_app_shutdown(void *state, const realm_app_context *ctx) {

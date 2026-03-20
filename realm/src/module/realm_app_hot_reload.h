@@ -1,9 +1,6 @@
 #pragma once
 
-#include "defines.h"
-
 typedef struct rl_application rl_application;
 
-// Polls for file changes, rebuilds if requested, reloads the module.
-// Returns false if a rebuild failed and the caller should skip the frame.
-b8 app_hot_reload_tick(rl_application *app);
+// Polls the file watcher and pushes HOST_CMD_RELOAD_MODULE if changed.
+void app_hot_reload_poll(rl_application *app);

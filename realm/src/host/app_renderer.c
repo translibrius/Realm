@@ -16,7 +16,6 @@ b8 app_renderer_switch_backend(rl_application *application, RENDERER_BACKEND bac
     if (r.rolled_back) {
         application->app_context.renderer_backend = r.active_backend;
         application->app_context.window = &application->window;
-        application->requested_backend = get_next_backend(r.active_backend);
         return false;
     }
 
@@ -24,6 +23,5 @@ b8 app_renderer_switch_backend(rl_application *application, RENDERER_BACKEND bac
 
     application->app_context.renderer_backend = r.active_backend;
     application->app_context.window = &application->window;
-    application->reload_requested = true;
     return true;
 }

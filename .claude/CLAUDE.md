@@ -26,7 +26,7 @@ cmake --preset release && cmake --build --preset release
 
 ## Boot and frame loop
 
-See [.claude/docs/boot-and-frame-loop.md](.claude/docs/boot-and-frame-loop.md). Key hotkeys: F5 = rebuild + reload module, F7 = switch backend.
+See [.claude/docs/boot-and-frame-loop.md](.claude/docs/boot-and-frame-loop.md). Key hotkeys: F5 = rebuild + reload module, F10 = switch backend.
 
 ## Profiler
 

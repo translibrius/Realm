@@ -3,7 +3,7 @@
 #include "defines.h"
 
 typedef struct rl_application rl_application;
-typedef struct realm_app_output realm_app_output;
+typedef struct realm_app_cmd_queue realm_app_cmd_queue;
 
-// Applies module output requests (quit, vsync, window mode, backend switch, etc.)
-void app_output_process(rl_application *app, const realm_app_output *output);
+// Drains the module command queue — applies settings, queues backend switch, etc.
+void app_output_process(rl_application *app, const realm_app_cmd_queue *cmds);
