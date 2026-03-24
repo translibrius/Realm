@@ -8,8 +8,7 @@ layout (binding = 1) uniform sampler2D mask_tex;
 void main() {
     float mask = texture(mask_tex, fragTexCoord).r;
     if (mask > 0.5) {
-        // RG = seed coords, B = mask flag (carried through JFA steps)
-        outColor = vec4(fragTexCoord, 1.0, 1.0);
+        outColor = vec4(fragTexCoord, 0.0, 1.0);
     } else {
         outColor = vec4(-1.0, -1.0, 0.0, 1.0);
     }

@@ -242,7 +242,8 @@ static b8 create_mask_pipeline(VK_Context *ctx) {
 }
 
 static b8 create_fullscreen_pipeline(VK_Context *ctx, const char *vert_path, const char *frag_path,
-                                      VkRenderPass render_pass, b8 blend, VkPipeline *out) {
+                                      VkRenderPass render_pass, b8 blend, VkPipelineLayout layout_override,
+                                      VkPipeline *out) {
     VkShaderModule vert, frag;
     if (!vk_shader_compile_to_module(ctx, asset_find(vert_path), &vert)) return false;
     if (!vk_shader_compile_to_module(ctx, asset_find(frag_path), &frag)) {
@@ -264,7 +265,7 @@ static b8 create_fullscreen_pipeline(VK_Context *ctx, const char *vert_path, con
         .polygon_mode = VK_POLYGON_MODE_FILL,
         .msaa_samples = (render_pass == ctx->render_pass) ? ctx->msaa_samples : VK_SAMPLE_COUNT_1_BIT,
         .render_pass = render_pass,
-        .existing_layout = ctx->pipeline_layout,
+        .existing_layout = layout_override ? layout_override : ctx->pipeline_layout,
     };
 
     VkPipelineLayout reused;
@@ -279,16 +280,77 @@ static b8 create_fullscreen_pipeline(VK_Context *ctx, const char *vert_path, con
 // -------------------------------------------------------------------------
 
 static b8 create_outline_descriptors(VK_Context *ctx) {
+    // 6 UBOs for mask/jfa per-frame sets, 10 samplers (6 existing + 4 for composite), 8 total sets
     VkDescriptorPoolSize sizes[2] = {
         {.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 6},
-        {.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .descriptorCount = 6},
+        {.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .descriptorCount = 10},
     };
-    if (!vk_descriptor_pool_create(ctx, sizes, 2, 6, &OL.descriptor_pool)) return false;
+    if (!vk_descriptor_pool_create(ctx, sizes, 2, 8, &OL.descriptor_pool)) return false;
 
     if (!vk_descriptor_sets_allocate(ctx, OL.descriptor_pool, ctx->descriptor_set_layout, 2, OL.mask_ds)) return false;
     if (!vk_descriptor_sets_allocate(ctx, OL.descriptor_pool, ctx->descriptor_set_layout, 2, OL.jfa_a_ds)) return false;
     if (!vk_descriptor_sets_allocate(ctx, OL.descriptor_pool, ctx->descriptor_set_layout, 2, OL.jfa_b_ds)) return false;
     return true;
+}
+
+static b8 create_composite_descriptors(VK_Context *ctx) {
+    // Composite-specific layout: 2 combined image samplers (JFA result + mask)
+    VkDescriptorSetLayoutBinding bindings[2] = {
+        {.binding = 0, .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+         .descriptorCount = 1, .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT},
+        {.binding = 1, .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+         .descriptorCount = 1, .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT},
+    };
+    VkDescriptorSetLayoutCreateInfo layout_ci = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .bindingCount = 2, .pBindings = bindings,
+    };
+    VK_CHECK_RETURN_FALSE(vkCreateDescriptorSetLayout(ctx->device, &layout_ci, nullptr, &OL.composite_ds_layout),
+                          "Failed to create composite DS layout");
+
+    VkPushConstantRange push = {
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+        .offset = 0, .size = sizeof(VK_MeshPushConstants),
+    };
+    VkPipelineLayoutCreateInfo pl_ci = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .setLayoutCount = 1, .pSetLayouts = &OL.composite_ds_layout,
+        .pushConstantRangeCount = 1, .pPushConstantRanges = &push,
+    };
+    VK_CHECK_RETURN_FALSE(vkCreatePipelineLayout(ctx->device, &pl_ci, nullptr, &OL.composite_pipeline_layout),
+                          "Failed to create composite pipeline layout");
+
+    // Allocate 2 descriptor sets from the outline pool using the composite layout
+    VkDescriptorSet sets[2];
+    if (!vk_descriptor_sets_allocate(ctx, OL.descriptor_pool, OL.composite_ds_layout, 2, sets)) return false;
+    OL.composite_from_a_ds = sets[0];
+    OL.composite_from_b_ds = sets[1];
+
+    return true;
+}
+
+static void update_composite_descriptors(VK_Context *ctx) {
+    VkDescriptorImageInfo jfa_a_info = {.sampler = OL.sampler, .imageView = OL.jfa_a.view, .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+    VkDescriptorImageInfo jfa_b_info = {.sampler = OL.sampler, .imageView = OL.jfa_b.view, .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+    VkDescriptorImageInfo mask_info  = {.sampler = OL.sampler, .imageView = OL.mask_rt.view, .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+
+    // composite_from_a: binding 0 = jfa_a, binding 1 = mask
+    VkWriteDescriptorSet writes_a[2] = {
+        {.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = OL.composite_from_a_ds, .dstBinding = 0,
+         .descriptorCount = 1, .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .pImageInfo = &jfa_a_info},
+        {.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = OL.composite_from_a_ds, .dstBinding = 1,
+         .descriptorCount = 1, .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .pImageInfo = &mask_info},
+    };
+    vkUpdateDescriptorSets(ctx->device, 2, writes_a, 0, nullptr);
+
+    // composite_from_b: binding 0 = jfa_b, binding 1 = mask
+    VkWriteDescriptorSet writes_b[2] = {
+        {.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = OL.composite_from_b_ds, .dstBinding = 0,
+         .descriptorCount = 1, .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .pImageInfo = &jfa_b_info},
+        {.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = OL.composite_from_b_ds, .dstBinding = 1,
+         .descriptorCount = 1, .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .pImageInfo = &mask_info},
+    };
+    vkUpdateDescriptorSets(ctx->device, 2, writes_b, 0, nullptr);
 }
 
 static void update_rt_descriptor(VK_Context *ctx, VkDescriptorSet *ds, VkImageView view) {
@@ -344,15 +406,17 @@ b8 vk_outline_init(VK_Context *ctx) {
 
     // Descriptors
     if (!create_outline_descriptors(ctx)) return false;
+    if (!create_composite_descriptors(ctx)) return false;
     update_rt_descriptor(ctx, OL.mask_ds, OL.mask_rt.view);
     update_rt_descriptor(ctx, OL.jfa_a_ds, OL.jfa_a.view);
     update_rt_descriptor(ctx, OL.jfa_b_ds, OL.jfa_b.view);
+    update_composite_descriptors(ctx);
 
     // Pipelines
     if (!create_mask_pipeline(ctx)) return false;
-    if (!create_fullscreen_pipeline(ctx, RL_ASSET_SHADER_VK_JFA_INIT_VERT, RL_ASSET_SHADER_VK_JFA_INIT_FRAG, OL.jfa_render_pass, false, &OL.jfa_init_pipeline)) return false;
-    if (!create_fullscreen_pipeline(ctx, RL_ASSET_SHADER_VK_JFA_STEP_VERT, RL_ASSET_SHADER_VK_JFA_STEP_FRAG, OL.jfa_render_pass, false, &OL.jfa_step_pipeline)) return false;
-    if (!create_fullscreen_pipeline(ctx, RL_ASSET_SHADER_VK_OUTLINE_COMP_VERT, RL_ASSET_SHADER_VK_OUTLINE_COMP_FRAG, ctx->render_pass, true, &OL.composite_pipeline)) return false;
+    if (!create_fullscreen_pipeline(ctx, RL_ASSET_SHADER_VK_JFA_INIT_VERT, RL_ASSET_SHADER_VK_JFA_INIT_FRAG, OL.jfa_render_pass, false, VK_NULL_HANDLE, &OL.jfa_init_pipeline)) return false;
+    if (!create_fullscreen_pipeline(ctx, RL_ASSET_SHADER_VK_JFA_STEP_VERT, RL_ASSET_SHADER_VK_JFA_STEP_FRAG, OL.jfa_render_pass, false, VK_NULL_HANDLE, &OL.jfa_step_pipeline)) return false;
+    if (!create_fullscreen_pipeline(ctx, RL_ASSET_SHADER_VK_OUTLINE_COMP_VERT, RL_ASSET_SHADER_VK_OUTLINE_COMP_FRAG, ctx->render_pass, true, OL.composite_pipeline_layout, &OL.composite_pipeline)) return false;
 
     OL.ready = true;
     RL_TRACE("Outline (JFA) pipeline initialized");
@@ -362,11 +426,13 @@ b8 vk_outline_init(VK_Context *ctx) {
 void vk_outline_destroy(VK_Context *ctx) {
     if (!OL.ready) return;
 
-    if (OL.composite_pipeline)  vkDestroyPipeline(ctx->device, OL.composite_pipeline, nullptr);
-    if (OL.jfa_step_pipeline)   vkDestroyPipeline(ctx->device, OL.jfa_step_pipeline, nullptr);
-    if (OL.jfa_init_pipeline)   vkDestroyPipeline(ctx->device, OL.jfa_init_pipeline, nullptr);
-    if (OL.mask_pipeline)       vkDestroyPipeline(ctx->device, OL.mask_pipeline, nullptr);
-    if (OL.descriptor_pool)     vkDestroyDescriptorPool(ctx->device, OL.descriptor_pool, nullptr);
+    if (OL.composite_pipeline)        vkDestroyPipeline(ctx->device, OL.composite_pipeline, nullptr);
+    if (OL.jfa_step_pipeline)         vkDestroyPipeline(ctx->device, OL.jfa_step_pipeline, nullptr);
+    if (OL.jfa_init_pipeline)         vkDestroyPipeline(ctx->device, OL.jfa_init_pipeline, nullptr);
+    if (OL.mask_pipeline)             vkDestroyPipeline(ctx->device, OL.mask_pipeline, nullptr);
+    if (OL.composite_pipeline_layout) vkDestroyPipelineLayout(ctx->device, OL.composite_pipeline_layout, nullptr);
+    if (OL.composite_ds_layout)       vkDestroyDescriptorSetLayout(ctx->device, OL.composite_ds_layout, nullptr);
+    if (OL.descriptor_pool)           vkDestroyDescriptorPool(ctx->device, OL.descriptor_pool, nullptr);
 
     destroy_ort(ctx, (VK_ORT *)&OL.jfa_b);
     destroy_ort(ctx, (VK_ORT *)&OL.jfa_a);
@@ -409,6 +475,7 @@ void vk_outline_resize(VK_Context *ctx, u32 w, u32 h) {
     update_rt_descriptor(ctx, OL.mask_ds, OL.mask_rt.view);
     update_rt_descriptor(ctx, OL.jfa_a_ds, OL.jfa_a.view);
     update_rt_descriptor(ctx, OL.jfa_b_ds, OL.jfa_b.view);
+    update_composite_descriptors(ctx);
 }
 
 // -------------------------------------------------------------------------
@@ -430,15 +497,47 @@ void vk_outline_record_offscreen(VK_Context *ctx, VkCommandBuffer cmd) {
 
     // Barrier: ensure any previous frame's outline reads/writes are complete before
     // we start writing. The RTs are shared between frames-in-flight.
-    VkMemoryBarrier mem_barrier = {
-        .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
-        .srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    // Use per-image barriers so MoltenVK can emit correct Metal resource hazard tracking.
+    VkImageSubresourceRange color_range = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .levelCount = 1, .layerCount = 1};
+    VkImageMemoryBarrier img_barriers[3] = {
+        {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+            .srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            .oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .image = OL.mask_rt.image,
+            .subresourceRange = color_range,
+        },
+        {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+            .srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            .oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .image = OL.jfa_a.image,
+            .subresourceRange = color_range,
+        },
+        {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+            .srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            .oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .image = OL.jfa_b.image,
+            .subresourceRange = color_range,
+        },
     };
     vkCmdPipelineBarrier(cmd,
         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        0, 1, &mem_barrier, 0, nullptr, 0, nullptr);
+        0, 0, nullptr, 0, nullptr, 3, img_barriers);
 
     // === 1. Mask pass ===
     {
@@ -561,7 +660,42 @@ void vk_outline_record_offscreen(VK_Context *ctx, VkCommandBuffer cmd) {
         VkDescriptorSet *tmp_ds = src_ds; src_ds = dst_ds; dst_ds = tmp_ds;
     }
 
-    OL._final_jfa_ds = src_ds;
+    // Pick the composite descriptor set that references the final JFA buffer
+    VkImage final_jfa_image = (src_ds == OL.jfa_a_ds) ? OL.jfa_a.image : OL.jfa_b.image;
+    OL._final_composite_ds = (src_ds == OL.jfa_a_ds) ? OL.composite_from_a_ds : OL.composite_from_b_ds;
+
+    // Barrier: ensure mask + final JFA writes are fully visible to the main render
+    // pass composite read. Explicit image barriers help MoltenVK emit correct
+    // Metal resource hazard tracking between render command encoders.
+    VkImageSubresourceRange cr = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .levelCount = 1, .layerCount = 1};
+    VkImageMemoryBarrier read_barriers[2] = {
+        {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+            .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+            .oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .image = OL.mask_rt.image,
+            .subresourceRange = cr,
+        },
+        {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+            .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+            .oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .image = final_jfa_image,
+            .subresourceRange = cr,
+        },
+    };
+    vkCmdPipelineBarrier(cmd,
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        0, 0, nullptr, 0, nullptr, 2, read_barriers);
 }
 
 // -------------------------------------------------------------------------
@@ -569,15 +703,15 @@ void vk_outline_record_offscreen(VK_Context *ctx, VkCommandBuffer cmd) {
 // -------------------------------------------------------------------------
 
 void vk_outline_record_composite(VK_Context *ctx, VkCommandBuffer cmd) {
-    if (!OL.ready || OL.outline_count == 0 || !OL.outlines || !OL._final_jfa_ds) return;
+    if (!OL.ready || OL.outline_count == 0 || !OL.outlines || !OL._final_composite_ds) return;
 
     rl_frame_outline *first = &OL.outlines[0];
     u32 w = OL.mask_rt.width;
     u32 h = OL.mask_rt.height;
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, OL.composite_pipeline);
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->pipeline_layout,
-                             0, 1, &OL._final_jfa_ds[ctx->current_frame], 0, nullptr);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, OL.composite_pipeline_layout,
+                             0, 1, &OL._final_composite_ds, 0, nullptr);
 
     VK_MeshPushConstants pc = {0};
     glm_vec3_copy(first->color, pc.material_params);
@@ -585,10 +719,10 @@ void vk_outline_record_composite(VK_Context *ctx, VkCommandBuffer cmd) {
     pc.obj_center[0] = first->width;
     pc.obj_center[1] = (f32)w;
     pc.obj_center[2] = (f32)h;
-    vkCmdPushConstants(cmd, ctx->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+    vkCmdPushConstants(cmd, OL.composite_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     vkCmdDraw(cmd, 3, 1, 0, 0);
 
-    // Rebind scene descriptor set
+    // Rebind scene descriptor set and pipeline layout for subsequent draws
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->pipeline_layout,
                              0, 1, &ctx->descriptor_sets[ctx->current_frame], 0, nullptr);
 }

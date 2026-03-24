@@ -549,7 +549,7 @@ void vulkan_submit_frame_data(rl_frame_data *frame_data) {
     } else {
         context.outline.outlines = nullptr;
     }
-    context.outline._final_jfa_ds = nullptr;
+    context.outline._final_composite_ds = VK_NULL_HANDLE;
 
     if (frame_data->text_count > 0 && frame_data->texts) {
         for (u32 i = 0; i < frame_data->text_count; i++) {

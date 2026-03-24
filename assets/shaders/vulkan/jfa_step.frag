@@ -34,7 +34,5 @@ void main() {
         }
     }
 
-    // Preserve this pixel's own mask flag (B channel) through JFA steps
-    float my_mask = texture(jfa_tex, fragTexCoord).b;
-    outColor = vec4(best_coord, my_mask, 1.0);
+    outColor = vec4(best_coord, 0.0, 1.0);
 }

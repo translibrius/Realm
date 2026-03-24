@@ -331,7 +331,10 @@ typedef struct VK_Context {
         VkDescriptorPool descriptor_pool;
         VkDescriptorSet mask_ds[2], jfa_a_ds[2], jfa_b_ds[2];
         VkPipeline mask_pipeline, jfa_init_pipeline, jfa_step_pipeline, composite_pipeline;
+        VkDescriptorSetLayout composite_ds_layout;
+        VkPipelineLayout composite_pipeline_layout;
+        VkDescriptorSet composite_from_a_ds, composite_from_b_ds;
         rl_frame_outline *outlines; u32 outline_count;
-        VkDescriptorSet *_final_jfa_ds;
+        VkDescriptorSet _final_composite_ds;
     } outline;
 } VK_Context;
