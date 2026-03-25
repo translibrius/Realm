@@ -466,20 +466,12 @@ void ed_layout_render(ed_layout *layout, ed_application *app, f32 dt) {
                 gui_context_menu_open(&layout->hierarchy_ctx_menu);
             }
         }
+    }
 
-        // Viewport context menu
-        if (layout->viewport_tab == 0 && !layout->hierarchy_ctx_menu.open) {
-            Clay_ElementData vp_data = Clay_GetElementData(CLAY_ID("EditorViewport"));
-            if (vp_data.found) {
-                vec2 mouse;
-                input_get_mouse_position(mouse);
-                Clay_BoundingBox vb = vp_data.boundingBox;
-                if (mouse[0] >= vb.x && mouse[0] <= vb.x + vb.width &&
-                    mouse[1] >= vb.y && mouse[1] <= vb.y + vb.height) {
-                    gui_context_menu_open(&layout->viewport_ctx_menu);
-                }
-            }
-        }
+    // Viewport context menu — triggered by right-click tap (not hold)
+    if (app->camera.right_click_tap && layout->viewport_tab == 0 &&
+        !layout->hierarchy_ctx_menu.open) {
+        gui_context_menu_open(&layout->viewport_ctx_menu);
     }
 
     // Hierarchy context menu items
@@ -487,12 +479,12 @@ void ed_layout_render(ed_layout *layout, ed_application *app, f32 dt) {
         u32 sel = layout->hierarchy_tree.selected_id;
         b8 has_sel = (sel >= ED_ENTITY_NODE_BASE);
 
-        const char *items_with_sel[] = {"Add Empty Entity", "Add Light", "Duplicate", "Delete"};
-        const char *items_no_sel[]   = {"Add Empty Entity", "Add Light"};
+        const char *items_with_sel[] = {"Add Empty Entity", "Add Light", "Add Camera", "Duplicate", "Delete"};
+        const char *items_no_sel[]   = {"Add Empty Entity", "Add Light", "Add Camera"};
 
         gui_context_menu_cfg hcfg = {
             .items      = has_sel ? items_with_sel : items_no_sel,
-            .item_count = has_sel ? 4 : 2,
+            .item_count = has_sel ? 5 : 3,
             .font       = font,
         };
         i32 picked = gui_context_menu(&layout->hierarchy_ctx_menu, &hcfg);
@@ -506,13 +498,17 @@ void ed_layout_render(ed_layout *layout, ed_application *app, f32 dt) {
                 rl_entity e = ed_entity_create_light(scene);
                 layout->hierarchy_tree.selected_id = ED_ENTITY_NODE_BASE + rl_entity_index(e);
                 app->scene_dirty = true;
-            } else if (picked == 2 && has_sel) {
+            } else if (picked == 2) {
+                rl_entity e = ed_entity_create_camera(scene);
+                layout->hierarchy_tree.selected_id = ED_ENTITY_NODE_BASE + rl_entity_index(e);
+                app->scene_dirty = true;
+            } else if (picked == 3 && has_sel) {
                 u32 idx = sel - ED_ENTITY_NODE_BASE;
                 rl_entity src = rl_entity_pack(idx, scene->entities.generation[idx]);
                 rl_entity dup = ed_entity_duplicate(scene, src);
                 layout->hierarchy_tree.selected_id = ED_ENTITY_NODE_BASE + rl_entity_index(dup);
                 app->scene_dirty = true;
-            } else if (picked == 3 && has_sel) {
+            } else if (picked == 4 && has_sel) {
                 u32 idx = sel - ED_ENTITY_NODE_BASE;
                 rl_entity e = rl_entity_pack(idx, scene->entities.generation[idx]);
                 ed_entity_delete(scene, e);
@@ -524,10 +520,10 @@ void ed_layout_render(ed_layout *layout, ed_application *app, f32 dt) {
 
     // Viewport context menu items
     {
-        static const char *vp_items[] = {"Add Cube", "Add Light", "Frame Selection", "Reset Camera"};
+        static const char *vp_items[] = {"Add Cube", "Add Light", "Add Camera", "Frame Selection", "Reset Camera"};
         gui_context_menu_cfg vcfg = {
             .items      = vp_items,
-            .item_count = 4,
+            .item_count = 5,
             .font       = font,
         };
         i32 picked = gui_context_menu(&layout->viewport_ctx_menu, &vcfg);
@@ -542,6 +538,10 @@ void ed_layout_render(ed_layout *layout, ed_application *app, f32 dt) {
                 layout->hierarchy_tree.selected_id = ED_ENTITY_NODE_BASE + rl_entity_index(e);
                 app->scene_dirty = true;
             } else if (picked == 2) {
+                rl_entity e = ed_entity_create_camera(scene);
+                layout->hierarchy_tree.selected_id = ED_ENTITY_NODE_BASE + rl_entity_index(e);
+                app->scene_dirty = true;
+            } else if (picked == 3) {
                 // Frame selection
                 u32 sel = layout->hierarchy_tree.selected_id;
                 if (sel >= ED_ENTITY_NODE_BASE) {
@@ -550,7 +550,7 @@ void ed_layout_render(ed_layout *layout, ed_application *app, f32 dt) {
                     rl_transform *tr = transform_get(&scene->components, e);
                     if (tr) ed_camera_frame_selection(&app->camera, tr->position);
                 }
-            } else if (picked == 3) {
+            } else if (picked == 4) {
                 // Reset camera
                 ed_camera_init(&app->camera);
             }

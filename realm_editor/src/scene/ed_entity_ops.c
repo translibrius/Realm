@@ -40,6 +40,21 @@ rl_entity ed_entity_create_cube(rl_scene *scene) {
     return e;
 }
 
+rl_entity ed_entity_create_camera(rl_scene *scene) {
+    rl_entity e = scene_entity_create(scene, "Camera");
+    rl_component_store *cs = &scene->components;
+    rl_transform *tr = transform_add(cs, e);
+    tr->position[2] = 5.0f;
+    tr->scale[0] = tr->scale[1] = tr->scale[2] = 1.0f;
+    tr->dirty = true;
+    rl_camera_component *cc = camera_comp_add(cs, e);
+    cc->fov = 90.0f;
+    cc->near_clip = 0.1f;
+    cc->far_clip = 100.0f;
+    cc->is_main = false;
+    return e;
+}
+
 rl_entity ed_entity_duplicate(rl_scene *scene, rl_entity source) {
     u32 idx = rl_entity_index(source);
     rl_component_store *cs = &scene->components;

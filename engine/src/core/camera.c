@@ -113,6 +113,20 @@ void camera_update(rl_camera *camera, f64 dt) {
     camera_update_vectors(camera);
 }
 
+void camera_look_at(rl_camera *camera, const vec3 target) {
+    vec3 dir;
+    glm_vec3_sub((f32 *)target, camera->pos, dir);
+
+    f32 len = glm_vec3_norm(dir);
+    if (len < 1e-6f) return;
+
+    glm_vec3_scale(dir, 1.0f / len, dir);
+    camera->yaw   = glm_deg(atan2f(dir[2], dir[0]));
+    camera->pitch = glm_deg(asinf(glm_clamp(dir[1], -1.0f, 1.0f)));
+
+    camera_update_vectors(camera);
+}
+
 void camera_from_entity(rl_camera *camera, const rl_transform *t, const rl_camera_component *cc) {
     if (!camera || !t || !cc) return;
 

@@ -29,6 +29,9 @@ REALM_API void camera_get_projection(const rl_camera *camera, f32 aspect, mat4 o
 REALM_API void camera_get_ortho_projection(f32 left, f32 right, f32 bottom, f32 top, f32 near, f32 far, mat4 out_proj, RENDERER_BACKEND renderer_backend);
 REALM_API void camera_update(rl_camera *camera, f64 dt);
 
+// Set yaw/pitch so the camera faces target from its current position.
+REALM_API void camera_look_at(rl_camera *camera, const vec3 target);
+
 // Sync helpers for camera-as-entity workflow
 REALM_API void camera_from_entity(rl_camera *camera, const rl_transform *t, const rl_camera_component *cc);
 REALM_API void camera_sync_to_transform(const rl_camera *camera, rl_transform *t);

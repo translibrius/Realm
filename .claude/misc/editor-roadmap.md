@@ -53,6 +53,11 @@ When starting a session from this roadmap:
 - **Vulkan backend parity** — per-mesh texture binding (placeholder texture, lazy upload, per-texture descriptor sets), imported mesh rendering (mesh cache, staging buffer upload, per-mesh draw), dedicated overlay UBO for gizmo pass
 - **Grid & camera prep** — adaptive multi-level grid shader, camera near/far clip fields, mesh AABB caching at load time
 - **Profiler editor wiring** — moved profiler init/shutdown/frame_mark into engine, editor CMake profiler support, F3/F4 hotkeys, settings panel profiler toggle
+- **rl_model & multi-mesh rendering** — `rl_model` asset type with node-tree cgltf importer, per-mesh material binding, multi-mesh draw, complete migration from deprecated `rl_mesh` loader
+- **Command queue refactor** — replaced bool-flag request patterns with tagged-union command queues (`ed_cmd_queue` in editor, `rl_host_cmd_queue` + `realm_app_cmd_queue` in realm). Lossy single-frame bool flags replaced with ordered, payload-carrying queues. Design doc: `.claude/docs/command-queue-design.md`
+- **Source reorganization** — both `realm/src/` and `realm_editor/src/` reorganized into semantic subfolders (`host/`, `module/`, `gui/`, `viewport/`, `panels/`, `scene/`, `project/`, etc.)
+- **Font atlas & GUI perf** — combined font atlases into single texture to eliminate per-font flush thrashing, reusable `gui_debug_overlay` engine widget
+- **Editor camera improvements** — orbit target now tracks selection (or scene center fallback) instead of being trashed by fly mode. `camera_look_at()` extracted to base camera API. F key frames selection (sets orbit target + distance).
 
 ### Binary scene format reference
 
@@ -170,6 +175,16 @@ Hover picking infrastructure is complete. Stencil-based outline was reverted (ma
 - Prefab system
 - Material system / material editor
 - Live sync — editor watches `.scene` files, game watches for editor saves
+
+### Animation / tween system (`rl_tween`)
+- Generic value interpolation: `f32`, `vec3`, `vec4` from A to B over duration with easing curve
+- Easing curves as enum + `f32 -> f32` functions (linear, ease-in/out, cubic bezier, spring, etc.) — Flutter-style
+- Two scope levels:
+  - **Minimal (camera-only):** `camera_transition` struct with target yaw/pitch/pos, easing, elapsed/duration. Tick in camera update. Covers look_at animations, frame-selection swoops, orbit snap smoothing.
+  - **General (`rl_tween`):** pool-managed, tickable, completion callback. Usable by camera, GUI element positions/opacity, entity transforms, color transitions — anything.
+- Key design questions: who owns tween state, what cancels/replaces an in-flight tween, blend vs snap on conflict
+- `camera_look_at()` already provides "compute target state" — animation layer adds "apply over N frames" on top
+- Start with camera-only, graduate to general when multiple consumers exist
 
 ### Scripting runtime
 - Language TBD — candidates: Wren, QuickJS, daScript, C# via Mono, or compile-to-C (Nim, Zig, Odin)

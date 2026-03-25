@@ -14,6 +14,9 @@ rl_entity ed_entity_create_light(rl_scene *scene);
 // Creates a cube entity with default mesh + material.
 rl_entity ed_entity_create_cube(rl_scene *scene);
 
+// Creates a camera entity with default properties.
+rl_entity ed_entity_create_camera(rl_scene *scene);
+
 // Duplicates an existing entity (copies name, transform).
 rl_entity ed_entity_duplicate(rl_scene *scene, rl_entity source);
 

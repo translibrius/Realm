@@ -30,7 +30,22 @@ void ed_frame_update(ed_application *app, f64 dt) {
 
         // Update editor camera (skip when settings tab is active)
         if (app->layout.viewport_tab == 0) {
-            ed_camera_update(&app->camera, dt, &app->layout.viewport_bounds, &app->window);
+            // Resolve selected entity world position for orbit target
+            const f32 *sel_pos = NULL;
+            vec3 sel_center;
+            u32 sel = app->layout.hierarchy_tree.selected_id;
+            if (sel >= ED_ENTITY_NODE_BASE && app->scene) {
+                u32 idx = sel - ED_ENTITY_NODE_BASE;
+                rl_entity_store *es = &app->scene->entities;
+                if (idx < es->high_water && es->alive[idx] &&
+                    app->scene->components.has_transform[idx]) {
+                    glm_vec3_copy(app->scene->components.transforms[idx].position,
+                                  sel_center);
+                    sel_pos = sel_center;
+                }
+            }
+            ed_camera_update(&app->camera, dt, &app->layout.viewport_bounds,
+                             &app->window, sel_pos);
         }
 
         // Build and submit frame data — skip 3D scene when settings tab is active
