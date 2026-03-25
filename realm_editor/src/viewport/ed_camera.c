@@ -1,5 +1,6 @@
 #include "viewport/ed_camera.h"
 
+#include "core/ed_config.h"
 #include "platform/input.h"
 
 #include <math.h>
@@ -35,18 +36,35 @@ static void enter_fly_mode(ed_camera *ec, platform_window *window) {
 void ed_camera_init(ed_camera *ec) {
     camera_init(&ec->cam);
     ec->cam.far_clip = 10000.0f;
-    ec->distance = 3.0f;
     ec->fly_mode = false;
     ec->orbiting = false;
     ec->viewport_hovered = false;
     ec->fly_pending = false;
     ec->right_click_tap = false;
 
-    // Derive orbit target from initial camera position + forward
-    // camera_init sets pos=(0,0,3), forward=(0,0,-1), so target = (0,0,0)
-    vec3 offset;
-    glm_vec3_scale(ec->cam.forward, ec->distance, offset);
-    glm_vec3_add(ec->cam.pos, offset, ec->target);
+    // Default: look down at world origin from an angle
+    glm_vec3_copy((vec3){8.0f, 6.0f, 8.0f}, ec->cam.pos);
+    glm_vec3_zero(ec->target);
+    recompute_orbit_from_pos(ec);
+}
+
+void ed_camera_restore(ed_camera *ec, const ed_config *cfg) {
+    if (!cfg->cam_state_valid) return;
+    glm_vec3_copy((vec3){cfg->cam_pos[0], cfg->cam_pos[1], cfg->cam_pos[2]}, ec->cam.pos);
+    glm_vec3_copy((vec3){cfg->cam_target[0], cfg->cam_target[1], cfg->cam_target[2]}, ec->target);
+    ec->cam.yaw = cfg->cam_yaw;
+    ec->cam.pitch = cfg->cam_pitch;
+    ec->distance = cfg->cam_distance;
+    update_vectors(ec);
+}
+
+void ed_camera_snapshot(const ed_camera *ec, ed_config *cfg) {
+    glm_vec3_copy((f32 *)ec->cam.pos, cfg->cam_pos);
+    glm_vec3_copy((f32 *)ec->target, cfg->cam_target);
+    cfg->cam_yaw = ec->cam.yaw;
+    cfg->cam_pitch = ec->cam.pitch;
+    cfg->cam_distance = ec->distance;
+    cfg->cam_state_valid = true;
 }
 
 void ed_camera_update(ed_camera *ec, f64 dt, const Clay_BoundingBox *viewport,

@@ -19,6 +19,7 @@ typedef enum ED_GIZMO_AXIS {
     ED_GIZMO_AXIS_X    = 1,
     ED_GIZMO_AXIS_Y    = 2,
     ED_GIZMO_AXIS_Z    = 3,
+    ED_GIZMO_AXIS_ALL  = 4, // uniform scale (center cube)
 } ED_GIZMO_AXIS;
 
 typedef struct ed_gizmo_transform {

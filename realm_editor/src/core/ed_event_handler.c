@@ -181,8 +181,8 @@ static b8 ed_on_key(void *event, void *user_data) {
         return true;
     }
 
-    // Ctrl+Shift+Z = Redo
-    if (k->key == KEY_Z && ctrl && shift) {
+    // Ctrl+Shift+Z / Ctrl+Y = Redo
+    if ((k->key == KEY_Z && ctrl && shift) || (k->key == KEY_Y && ctrl && !shift)) {
         ed_cmd_push(&app->cmds, (ed_cmd){.type = ED_CMD_REDO});
         return true;
     }
@@ -212,6 +212,12 @@ static b8 ed_on_key(void *event, void *user_data) {
             app->gizmo.mode = ED_GIZMO_SCALE;
             return true;
         }
+    }
+
+    // ~ = Toggle console
+    if (k->key == KEY_GRAVE && !ctrl && !shift) {
+        ed_console_toggle(&app->console);
+        return true;
     }
 
     // G = Toggle grid

@@ -26,6 +26,17 @@ void ed_config_load(ed_config *cfg) {
     cfg->camera_sensitivity = toml_get_float(t, "editor", "camera_sensitivity", 0);
     cfg->camera_fov = toml_get_float(t, "editor", "camera_fov", 0);
 
+    cfg->cam_pos[0] = toml_get_float(t, "camera", "pos_x", 0);
+    cfg->cam_pos[1] = toml_get_float(t, "camera", "pos_y", 0);
+    cfg->cam_pos[2] = toml_get_float(t, "camera", "pos_z", 0);
+    cfg->cam_target[0] = toml_get_float(t, "camera", "target_x", 0);
+    cfg->cam_target[1] = toml_get_float(t, "camera", "target_y", 0);
+    cfg->cam_target[2] = toml_get_float(t, "camera", "target_z", 0);
+    cfg->cam_yaw = toml_get_float(t, "camera", "yaw", 0);
+    cfg->cam_pitch = toml_get_float(t, "camera", "pitch", 0);
+    cfg->cam_distance = toml_get_float(t, "camera", "distance", 0);
+    cfg->cam_state_valid = (cfg->cam_distance > 0);
+
     for (u32 i = 0; i < ED_MAX_RECENT_PROJECTS; i++) {
         char key[32];
         cstr_format_buf(key, sizeof(key), "recent_%u", i);
@@ -86,6 +97,17 @@ void ed_config_save(const ed_config *cfg) {
             offset += snprintf(buf + offset, sizeof(buf) - (u64)offset,
                 "recent_%u = \"%s\"\n", i, cfg->recent_projects[i]);
         }
+    }
+
+    if (cfg->cam_state_valid) {
+        offset += snprintf(buf + offset, sizeof(buf) - (u64)offset,
+            "\n[camera]\n"
+            "pos_x = %.4f\npos_y = %.4f\npos_z = %.4f\n"
+            "target_x = %.4f\ntarget_y = %.4f\ntarget_z = %.4f\n"
+            "yaw = %.4f\npitch = %.4f\ndistance = %.4f\n",
+            (f64)cfg->cam_pos[0], (f64)cfg->cam_pos[1], (f64)cfg->cam_pos[2],
+            (f64)cfg->cam_target[0], (f64)cfg->cam_target[1], (f64)cfg->cam_target[2],
+            (f64)cfg->cam_yaw, (f64)cfg->cam_pitch, (f64)cfg->cam_distance);
     }
 
     if (!platform_file_write_all(ED_STATE_FILENAME, buf, (u64)offset)) {

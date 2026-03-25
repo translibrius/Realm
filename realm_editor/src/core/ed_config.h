@@ -15,6 +15,14 @@ typedef struct ed_config {
     f32 camera_speed;
     f32 camera_sensitivity;
     f32 camera_fov;
+
+    // Viewport camera spatial state (persisted between sessions)
+    f32 cam_pos[3];
+    f32 cam_target[3];
+    f32 cam_yaw;
+    f32 cam_pitch;
+    f32 cam_distance;
+    b8  cam_state_valid; // false until first save
 } ed_config;
 
 void ed_config_load(ed_config *cfg);

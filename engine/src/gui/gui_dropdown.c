@@ -5,6 +5,8 @@
 #include "gui/gui_theme.h"
 #include "gui_internal.h"
 #include "platform/input.h"
+#include "renderer/renderer_frontend.h"
+#include "platform/platform.h"
 
 b8 gui_dropdown(gui_dropdown_state *state, const gui_dropdown_cfg *cfg) {
     if (!state || !cfg || !cfg->items || cfg->item_count <= 0) return false;
@@ -64,10 +66,29 @@ b8 gui_dropdown(gui_dropdown_state *state, const gui_dropdown_cfg *cfg) {
         state->open = !state->open;
     }
 
+    // Decide whether to open upward or downward.
+    // Use actual list height from previous frame if available, otherwise estimate.
+    Clay_ElementId list_eid = CLAY_IDI("GuiDropdownList", state->_id);
+    b8 open_upward = false;
+    {
+        Clay_ElementData trigger_data = Clay_GetElementData(trigger_eid);
+        if (trigger_data.found) {
+            Clay_ElementData list_data = Clay_GetElementData(list_eid);
+            f32 list_h = list_data.found ? list_data.boundingBox.height : 0;
+            f32 trigger_bottom = trigger_data.boundingBox.y + trigger_data.boundingBox.height;
+            f32 trigger_top = trigger_data.boundingBox.y;
+            platform_window *win = renderer_get_active_window();
+            f32 win_h = win ? (f32)win->settings.height : 800.0f;
+            f32 space_below = win_h - trigger_bottom;
+            f32 space_above = trigger_top;
+            if (list_h > space_below && space_above > space_below) {
+                open_upward = true;
+            }
+        }
+    }
+
     // Floating dropdown list — always created to keep parent's
     // floatingChildrenCount constant and prevent auto-ID shifts.
-    Clay_ElementId list_eid = CLAY_IDI("GuiDropdownList", state->_id);
-
     Clay__OpenElementWithId(list_eid);
     Clay__ConfigureOpenElement((Clay_ElementDeclaration){
         .layout = {
@@ -80,10 +101,15 @@ b8 gui_dropdown(gui_dropdown_state *state, const gui_dropdown_cfg *cfg) {
         .floating = {
             .attachTo = CLAY_ATTACH_TO_ELEMENT_WITH_ID,
             .parentId = trigger_eid.id,
-            .attachPoints = {
-                .element = CLAY_ATTACH_POINT_LEFT_TOP,
-                .parent = CLAY_ATTACH_POINT_LEFT_BOTTOM,
-            },
+            .attachPoints = open_upward
+                ? (Clay_FloatingAttachPoints){
+                    .element = CLAY_ATTACH_POINT_LEFT_BOTTOM,
+                    .parent = CLAY_ATTACH_POINT_LEFT_TOP,
+                  }
+                : (Clay_FloatingAttachPoints){
+                    .element = CLAY_ATTACH_POINT_LEFT_TOP,
+                    .parent = CLAY_ATTACH_POINT_LEFT_BOTTOM,
+                  },
             .zIndex = 200,
             .pointerCaptureMode = state->open ? CLAY_POINTER_CAPTURE_MODE_CAPTURE
                                               : CLAY_POINTER_CAPTURE_MODE_PASSTHROUGH,

@@ -39,7 +39,7 @@ typedef struct logger_state {
 static logger_state *state;
 
 const char *level_strs[] = {
-    "[INFO]: ", "[DEBU]: ", "[TRAC]: ", "[WARN]: ", "[ERRO]: ", "[FATA]: "};
+    "[INFO]  ", "[DEBUG] ", "[TRACE] ", "[WARN]  ", "[ERROR] ", "[FATAL] "};
 
 static u8 logger_level_rank(LOG_LEVEL level) {
     switch (level) {
@@ -205,7 +205,7 @@ void log_output(const char *fmt, LOG_LEVEL level, const char *func, ...) {
     int offset = snprintf(
         e.text,
         LOG_MAX_LINE,
-        "%s[%s]: ",
+        "%s%s: ",
         level_strs[level],
         func);
 
@@ -244,7 +244,7 @@ void log_output(const char *fmt, LOG_LEVEL level, const char *func, ...) {
 
         if (!state->warned_full) {
             state->warned_full = true;
-            platform_console_write("[WARN]: Logger queue full, dropping messages!\n", LOG_WARN);
+            platform_console_write("[WARN]  logger: queue full, dropping messages!\n", LOG_WARN);
             debugBreak();
         }
     }

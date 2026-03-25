@@ -52,6 +52,10 @@ void gui_text_input_handle_char(gui_text_input_state *s, input_char *ch) {
     if (!s || !ch) {
         return;
     }
+    if (s->_skip_next_char) {
+        s->_skip_next_char = false;
+        return;
+    }
     if (ch->codepoint < 32 || ch->codepoint > 126) {
         return;
     }
@@ -130,20 +134,21 @@ void gui_text_input_render(gui_text_input_state *state, f32 dt, const gui_text_i
 
     gui_textn(display, len, &(gui_text_cfg){.color = text_color, .size = font_size, .font = font});
 
-    // Floating pixel cursor rect (thin blinking line)
+    // Floating pixel cursor (thin blinking line between characters)
     if (focused) {
         state->cursor_blink += dt;
         if (state->cursor_blink > 1.0f) state->cursor_blink -= 1.0f;
         if (state->cursor_blink < 0.5f) {
             f32 cursor_x = gui_measure_text_width(state->buf, state->cursor, font, font_size);
+            f32 caret_h = (f32)font_size + 4.0f;
             Clay__OpenElement();
             Clay__ConfigureOpenElement((Clay_ElementDeclaration){
-                .layout = {.sizing = {.width = CLAY_SIZING_FIXED(1.5f),
-                                      .height = CLAY_SIZING_FIXED((f32)font_size)}},
+                .layout = {.sizing = {.width = CLAY_SIZING_FIXED(1.0f),
+                                      .height = CLAY_SIZING_FIXED(caret_h)}},
                 .floating = {.attachTo = CLAY_ATTACH_TO_PARENT,
                              .attachPoints = {.parent = CLAY_ATTACH_POINT_LEFT_CENTER,
                                               .element = CLAY_ATTACH_POINT_LEFT_CENTER},
-                             .offset = {padding + cursor_x, 0},
+                             .offset = {padding + cursor_x - 0.5f, 0},
                              .pointerCaptureMode = CLAY_POINTER_CAPTURE_MODE_PASSTHROUGH,
                              .zIndex = 10},
                 .backgroundColor = text_color,

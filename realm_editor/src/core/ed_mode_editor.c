@@ -43,6 +43,7 @@ void ed_mode_editor_enter(ed_application *app) {
     }
 
     ed_camera_init(&app->camera);
+    ed_camera_restore(&app->camera, &app->ed_cfg);
     ed_gizmo_transform_init(&app->gizmo);
     app->show_grid = true;
     ed_undo_init(&app->undo);
@@ -61,6 +62,10 @@ void ed_mode_editor_enter(ed_application *app) {
 }
 
 void ed_mode_editor_exit(ed_application *app) {
+    // Persist viewport camera state
+    ed_camera_snapshot(&app->camera, &app->ed_cfg);
+    ed_config_save(&app->ed_cfg);
+
     // Auto-save dirty scene before closing
     if (app->scene_dirty && app->scene_path[0]) {
         ed_scene_save(app, app->scene_path);

@@ -11,8 +11,9 @@ typedef struct gui_text_input_state {
     u16 len;
     u16 cursor;
     f32 cursor_blink;
-    b8  submitted; // set true by centralized router on Enter; caller clears
-    u32 _id;       // auto-generated, 0 = uninitialized
+    b8  submitted;       // set true by centralized router on Enter; caller clears
+    b8  _skip_next_char; // suppress one char event (e.g. after hotkey focus)
+    u32 _id;             // auto-generated, 0 = uninitialized
 } gui_text_input_state;
 
 // Process a key event. Returns true if Enter was pressed (submit).

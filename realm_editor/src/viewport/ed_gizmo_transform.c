@@ -315,10 +315,13 @@ static void build_scale_overlays(ed_gizmo_transform *g, rl_transform *t, rl_fram
     }
 
     // Center cube: larger + yellow to distinguish from translate mode
+    b8 uniform_active = g->dragging && (g->drag_axis == ED_GIZMO_AXIS_ALL
+                        || input_is_key_down(KEY_L_SHIFT));
     rl_frame_mesh *center = &meshes[6];
     center->primitive = RL_FRAME_PRIMITIVE_CUBE;
     center->kind = RL_FRAME_MESH_KIND_UNLIT;
-    glm_vec3_copy((vec3){0.9f, 0.9f, 0.2f}, center->material.specular);
+    glm_vec3_copy(uniform_active ? (vec3){1.0f, 1.0f, 0.5f} : (vec3){0.9f, 0.9f, 0.2f},
+                  center->material.specular);
     glm_mat4_identity(center->model);
     glm_translate(center->model, t->position);
     vec3 cs = {SCALE_CENTER_SIZE, SCALE_CENTER_SIZE, SCALE_CENTER_SIZE};
@@ -330,9 +333,24 @@ static void build_scale_overlays(ed_gizmo_transform *g, rl_transform *t, rl_fram
 
 // --- Pick helpers ---
 
-static ED_GIZMO_AXIS pick_translate_or_scale(rl_transform *t, const rl_ray *ray) {
+static ED_GIZMO_AXIS pick_translate_or_scale(rl_transform *t, const rl_ray *ray,
+                                              b8 scale_mode) {
     f32 closest_t = 1e30f;
     ED_GIZMO_AXIS closest_axis = ED_GIZMO_AXIS_NONE;
+
+    // Center cube → uniform scale (scale mode only)
+    if (scale_mode) {
+        f32 cs = SCALE_CENTER_SIZE;
+        rl_aabb center_aabb = {
+            .min = {t->position[0] - cs, t->position[1] - cs, t->position[2] - cs},
+            .max = {t->position[0] + cs, t->position[1] + cs, t->position[2] + cs},
+        };
+        f32 hit_t;
+        if (ray_intersect_aabb(ray, &center_aabb, &hit_t) && hit_t < closest_t) {
+            closest_t = hit_t;
+            closest_axis = ED_GIZMO_AXIS_ALL;
+        }
+    }
 
     for (u32 a = 0; a < 3; a++) {
         rl_aabb shaft_aabb, tip_aabb;
@@ -401,9 +419,9 @@ ED_GIZMO_AXIS ed_gizmo_transform_pick(ed_gizmo_transform *g, rl_scene *scene,
     if (!t) return ED_GIZMO_AXIS_NONE;
 
     switch (g->mode) {
-    case ED_GIZMO_TRANSLATE: return pick_translate_or_scale(t, ray);
+    case ED_GIZMO_TRANSLATE: return pick_translate_or_scale(t, ray, false);
     case ED_GIZMO_ROTATE:    return pick_rotate(t, ray);
-    case ED_GIZMO_SCALE:     return pick_translate_or_scale(t, ray);
+    case ED_GIZMO_SCALE:     return pick_translate_or_scale(t, ray, true);
     }
 
     return ED_GIZMO_AXIS_NONE;
@@ -426,7 +444,9 @@ void ed_gizmo_transform_drag_begin(ed_gizmo_transform *g, rl_scene *scene,
     case ED_GIZMO_TRANSLATE:
     case ED_GIZMO_SCALE: {
         f32 val = 0.0f;
-        project_ray_onto_axis(ray, t->position, axis, &val);
+        // Uniform scale (center cube): project onto Y axis for vertical drag
+        ED_GIZMO_AXIS proj_axis = (axis == ED_GIZMO_AXIS_ALL) ? ED_GIZMO_AXIS_Y : axis;
+        project_ray_onto_axis(ray, t->position, proj_axis, &val);
         g->drag_start_axis_value = val;
         break;
     }
@@ -479,15 +499,25 @@ void ed_gizmo_transform_drag_update(ed_gizmo_transform *g, rl_scene *scene,
         break;
     }
     case ED_GIZMO_SCALE: {
+        b8 uniform = (g->drag_axis == ED_GIZMO_AXIS_ALL) || input_is_key_down(KEY_L_SHIFT);
+        ED_GIZMO_AXIS proj_axis = (g->drag_axis == ED_GIZMO_AXIS_ALL)
+                                    ? ED_GIZMO_AXIS_Y : g->drag_axis;
         f32 current_val = 0.0f;
         if (!project_ray_onto_axis(ray, g->drag_start_transform.position,
-                                    g->drag_axis, &current_val)) {
+                                    proj_axis, &current_val)) {
             return;
         }
         f32 delta = current_val - g->drag_start_axis_value;
         glm_vec3_copy(g->drag_start_transform.scale, t->scale);
-        t->scale[a] += delta;
-        if (t->scale[a] < 0.01f) t->scale[a] = 0.01f;
+        if (uniform) {
+            for (u32 i = 0; i < 3; i++) {
+                t->scale[i] += delta;
+                if (t->scale[i] < 0.01f) t->scale[i] = 0.01f;
+            }
+        } else {
+            t->scale[a] += delta;
+            if (t->scale[a] < 0.01f) t->scale[a] = 0.01f;
+        }
         t->dirty = true;
         break;
     }

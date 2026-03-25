@@ -71,7 +71,7 @@ Key rules:
 
 ## GUI code style
 
-Three-section pattern (state sync → layout → apply changes) with scoped macros. See [.claude/docs/gui-style.md](.claude/docs/gui-style.md) for layout patterns and **Clay rules** (element tree structure, stable IDs, floating elements, pointer capture). Violating Clay rules causes silent breakage — read the rules before adding or modifying GUI widgets.
+Three-section pattern (state sync → layout → apply changes) with scoped macros. See [.claude/docs/gui-style.md](.claude/docs/gui-style.md) for layout patterns and **Clay rules** (element tree structure, stable IDs, floating elements, pointer capture). Violating Clay rules causes silent breakage — read the rules before adding or modifying GUI widgets. See [.claude/docs/design-principles.md](.claude/docs/design-principles.md) for editor UI design principles.
 
 ## Tools
 

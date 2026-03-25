@@ -22,7 +22,11 @@ typedef struct ed_camera {
     b8  right_click_tap;     // one-frame pulse: right-click was a tap, not a hold
 } ed_camera;
 
+typedef struct ed_config ed_config;
+
 void ed_camera_init(ed_camera *ec);
+void ed_camera_restore(ed_camera *ec, const ed_config *cfg);
+void ed_camera_snapshot(const ed_camera *ec, ed_config *cfg);
 void ed_camera_update(ed_camera *ec, f64 dt, const Clay_BoundingBox *viewport,
                       platform_window *window, const f32 *selection_pos);
 void ed_camera_on_scroll(ed_camera *ec, f32 z_delta);

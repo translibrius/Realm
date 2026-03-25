@@ -45,6 +45,8 @@ void ed_layout_init(ed_layout *layout, ed_undo_stack *undo) {
     layout->viewport_tab = 0;
     layout->theme_dropdown = (gui_dropdown_state){.selected = 0};
     layout->viewport_bounds = (Clay_BoundingBox){0};
+    layout->settings_tab = 0;
+    layout->settings_scroll = (gui_scroll_state){.auto_scroll = false};
 
     ed_inspector_init(&layout->inspector, undo);
 }

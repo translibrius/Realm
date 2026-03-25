@@ -4,7 +4,9 @@
 #include "panels/ed_inspector.h"
 #include "gui/gui_context_menu.h"
 #include "gui/gui_dropdown.h"
+#include "gui/gui_number_input.h"
 #include "gui/gui_scroll.h"
+#include "gui/gui_slider.h"
 #include "gui/gui_splitter.h"
 #include "gui/gui_tree.h"
 
@@ -42,6 +44,16 @@ typedef struct ed_layout {
     // Viewport tab bar (0 = Viewport, 1 = Settings)
     i32 viewport_tab;
     gui_dropdown_state theme_dropdown;
+
+    // Settings subtabs + widget state
+    i32 settings_tab;
+    gui_scroll_state settings_scroll;
+    gui_number_input_state settings_cam_speed;
+    gui_number_input_state settings_cam_sens;
+    gui_number_input_state settings_cam_fov;
+    gui_slider_state settings_slider_speed;
+    gui_slider_state settings_slider_sens;
+    gui_slider_state settings_slider_fov;
 
     // Viewport bounds from previous frame (for camera input)
     Clay_BoundingBox viewport_bounds;

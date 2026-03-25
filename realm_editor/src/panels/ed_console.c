@@ -7,6 +7,7 @@
 #include "gui/gui_focus.h"
 #include "gui/gui_panel.h"
 #include "gui/gui_scroll.h"
+#include "gui/gui_icon.h"
 #include "gui/gui_text.h"
 #include "gui/gui_text_input.h"
 #include "gui/gui_theme.h"
@@ -33,7 +34,6 @@ void ed_console_on_scroll(ed_console *c, f32 delta) {
 void ed_console_render(ed_console *c, f32 height, f32 dt) {
     if (!c || !c->core.visible) return;
 
-    rl_arena *arena = rl_engine_get_frame_arena();
     u16 font = gui_font_id(asset_find(RL_ASSET_FONT_JETBRAINS_MONO));
     const gui_theme *t = gui_theme_get();
     gui_text_cfg log_text = {.size = 13, .font = font};
@@ -52,7 +52,7 @@ void ed_console_render(ed_console *c, f32 height, f32 dt) {
     if (c->core.input.submitted) {
         c->core.input.submitted = false;
         c->core.input.buf[c->core.input.len] = '\0';
-        RL_INFO("> %s", c->core.input.buf);
+        RL_INFO("%s", c->core.input.buf);
         c->core.input.len = 0;
         c->core.input.cursor = 0;
         c->core.input.buf[0] = '\0';
@@ -70,42 +70,19 @@ void ed_console_render(ed_console *c, f32 height, f32 dt) {
             }
         gui_scroll_end();
 
-        char *input_display = rl_arena_push(arena, GUI_TEXT_INPUT_MAX + 4, false);
-        input_display[0] = '>';
-        input_display[1] = ' ';
-        u16 ilen = gui_text_input_display(&c->core.input, dt, &input_display[2], GUI_TEXT_INPUT_MAX);
-
-        gui_panel_cfg input_bar = {
-            .color = t->bg_input,
-            .border_color = t->border, .border_width = 1,
-            .width_sizing = GUI_SIZE_GROW, .height = 28, .padding = 8,
+        gui_panel_cfg input_row = {
+            .width_sizing = GUI_SIZE_GROW,
+            .height = 26,
+            .horizontal = true,
+            .gap = 6,
+            .align_y = CLAY_ALIGN_Y_CENTER,
         };
-        GUI_PANEL(&input_bar) {
-            gui_textn(input_display, 2 + ilen,
-                &(gui_text_cfg){.color = t->text, .size = 13, .font = font});
-
-            // Floating cursor rect
-            if (gui_focus_is(c->core.input._id)) {
-                c->core.input.cursor_blink += dt;
-                if (c->core.input.cursor_blink > 1.0f) c->core.input.cursor_blink -= 1.0f;
-                if (c->core.input.cursor_blink < 0.5f) {
-                    f32 prefix_w = gui_measure_text_width("> ", 2, font, 13);
-                    f32 cursor_x = gui_measure_text_width(c->core.input.buf, c->core.input.cursor, font, 13);
-                    Clay__OpenElement();
-                    Clay__ConfigureOpenElement((Clay_ElementDeclaration){
-                        .layout = {.sizing = {.width = CLAY_SIZING_FIXED(1.5f),
-                                              .height = CLAY_SIZING_FIXED(13)}},
-                        .floating = {.attachTo = CLAY_ATTACH_TO_PARENT,
-                                     .attachPoints = {.parent = CLAY_ATTACH_POINT_LEFT_CENTER,
-                                                      .element = CLAY_ATTACH_POINT_LEFT_CENTER},
-                                     .offset = {8 + prefix_w + cursor_x, 0},
-                                     .pointerCaptureMode = CLAY_POINTER_CAPTURE_MODE_PASSTHROUGH,
-                                     .zIndex = 10},
-                        .backgroundColor = t->text,
-                    });
-                    Clay__CloseElement();
-                }
-            }
+        GUI_PANEL(&input_row) {
+            gui_icon(GUI_ICON_CHEVRON_RIGHT, 12, t->accent);
+            gui_text_input_render(&c->core.input, dt, &(gui_text_input_render_cfg){
+                .font = font, .font_size = 13, .height = 26,
+            });
+            host_console_filter_dropdown(&c->core, font);
         }
     }
 }
