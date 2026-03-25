@@ -18,4 +18,5 @@
 #include "gui/gui_icon.h"
 #include "gui/gui_context_menu.h"
 #include "gui/gui_file_browser.h"
+#include "gui/gui_debug_overlay.h"
 #include "gui/gui_theme.h"

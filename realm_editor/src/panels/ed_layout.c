@@ -15,6 +15,7 @@
 #include "engine.h"
 #include "gui/gui_clay.h"
 #include "gui/gui_context_menu.h"
+#include "gui/gui_debug_overlay.h"
 #include "gui/gui_button.h"
 #include "gui/gui_icon.h"
 #include "gui/gui_dropdown.h"
@@ -325,14 +326,12 @@ static void ed_layout_viewport(ed_layout *layout, ed_application *app, f32 dt) {
                 .backgroundColor = {0, 0, 0, 0},
             });
 
-            // FPS overlay — floating in top-right corner of viewport
+            // Debug overlay — floating in top-right corner of viewport
             if (app->ed_cfg.show_fps) {
-                rl_engine_stats stats = rl_engine_get_stats();
                 Clay__OpenElementWithId(CLAY_ID("FpsOverlay"));
                 Clay__ConfigureOpenElement((Clay_ElementDeclaration){
                     .layout = {
                         .sizing = {.width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_FIT(0)},
-                        .padding = {.left = 8, .right = 8, .top = 4, .bottom = 4},
                     },
                     .floating = {
                         .attachTo = CLAY_ATTACH_TO_PARENT,
@@ -343,11 +342,10 @@ static void ed_layout_viewport(ed_layout *layout, ed_application *app, f32 dt) {
                         .offset = {-8, 8},
                         .zIndex = 50,
                     },
-                    .backgroundColor = GUI_RGBA(0, 0, 0, 140),
-                    .cornerRadius = CLAY_CORNER_RADIUS(4),
                 });
-                gui_textf(&(gui_text_cfg){.color = t->debug_highlight, .size = 12, .font = font},
-                          "%llu FPS  %.1f ms", (unsigned long long)stats.fps, stats.frame_time_ms);
+                gui_debug_overlay(&(gui_debug_overlay_cfg){
+                    .show_perf = true, .show_renderer = true,
+                });
                 Clay__CloseElement();
             }
 
