@@ -58,6 +58,11 @@ When starting a session from this roadmap:
 - **Source reorganization** — both `realm/src/` and `realm_editor/src/` reorganized into semantic subfolders (`host/`, `module/`, `gui/`, `viewport/`, `panels/`, `scene/`, `project/`, etc.)
 - **Font atlas & GUI perf** — combined font atlases into single texture to eliminate per-font flush thrashing, reusable `gui_debug_overlay` engine widget
 - **Editor camera improvements** — orbit target now tracks selection (or scene center fallback) instead of being trashed by fly mode. `camera_look_at()` extracted to base camera API. F key frames selection (sets orbit target + distance).
+- **Settings panel rework** — replaced flat scrollable dump with 4 subtabs (Viewport, Appearance, Profiler, Shortcuts) using `gui_tabs`. Widget state moved from file-scope statics to `ed_layout` struct. Design principles doc added (`.claude/docs/design-principles.md`).
+- **Console rework** — replaced manual text input rendering with `gui_text_input_render` widget (click-to-focus, proper cursor). Chevron icon prompt. Log level filter dropdown on `host_console` (shared by editor + realm). `~` keybind wired in editor. `_skip_next_char` flag to suppress hotkey char bleed.
+- **Log formatting** — `[INFO]  func_name: message` format (was `[INFO]: [func_name]: message`). Cleaned up double brackets and colons.
+- **Text input cursor fix** — 1px width (was 1.5), `font_size + 4` height, -0.5px offset so caret sits between characters instead of overlapping glyphs.
+- **Dropdown flip** — `gui_dropdown` auto-detects when the list would overflow the window bottom and opens upward instead. Uses actual rendered list height from previous frame via `Clay_GetElementData`.
 
 ### Binary scene format reference
 
@@ -163,6 +168,13 @@ Hover picking infrastructure is complete. Stencil-based outline was reverted (ma
 ---
 
 ## Future (not scoped)
+
+### Text input selection & clipboard
+- Platform clipboard API: `platform_clipboard_get()` / `platform_clipboard_set()` (Win32, macOS, Linux)
+- `gui_text_input` selection: `selection_anchor` field, Shift+arrow/click to select, highlight rect rendering
+- Ctrl+C / Ctrl+V / Ctrl+X in text input, Ctrl+A select all
+- Typing/backspace replaces selection
+- Console "Copy Log" button — dumps filtered lines to clipboard (pragmatic alternative to full multi-widget text selection, which Clay doesn't support)
 
 ### Editor features
 - Custom title bar on macOS/Linux (stubs exist)
