@@ -3,6 +3,7 @@
 #include "asset/asset.h"
 #include "asset/asset_internal.h"
 #include "asset/font.h"
+#include "asset/font_atlas.h"
 #include "clay.h"
 #include "core/logger.h"
 #include "gl_renderer.h"
@@ -183,6 +184,17 @@ static void gui_flush(GL_Context *ctx, GL_GuiVertex *verts, u32 *vert_count, GL_
     *vert_count = 0;
 }
 
+// Lightweight flush: upload + draw only. Shader/texture/VAO already bound.
+static void gui_flush_verts_only(GL_Context *ctx, GL_GuiVertex *verts, u32 *vert_count) {
+    if (*vert_count == 0) return;
+    (void)ctx;
+
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(GL_GuiVertex) * (*vert_count), verts);
+    glDrawArrays(GL_TRIANGLES, 0, (GLsizei)*vert_count);
+
+    *vert_count = 0;
+}
+
 // Push text glyphs in top-left coordinate space (gui.vert does Y-flip).
 // Baseline y should be: bb.y + font->ascender * fontSize
 static void push_text_glyphs(GL_GuiVertex *verts, u32 *vert_count, u32 max_verts,
@@ -266,6 +278,7 @@ void opengl_render_gui(void *commands, i32 command_count) {
     static GL_GuiVertex verts[GUI_MAX_VERTS];
     u32 vert_count = 0;
     GL_Font *current_font = nullptr;
+    b8 has_combined_atlas = rl_font_atlas_get_combined() != nullptr;
 
     clip_depth = 0;
 
@@ -273,6 +286,22 @@ void opengl_render_gui(void *commands, i32 command_count) {
     glDisable(GL_MULTISAMPLE);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // With a combined atlas, bind shader + texture + VAO once up front
+    GL_GuiPipeline *p = &ctx->gui_pipeline;
+    if (has_combined_atlas && ctx->fonts.count > 0) {
+        opengl_shader_use(&p->shader);
+        glBindVertexArray(p->vao);
+        glBindBuffer(GL_ARRAY_BUFFER, p->vbo);
+        glUniform2f(p->loc_screen_size, (f32)ctx->window->settings.width, (f32)ctx->window->settings.height);
+        glUniform1f(p->loc_weight, 0.12f);
+
+        GL_Font *first = &ctx->fonts.items[0];
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, first->texture_id);
+        glUniform1i(p->loc_font_atlas, 0);
+        glUniform1f(p->loc_px_range, first->font->pixel_range);
+    }
 
     for (i32 i = 0; i < command_count; i++) {
         Clay_RenderCommand *cmd = &cmds[i];
@@ -317,15 +346,21 @@ void opengl_render_gui(void *commands, i32 command_count) {
             GL_Font *gl_font = gl_find_font(ctx, font);
             if (!gl_font) break;
 
-            // Flush if font atlas changed (different texture)
-            if (current_font && current_font != gl_font) {
-                gui_flush(ctx, verts, &vert_count, current_font);
+            if (!has_combined_atlas) {
+                // Legacy path: flush on font atlas change
+                if (current_font && current_font != gl_font) {
+                    gui_flush(ctx, verts, &vert_count, current_font);
+                }
             }
             current_font = gl_font;
 
             // Flush if buffer is getting full
             if (vert_count + 6 * 256 > GUI_MAX_VERTS) {
-                gui_flush(ctx, verts, &vert_count, current_font);
+                if (has_combined_atlas) {
+                    gui_flush_verts_only(ctx, verts, &vert_count);
+                } else {
+                    gui_flush(ctx, verts, &vert_count, current_font);
+                }
             }
 
             vec4 color = {
@@ -367,8 +402,12 @@ void opengl_render_gui(void *commands, i32 command_count) {
         }
     }
 
-    // Single flush — all rects and text interleaved in correct z-order
-    gui_flush(ctx, verts, &vert_count, current_font);
+    // Final flush
+    if (has_combined_atlas) {
+        gui_flush_verts_only(ctx, verts, &vert_count);
+    } else {
+        gui_flush(ctx, verts, &vert_count, current_font);
+    }
 
     glBindVertexArray(0);
     glEnable(GL_MULTISAMPLE);

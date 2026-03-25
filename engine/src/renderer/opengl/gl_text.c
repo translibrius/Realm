@@ -3,6 +3,7 @@
 #include "asset/asset.h"
 #include "asset/asset_internal.h"
 #include "asset/font.h"
+#include "asset/font_atlas.h"
 #include "core/logger.h"
 #include "gl_renderer.h"
 #include "glad.h"
@@ -51,15 +52,47 @@ b8 opengl_text_pipeline_init(GL_Context *ctx) {
     glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(GL_TextVertex), (void *)(4 * sizeof(f32)));
     glEnableVertexAttribArray(2);
 
-    // Load all font assets to GPU :)
+    // Upload font atlas(es) to GPU
+    const rl_texture *combined = rl_font_atlas_get_combined();
+    u32 shared_texture_id = 0;
+
+    if (combined) {
+        // Single combined atlas for all fonts
+        glGenTextures(1, &shared_texture_id);
+        glBindTexture(GL_TEXTURE_2D, shared_texture_id);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8,
+                     combined->width, combined->height,
+                     0, GL_RGBA, GL_UNSIGNED_BYTE, combined->data);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        RL_DEBUG("uploaded combined font atlas %dx%d", combined->width, combined->height);
+    }
+
     Assets *assets = get_assets();
     for (u32 i = 0; i < assets->count; i++) {
         rl_asset *asset = &assets->items[i];
         if (asset->type == ASSET_FONT) {
             rl_font *font = (rl_font *)asset->data;
             RL_DEBUG("loading gl font %s", font->name);
-            if (!gl_font_create(font, ctx)) {
-                RL_WARN("gl_font_create() failed for '%s'", asset->filename);
+
+            if (shared_texture_id) {
+                // Create GL_Font entry sharing the combined texture
+                GL_Font gl_font = {0};
+                gl_font.texture_id = shared_texture_id;
+                gl_font.font = font;
+                for (u32 g = 0; g < font->glyph_count; g++) {
+                    u32 cp = (u32)font->glyphs[g].codepoint;
+                    if (cp < 256)
+                        gl_font.glyph_map[cp] = &font->glyphs[g];
+                }
+                da_append(&ctx->fonts, gl_font);
+            } else {
+                if (!gl_font_create(font, ctx)) {
+                    RL_WARN("gl_font_create() failed for '%s'", asset->filename);
+                }
             }
 
             if (cstr_eq(font->name, "JetBrainsMono-Regular.ttf")) {

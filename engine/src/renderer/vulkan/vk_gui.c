@@ -3,6 +3,7 @@
 #include "asset/asset.h"
 #include "asset/asset_internal.h"
 #include "asset/font.h"
+#include "asset/font_atlas.h"
 #include "clay.h"
 #include "core/logger.h"
 #include "renderer/renderer_types.h"
@@ -407,8 +408,8 @@ void vulkan_render_gui(void *commands, i32 command_count) {
             VK_Font *vk_font = vk_find_font(ctx, font);
             if (!vk_font) break;
 
-            // Flush segment if font changed
-            if (current_font && current_font != vk_font) {
+            // Flush segment if font changed (only needed without combined atlas)
+            if (!ctx->text_pipeline.has_combined_atlas && current_font && current_font != vk_font) {
                 gui_segment_flush(gp, current_font, segment_start, vert_count - segment_start);
                 segment_start = vert_count;
             }
@@ -492,10 +493,12 @@ void vulkan_gui_record_commands(VK_Context *ctx, VkCommandBuffer cmd) {
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(cmd, 0, 1, buffers, offsets);
 
-    for (u32 i = 0; i < gp->segment_count; i++) {
-        VK_GuiSegment *seg = &gp->segments[i];
+    VK_TextPipeline *tp = &ctx->text_pipeline;
 
-        // Push constants with this segment's font's px_range + weight
+    if (tp->has_combined_atlas) {
+        // Single push + bind + draw for the entire GUI pass
+        VK_GuiSegment *seg = &gp->segments[0];
+
         struct {
             f32 screen_w;
             f32 screen_h;
@@ -511,13 +514,39 @@ void vulkan_gui_record_commands(VK_Context *ctx, VkCommandBuffer cmd) {
                            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                            0, sizeof(push), &push);
 
-        // Bind this font's descriptor set
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 gp->layout, 0, 1,
-                                &seg->font->descriptor_sets[ctx->current_frame],
+                                &tp->combined_descriptor_sets[ctx->current_frame],
                                 0, nullptr);
 
-        vkCmdDraw(cmd, seg->vertex_count, 1, seg->start_vertex, 0);
+        vkCmdDraw(cmd, gp->vertex_count, 1, 0, 0);
+    } else {
+        // Legacy path: per-segment draw calls
+        for (u32 i = 0; i < gp->segment_count; i++) {
+            VK_GuiSegment *seg = &gp->segments[i];
+
+            struct {
+                f32 screen_w;
+                f32 screen_h;
+                f32 px_range;
+                f32 weight;
+            } push = {
+                .screen_w = (f32)ctx->swapchain.chosen_extent.width,
+                .screen_h = (f32)ctx->swapchain.chosen_extent.height,
+                .px_range = seg->font->font->pixel_range,
+                .weight = 0.12f
+            };
+            vkCmdPushConstants(cmd, gp->layout,
+                               VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                               0, sizeof(push), &push);
+
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                    gp->layout, 0, 1,
+                                    &seg->font->descriptor_sets[ctx->current_frame],
+                                    0, nullptr);
+
+            vkCmdDraw(cmd, seg->vertex_count, 1, seg->start_vertex, 0);
+        }
     }
 
     // Reset for next frame

@@ -2,6 +2,7 @@
 
 #include "asset/asset_internal.h"
 #include "asset/font.h"
+#include "asset/font_atlas.h"
 #include "core/logger.h"
 #include "memory/arena.h"
 #include "vk_descriptor.h"
@@ -140,14 +141,76 @@ b8 vk_text_pipeline_init(VK_Context *ctx) {
     // --- Load all font assets ---
     da_init_with_cap(&tp->fonts, 4);
 
+    const rl_texture *combined = rl_font_atlas_get_combined();
+
+    if (combined) {
+        // Upload single combined atlas
+        VkDeviceSize image_size = (VkDeviceSize)combined->width * combined->height * 4;
+        b8 ok = vk_texture_upload(ctx, (u32)combined->width, (u32)combined->height, 1,
+                                  VK_FORMAT_R8G8B8A8_UNORM,
+                                  combined->data, image_size,
+                                  &tp->combined_image, &tp->combined_memory, &tp->combined_view);
+        if (!ok) {
+            RL_ERROR("Failed to upload combined font atlas");
+            return false;
+        }
+
+        // Allocate shared per-frame descriptor sets
+        tp->combined_descriptor_sets = rl_arena_push(&ctx->arena,
+                                                      sizeof(VkDescriptorSet) * ctx->max_frames_in_flight,
+                                                      alignof(VkDescriptorSet));
+        if (!vk_descriptor_sets_allocate(ctx, tp->descriptor_pool, tp->descriptor_set_layout,
+                                         ctx->max_frames_in_flight, tp->combined_descriptor_sets)) {
+            return false;
+        }
+
+        for (u32 i = 0; i < ctx->max_frames_in_flight; i++) {
+            VkDescriptorImageInfo img_info = {
+                .sampler = tp->font_sampler,
+                .imageView = tp->combined_view,
+                .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            };
+            VkWriteDescriptorSet write = {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = tp->combined_descriptor_sets[i],
+                .dstBinding = 0,
+                .dstArrayElement = 0,
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                .pImageInfo = &img_info
+            };
+            vkUpdateDescriptorSets(ctx->device, 1, &write, 0, nullptr);
+        }
+
+        tp->has_combined_atlas = true;
+        RL_DEBUG("uploaded combined VK font atlas %dx%d", combined->width, combined->height);
+    }
+
     Assets *assets = get_assets();
     for (u32 i = 0; i < assets->count; i++) {
         rl_asset *asset = &assets->items[i];
         if (asset->type == ASSET_FONT) {
             rl_font *font = (rl_font *)asset->data;
             RL_DEBUG("loading vk font %s", font->name);
-            if (!vk_font_create(font, ctx)) {
-                RL_WARN("vk_font_create() failed for '%s'", asset->filename);
+
+            if (tp->has_combined_atlas) {
+                // Create VK_Font entry sharing combined descriptor sets
+                VK_Font vk_font = {0};
+                vk_font.atlas_image = tp->combined_image;
+                vk_font.atlas_view = tp->combined_view;
+                vk_font.atlas_memory = tp->combined_memory;
+                vk_font.descriptor_sets = tp->combined_descriptor_sets;
+                vk_font.font = font;
+                for (u32 g = 0; g < font->glyph_count; g++) {
+                    u32 cp = (u32)font->glyphs[g].codepoint;
+                    if (cp < 256)
+                        vk_font.glyph_map[cp] = &font->glyphs[g];
+                }
+                da_append(&tp->fonts, vk_font);
+            } else {
+                if (!vk_font_create(font, ctx)) {
+                    RL_WARN("vk_font_create() failed for '%s'", asset->filename);
+                }
             }
 
             if (cstr_eq(font->name, "JetBrainsMono-Regular.ttf")) {
@@ -167,11 +230,18 @@ void vk_text_pipeline_destroy(VK_Context *ctx) {
         vkDestroyDescriptorPool(ctx->device, tp->descriptor_pool, nullptr);
     }
 
-    for (u32 i = 0; i < tp->fonts.count; i++) {
-        VK_Font *f = &tp->fonts.items[i];
-        vkDestroyImageView(ctx->device, f->atlas_view, nullptr);
-        vkDestroyImage(ctx->device, f->atlas_image, nullptr);
-        vkFreeMemory(ctx->device, f->atlas_memory, nullptr);
+    if (tp->has_combined_atlas) {
+        // All VK_Font entries share the combined image — destroy once
+        if (tp->combined_view) vkDestroyImageView(ctx->device, tp->combined_view, nullptr);
+        if (tp->combined_image) vkDestroyImage(ctx->device, tp->combined_image, nullptr);
+        if (tp->combined_memory) vkFreeMemory(ctx->device, tp->combined_memory, nullptr);
+    } else {
+        for (u32 i = 0; i < tp->fonts.count; i++) {
+            VK_Font *f = &tp->fonts.items[i];
+            vkDestroyImageView(ctx->device, f->atlas_view, nullptr);
+            vkDestroyImage(ctx->device, f->atlas_image, nullptr);
+            vkFreeMemory(ctx->device, f->atlas_memory, nullptr);
+        }
     }
 
     if (tp->font_sampler) {

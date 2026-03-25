@@ -1,6 +1,7 @@
 #include "engine.h"
 
 #include "asset/asset_internal.h"
+#include "asset/font_atlas.h"
 #include "core/behavior.h"
 #include "core/config.h"
 #include "core/event.h"
@@ -100,6 +101,8 @@ b8 rl_engine_create(const rl_engine_config *config) {
         return false;
     }
 
+    rl_font_atlas_build_combined();
+
     behavior_registry_init();
 
     rl_arena_init(&state.frame_arena, KiB(128), KiB(4), MEM_STRING);
@@ -120,6 +123,7 @@ void rl_engine_destroy(void) {
     platform_system_shutdown();
     renderer_destroy();
     config_system_shutdown();
+    rl_font_atlas_shutdown();
     asset_system_shutdown();
     event_system_shutdown();
     logger_system_shutdown();

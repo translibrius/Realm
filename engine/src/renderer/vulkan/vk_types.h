@@ -128,6 +128,13 @@ typedef struct VK_TextPipeline {
     VkSampler font_sampler;
     VK_Fonts fonts;
     rl_font *active_font;
+
+    // Combined atlas (shared by all fonts when available)
+    VkImage combined_image;
+    VkImageView combined_view;
+    VkDeviceMemory combined_memory;
+    VkDescriptorSet *combined_descriptor_sets; // per-frame
+    b8 has_combined_atlas;
 } VK_TextPipeline;
 
 // Flush segment: records a sub-range of vertices that share a descriptor set (font).
