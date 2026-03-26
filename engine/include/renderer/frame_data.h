@@ -79,6 +79,12 @@ typedef struct rl_frame_outline {
     b8 through_walls;
 } rl_frame_outline;
 
+typedef struct rl_frame_line {
+    vec3 a;     // world-space start
+    vec3 b;     // world-space end
+    vec3 color; // RGB [0,1]
+} rl_frame_line;
+
 typedef struct rl_frame_data {
     rl_frame_camera camera;
 
@@ -103,6 +109,10 @@ typedef struct rl_frame_data {
     u32             overlay_count;
 
     b8 show_grid;
+
+    // World-space line segments (frustum viz, debug drawing)
+    rl_frame_line *lines;
+    u32            line_count;
 
     // Outline requests (entity highlights)
     rl_frame_outline *outlines;

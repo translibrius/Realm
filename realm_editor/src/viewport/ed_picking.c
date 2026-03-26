@@ -50,6 +50,12 @@ rl_entity ed_pick_entity(rl_scene *scene, f32 screen_x, f32 screen_y,
             glm_mat4_copy(t->local_to_world, scaled);
             glm_scale_uni(scaled, 0.15f);
             aabb_from_unit_cube(scaled, &aabb);
+        } else if (cs->has_camera[i]) {
+            // Camera-only entities use a small cube matching the viz size (0.15)
+            mat4 scaled;
+            glm_mat4_copy(t->local_to_world, scaled);
+            glm_scale_uni(scaled, 0.15f);
+            aabb_from_unit_cube(scaled, &aabb);
         } else {
             continue;
         }

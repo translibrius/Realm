@@ -113,6 +113,9 @@ void scene_build_frame_data(rl_scene *scene, const rl_frame_camera *camera, rl_f
             light_count++;
             if (!cs->has_mesh[i]) mesh_count++;
         }
+        if (cs->has_transform[i] && cs->has_camera[i] && !cs->has_mesh[i]) {
+            mesh_count++;
+        }
     }
 
     // Allocate from frame arena
@@ -198,6 +201,19 @@ void scene_build_frame_data(rl_scene *scene, const rl_frame_camera *camera, rl_f
                     glm_mat4_copy(t->local_to_world, fm->model);
                     glm_scale_uni(fm->model, 0.15f);
                 }
+            }
+
+            // Emit a small unlit cube to visualize camera entities
+            if (cs->has_camera[i] && !cs->has_mesh[i]) {
+                rl_frame_mesh *fm = &meshes[mi++];
+                fm->primitive      = RL_FRAME_PRIMITIVE_CUBE;
+                fm->kind           = RL_FRAME_MESH_KIND_UNLIT;
+                fm->wireframe      = false;
+                fm->model_asset    = 0;
+                fm->source_entity  = rl_entity_pack(i, es->generation[i]);
+                glm_vec3_copy((vec3){0.8f, 0.8f, 0.8f}, fm->material.specular);
+                glm_mat4_copy(t->local_to_world, fm->model);
+                glm_scale_uni(fm->model, 0.15f);
             }
         }
     }

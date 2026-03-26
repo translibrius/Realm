@@ -14,6 +14,7 @@
 #include "renderer/opengl/gl_shader.h"
 #include "renderer/opengl/gl_types.h"
 #include "core/camera.h"
+#include "engine.h"
 
 static GL_Context context;
 
@@ -157,11 +158,12 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
         glStencilMask(0x00);
     }
 
-    // --- Grid pass ---
+    // --- Grid pass (no depth write — matches VK, avoids occluding debug lines) ---
     if (frame_data->show_grid && frame_data->camera.valid) {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glDisable(GL_CULL_FACE);
+        glDepthMask(GL_FALSE);
 
         opengl_shader_use(&context.grid_shader);
         opengl_shader_set_mat4(&context.grid_shader, "view", context.view);
@@ -171,6 +173,7 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
         glBindVertexArray(context.grid_vao);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
+        glDepthMask(GL_TRUE);
         glDisable(GL_BLEND);
         glEnable(GL_CULL_FACE);
     }
@@ -290,6 +293,96 @@ void opengl_submit_frame_data(rl_frame_data *frame_data) {
 
     if (wireframe_on) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        glEnable(GL_CULL_FACE);
+    }
+
+    // --- Line pass (frustum viz, debug lines — rendered as camera-facing quads) ---
+    if (frame_data->lines && frame_data->line_count > 0) {
+        opengl_shader_use(&context.light_shader);
+        opengl_shader_set_mat4(&context.light_shader, "view", context.view);
+        opengl_shader_set_mat4(&context.light_shader, "projection", context.projection);
+
+        mat4 identity;
+        glm_mat4_identity(identity);
+        opengl_shader_set_mat4(&context.light_shader, "model", identity);
+
+        // Screen-space width: convert desired pixel width to world-space per unit depth
+        f32 width_px = 2.5f;
+        f32 vp_h = has_viewport ? vr.h : (f32)context.window->settings.height;
+        f32 half_fov_tan = 1.0f / context.projection[1][1];
+        f32 px_to_world = half_fov_tan * 2.0f / vp_h;
+
+        u32 verts_per_line = 6; // 2 triangles per line segment
+        u32 vert_count = frame_data->line_count * verts_per_line;
+        rl_arena *fa = rl_engine_get_frame_arena();
+        vertex *verts = rl_arena_push_array(fa, vertex, vert_count, true);
+
+        for (u32 i = 0; i < frame_data->line_count; i++) {
+            vec3 a, b;
+            glm_vec3_copy(frame_data->lines[i].a, a);
+            glm_vec3_copy(frame_data->lines[i].b, b);
+
+            // Line direction
+            vec3 dir;
+            glm_vec3_sub(b, a, dir);
+            f32 len = glm_vec3_norm(dir);
+            if (len < 1e-6f) continue;
+            glm_vec3_scale(dir, 1.0f / len, dir);
+
+            // Camera-facing perpendicular (billboard around line axis)
+            vec3 mid, to_cam, perp;
+            glm_vec3_add(a, b, mid);
+            glm_vec3_scale(mid, 0.5f, mid);
+            glm_vec3_sub(context.pos, mid, to_cam);
+            glm_vec3_cross(dir, to_cam, perp);
+            f32 perp_len = glm_vec3_norm(perp);
+            if (perp_len < 1e-6f) {
+                // Line points directly at camera — pick arbitrary perpendicular
+                vec3 up = {0, 1, 0};
+                glm_vec3_cross(dir, up, perp);
+                perp_len = glm_vec3_norm(perp);
+                if (perp_len < 1e-6f) {
+                    vec3 right = {1, 0, 0};
+                    glm_vec3_cross(dir, right, perp);
+                    perp_len = glm_vec3_norm(perp);
+                }
+            }
+            glm_vec3_scale(perp, 1.0f / perp_len, perp);
+
+            // Per-vertex half-width scaled by distance (constant screen-space width)
+            f32 dist_a = glm_vec3_distance(context.pos, a);
+            f32 dist_b = glm_vec3_distance(context.pos, b);
+            f32 hw_a = width_px * px_to_world * dist_a * 0.5f;
+            f32 hw_b = width_px * px_to_world * dist_b * 0.5f;
+
+            // 4 corners: v0/v1 at A, v2/v3 at B
+            vec3 v0, v1, v2, v3, off;
+            glm_vec3_scale(perp, hw_a, off);
+            glm_vec3_sub(a, off, v0);
+            glm_vec3_add(a, off, v1);
+            glm_vec3_scale(perp, hw_b, off);
+            glm_vec3_add(b, off, v2);
+            glm_vec3_sub(b, off, v3);
+
+            // 2 triangles: (v0, v1, v2), (v0, v2, v3)
+            u32 base = i * verts_per_line;
+            glm_vec3_copy(v0, verts[base + 0].pos);
+            glm_vec3_copy(v1, verts[base + 1].pos);
+            glm_vec3_copy(v2, verts[base + 2].pos);
+            glm_vec3_copy(v0, verts[base + 3].pos);
+            glm_vec3_copy(v2, verts[base + 4].pos);
+            glm_vec3_copy(v3, verts[base + 5].pos);
+        }
+
+        glBindVertexArray(context.line_vao);
+        glBindBuffer(GL_ARRAY_BUFFER, context.line_vbo);
+        glBufferData(GL_ARRAY_BUFFER, (i64)(sizeof(vertex) * vert_count), verts, GL_DYNAMIC_DRAW);
+
+        glDisable(GL_CULL_FACE);
+        for (u32 i = 0; i < frame_data->line_count; i++) {
+            opengl_shader_set_vec3(&context.light_shader, "flat_color", frame_data->lines[i].color);
+            glDrawArrays(GL_TRIANGLES, (i32)(i * verts_per_line), (i32)verts_per_line);
+        }
         glEnable(GL_CULL_FACE);
     }
 
@@ -422,6 +515,22 @@ b8 opengl_initialize(platform_window *platform_window, b8 vsync) {
     }
     glGenVertexArrays(1, &context.grid_vao);
 
+    // Line rendering (dynamic VBO, reuses light_shader)
+    glGenVertexArrays(1, &context.line_vao);
+    glGenBuffers(1, &context.line_vbo);
+    glBindVertexArray(context.line_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, context.line_vbo);
+    // position — layout(location = 0)
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void *)offsetof(vertex, pos));
+    glEnableVertexAttribArray(0);
+    // normal — layout(location = 1) — unused for lines but keeps shader happy
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void *)offsetof(vertex, normal));
+    glEnableVertexAttribArray(1);
+    // tex_coord — layout(location = 2)
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), (void *)offsetof(vertex, tex_coord));
+    glEnableVertexAttribArray(2);
+    glBindVertexArray(0);
+
     // Outline (JFA) pipeline
     if (!gl_outline_init(&context, context.window->settings.width, context.window->settings.height)) {
         RL_ERROR("Outline pipeline init failed");
@@ -446,6 +555,8 @@ void opengl_destroy() {
 
     gl_mesh_destroy(&context.cube_mesh);
     if (context.grid_vao) glDeleteVertexArrays(1, &context.grid_vao);
+    if (context.line_vao) glDeleteVertexArrays(1, &context.line_vao);
+    if (context.line_vbo) glDeleteBuffers(1, &context.line_vbo);
     gl_outline_destroy(&context);
     rl_arena_deinit(&context.arena);
 }

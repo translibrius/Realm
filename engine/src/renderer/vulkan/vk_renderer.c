@@ -189,6 +189,23 @@ b8 vulkan_initialize(platform_window *window, b8 vsync) {
         return false;
     }
 
+    if (!vk_line_pipeline_create(&context)) {
+        RL_ERROR("failed to create line pipeline");
+        return false;
+    }
+
+    // Line vertex buffer (host-visible, persistently mapped, 256 verts initial)
+    {
+        context.line_vertex_capacity = 256;
+        VkDeviceSize size = (VkDeviceSize)context.line_vertex_capacity * sizeof(vertex);
+        if (!vk_buffer_create(&context, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                              VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                              &context.line_vertex_buffer, &context.line_vertex_memory)) {
+            RL_ERROR("failed to create line vertex buffer");
+            return false;
+        }
+        vkMapMemory(context.device, context.line_vertex_memory, 0, size, 0, &context.line_vertex_mapped);
+    }
 
     if (!vk_depth_res_create(&context)) {
         RL_ERROR("failed to create depth resources");
@@ -283,6 +300,11 @@ void vulkan_destroy(void) {
     vk_placeholder_texture_destroy(&context);
     for (u32 i = 0; i < context.texture_count; i++) {
         vk_texture_destroy(&context, &context.textures[i].texture);
+    }
+    vk_line_pipeline_destroy(&context);
+    if (context.line_vertex_buffer) {
+        vkUnmapMemory(context.device, context.line_vertex_memory);
+        vk_buffer_destroy(&context, context.line_vertex_buffer, context.line_vertex_memory);
     }
     vk_grid_pipeline_destroy(&context);
     vk_wireframe_pipelines_destroy(&context);
@@ -550,6 +572,92 @@ void vulkan_submit_frame_data(rl_frame_data *frame_data) {
         context.outline.outlines = nullptr;
     }
     context.outline._final_composite_ds = VK_NULL_HANDLE;
+
+    // Copy line data and upload quad vertices (camera-facing quads for screen-space width)
+    context.frame_line_count = frame_data->line_count;
+    if (frame_data->line_count > 0 && frame_data->lines) {
+        rl_arena *fa4 = rl_engine_get_frame_arena();
+        u64 lsz = (u64)frame_data->line_count * sizeof(rl_frame_line);
+        context.frame_lines = rl_arena_push_array(fa4, rl_frame_line, frame_data->line_count, false);
+        mem_copy(context.frame_lines, frame_data->lines, lsz);
+
+        // 6 vertices per line (2 triangles forming a camera-facing quad)
+        u32 verts_per_line = 6;
+        u32 vert_count = frame_data->line_count * verts_per_line;
+        if (vert_count > context.line_vertex_capacity) {
+            vkUnmapMemory(context.device, context.line_vertex_memory);
+            vk_buffer_destroy(&context, context.line_vertex_buffer, context.line_vertex_memory);
+            context.line_vertex_capacity = vert_count * 2;
+            VkDeviceSize new_size = (VkDeviceSize)context.line_vertex_capacity * sizeof(vertex);
+            vk_buffer_create(&context, new_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                             &context.line_vertex_buffer, &context.line_vertex_memory);
+            vkMapMemory(context.device, context.line_vertex_memory, 0, new_size, 0, &context.line_vertex_mapped);
+        }
+
+        // Screen-space width parameters
+        f32 width_px = 2.5f;
+        rl_viewport_rect svr = frame_data->viewport_rect;
+        f32 vp_h = (svr.h > 0) ? svr.h : (f32)context.window->settings.height;
+        f32 half_fov_tan = 1.0f / context.proj[1][1];
+        f32 px_to_world = half_fov_tan * 2.0f / vp_h;
+
+        vertex *verts = (vertex *)context.line_vertex_mapped;
+        mem_zero(verts, sizeof(vertex) * vert_count);
+
+        for (u32 i = 0; i < frame_data->line_count; i++) {
+            vec3 a, b;
+            glm_vec3_copy(frame_data->lines[i].a, a);
+            glm_vec3_copy(frame_data->lines[i].b, b);
+
+            vec3 dir;
+            glm_vec3_sub(b, a, dir);
+            f32 len = glm_vec3_norm(dir);
+            if (len < 1e-6f) continue;
+            glm_vec3_scale(dir, 1.0f / len, dir);
+
+            vec3 mid, to_cam, perp;
+            glm_vec3_add(a, b, mid);
+            glm_vec3_scale(mid, 0.5f, mid);
+            glm_vec3_sub(context.camera_pos, mid, to_cam);
+            glm_vec3_cross(dir, to_cam, perp);
+            f32 perp_len = glm_vec3_norm(perp);
+            if (perp_len < 1e-6f) {
+                vec3 up = {0, 1, 0};
+                glm_vec3_cross(dir, up, perp);
+                perp_len = glm_vec3_norm(perp);
+                if (perp_len < 1e-6f) {
+                    vec3 right = {1, 0, 0};
+                    glm_vec3_cross(dir, right, perp);
+                    perp_len = glm_vec3_norm(perp);
+                }
+            }
+            glm_vec3_scale(perp, 1.0f / perp_len, perp);
+
+            f32 dist_a = glm_vec3_distance(context.camera_pos, a);
+            f32 dist_b = glm_vec3_distance(context.camera_pos, b);
+            f32 hw_a = width_px * px_to_world * dist_a * 0.5f;
+            f32 hw_b = width_px * px_to_world * dist_b * 0.5f;
+
+            vec3 v0, v1, v2, v3, off;
+            glm_vec3_scale(perp, hw_a, off);
+            glm_vec3_sub(a, off, v0);
+            glm_vec3_add(a, off, v1);
+            glm_vec3_scale(perp, hw_b, off);
+            glm_vec3_add(b, off, v2);
+            glm_vec3_sub(b, off, v3);
+
+            u32 base = i * verts_per_line;
+            glm_vec3_copy(v0, verts[base + 0].pos);
+            glm_vec3_copy(v1, verts[base + 1].pos);
+            glm_vec3_copy(v2, verts[base + 2].pos);
+            glm_vec3_copy(v0, verts[base + 3].pos);
+            glm_vec3_copy(v2, verts[base + 4].pos);
+            glm_vec3_copy(v3, verts[base + 5].pos);
+        }
+    } else {
+        context.frame_lines = nullptr;
+    }
 
     if (frame_data->text_count > 0 && frame_data->texts) {
         for (u32 i = 0; i < frame_data->text_count; i++) {

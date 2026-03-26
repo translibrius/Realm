@@ -86,6 +86,10 @@ typedef struct GL_Context {
     // Clear color (default from RL_CLEAR_COLOR_*)
     f32 clear_color[4];
 
+    // Line rendering (debug lines, frustum viz)
+    u32 line_vao;
+    u32 line_vbo;
+
     // Debug
     b8 debug_wireframe;
 

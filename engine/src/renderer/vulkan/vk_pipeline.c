@@ -29,9 +29,10 @@ b8 vk_pipeline_create_graphics(VK_Context *ctx, VK_PipelineConfig *cfg, VkPipeli
         .pVertexAttributeDescriptions = cfg->attributes
     };
 
+    VkPrimitiveTopology topo = cfg->topology ? cfg->topology : VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     VkPipelineInputAssemblyStateCreateInfo input_assembly_ci = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-        .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+        .topology = topo,
         .primitiveRestartEnable = VK_FALSE
     };
 
@@ -469,6 +470,72 @@ b8 vk_grid_pipeline_create(VK_Context *context) {
 void vk_grid_pipeline_destroy(VK_Context *context) {
     if (context->grid_pipeline) {
         vkDestroyPipeline(context->device, context->grid_pipeline, nullptr);
+    }
+}
+
+b8 vk_line_pipeline_create(VK_Context *context) {
+    VkShaderModule vert_module, frag_module;
+
+    if (!vk_shader_compile_to_module(context, asset_find(RL_ASSET_SHADER_VK_DEFAULT_VERT), &vert_module)) {
+        return false;
+    }
+    if (!vk_shader_compile_to_module(context, asset_find(RL_ASSET_SHADER_VK_LIGHT_FRAG), &frag_module)) {
+        vkDestroyShaderModule(context->device, vert_module, nullptr);
+        return false;
+    }
+
+    VkPipelineShaderStageCreateInfo stages[2] = {
+        {.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = vert_module, .pName = "main"},
+        {.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = frag_module, .pName = "main"},
+    };
+
+    VkVertexInputBindingDescription binding = vk_vertex_get_binding_desc();
+    VkVertexInputAttributeDescription attrs[3];
+    vk_vertex_get_attr_desc(attrs);
+
+    VkPushConstantRange push_range = {
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+        .offset = 0,
+        .size = sizeof(VK_MeshPushConstants),
+    };
+
+    VK_PipelineConfig cfg = {
+        .stages = stages,
+        .stage_count = 2,
+        .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+        .bindings = &binding,
+        .binding_count = 1,
+        .attributes = attrs,
+        .attribute_count = 3,
+        .set_layouts = &context->descriptor_set_layout,
+        .set_layout_count = 1,
+        .push_constants = &push_range,
+        .push_constant_count = 1,
+        .depth_test = true,
+        .depth_write = false,
+        .cull_mode = VK_CULL_MODE_NONE,
+        .polygon_mode = VK_POLYGON_MODE_FILL,
+        .msaa_samples = context->msaa_samples,
+        .render_pass = context->render_pass,
+        .existing_layout = context->pipeline_layout,
+    };
+
+    VkPipelineLayout reused_layout;
+    b8 ok = vk_pipeline_create_graphics(context, &cfg, &context->line_pipeline, &reused_layout);
+
+    vkDestroyShaderModule(context->device, vert_module, nullptr);
+    vkDestroyShaderModule(context->device, frag_module, nullptr);
+
+    if (ok) {
+        RL_TRACE("Successfully created line pipeline");
+    }
+
+    return ok;
+}
+
+void vk_line_pipeline_destroy(VK_Context *context) {
+    if (context->line_pipeline) {
+        vkDestroyPipeline(context->device, context->line_pipeline, nullptr);
     }
 }
 

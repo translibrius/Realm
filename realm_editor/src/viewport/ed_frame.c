@@ -2,6 +2,7 @@
 
 #include "core/ed_application.h"
 #include "viewport/ed_camera.h"
+#include "viewport/ed_frustum.h"
 #include "viewport/ed_gizmo.h"
 #include "viewport/ed_gizmo_transform.h"
 #include "panels/ed_inspector.h"
@@ -82,6 +83,9 @@ void ed_frame_update(ed_application *app, f64 dt) {
             }
 
             ed_gizmo_transform_build(&app->gizmo, app->scene, gizmo_entity, &frame);
+
+            // Camera frustum visualization
+            ed_frustum_build(app->scene, gizmo_entity, app->hovered_entity, &frame);
 
             // Update gizmo drag in progress
             if (app->gizmo.dragging) {

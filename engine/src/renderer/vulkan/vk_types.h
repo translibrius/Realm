@@ -288,6 +288,15 @@ typedef struct VK_Context {
     rl_frame_mesh  *world_overlays;
     u32             world_overlay_count;
 
+    // Line rendering (frustum viz, debug lines)
+    VkPipeline line_pipeline;
+    VkBuffer line_vertex_buffer;
+    VkDeviceMemory line_vertex_memory;
+    void *line_vertex_mapped;
+    u32 line_vertex_capacity; // max vertices the buffer can hold
+    rl_frame_line *frame_lines;
+    u32 frame_line_count;
+
     // Grid
     VkPipeline grid_pipeline;
     b8 show_grid;

@@ -17,6 +17,7 @@ typedef struct VK_PipelineConfig {
     VkPushConstantRange *push_constants;
     u32 push_constant_count;
 
+    VkPrimitiveTopology topology; // 0 = default (TRIANGLE_LIST)
     b8 depth_test;
     b8 depth_write;
     VkCompareOp depth_compare_op; // 0 (VK_COMPARE_OP_NEVER) = default to VK_COMPARE_OP_LESS
@@ -53,4 +54,7 @@ void vk_wireframe_pipelines_destroy(VK_Context *context);
 
 b8 vk_grid_pipeline_create(VK_Context *context);
 void vk_grid_pipeline_destroy(VK_Context *context);
+
+b8 vk_line_pipeline_create(VK_Context *context);
+void vk_line_pipeline_destroy(VK_Context *context);
 

@@ -154,11 +154,28 @@ Hover picking infrastructure is complete. Stencil-based outline was reverted (ma
 - [x] Game module reads/syncs camera from scene entity, falls back to `camera_init`
 - [x] Existing scenes + project template updated with Camera entity
 
-### 22c. Frustum visualization
+### 22c. Frustum visualization ✓
 
-- [ ] Wireframe frustum for camera entities in editor viewport (like light visualization)
-- [ ] Only draw when camera entity is selected or hovered
-- [ ] Frustum lines from camera component FOV/near/far + entity transform
+- [x] Line rendering infrastructure — `rl_frame_line` in `frame_data.h`, both GL and VK backends
+- [x] Lines rendered as camera-facing quads with constant screen-space pixel width (2.5px)
+- [x] Camera-only entities get 0.15-scale gray icon cube (same pattern as lights)
+- [x] Camera entity picking via AABB (same pattern as lights)
+- [x] Frustum wireframe from camera component FOV/near/far + entity transform via `camera_from_entity()`
+- [x] Only drawn when camera entity is selected (accent color) or hovered (accent_hover)
+- [x] Far plane capped at 3 units for readable visualization (actual far_clip unaffected)
+- [x] GL grid depth-write fix — `glDepthMask(GL_FALSE)` to match VK, avoids occluding debug lines
+- [x] 16:9 default aspect ratio for frustum display
+
+**Architecture decisions:**
+- `rl_frame_line` is a generic world-space line primitive (start, end, color) — reusable for future debug drawing
+- Quad expansion happens in the renderer (CPU-side), not in the line producer — keeps the API simple
+- Screen-space width uses `1 / proj[1][1]` to derive pixel-to-world scale per depth, so lines stay constant thickness regardless of zoom
+
+**Nice-to-have polish (deferred):**
+- Semi-transparent line blending (alpha ~0.7) so lines don't fully occlude scene behind them
+- Faint semi-transparent fill quad on the far plane to visualize the volume
+- Near-plane crosshair marking camera center
+- Configurable frustum display distance in editor settings (currently hardcoded 3.0)
 
 ### 22d. Camera preview (deferred — needs offscreen render targets)
 
@@ -175,6 +192,12 @@ Hover picking infrastructure is complete. Stencil-based outline was reverted (ma
 - Ctrl+C / Ctrl+V / Ctrl+X in text input, Ctrl+A select all
 - Typing/backspace replaces selection
 - Console "Copy Log" button — dumps filtered lines to clipboard (pragmatic alternative to full multi-widget text selection, which Clay doesn't support)
+
+### Debug drawing
+- AABB wireframe visualization for selected entities (uses `rl_frame_line` infra from 22c)
+- Light radius/attenuation sphere wireframe
+- Physics collider outlines
+- Arbitrary debug lines from game module (expose `rl_frame_line` submission through module API)
 
 ### Editor features
 - Custom title bar on macOS/Linux (stubs exist)
@@ -220,14 +243,14 @@ Phase 1–20: Foundation + infrastructure       all done
     │
     ├── Phase 21: Asset Drag-Drop + Highlight  ◐ 21c done (JFA outlines), 21a/21b/21d remaining
     │
-    ├── Phase 22: Camera Component             ◐ 22a+22b done, 22c remaining, 22d deferred
+    ├── Phase 22: Camera Component             ◐ 22a+22b+22c done, 22d deferred
     │       │
     │       └── Future: Play Mode              ○ depends on 22
     │
     └── Future: Scripting Runtime              ○ depends on 17 (behavior seam)
 ```
 
-Phases 18b, 21, 22c are independent and can be done in any order.
+Phases 18b, 21, 22d are independent and can be done in any order.
 
 ---
 

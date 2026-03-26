@@ -225,6 +225,25 @@ b8 vk_command_buffer_record(VK_Context *context, VkCommandBuffer buffer, u32 ima
             vk_cmd_bind_and_draw(context, buffer, fm);
         }
 
+        // --- Line pass (frustum viz, debug lines — camera-facing quads) ---
+        if (context->frame_line_count > 0 && context->frame_lines) {
+            vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->line_pipeline);
+            VkDeviceSize vb_offset = 0;
+            vkCmdBindVertexBuffers(buffer, 0, 1, &context->line_vertex_buffer, &vb_offset);
+            vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->pipeline_layout,
+                0, 1, &context->descriptor_sets[context->current_frame], 0, nullptr);
+
+            u32 verts_per_line = 6;
+            VK_MeshPushConstants pc;
+            glm_mat4_identity(pc.model);
+            for (u32 i = 0; i < context->frame_line_count; i++) {
+                glm_vec3_copy(context->frame_lines[i].color, pc.material_params);
+                pc.material_params[3] = 0.0f;
+                vkCmdPushConstants(buffer, context->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(VK_MeshPushConstants), &pc);
+                vkCmdDraw(buffer, verts_per_line, 1, i * verts_per_line, 0);
+            }
+        }
+
         // --- Outline composite (JFA result blended onto scene) ---
         vk_outline_record_composite(context, buffer);
 
