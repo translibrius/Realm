@@ -12,3 +12,7 @@ CMakeUserPresets.json
 .profile_log
 __pycache__/
 realm_test_*
+.claude/austeja/
+.claude/austeja_second_mark.txt
+.claude/generate_funscript.py
+austeja_third_mark.funscript
