@@ -15,4 +15,6 @@ realm_test_*
 .claude/austeja/
 .claude/austeja_second_mark.txt
 .claude/generate_funscript.py
+.claude/settings.local.json
 austeja_third_mark.funscript
+engine/vendor/tracy/
